@@ -24,7 +24,7 @@ Newtonian gravity is the weak-field, slow-motion limit of general relativity. It
 - weak gravity: ε = GM / (r c²) ≪ 1
 - slow motion: v / c ≪ 1
 
-Even at Mercury, where ε ≈ 2.5 × 10⁻⁸, it is measurably wrong. It misses Mercury's extra 43″ per century of perihelion precession. So step 1.4 replaces it for the solar system with the Einstein–Infeld–Hoffmann equations, and Newtonian gravity stays as the fast model where ε is tiny. It cannot produce light bending, gravitational waves or black holes at all.
+Even at Mercury, where ε ≈ 2.5 × 10⁻⁸, it is measurably wrong. It misses Mercury's extra 43″ per century of perihelion precession. So for the solar system Worldline uses the [Einstein–Infeld–Hoffmann equations](einstein-infeld-hoffmann.md) instead. Newtonian gravity stays as the fast model where ε is tiny. It cannot produce light bending, gravitational waves or black holes at all.
 
 The model also assumes bodies never share a position (the force would be infinite). Collision handling in step 1.7 enforces that.
 

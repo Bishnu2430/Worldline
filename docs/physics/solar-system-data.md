@@ -21,29 +21,30 @@ The fetch script copies JPL's numbers into the files exactly as published, with 
 
 ## Validation
 
-`crates/worldline-data/tests/validation_solar_system.rs`: start from JPL's 2025 snapshot, simulate one year with Newtonian gravity and IAS15, and compare with JPL's 2026 positions.
+`crates/worldline-data/tests/validation_solar_system.rs`: start from JPL's 2025 snapshot, simulate one year with IAS15, and compare with JPL's 2026 positions. The test runs twice, with Newtonian gravity and with relativistic (Einstein–Infeld–Hoffmann) gravity.
 
-| Body | Error after one year | Error relative to its distance |
-|---|---|---|
-| Mercury | 88 km | 1.3 ppm |
-| Venus | 96 km | 0.9 ppm |
-| Earth | 61 km | 0.4 ppm |
-| Moon | 51 km | 0.3 ppm |
-| Mars | 31 km | 0.1 ppm |
-| Jupiter | 0.5 km | 0.001 ppm |
-| Saturn, Uranus, Neptune, Pluto | ≤ 0.1 km | < 0.001 ppm |
-| Sun | 0.1 km | 0.1 ppm |
+| Body | Newtonian error | Relativistic error | Improvement |
+|---|---|---|---|
+| Mercury | 88 km | 0.25 km | 345× |
+| Venus | 96 km | 0.13 km | 764× |
+| Earth | 61 km | **0.41 km** | 149× |
+| Moon | 51 km | 16 km | 3× |
+| Mars | 31 km | 0.19 km | 164× |
+| Jupiter | 0.5 km | 0.14 km | 4× |
+| Saturn, Uranus, Neptune, Pluto | ≤ 0.1 km | ≤ 0.1 km | about 1× |
+| Sun | 0.1 km | 0.1 km | 1× |
 
-The roadmap asked for Earth within 1 part in 10,000 (about 15,000 km). It lands within 61 km, 250× better. The test requires every body to be within 10 parts per million of its distance.
+The roadmap asked for Earth within 1 part in 10,000 (about 15,000 km). With relativity it lands within 410 m after a full year. The test requires:
+- every body within 10 parts per million of its distance, under both models;
+- each inner planet's error cut at least 10× by relativity.
 
 ## What the remaining errors mean
 
-JPL's ephemeris includes physics this Newtonian simulation leaves out:
-- **general relativity**, strongest close to the Sun,
-- the gravity of **asteroids**,
-- the **Sun's oblateness**,
-- **tides** between Earth and the Moon.
+With Newtonian gravity alone, the errors followed relativity's signature: tens of km for the inner planets and well under 1 km for the outer ones. Step 1.3 predicted that adding relativity would shrink them, and step 1.4 confirmed it, by factors of 150 to 760.
 
-The errors follow relativity's signature: tens of km for the inner planets and well under 1 km for the outer ones. The size fits too. Relativity rotates Mercury's orbit by about 0.43″ per year, which moves it roughly 120 km, the same scale as its 88 km error.
+What remains is physics JPL models that Worldline doesn't yet:
+- **asteroids,** whose pull matters most for Mars;
+- **the Sun's slight flattening;**
+- **for the Moon,** Earth's equatorial bulge and the tides between Earth and the Moon. These explain why the Moon improves only 3×.
 
-**Prediction for step 1.4:** adding relativistic (Einstein–Infeld–Hoffmann) gravity should shrink the inner planets' errors well below these values. Whatever remains then should be mostly asteroids.
+See [einstein-infeld-hoffmann.md](einstein-infeld-hoffmann.md).

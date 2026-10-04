@@ -13,8 +13,8 @@ use crate::gravity::Gravity;
 /// It is second-order accurate, time-reversible and symplectic: the energy
 /// error oscillates but does not drift, even over millions of orbits. That
 /// makes it a good fast integrator. It assumes accelerations depend only on
-/// positions, so it is not used with velocity-dependent relativistic gravity.
-/// Source: Verlet 1967. See `docs/physics/integrators.md`.
+/// positions, so it refuses velocity-dependent (relativistic) gravity; use
+/// [`super::Ias15`] for that. Source: Verlet 1967. See `docs/physics/integrators.md`.
 #[derive(Debug, Clone)]
 pub struct Leapfrog {
     /// Fixed step size, in s.
@@ -42,6 +42,11 @@ impl Integrator for Leapfrog {
     }
 
     fn step(&mut self, system: &mut System, gravity: &dyn Gravity, max_dt: f64) -> f64 {
+        assert!(
+            !gravity.velocity_dependent(),
+            "leapfrog can't integrate velocity-dependent gravity ({}); use IAS15",
+            gravity.name()
+        );
         let h = self.dt.min(max_dt);
         let bodies = &mut system.bodies;
         self.acc.resize(bodies.len(), DVec3::ZERO);
