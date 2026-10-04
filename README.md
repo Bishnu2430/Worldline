@@ -20,8 +20,8 @@
 |---|---|---|
 | Kepler's third law (Mercury, Earth and Jupiter orbit periods) | T = 2π √(a³/GM) | ✅ passing, to 1 part in 100 million |
 | Energy conservation over 10,000 orbits (IAS15 integrator) | at the limit of double-precision rounding | ✅ passing, error 1 × 10⁻¹⁴ |
-| One year of the real solar system vs. NASA JPL | Earth within 1 part in 10,000 | ✅ passing, Earth within 61 km (0.4 ppm) |
-| Mercury's perihelion precession (relativistic part) | 43″ per century | planned |
+| One year of the real solar system vs. NASA JPL | Earth within 1 part in 10,000 | ✅ passing, Earth within 0.41 km with relativity (61 km without) |
+| Mercury's perihelion precession (relativistic part) | 42.9805″ per century | ✅ passing, 42.9807″ per century |
 | Light bending at the Sun's edge | 1.75″ | planned |
 | Hulse–Taylor binary pulsar orbital decay | −2.40 × 10⁻¹² s/s | planned |
 | Innermost stable orbit, photon sphere and shadow of a non-spinning black hole | 6, 3 and √27 GM/c² | planned |
