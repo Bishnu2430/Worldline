@@ -35,5 +35,7 @@
 
 - Cargo workspace under `crates/`. Add a crate only when its milestone starts.
 - Before a step is done, all of these must pass: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
-- Validation tests go in `crates/worldline-core/tests/validation_*.rs`. Mark slow ones `#[ignore]` and run them with `cargo test --release -- --ignored`.
-- Environment: Windows 11, stable Rust (MSVC toolchain), PowerShell.
+- Validation tests go in the crate they validate: `crates/<crate>/tests/validation_*.rs`. Mark slow ones `#[ignore]` and run them with `cargo test --release -- --ignored`.
+- Pass limits must come from theory (rounding bounds, the physics a later step must detect) or from the roadmap, never from guesses. Print measured values with `--nocapture` so the owner can see them.
+- Real-world data lives in `crates/worldline-data/data/` as plain CSV with its provenance in the header. Fetch scripts in `tools/` (Python standard library only) regenerate it. Copy published digits exactly.
+- Environment: Windows 11, stable Rust (MSVC toolchain), PowerShell and Git Bash. Python is available for tools.
