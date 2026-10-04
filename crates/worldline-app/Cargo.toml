@@ -1,0 +1,20 @@
+[package]
+name = "worldline-app"
+description = "Worldline's desktop app: the 3D view, sandbox controls and time controls."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "worldline"
+path = "src/main.rs"
+
+[dependencies]
+eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "wgpu", "wayland", "x11", "accesskit"] }
+worldline-core = { path = "../worldline-core" }
+worldline-data = { path = "../worldline-data" }
+
+[lints]
+workspace = true
