@@ -1,0 +1,2 @@
+# Store text files with LF endings so formatting checks match on every OS.
+* text=auto eol=lf

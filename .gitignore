@@ -1,0 +1,13 @@
+# Rust build output
+/target
+**/*.rs.bk
+*.pdb
+
+# Generated validation output (plots are committed under docs/validation/ instead)
+/validation-output/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
