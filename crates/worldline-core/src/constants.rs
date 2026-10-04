@@ -1,0 +1,70 @@
+//! Physical and astronomical constants, in SI units.
+//!
+//! Each value cites its source. "Exact" means the value is fixed by the
+//! definition of the SI or IAU units, so it has no uncertainty.
+
+use std::f64::consts::PI;
+
+/// Speed of light in vacuum, m/s. Exact (SI 2019).
+pub const C: f64 = 299_792_458.0;
+
+/// Newtonian constant of gravitation, m³ kg⁻¹ s⁻². CODATA 2018.
+///
+/// Known to only about 5 significant figures (22 ppm). Gravitational
+/// parameters (GM) are measured far more precisely, so bodies store GM
+/// instead of mass; see [`crate::Body`].
+pub const G: f64 = 6.674_30e-11;
+
+/// Planck constant, J s. Exact (SI 2019).
+pub const H: f64 = 6.626_070_15e-34;
+
+/// Reduced Planck constant ħ = h / 2π, J s.
+pub const HBAR: f64 = H / (2.0 * PI);
+
+/// Boltzmann constant, J/K. Exact (SI 2019).
+pub const K_B: f64 = 1.380_649e-23;
+
+/// Astronomical unit, m. Exact (IAU 2012 Resolution B2).
+pub const AU: f64 = 149_597_870_700.0;
+
+/// Parsec, m. Exact by definition: 648 000 / π astronomical units (IAU 2015 Resolution B2).
+pub const PARSEC: f64 = 648_000.0 / PI * AU;
+
+/// One day, s.
+pub const DAY: f64 = 86_400.0;
+
+/// Julian year (365.25 days), s. The standard year in astronomy.
+pub const JULIAN_YEAR: f64 = 365.25 * DAY;
+
+/// Light year, m: the distance light travels in one Julian year.
+pub const LIGHT_YEAR: f64 = C * JULIAN_YEAR;
+
+/// Nominal solar gravitational parameter GM☉, m³/s². IAU 2015 Resolution B3.
+pub const GM_SUN: f64 = 1.327_124_4e20;
+
+/// Nominal solar radius, m. IAU 2015 Resolution B3.
+pub const SOLAR_RADIUS: f64 = 6.957e8;
+
+/// Solar mass, kg, derived as GM☉ / G. Inherits G's 22 ppm uncertainty.
+pub const SOLAR_MASS: f64 = GM_SUN / G;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_close(actual: f64, expected: f64, rel_tol: f64) {
+        let rel = ((actual - expected) / expected).abs();
+        assert!(
+            rel < rel_tol,
+            "{actual} vs {expected}: relative error {rel:e}"
+        );
+    }
+
+    #[test]
+    fn derived_units_match_textbook_values() {
+        assert_close(PARSEC, 3.085_677_581e16, 1e-9);
+        assert_close(LIGHT_YEAR, 9.460_730_472_580_8e15, 1e-12);
+        assert_close(SOLAR_MASS, 1.988_4e30, 1e-4);
+        assert_close(HBAR, 1.054_571_817e-34, 1e-9);
+    }
+}

@@ -1,0 +1,14 @@
+[package]
+name = "worldline-core"
+description = "Worldline's physics engine: bodies, gravity models and integrators, with no graphics dependencies."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+glam = "0.34.0"
+
+[lints]
+workspace = true
