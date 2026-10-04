@@ -56,7 +56,7 @@ impl Integrator for Leapfrog {
             b.velocity += 0.5 * h * *a;
         }
 
-        system.time += h;
+        system.tick(h);
         h
     }
 }
