@@ -14,3 +14,10 @@ version = "0.1.0"
 dependencies = [
  "glam",
 ]
+
+[[package]]
+name = "worldline-data"
+version = "0.1.0"
+dependencies = [
+ "worldline-core",
+]
