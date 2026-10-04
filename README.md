@@ -2,7 +2,9 @@
 
 **A relativistic universe sandbox.** Drop black holes, neutron stars and planets into the real universe and watch general relativity play out. Every physics model is validated against theory and observation.
 
-> **Status:** pre-alpha. Planning is done and engine work is starting. See the [roadmap](docs/ROADMAP.md).
+> **Status:** pre-alpha. The engine runs the real solar system with relativistic gravity in a 3D window. See the [roadmap](docs/ROADMAP.md).
+
+![Worldline running the real solar system with relativistic gravity, five months after 1 January 2025](docs/images/solar-system-step-1.5.png)
 
 ## What v1 will do
 
@@ -29,6 +31,20 @@
 | Chandrasekhar limit (ideal carbon-oxygen white dwarf) | 1.46 M☉ | planned |
 | Tidal disruption radius | r_t ≈ R (M/m)^(1/3) | planned |
 
+## Run it
+
+You need [Rust](https://rustup.rs). From the repository root:
+
+```bash
+cargo run --release
+```
+
+The first build takes a few minutes. Then:
+- drag to rotate,
+- scroll to zoom,
+- click a body to inspect it,
+- double-click a body to follow it.
+
 ## Built with
 
 Rust · wgpu · egui
@@ -38,6 +54,7 @@ Rust · wgpu · egui
 - [Scope](docs/SCOPE.md): what v1 includes and excludes, and why
 - [Roadmap](docs/ROADMAP.md): milestones and steps
 - [Architecture](docs/ARCHITECTURE.md): how the engine picks physics models
+- [The desktop app](docs/app.md): frame loop, double-precision 3D view, camera and trails
 
 ## License
 
