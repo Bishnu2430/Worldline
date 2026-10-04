@@ -18,6 +18,7 @@
 
 | Test | Expected | Status |
 |---|---|---|
+| Kepler's third law (Mercury, Earth and Jupiter orbit periods) | T = 2π √(a³/GM) | ✅ passing, to 1 part in 100 million |
 | Mercury's perihelion precession (relativistic part) | 43″ per century | planned |
 | Light bending at the Sun's edge | 1.75″ | planned |
 | Hulse–Taylor binary pulsar orbital decay | −2.40 × 10⁻¹² s/s | planned |

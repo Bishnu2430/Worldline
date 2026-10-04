@@ -21,7 +21,7 @@ Each crate is added when its milestone starts, not before.
 
 ## Units and frames
 
-Everything uses SI units in `f64`. Each gravitationally bound system is simulated in its own local frame, centered near its barycenter, to keep precision. The renderer draws everything relative to the camera, so the GPU's single precision never limits accuracy.
+Everything uses SI units in `f64`. Bodies store their gravitational parameter GM instead of mass, because GM is measured about 100,000 times more precisely than G (see [newtonian-gravity.md](physics/newtonian-gravity.md)). Each gravitationally bound system is simulated in its own local frame, centered near its barycenter, to keep precision. The renderer draws everything relative to the camera, so the GPU's single precision never limits accuracy.
 
 ## Choosing a physics model
 
