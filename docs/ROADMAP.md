@@ -11,7 +11,7 @@ At under 5 hours a week, v1 is roughly 6–12 months away. We'll recalibrate aft
 | # | Step | How you verify it | Status |
 |---|---|---|---|
 | 1.1 | Rust workspace, physical constants, body types, Newtonian gravity, first integrator | `cargo test`: a two-body orbit obeys Kepler's third law and conserves energy | ✅ |
-| 1.2 | IAS15 high-accuracy adaptive integrator | Energy error stays near the limit of double precision over 10,000 orbits | ⬜ |
+| 1.2 | IAS15 high-accuracy adaptive integrator | Energy error stays near the limit of double precision over 10,000 orbits | ✅ |
 | 1.3 | Real solar system loaded from a NASA JPL Horizons snapshot | After one simulated year, Earth's position matches JPL's to better than 1 part in 10,000 | ⬜ |
 | 1.4 | Einstein–Infeld–Hoffmann relativistic gravity | Mercury's perihelion precesses 43″ per century beyond the Newtonian value | ⬜ |
 | 1.5 | First window: 3D view, bodies, orbit trails, camera, time controls | `cargo run` shows the solar system moving | ⬜ |

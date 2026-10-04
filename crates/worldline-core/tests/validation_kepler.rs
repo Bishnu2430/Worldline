@@ -27,7 +27,7 @@ fn measure_period(system: &mut System, dt: f64) -> f64 {
     let mut swept = 0.0;
     let mut previous = relative(system);
     loop {
-        let t0 = system.time;
+        let t0 = system.time();
         leapfrog.step(system, &Newtonian, f64::INFINITY);
         let current = relative(system);
         // Signed angle turned during this step, in the orbital (x–y) plane.
