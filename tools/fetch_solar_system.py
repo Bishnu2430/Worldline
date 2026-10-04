@@ -116,7 +116,9 @@ def main():
             state = fetched[naif_id][jd]
             lines.append(",".join([name, str(naif_id), gms[naif_id], str(radius), *state]))
         path = OUT_DIR / file_name
-        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        # Always LF line endings, even on Windows, so files are identical everywhere.
+        with open(path, "w", encoding="utf-8", newline="\n") as file:
+            file.write("\n".join(lines) + "\n")
         print(f"Wrote {path}")
 
 
