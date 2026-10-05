@@ -13,8 +13,11 @@ path = "src/main.rs"
 
 [dependencies]
 eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "wgpu", "wayland", "x11", "accesskit"] }
+glam = "0.34.0"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 worldline-core = { path = "../worldline-core" }
 worldline-data = { path = "../worldline-data" }
+worldline-render = { path = "../worldline-render" }
 
 [lints]
 workspace = true

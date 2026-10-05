@@ -37,5 +37,8 @@
 - Before a step is done, all of these must pass: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 - Validation tests go in the crate they validate: `crates/<crate>/tests/validation_*.rs`. Mark slow ones `#[ignore]` and run them with `cargo test --release -- --ignored`.
 - Pass limits must come from theory (rounding bounds, the physics a later step must detect) or from the roadmap, never from guesses. Print measured values with `--nocapture` so the owner can see them.
+- GPU code lives in `worldline-render`, which knows nothing about physics. Its WGSL shaders must be validated by a naga unit test so CI catches shader errors without a GPU.
+- Textures live in `crates/worldline-app/assets/textures/`. Every image's source and license goes in `CREDITS.md`. Never use imagery labeled fictional.
+- To check the app visually, launch it and capture only its window (PrintWindow). Never bring it to the foreground, because that steals the owner's mouse clicks.
 - Real-world data lives in `crates/worldline-data/data/` as plain CSV with its provenance in the header. Fetch scripts in `tools/` (Python standard library only) regenerate it. Copy published digits exactly.
 - Environment: Windows 11, stable Rust (MSVC toolchain), PowerShell and Git Bash. Python is available for tools.

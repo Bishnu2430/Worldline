@@ -15,10 +15,11 @@ crates/
   worldline-core     physics: units, bodies, integrators, gravity models, events (collisions, mergers, collapse)
   worldline-data     catalogs and real-world snapshots (JPL Horizons, notable objects)
   worldline-app      desktop app: window, 3D view, egui interface, sandbox tools   (since step 1.5)
-  worldline-render   wgpu GPU rendering: ray-traced lensing, accretion disks, SPH  (milestone 3)
+  worldline-render   wgpu GPU rendering: textured globes now; ray-traced lensing,
+                     accretion disks and SPH in milestone 3                       (since step 1b.2)
 ```
 
-Each crate is added when its milestone starts, not before. Until milestone 3, `worldline-app` draws the 3D view itself: positions are projected relative to the camera in double precision, then drawn with egui's painter, which itself renders through wgpu. See [app.md](app.md).
+Each crate is added when its milestone starts, not before. The 3D view is drawn in layers. Rings, trails, dots and labels are projected relative to the camera in double precision and drawn with egui's painter. Globes are drawn by `worldline-render` on the GPU. See [app.md](app.md) and [rendering.md](rendering.md).
 
 ## Units and frames
 

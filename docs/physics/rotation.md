@@ -34,6 +34,7 @@ These are mean models, built for maps and pointing at the 0.01°–0.1° level. 
 | Mercury's 3:2 spin–orbit resonance | spins exactly 3 times per 2 orbits | orbit 87.969 days ÷ spin 58.646 days = **1.50000** |
 | Earth's sidereal day | 23 h 56 min 4.1 s | 86164.10 s |
 | The Moon keeps one face toward Earth (rotation model plus our simulated orbit, over a month) | Earth stays near (0°, 0°) in the Moon's sky, rocking at most ±7.9° in longitude and ±6.7° in latitude (libration) | longitude −5.58° to +5.18°, latitude −6.57° to **+6.67°** |
+| Where the Sun is overhead on Earth at 2025-01-01 00:00 TDB | latitude = the Sun's declination, about −23.0°; longitude about −179.0° (noon over the date line, adjusted for the equation of time and TDB − UTC) | **−23.00°, −178.76°** |
 | Cassini's laws for the Moon | spin axis 1.54° from the ecliptic pole, orbit axis 4.99°–5.30°, on opposite sides | 1.551°, 5.004°, 178.4° apart |
 
 The Moon checks combine NASA's rotation model with Worldline's own relativistic N-body orbit. If either were wrong, Earth would drift across the Moon's sky.

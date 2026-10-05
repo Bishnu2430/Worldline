@@ -1355,6 +1355,8 @@ dependencies = [
  "num-traits",
  "png",
  "tiff",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]
@@ -3719,8 +3721,11 @@ name = "worldline-app"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "glam",
+ "image",
  "worldline-core",
  "worldline-data",
+ "worldline-render",
 ]
 
 [[package]]
@@ -3735,6 +3740,16 @@ name = "worldline-data"
 version = "0.1.0"
 dependencies = [
  "worldline-core",
+]
+
+[[package]]
+name = "worldline-render"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "glam",
+ "naga",
+ "wgpu",
 ]
 
 [[package]]
