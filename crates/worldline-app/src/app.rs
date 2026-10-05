@@ -33,6 +33,7 @@ const GM_EARTH: f64 = 3.986_004_355_070_227e14;
 
 const SUN: usize = 0;
 const EARTH: usize = 3;
+const MOON: usize = 4;
 
 pub struct WorldlineApp {
     simulation: Simulation,
@@ -58,6 +59,7 @@ impl WorldlineApp {
                 trails: true,
                 grid: true,
                 labels: true,
+                spin_axes: true,
             },
             last_frame: Instant::now(),
         }
@@ -152,6 +154,10 @@ impl WorldlineApp {
             ui.checkbox(&mut self.options.trails, "Orbit trails");
             ui.checkbox(&mut self.options.grid, "Distance rings (ecliptic plane)");
             ui.checkbox(&mut self.options.labels, "Labels");
+            ui.checkbox(
+                &mut self.options.spin_axes,
+                "Spin axes (dot marks the spin direction)",
+            );
             ui.add_space(4.0);
             ui.label(
                 RichText::new(
@@ -190,6 +196,41 @@ impl WorldlineApp {
                 ui.label(format!(
                     "{:.2} km/s",
                     (body.velocity - sun.velocity).length() / 1e3
+                ));
+                ui.end_row();
+            }
+            if let Some(model) = self.simulation.rotation(self.selected) {
+                let jd = self.simulation.julian_date();
+                let hours = model.sidereal_period() / 3600.0;
+                ui.label("Day (sidereal)");
+                ui.label(if hours < 72.0 {
+                    format!("{hours:.3} h")
+                } else {
+                    format!("{:.2} days", hours / 24.0)
+                });
+                ui.end_row();
+                ui.label("Spin");
+                ui.label(if model.spin_rate() > 0.0 {
+                    "prograde"
+                } else {
+                    "retrograde"
+                });
+                ui.end_row();
+                // Tilt of the spin axis to the orbit: around Earth for the
+                // Moon, around the Sun for the planets, to the ecliptic for the Sun.
+                let orbit_normal = match self.selected {
+                    SUN => DVec3::Z,
+                    MOON => orbit_normal(body, &bodies[EARTH]),
+                    _ => orbit_normal(body, sun),
+                };
+                ui.label(if self.selected == SUN {
+                    "Tilt to ecliptic"
+                } else {
+                    "Axial tilt"
+                });
+                ui.label(format!(
+                    "{:.2}°",
+                    model.spin_axis(jd).angle_between(orbit_normal).to_degrees()
                 ));
                 ui.end_row();
             }
@@ -266,6 +307,13 @@ impl eframe::App for WorldlineApp {
             ui.ctx().request_repaint();
         }
     }
+}
+
+/// Direction of a body's orbital angular momentum around `center`.
+fn orbit_normal(body: &worldline_core::Body, center: &worldline_core::Body) -> DVec3 {
+    (body.position - center.position)
+        .cross(body.velocity - center.velocity)
+        .normalize()
 }
 
 /// Looking down on the inner solar system at an angle.

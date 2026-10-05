@@ -60,6 +60,33 @@ A portfolio-grade desktop sandbox where you place real or invented celestial bod
 - Add, select, drag, launch, edit and delete bodies.
 - Time controls from real time up to millions of years per second.
 
+## Added to v1: M1b, the full solar system (decided 2026-10-05)
+
+The owner asked for a much richer solar system, built now, before the sandbox tools.
+
+**Guiding principle: detail follows focus.** Zoomed out, bodies are simple and cheap: dots, plain textures, simple rings. When you focus on a body, everything factual we know about it comes alive:
+- the Sun's wind and light,
+- Saturn's real ring structure,
+- Jupiter's storms,
+- Earth's land, oceans and city lights.
+
+Focusing also zooms the camera in close. Computation follows the same rule, but only where physics allows it. Massive bodies always run at full accuracy. Massless test particles, such as small moons, ring particles and asteroids, can't pull on anything, so computing them only when needed changes nothing else.
+
+**Honest labels.** Everything shown is one of three kinds, and the app says which:
+- **measured data,** such as orbits, rotation and textures from spacecraft;
+- a **physics model,** such as the solar wind's Parker spiral or magnetopause pressure balance;
+- a **visual approximation,** such as cloud drift.
+
+**Contents:**
+- **Real rotation:** IAU spin axes and rates.
+- **GPU renderer:** textured, lit, rotating planets (textures from Solar System Scope, CC BY 4.0, and NASA).
+- **Focus details:** clouds and atmospheres, Saturn's rings, Jupiter's bands and Great Red Spot, the Sun's surface.
+- **Moons:** the major moons with hierarchical integration, then all known moons (more than 400).
+- **Small bodies:** dwarf planets, major asteroids and comets.
+- **Belts:** the asteroid belt, Jupiter's Trojans, the Kuiper belt, zodiacal dust.
+- **The Sun's reach:** solar wind, heliosphere boundaries, sunlight and light travel time.
+- **Around the planets:** magnetospheres and radiation belts.
+
 ## v2: committed, starts once v1 is established
 
 All of these will be built. They are ordered after v1 because they depend on its engine, not because they are optional.

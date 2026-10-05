@@ -13,6 +13,7 @@ pub struct ViewOptions {
     pub trails: bool,
     pub grid: bool,
     pub labels: bool,
+    pub spin_axes: bool,
 }
 
 /// A body as drawn on screen, kept for picking with the mouse.
@@ -131,6 +132,20 @@ pub fn draw(
         if i == selected {
             painter.circle_stroke(center, radius + 4.0, Stroke::new(1.5, Color32::WHITE));
         }
+        if options.spin_axes
+            && let Some(model) = simulation.rotation(i)
+        {
+            draw_spin_axis(
+                painter,
+                viewport,
+                camera,
+                body.position,
+                model.spin_axis(simulation.julian_date()),
+                radius,
+                projection.points_per_meter,
+                color,
+            );
+        }
         drawn.push(DrawnBody {
             index: i,
             center,
@@ -167,6 +182,29 @@ pub fn draw(
         }
     }
     (drawn, enlarged)
+}
+
+/// Draws a body's spin axis through it, poking out on both sides. The end
+/// the spin points toward (right-hand rule) gets a dot.
+#[allow(clippy::too_many_arguments)]
+fn draw_spin_axis(
+    painter: &Painter,
+    viewport: Rect,
+    camera: &Camera,
+    center: DVec3,
+    axis: DVec3,
+    radius: f32,
+    points_per_meter: f64,
+    color: Color32,
+) {
+    let half_length = f64::from((radius * 2.0).max(12.0)) / points_per_meter;
+    let ends = [center - axis * half_length, center + axis * half_length]
+        .map(|p| camera.project(p, viewport).map(|p| p.position));
+    if let [Some(south), Some(north)] = ends {
+        let faint = Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 170);
+        painter.line_segment([south, north], Stroke::new(1.5, faint));
+        painter.circle_filled(north, 2.0, Color32::WHITE);
+    }
 }
 
 /// The body under the pointer, if any: the nearest one within reach.

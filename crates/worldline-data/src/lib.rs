@@ -1,10 +1,13 @@
 //! Real-world data for Worldline.
 //!
 //! Every value comes from a published source, and the data files record
-//! their own provenance. `tools/fetch_solar_system.py` regenerates them.
+//! their own provenance. Scripts in `tools/` regenerate them.
 
+mod kernel;
+mod rotation;
 mod snapshot;
 
+pub use rotation::rotation_model;
 pub use snapshot::{ParseError, Snapshot};
 
 /// The solar system at 2025-01-01 00:00:00 TDB: the Sun, the eight planets,

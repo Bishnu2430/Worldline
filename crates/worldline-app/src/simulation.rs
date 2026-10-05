@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 use worldline_core::constants::DAY;
 use worldline_core::gravity::{EinsteinInfeldHoffmann, Gravity};
 use worldline_core::integrator::{Ias15, Integrator};
+use worldline_core::rotation::RotationModel;
 use worldline_core::{DVec3, System};
 
 /// The recent path of one body: about one orbit's worth.
@@ -66,6 +67,8 @@ pub struct Simulation {
     /// Fraction of the requested speed the last update achieved: 1.0 when
     /// physics kept up, less when it ran out of time.
     pub achieved: f64,
+    /// IAU rotation model of each body, where one exists.
+    rotations: Vec<Option<RotationModel>>,
     gravity: EinsteinInfeldHoffmann,
     integrator: Ias15,
 }
@@ -82,11 +85,17 @@ impl Simulation {
             speed,
             paused: false,
             achieved: 1.0,
+            rotations: system_rotations(&snapshot.bodies),
             gravity: EinsteinInfeldHoffmann,
             integrator: Ias15::new(),
         };
         simulation.record_trails();
         simulation
+    }
+
+    /// How body `index` is oriented and spins, if known.
+    pub fn rotation(&self, index: usize) -> Option<&RotationModel> {
+        self.rotations.get(index)?.as_ref()
     }
 
     /// The gravity model in use.
@@ -137,6 +146,13 @@ impl Simulation {
             trail.record(body.position);
         }
     }
+}
+
+fn system_rotations(bodies: &[worldline_core::Body]) -> Vec<Option<RotationModel>> {
+    bodies
+        .iter()
+        .map(|b| worldline_data::rotation_model(&b.name))
+        .collect()
 }
 
 #[cfg(test)]

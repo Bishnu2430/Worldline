@@ -48,6 +48,13 @@ pub const SOLAR_RADIUS: f64 = 6.957e8;
 /// Solar mass, kg, derived as GM☉ / G. Inherits G's 22 ppm uncertainty.
 pub const SOLAR_MASS: f64 = GM_SUN / G;
 
+/// Julian Date of the J2000 epoch, 2000-01-01 12:00 TDB.
+pub const J2000_JD: f64 = 2_451_545.0;
+
+/// Obliquity of the ecliptic at J2000, rad: 84381.448″ (IAU 1976). The
+/// tilt between the equatorial and ecliptic frames, as JPL Horizons uses.
+pub const OBLIQUITY_J2000: f64 = 84_381.448 / 3600.0 * PI / 180.0;
+
 #[cfg(test)]
 mod tests {
     use super::*;

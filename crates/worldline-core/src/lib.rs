@@ -10,8 +10,9 @@ pub mod diagnostics;
 pub mod gravity;
 pub mod integrator;
 pub mod orbit;
+pub mod rotation;
 pub mod system;
 
 pub use body::Body;
-pub use glam::DVec3;
+pub use glam::{DMat3, DVec3};
 pub use system::System;

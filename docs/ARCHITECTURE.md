@@ -6,6 +6,7 @@
 2. **Physics uses double precision.** All physics runs on the CPU in `f64`. The GPU (Intel Iris Xe has no native `f64`) does rendering and bulk approximate work, such as SPH and ray tracing, in local coordinates.
 3. **Each interaction gets the right model.** No single equation covers the universe in real time, so the engine chooses the most accurate model that is valid for each situation (see below).
 4. **Every model carries its credentials:** a source paper, a declared validity range, and a validation test.
+5. **Detail follows focus.** Unfocused bodies are drawn simply, and their massless companions (small moons, ring particles, asteroids) are computed coarsely or only when needed. The focused body shows every fact we know. This never touches the physics of massive bodies, which always run at full accuracy: massless test particles can't pull on them.
 
 ## Crates
 
