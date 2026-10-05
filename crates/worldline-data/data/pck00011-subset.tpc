@@ -1,4 +1,4 @@
-Worldline rotation models. Regenerate with: python tools/fetch_rotation.py
+Worldline rotation models and shapes. Regenerate with: python tools/fetch_rotation.py
 
 Source:  NASA NAIF generic kernel pck00011.tpc, fetched 2026-10-05
          https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc
@@ -7,7 +7,8 @@ Content: the entries below are copied character for character from the
          kernel's data blocks, for the Sun, the planets, the Moon and Pluto.
 Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
          since J2000; prime meridian in degrees with time in days (TDB)
-         since J2000; reference frame J2000 (equatorial).
+         since J2000; reference frame J2000 (equatorial); RADII in km,
+         as (equatorial a, equatorial b, polar c).
 
 \begindata
 
@@ -270,5 +271,27 @@ Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
                                    0.0252    -0.0066  -0.0047   -0.0046
                                    0.0028     0.0052   0.0040    0.0019
                                   -0.0044                               )
+
+        BODY10_RADII      = (  695700.  695700.  695700.  )
+
+        BODY199_RADII     = ( 2440.53  2440.53  2438.26 )
+
+        BODY299_RADII     = ( 6051.8   6051.8   6051.8 )
+
+        BODY399_RADII     = ( 6378.1366   6378.1366   6356.7519 )
+
+        BODY499_RADII       = ( 3396.19   3396.19   3376.20 )
+
+        BODY599_RADII     = ( 71492   71492   66854 )
+
+        BODY699_RADII     = ( 60268   60268   54364 )
+
+        BODY799_RADII     = ( 25559   25559   24973 )
+
+        BODY899_RADII     = ( 24764   24764  24341 )
+
+        BODY999_RADII     = ( 1188.3   1188.3   1188.3 )
+
+        BODY301_RADII     = ( 1737.4   1737.4   1737.4 )
 
 \begintext

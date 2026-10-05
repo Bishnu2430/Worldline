@@ -38,6 +38,20 @@ pub fn uv_sphere(longitudes: u32, latitudes: u32) -> (Vec<[f32; 3]>, Vec<u32>) {
     (vertices, indices)
 }
 
+/// A square from (−1, −1) to (1, 1) in the z = 0 plane, for rings. Both
+/// sides are drawn, so winding doesn't matter.
+pub fn quad() -> ([[f32; 3]; 4], [u32; 6]) {
+    (
+        [
+            [-1.0, -1.0, 0.0],
+            [1.0, -1.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [-1.0, 1.0, 0.0],
+        ],
+        [0, 1, 2, 0, 2, 3],
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

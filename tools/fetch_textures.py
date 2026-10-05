@@ -22,6 +22,7 @@ FILES = [
     "2k_venus_atmosphere.jpg",
     "2k_earth_daymap.jpg",
     "2k_earth_nightmap.jpg",
+    "2k_earth_clouds.jpg",
     "2k_moon.jpg",
     "2k_mars.jpg",
     "2k_jupiter.jpg",

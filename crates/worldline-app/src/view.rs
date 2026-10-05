@@ -2,7 +2,7 @@
 //! back, then textured globes (drawn on the GPU, see `gpu.rs`), then dots
 //! for bodies too small to see, spin axes and labels on top.
 
-use eframe::egui::{Align2, Color32, FontId, Painter, Pos2, Rect, Shape, Stroke, vec2};
+use eframe::egui::{Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape, Stroke, vec2};
 use worldline_core::DVec3;
 use worldline_core::constants::AU;
 
@@ -154,14 +154,53 @@ pub fn draw_under(
         }
     }
 
-    // The Sun's glow sits behind its disk.
+    // The Sun's corona sits behind its disk.
     if let Some(sun) = layout.iter().find(|s| s.index == 0) {
-        let color = body_color("Sun");
-        for (scale, alpha) in [(3.0, 18), (2.0, 35)] {
-            let glow = Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), alpha);
-            painter.circle_filled(sun.projection.position, sun.radius * scale, glow);
+        draw_corona(painter, sun.projection.position, sun.radius);
+    }
+}
+
+/// Brightness of the Sun's corona relative to the center of the Sun's disk,
+/// at `rho` solar radii from the center: the Baumbach (1937) model of the
+/// K-corona, as given in Allen's Astrophysical Quantities.
+pub fn corona_brightness(rho: f64) -> f64 {
+    1e-6 * (0.0532 * rho.powf(-2.5) + 1.425 * rho.powi(-7) + 2.565 * rho.powi(-17))
+}
+
+/// Draws the corona as a soft glow out to 3 solar radii. It's a million
+/// times fainter than the disk (that's why it's only seen in total
+/// eclipses), so brightness is shown on a log scale: a visual boost, with
+/// the shape of the falloff from the Baumbach model.
+fn draw_corona(painter: &Painter, center: Pos2, radius: f32) {
+    const RINGS: usize = 24;
+    const SEGMENTS: usize = 64;
+    const OUTER: f64 = 3.0;
+    let (bright, faint) = (
+        corona_brightness(1.0).log10(),
+        corona_brightness(OUTER).log10(),
+    );
+    let mut mesh = Mesh::default();
+    for ring in 0..=RINGS {
+        let rho = 1.0 + (OUTER - 1.0) * ring as f64 / RINGS as f64;
+        let level = (corona_brightness(rho).log10() - faint) / (bright - faint);
+        let alpha = (110.0 * level) as u8;
+        let color = Color32::from_rgba_unmultiplied(255, 240, 210, alpha);
+        for segment in 0..SEGMENTS {
+            let angle = segment as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
+            let offset = vec2(angle.cos(), angle.sin()) * radius * rho as f32;
+            mesh.colored_vertex(center + offset, color);
         }
     }
+    let at = |ring: usize, segment: usize| (ring * SEGMENTS + segment % SEGMENTS) as u32;
+    for ring in 0..RINGS {
+        for segment in 0..SEGMENTS {
+            let (a, b) = (at(ring, segment), at(ring, segment + 1));
+            let (c, d) = (at(ring + 1, segment), at(ring + 1, segment + 1));
+            mesh.add_triangle(a, b, d);
+            mesh.add_triangle(a, d, c);
+        }
+    }
+    painter.add(Shape::mesh(mesh));
 }
 
 /// The front layer: dots for bodies too small to see (unless a globe
@@ -410,6 +449,15 @@ mod tests {
         assert_eq!(pick(&drawn, Pos2::new(106.0, 100.0)), Some(1));
         assert_eq!(pick(&drawn, Pos2::new(101.0, 100.0)), Some(0));
         assert_eq!(pick(&drawn, Pos2::new(300.0, 300.0)), None);
+    }
+
+    #[test]
+    fn corona_fades_by_three_orders_of_magnitude_by_three_solar_radii() {
+        // Baumbach: about 4 × 10⁻⁶ of disk-center brightness at the limb,
+        // about 4 × 10⁻⁹ at 3 solar radii.
+        assert!((corona_brightness(1.0) - 4.0432e-6).abs() < 1e-9);
+        let ratio = corona_brightness(1.0) / corona_brightness(3.0);
+        assert!((900.0..1100.0).contains(&ratio), "ratio {ratio}");
     }
 
     #[test]

@@ -4,13 +4,16 @@
 //! `worldline-data` and GPU drawing in `worldline-render`; this crate is the
 //! window, the 3D view and the controls.
 //!
-//! Usage: `worldline [--focus BODY] [--paused]`
+//! Usage: `worldline [--focus BODY] [--paused] [--advance YEARS]`
 //! - `--focus Earth` starts with the camera flown in to Earth.
 //! - `--paused` starts with time stopped.
+//! - `--advance 7` runs the physics 7 years past the 2025-01-01 snapshot
+//!   before showing anything.
 
 mod app;
 mod calendar;
 mod camera;
+mod details;
 mod gpu;
 mod simulation;
 mod textures;
@@ -25,6 +28,8 @@ pub struct StartOptions {
     pub focus: Option<String>,
     /// Start with time stopped.
     pub paused: bool,
+    /// Years to simulate past the snapshot before starting.
+    pub advance_years: f64,
 }
 
 impl StartOptions {
@@ -35,6 +40,10 @@ impl StartOptions {
             match arg.as_str() {
                 "--focus" => options.focus = args.next(),
                 "--paused" => options.paused = true,
+                "--advance" => match args.next().and_then(|y| y.parse::<f64>().ok()) {
+                    Some(years) if years >= 0.0 => options.advance_years = years,
+                    _ => eprintln!("worldline: --advance needs a number of years, 0 or more"),
+                },
                 other => eprintln!("worldline: ignoring unknown argument `{other}`"),
             }
         }
@@ -68,14 +77,15 @@ mod tests {
 
     #[test]
     fn parses_focus_and_paused() {
-        let args = ["--focus", "Earth", "--paused"]
+        let args = ["--focus", "Earth", "--paused", "--advance", "7.5"]
             .map(String::from)
             .into_iter();
         assert_eq!(
             StartOptions::parse(args),
             StartOptions {
                 focus: Some("Earth".into()),
-                paused: true
+                paused: true,
+                advance_years: 7.5,
             }
         );
         assert_eq!(

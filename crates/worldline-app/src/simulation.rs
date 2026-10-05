@@ -113,6 +113,22 @@ impl Simulation {
         self.epoch_jd_tdb + self.system.time() / DAY
     }
 
+    /// Advances the simulation by `seconds` of simulated time, however
+    /// long that takes to compute.
+    pub fn advance_by(&mut self, seconds: f64) {
+        let target = self.system.time() + seconds;
+        while self.system.time() < target {
+            let remaining = target - self.system.time();
+            let taken = self
+                .integrator
+                .step(&mut self.system, &self.gravity, remaining);
+            if taken >= remaining {
+                self.system.set_time(target);
+            }
+            self.record_trails();
+        }
+    }
+
     /// Advances the simulation to match `real_dt` seconds of real time,
     /// spending at most `budget` of computer time on it.
     pub fn update(&mut self, real_dt: f64, budget: Duration) {
