@@ -6,6 +6,8 @@
 
 ![Worldline running the real solar system with relativistic gravity, five months after 1 January 2025](docs/images/solar-system-step-1.5.png)
 
+![Earth on 1 January 2025 at 00:00: the Pacific in daylight, Australia in the morning, night falling over Asia](docs/images/earth-step-1b.2.png)
+
 ## What v1 will do
 
 - Start from the real solar system (NASA JPL data) and a catalog of notable objects: Sagittarius A\*, TON 618, M87\* and the Hulse–Taylor binary pulsar.
@@ -27,6 +29,7 @@
 | Planets' axial tilts (IAU rotation models plus simulated orbits) | NASA Planetary Fact Sheet | ✅ passing, all within 0.05° |
 | Mercury's 3:2 spin–orbit resonance | 3 spins per 2 orbits | ✅ passing, ratio 1.50000 |
 | The Moon keeps one face toward Earth (libration) | ±7.9° longitude, ±6.7° latitude at most | ✅ passing, −5.6° to +5.2°, −6.6° to +6.7° |
+| Where the Sun is overhead on 1 Jan 2025, 00:00 TDB | about 23.0°S, 179°W | ✅ passing, 23.00°S, 178.76°W |
 | Light bending at the Sun's edge | 1.75″ | planned |
 | Hulse–Taylor binary pulsar orbital decay | −2.40 × 10⁻¹² s/s | planned |
 | Innermost stable orbit, photon sphere and shadow of a non-spinning black hole | 6, 3 and √27 GM/c² | planned |
@@ -46,11 +49,17 @@ The first build takes a few minutes. Then:
 - drag to rotate,
 - scroll to zoom,
 - click a body to inspect it,
-- double-click a body to follow it.
+- double-click a body to fly to it.
+
+To start already flown in to a body with time stopped:
+
+```bash
+cargo run --release -- --focus Earth --paused
+```
 
 ## Built with
 
-Rust · wgpu · egui
+Rust · wgpu · egui · data from NASA JPL and NAIF · textures from Solar System Scope (CC BY 4.0). See [CREDITS.md](CREDITS.md).
 
 ## Docs
 
@@ -58,6 +67,7 @@ Rust · wgpu · egui
 - [Roadmap](docs/ROADMAP.md): milestones and steps
 - [Architecture](docs/ARCHITECTURE.md): how the engine picks physics models
 - [The desktop app](docs/app.md): frame loop, double-precision 3D view, camera and trails
+- [Rendering globes](docs/rendering.md): GPU globes, precision across 12 orders of magnitude, lighting
 
 ## License
 

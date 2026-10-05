@@ -25,7 +25,7 @@ Added 2026-10-05, before steps 1.6 and 1.7. Detail follows focus: see [SCOPE.md]
 | # | Step | How you verify it | Status |
 |---|---|---|---|
 | 1b.1 | Real rotation: IAU spin axes and rates from NASA NAIF | Axial tilts match NASA within 0.1°. Mercury spins 3 times per 2 orbits. The Moon keeps one face toward Earth. Spin axes show in the app. | ✅ |
-| 1b.2 | GPU renderer: textured, lit, rotating planets. Dots far away, spheres up close. Focusing zooms in. Earth's night side lit by cities. | Earth's continents turn once per 23.93 h. Uranus rolls on its side. Venus turns backwards. | ⬜ |
+| 1b.2 | GPU renderer: textured, lit, rotating planets. Dots far away, spheres up close. Focusing zooms in. Earth's night side lit by cities. | Earth's continents turn once per 23.93 h. Uranus rolls on its side. Venus turns backwards. | ✅ |
 | 1b.3 | Focus details: Earth's clouds and atmosphere, Saturn's rings (real structure up close, with shadows), Jupiter's bands and Great Red Spot, the Sun's surface | Ring gaps at the published radii (e.g. the Cassini Division at 117,580 km). The Great Red Spot turns with Jupiter's 9.9 h day. | ⬜ |
 | 1b.4 | Hierarchical integration and the major moons | Io, Europa and Ganymede hold their 1:2:4 resonance. Moon positions match JPL after 30 days. | ⬜ |
 | 1b.5 | All known moons (more than 400), computed in detail when their planet is in focus | Every moon in JPL's list loads, and spot checks match JPL | ⬜ |

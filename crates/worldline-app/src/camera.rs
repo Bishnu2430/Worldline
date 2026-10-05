@@ -55,7 +55,7 @@ impl Camera {
     }
 
     /// Unit vectors pointing forward, right and up from the camera's view.
-    fn basis(&self) -> (DVec3, DVec3, DVec3) {
+    pub fn basis(&self) -> (DVec3, DVec3, DVec3) {
         let forward = (self.target - self.eye()).normalize();
         let right = forward.cross(DVec3::Z).normalize();
         let up = right.cross(forward);

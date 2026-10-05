@@ -1,6 +1,6 @@
 # The desktop app
 
-**Code:** `crates/worldline-app/` · **Run:** `cargo run --release`
+**Code:** `crates/worldline-app/` · **Run:** `cargo run --release` (options: `-- --focus Earth --paused`)
 
 The app is a window around the physics engine. It never does physics itself. It asks `worldline-core` to advance the simulation, then draws the result.
 
@@ -10,14 +10,14 @@ The app is a window around the physics engine. It never does physics itself. It 
 2. **Advance the physics.** It advances by *speed × real time*, stepping IAS15 with relativistic gravity, the same models the validation tests check.
 3. **Respect a time budget.** Physics may use at most 12 ms of each frame. If the chosen speed needs more, the simulation runs slower than requested and the top bar shows an orange note with the percentage achieved. **Worldline never takes bigger, less accurate steps to keep up.** Accuracy wins over speed, and the app says so when that happens.
 4. **Point the camera.** The camera moves to the body it is following.
-5. **Draw.** It draws the panels and the 3D view.
+5. **Draw.** It draws the panels and the 3D view: rings and trails at the back, textured globes from the GPU in the middle, dots and labels in front. See [rendering.md](rendering.md).
 
 ## The 3D view
 
 - **Projected in double precision.** Every position is taken relative to the camera in double precision, and only the final screen coordinates become single precision. GPUs work in single precision (about 7 digits), which can't place Neptune (4.5 × 10¹² m out) to better than about a kilometer. Projecting relative to the camera keeps positions precise at any zoom; a unit test nudges a body 30 AU out by 1 km and checks that it moves on screen by exactly the right amount.
 - **Drawing.** egui's painter draws the shapes, rendering through wgpu: rings, trails, bodies and labels. The GPU ray tracer for black holes arrives in milestone 3.
 - **To scale.** Distances and positions are true. Bodies are drawn at their true size when that's visible; otherwise as dots at least 3 points wide, and the app says so in the Display panel.
-- **Camera.** It orbits a target, with "up" pointing to ecliptic north, so prograde orbits run counterclockwise seen from above. Drag rotates, scroll zooms, and double-clicking a body makes the camera follow it.
+- **Camera.** It orbits a target, with "up" pointing to ecliptic north, so prograde orbits run counterclockwise seen from above. Drag rotates and scroll zooms, down to 1.1 radii from a body's center. Double-clicking a body (or pressing *Fly to it*) flies the camera there in 1.2 s, ending 4 radii out so the globe fills most of the view. The fly-in eases in and out, and zooms evenly in scale, so going from 4 AU to 25,000 km looks smooth.
 - **Trails.** Each trail keeps about one orbit of path, measured as one circle's length at the body's distance from the barycenter, so Mercury and Neptune both show one loop. Trails are drawn in the barycentric frame, and they fade from old to new.
 - **Labels.** The selected body is labeled first, then bodies in order of mass. A label is skipped if its body overlaps one already labeled, which hides the Moon's label when zoomed out on the Earth–Moon pair.
 - **Spin axes.** Each body gets a line along its spin axis, from the IAU rotation models. A white dot marks the end the spin points toward (right-hand rule), so Venus's dot points down. The inspector shows each body's sidereal day, spin direction and axial tilt. See [physics/rotation.md](physics/rotation.md).

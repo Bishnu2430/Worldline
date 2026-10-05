@@ -1,10 +1,12 @@
-//! Drawing the 3D scene: reference rings, orbit trails, bodies and labels.
+//! Drawing the 3D scene in layers: reference rings and orbit trails at the
+//! back, then textured globes (drawn on the GPU, see `gpu.rs`), then dots
+//! for bodies too small to see, spin axes and labels on top.
 
 use eframe::egui::{Align2, Color32, FontId, Painter, Pos2, Rect, Shape, Stroke, vec2};
 use worldline_core::DVec3;
 use worldline_core::constants::AU;
 
-use crate::camera::Camera;
+use crate::camera::{Camera, Projection};
 use crate::simulation::Simulation;
 
 /// Which layers to draw.
@@ -14,6 +16,18 @@ pub struct ViewOptions {
     pub grid: bool,
     pub labels: bool,
     pub spin_axes: bool,
+    pub globes: bool,
+}
+
+/// A visible body and how it will be drawn.
+#[derive(Debug, Clone, Copy)]
+pub struct OnScreen {
+    pub index: usize,
+    pub projection: Projection,
+    /// Radius actually drawn, never below the minimum dot size.
+    pub radius: f32,
+    /// Big enough to draw as a textured globe instead of a dot.
+    pub globe: bool,
 }
 
 /// A body as drawn on screen, kept for picking with the mouse.
@@ -24,14 +38,17 @@ pub struct DrawnBody {
     pub radius: f32,
 }
 
-/// Bodies smaller than this on screen are drawn at this radius so they
-/// stay visible. True sizes are used whenever they're larger.
+/// Bodies smaller than this on screen are drawn as dots of this radius so
+/// they stay visible. At this size and above they become globes.
 const MIN_RADIUS: f32 = 3.0;
 const SUN_MIN_RADIUS: f32 = 5.0;
 
 /// Screen positions farther than this from the viewport are treated as off
 /// screen, so nearly-behind-camera points don't produce huge coordinates.
 const MAX_SCREEN_OFFSET: f32 = 1e6;
+
+/// Globes larger than this on screen skip the selection ring.
+const SELECTION_RING_MAX_RADIUS: f32 = 20.0;
 
 /// Bodies closer than this on screen share one label.
 const LABEL_CLEARANCE: f32 = 14.0;
@@ -57,22 +74,55 @@ pub fn body_color(name: &str) -> Color32 {
     }
 }
 
-/// Draws the scene. Returns where each visible body was drawn, and whether
-/// any body was enlarged to the minimum size.
-pub fn draw(
+fn screen(camera: &Camera, viewport: Rect, point: DVec3) -> Option<Projection> {
+    camera
+        .project(point, viewport)
+        .filter(|p| (p.position - viewport.center()).length() < MAX_SCREEN_OFFSET)
+}
+
+/// Works out which bodies are visible, how big, and which become globes.
+/// Sorted far to near.
+pub fn layout(
+    camera: &Camera,
+    viewport: Rect,
+    simulation: &Simulation,
+    globes_allowed: bool,
+) -> Vec<OnScreen> {
+    let mut visible: Vec<OnScreen> = simulation
+        .system
+        .bodies
+        .iter()
+        .enumerate()
+        .filter_map(|(index, body)| {
+            let projection = screen(camera, viewport, body.position)?;
+            let true_radius = (body.radius * projection.points_per_meter) as f32;
+            let min_radius = if index == 0 {
+                SUN_MIN_RADIUS
+            } else {
+                MIN_RADIUS
+            };
+            Some(OnScreen {
+                index,
+                projection,
+                radius: true_radius.max(min_radius),
+                globe: globes_allowed && true_radius >= min_radius,
+            })
+        })
+        .collect();
+    visible.sort_by(|a, b| b.projection.depth.total_cmp(&a.projection.depth));
+    visible
+}
+
+/// The back layer: reference rings, orbit trails and the Sun's glow.
+pub fn draw_under(
     painter: &Painter,
     viewport: Rect,
     camera: &Camera,
     simulation: &Simulation,
     options: ViewOptions,
-    selected: usize,
-) -> (Vec<DrawnBody>, bool) {
-    let screen = |point: DVec3| {
-        camera
-            .project(point, viewport)
-            .filter(|p| (p.position - viewport.center()).length() < MAX_SCREEN_OFFSET)
-    };
-
+    layout: &[OnScreen],
+) {
+    let screen = |point: DVec3| screen(camera, viewport, point);
     if options.grid {
         let stroke = Stroke::new(1.0, Color32::from_rgba_unmultiplied(110, 130, 170, 45));
         for radius_au in RING_RADII_AU {
@@ -104,52 +154,76 @@ pub fn draw(
         }
     }
 
-    // Far bodies first, so near ones are drawn on top.
-    let mut visible: Vec<_> = bodies
-        .iter()
-        .enumerate()
-        .filter_map(|(i, body)| screen(body.position).map(|p| (i, p)))
-        .collect();
-    visible.sort_by(|a, b| b.1.depth.total_cmp(&a.1.depth));
-
-    let mut drawn = Vec::with_capacity(visible.len());
-    let mut enlarged = false;
-    for (i, projection) in visible {
-        let body = &bodies[i];
-        let color = body_color(&body.name);
-        let true_radius = (body.radius * projection.points_per_meter) as f32;
-        let min_radius = if i == 0 { SUN_MIN_RADIUS } else { MIN_RADIUS };
-        enlarged |= true_radius < min_radius;
-        let radius = true_radius.max(min_radius);
-        let center = projection.position;
-        if body.name == "Sun" {
-            for (scale, alpha) in [(3.0, 18), (2.0, 35)] {
-                let glow = Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), alpha);
-                painter.circle_filled(center, radius * scale, glow);
-            }
+    // The Sun's glow sits behind its disk.
+    if let Some(sun) = layout.iter().find(|s| s.index == 0) {
+        let color = body_color("Sun");
+        for (scale, alpha) in [(3.0, 18), (2.0, 35)] {
+            let glow = Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), alpha);
+            painter.circle_filled(sun.projection.position, sun.radius * scale, glow);
         }
-        painter.circle_filled(center, radius, color);
-        if i == selected {
-            painter.circle_stroke(center, radius + 4.0, Stroke::new(1.5, Color32::WHITE));
+    }
+}
+
+/// The front layer: dots for bodies too small to see (unless a globe
+/// hides them), the selection ring, spin axes and labels. Returns what was
+/// drawn, for picking.
+pub fn draw_over(
+    painter: &Painter,
+    viewport: Rect,
+    camera: &Camera,
+    simulation: &Simulation,
+    options: ViewOptions,
+    layout: &[OnScreen],
+    selected: usize,
+) -> Vec<DrawnBody> {
+    let bodies = &simulation.system.bodies;
+    let mut drawn = Vec::with_capacity(layout.len());
+    for item in layout {
+        if !item.globe && hidden_behind_globe(item, layout) {
+            continue;
+        }
+        let body = &bodies[item.index];
+        let color = body_color(&body.name);
+        let center = item.projection.position;
+        if !item.globe {
+            painter.circle_filled(center, item.radius, color);
+        }
+        // Up close it's obvious what's selected, so large globes skip the ring.
+        if item.index == selected && item.radius < SELECTION_RING_MAX_RADIUS {
+            painter.circle_stroke(center, item.radius + 4.0, Stroke::new(1.5, Color32::WHITE));
         }
         if options.spin_axes
-            && let Some(model) = simulation.rotation(i)
+            && let Some(model) = simulation.rotation(item.index)
         {
-            draw_spin_axis(
-                painter,
-                viewport,
-                camera,
-                body.position,
-                model.spin_axis(simulation.julian_date()),
-                radius,
-                projection.points_per_meter,
-                color,
-            );
+            let axis = model.spin_axis(simulation.julian_date());
+            if item.globe {
+                draw_pole_stubs(
+                    painter,
+                    viewport,
+                    camera,
+                    body.position,
+                    body.radius,
+                    axis,
+                    item,
+                    color,
+                );
+            } else {
+                draw_spin_axis(
+                    painter,
+                    viewport,
+                    camera,
+                    body.position,
+                    axis,
+                    item.radius,
+                    item.projection.points_per_meter,
+                    color,
+                );
+            }
         }
         drawn.push(DrawnBody {
-            index: i,
+            index: item.index,
             center,
-            radius,
+            radius: item.radius,
         });
     }
 
@@ -181,7 +255,16 @@ pub fn draw(
             );
         }
     }
-    (drawn, enlarged)
+    drawn
+}
+
+/// Whether a dot sits behind a nearer globe's disk on screen.
+fn hidden_behind_globe(item: &OnScreen, layout: &[OnScreen]) -> bool {
+    layout.iter().any(|g| {
+        g.globe
+            && g.projection.depth < item.projection.depth
+            && (g.projection.position - item.projection.position).length() < g.radius
+    })
 }
 
 /// Draws a body's spin axis through it, poking out on both sides. The end
@@ -197,13 +280,51 @@ fn draw_spin_axis(
     points_per_meter: f64,
     color: Color32,
 ) {
-    let half_length = f64::from((radius * 2.0).max(12.0)) / points_per_meter;
+    let half_length = f64::from((radius * 1.4).max(12.0)) / points_per_meter;
     let ends = [center - axis * half_length, center + axis * half_length]
         .map(|p| camera.project(p, viewport).map(|p| p.position));
     if let [Some(south), Some(north)] = ends {
         let faint = Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 170);
         painter.line_segment([south, north], Stroke::new(1.5, faint));
         painter.circle_filled(north, 2.0, Color32::WHITE);
+    }
+}
+
+/// For a globe, draws the spin axis only where it sticks out of the poles,
+/// hiding any part that passes behind the globe. The end the spin points
+/// toward gets a dot.
+#[allow(clippy::too_many_arguments)]
+fn draw_pole_stubs(
+    painter: &Painter,
+    viewport: Rect,
+    camera: &Camera,
+    center: DVec3,
+    radius: f64,
+    axis: DVec3,
+    globe: &OnScreen,
+    color: Color32,
+) {
+    const SAMPLES: usize = 12;
+    let faint = Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 200);
+    let hidden = |p: &Projection| {
+        p.depth > globe.projection.depth
+            && (p.position - globe.projection.position).length() < globe.radius
+    };
+    for sign in [1.0, -1.0] {
+        let points: Vec<Option<Projection>> = (0..=SAMPLES)
+            .map(|k| {
+                let r = radius * (1.0 + 0.5 * k as f64 / SAMPLES as f64);
+                camera
+                    .project(center + axis * (sign * r), viewport)
+                    .filter(|p| !hidden(p))
+            })
+            .collect();
+        draw_path(painter, &points, Stroke::new(1.5, faint));
+        if sign > 0.0
+            && let Some(Some(tip)) = points.last()
+        {
+            painter.circle_filled(tip.position, 2.5, Color32::WHITE);
+        }
     }
 }
 
@@ -218,7 +339,7 @@ pub fn pick(drawn: &[DrawnBody], pointer: Pos2) -> Option<usize> {
 }
 
 /// Draws a trail that fades from transparent (oldest) to bright (newest).
-fn draw_trail(painter: &Painter, points: &[Option<crate::camera::Projection>], color: Color32) {
+fn draw_trail(painter: &Painter, points: &[Option<Projection>], color: Color32) {
     const CHUNKS: usize = 8;
     let segments = points.len().saturating_sub(1);
     if segments == 0 {
@@ -237,7 +358,7 @@ fn draw_trail(painter: &Painter, points: &[Option<crate::camera::Projection>], c
 }
 
 /// Draws a polyline, breaking it wherever a point is off screen.
-fn draw_path(painter: &Painter, points: &[Option<crate::camera::Projection>], stroke: Stroke) {
+fn draw_path(painter: &Painter, points: &[Option<Projection>], stroke: Stroke) {
     let mut run: Vec<Pos2> = Vec::new();
     for point in points {
         match point {
@@ -259,6 +380,19 @@ fn flush(painter: &Painter, run: &mut Vec<Pos2>, stroke: Stroke) {
 mod tests {
     use super::*;
 
+    fn on_screen(index: usize, x: f32, depth: f64, radius: f32, globe: bool) -> OnScreen {
+        OnScreen {
+            index,
+            projection: Projection {
+                position: Pos2::new(x, 100.0),
+                depth,
+                points_per_meter: 1.0,
+            },
+            radius,
+            globe,
+        }
+    }
+
     #[test]
     fn picking_prefers_the_nearest_body_within_reach() {
         let drawn = [
@@ -276,5 +410,17 @@ mod tests {
         assert_eq!(pick(&drawn, Pos2::new(106.0, 100.0)), Some(1));
         assert_eq!(pick(&drawn, Pos2::new(101.0, 100.0)), Some(0));
         assert_eq!(pick(&drawn, Pos2::new(300.0, 300.0)), None);
+    }
+
+    #[test]
+    fn a_globe_hides_dots_behind_it_but_not_in_front() {
+        let earth = on_screen(3, 100.0, 1e8, 50.0, true);
+        let behind = on_screen(4, 120.0, 2e8, 3.0, false);
+        let in_front = on_screen(5, 120.0, 5e7, 3.0, false);
+        let beside = on_screen(6, 200.0, 2e8, 3.0, false);
+        let layout = [earth, behind, in_front, beside];
+        assert!(hidden_behind_globe(&behind, &layout));
+        assert!(!hidden_behind_globe(&in_front, &layout));
+        assert!(!hidden_behind_globe(&beside, &layout));
     }
 }

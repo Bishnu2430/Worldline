@@ -1,0 +1,20 @@
+[package]
+name = "worldline-render"
+description = "Worldline's GPU renderer: textured, lit, rotating bodies drawn with wgpu."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+bytemuck = { version = "1.25", features = ["derive"] }
+glam = "0.34.0"
+# The same wgpu that egui uses, so textures can be shared with the window.
+wgpu = { version = "30.0.1", default-features = false, features = ["wgsl"] }
+
+[dev-dependencies]
+naga = { version = "30.0.1", features = ["wgsl-in"] }
+
+[lints]
+workspace = true

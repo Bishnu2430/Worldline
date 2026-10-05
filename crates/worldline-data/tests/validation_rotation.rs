@@ -147,3 +147,31 @@ fn moon_keeps_one_face_toward_earth() {
     // And the rocking is really there: the Moon doesn't simply stare.
     assert!(lon_range.1 - lon_range.0 > 2.0);
 }
+
+#[test]
+fn sun_is_overhead_in_the_right_place_on_new_years_day() {
+    // Where on Earth is the Sun straight overhead at 2025-01-01 00:00 TDB?
+    // Combines Earth's IAU rotation with the simulated Sun–Earth geometry,
+    // and fixes where day and night fall on Earth's globe.
+    //
+    // Expected: latitude = the Sun's declination on January 1, about −23.0°
+    // (southern summer). Longitude: midnight at Greenwich puts the noon Sun
+    // over the date line, shifted by the equation of time (−3.1 minutes →
+    // −0.8°) and by TDB running 69 s ahead of UTC (+0.3°): about −179.0°.
+    let snapshot = solar_system();
+    let jd = snapshot.epoch_jd_tdb;
+    let (earth, sun) = (
+        snapshot.body("Earth").unwrap(),
+        snapshot.body("Sun").unwrap(),
+    );
+    let toward_sun = (sun.position - earth.position).normalize();
+    let model = rotation_model("Earth").unwrap();
+    let local = model.orientation(jd).body_to_ecliptic.transpose() * toward_sun;
+    let latitude = local.z.asin().to_degrees();
+    let longitude = local.y.atan2(local.x).to_degrees();
+    println!("Sun overhead at latitude {latitude:.2}°, longitude {longitude:.2}°");
+    assert!((latitude - -23.0).abs() < 0.2, "latitude {latitude}°");
+    // The IAU Earth model is a simple one (see docs/physics/rotation.md),
+    // good to a few tenths of a degree.
+    assert!((longitude - -179.0).abs() < 0.5, "longitude {longitude}°");
+}
