@@ -1,0 +1,8 @@
+# Masses of planetary rings that JPL's integrations include, as GM, under the constant's name.
+# Regenerate with: python tools/fetch_moons.py
+# source: constants of the JPL satellite ephemeris integrations, from the NASA NAIF comment
+#         files: MAR099.01 in mar099.cmt, JUP365.26 in jup365.cmt, SAT441.24 in sat441.cmt, URA182.21 in ura184_part-1.cmt, NEP098 in nep098_part-1.cmt, PLU060 in plu060.cmt; fetched 2026-10-05
+planet,constant,gm_km3_s2
+Saturn,RINGM1,3.900000000000000E-02
+Saturn,RINGM2,7.840000000000000E-01
+Saturn,RINGM4,3.000000000000000E-01

@@ -8,6 +8,8 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 |---|---|---|
 | Positions and velocities of the Sun, planets, Moon and Pluto | NASA JPL Horizons, ephemeris DE441 | Public domain (U.S. government work) |
 | Gravitational parameters (GM) | JPL DE440 (Park et al. 2021), via NASA NAIF `gm_de440.tpc` | Public domain (U.S. government work) |
+| Positions and velocities of the major moons | NASA JPL Horizons, satellite ephemerides MAR099, JUP365, SAT441, URA184, NEP098 and PLU060 | Public domain (U.S. government work) |
+| Moon-system constants: GMs, planets' gravity harmonics (J2–J6, Mars's C_nm and S_nm), moons' shapes, Saturn's ring masses | The JPL satellite ephemerides' own constants, from the NASA NAIF comment files `mar099.cmt`, `jup365.cmt`, `sat441.cmt`, `ura184_part-1.cmt`, `nep098_part-1.cmt`, `plu060.cmt` | Public domain (U.S. government work) |
 | Rotation models (spin axes and rates) | IAU WGCCRE (Archinal et al. 2018), via NASA NAIF `pck00011.tpc` | Public domain (U.S. government work) |
 | Radii and shapes | IAU WGCCRE (Archinal et al. 2018), via NASA NAIF `pck00011.tpc`; IAU 2015 Resolution B3 for the Sun | Public domain (U.S. government work) / published values |
 | Saturn's ring profile | Cassini Radio Science occultation Rev 7 (2005), NASA PDS Ring-Moon Systems Node, data set CO-SR-RSS-4/5-OCC-V2.0 | Public domain (U.S. government work) |

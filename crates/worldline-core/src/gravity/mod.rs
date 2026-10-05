@@ -5,10 +5,16 @@
 //! (see `docs/ARCHITECTURE.md`).
 
 mod eih;
+mod figure;
 mod newtonian;
+mod tesseral;
+mod zonal;
 
 pub use eih::EinsteinInfeldHoffmann;
+pub use figure::SynchronousFigure;
 pub use newtonian::Newtonian;
+pub use tesseral::{TesseralField, TesseralTerm};
+pub use zonal::ZonalField;
 
 use glam::DVec3;
 
@@ -25,8 +31,11 @@ pub trait Gravity {
         false
     }
 
-    /// Writes the acceleration of each body, in m/s², into `out`.
+    /// Writes the acceleration of each body, in m/s², into `out`, at
+    /// simulation time `time` (s). Most models ignore the time; those with
+    /// moving outside influences (like the Sun's tide on a moon system)
+    /// need it.
     ///
     /// `out` must be the same length as `bodies`.
-    fn accelerations(&self, bodies: &[Body], out: &mut [DVec3]);
+    fn accelerations(&self, time: f64, bodies: &[Body], out: &mut [DVec3]);
 }

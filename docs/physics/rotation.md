@@ -23,6 +23,8 @@ The kernel reader only reads the data blocks of the file. The file also contains
 
 ## Where it's valid
 
+Models are loaded for the Sun, the planets, Pluto, the Moon and the 21 major moons. Hyperion has none: it tumbles chaotically, so no rotation model can be published for it, and Worldline draws it without spin. Mars's model also sets which way its lumpy gravity field faces as it turns (see [moons.md](moons.md)).
+
 These are mean models, built for maps and pointing at the 0.01°–0.1° level. Earth's model is the simplest: it leaves out the detailed precession and nutation that the IERS tracks. It's accurate enough for rendering and for the checks below, but not for navigating spacecraft.
 
 ## Validation

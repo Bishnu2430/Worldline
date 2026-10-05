@@ -31,7 +31,7 @@ impl Gravity for EinsteinInfeldHoffmann {
         true
     }
 
-    fn accelerations(&self, bodies: &[Body], out: &mut [DVec3]) {
+    fn accelerations(&self, _time: f64, bodies: &[Body], out: &mut [DVec3]) {
         let n = bodies.len();
         assert_eq!(n, out.len(), "need one acceleration slot per body");
 
@@ -131,7 +131,7 @@ mod tests {
                     .moving(-v * (mu1 / mu)),
             ];
             let mut acc = [DVec3::ZERO; 2];
-            EinsteinInfeldHoffmann.accelerations(&bodies, &mut acc);
+            EinsteinInfeldHoffmann.accelerations(0.0, &bodies, &mut acc);
 
             let expected = two_body_1pn(mu, nu, r, v);
             let newtonian = -mu * r / r.length().powi(3);
@@ -160,8 +160,8 @@ mod tests {
         ];
         let epsilon = (mu_a + mu_b) / (r * C * C) + v * v / (C * C);
         let (mut relativistic, mut newtonian) = ([DVec3::ZERO; 2], [DVec3::ZERO; 2]);
-        EinsteinInfeldHoffmann.accelerations(&bodies, &mut relativistic);
-        super::super::Newtonian.accelerations(&bodies, &mut newtonian);
+        EinsteinInfeldHoffmann.accelerations(0.0, &bodies, &mut relativistic);
+        super::super::Newtonian.accelerations(0.0, &bodies, &mut newtonian);
         for (a, b) in relativistic.iter().zip(&newtonian) {
             let relative = (*a - *b).length() / b.length();
             assert!(relative < 10.0 * epsilon, "{relative:e} vs ε = {epsilon:e}");

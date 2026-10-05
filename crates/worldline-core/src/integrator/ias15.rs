@@ -177,7 +177,7 @@ impl Ias15 {
             for n in 1..8 {
                 let s = H[n];
                 self.predict(system, s, dt);
-                gravity.accelerations(&system.bodies, &mut self.at);
+                gravity.accelerations(system.time() + s * dt, &system.bodies, &mut self.at);
                 for i in 0..self.at.len() {
                     let (g, b) = (&mut self.g[i], &mut self.b[i]);
                     // Divided differences give the newest Newton coefficient.
@@ -253,7 +253,7 @@ impl Integrator for Ias15 {
             self.x0[i] = body.position;
             self.v0[i] = body.velocity;
         }
-        gravity.accelerations(&system.bodies, &mut self.a0);
+        gravity.accelerations(system.time(), &system.bodies, &mut self.a0);
 
         loop {
             let dt = self.dt.min(max_dt);
@@ -497,7 +497,7 @@ mod tests {
         fn name(&self) -> &'static str {
             "test spring"
         }
-        fn accelerations(&self, bodies: &[Body], out: &mut [DVec3]) {
+        fn accelerations(&self, _time: f64, bodies: &[Body], out: &mut [DVec3]) {
             for (b, a) in bodies.iter().zip(out) {
                 *a = -self.omega * self.omega * b.position - self.damping * b.velocity;
             }

@@ -17,7 +17,7 @@ impl Gravity for Newtonian {
         "Newtonian"
     }
 
-    fn accelerations(&self, bodies: &[Body], out: &mut [DVec3]) {
+    fn accelerations(&self, _time: f64, bodies: &[Body], out: &mut [DVec3]) {
         assert_eq!(
             bodies.len(),
             out.len(),
@@ -50,7 +50,7 @@ mod tests {
             Body::new("b", 1.0e10, 1.0).at(DVec3::new(2.0e7, 0.0, 0.0)),
         ];
         let mut acc = [DVec3::ZERO; 2];
-        Newtonian.accelerations(&bodies, &mut acc);
+        Newtonian.accelerations(0.0, &bodies, &mut acc);
         // b is pulled toward a with magnitude μ_a / r².
         let expected = 4.0e14 / (2.0e7_f64).powi(2);
         assert!((acc[1].x + expected).abs() / expected < 1e-15);
@@ -69,7 +69,7 @@ mod tests {
             Body::new("d", 3.8e16, 1.0).at(DVec3::new(9.0e11, -1.0e12, -2.0e10)),
         ];
         let mut acc = [DVec3::ZERO; 4];
-        Newtonian.accelerations(&bodies, &mut acc);
+        Newtonian.accelerations(0.0, &bodies, &mut acc);
         let net: DVec3 = bodies.iter().zip(&acc).map(|(b, a)| b.gm * *a).sum();
         let scale: f64 = bodies
             .iter()

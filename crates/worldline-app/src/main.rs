@@ -4,8 +4,10 @@
 //! `worldline-data` and GPU drawing in `worldline-render`; this crate is the
 //! window, the 3D view and the controls.
 //!
-//! Usage: `worldline [--focus BODY] [--paused] [--advance YEARS]`
+//! Usage: `worldline [--focus BODY] [--zoom RADII] [--paused] [--advance YEARS]`
 //! - `--focus Earth` starts with the camera flown in to Earth.
+//! - `--zoom 60` puts the camera 60 of the focused body's radii away
+//!   (default 4), for example to see Jupiter with its moons.
 //! - `--paused` starts with time stopped.
 //! - `--advance 7` runs the physics 7 years past the 2025-01-01 snapshot
 //!   before showing anything.
@@ -26,6 +28,8 @@ use eframe::egui;
 pub struct StartOptions {
     /// Name of the body to fly to at startup.
     pub focus: Option<String>,
+    /// Camera distance from the focused body, in its radii.
+    pub zoom_radii: Option<f64>,
     /// Start with time stopped.
     pub paused: bool,
     /// Years to simulate past the snapshot before starting.
@@ -40,6 +44,10 @@ impl StartOptions {
             match arg.as_str() {
                 "--focus" => options.focus = args.next(),
                 "--paused" => options.paused = true,
+                "--zoom" => match args.next().and_then(|r| r.parse::<f64>().ok()) {
+                    Some(radii) if radii > 1.0 => options.zoom_radii = Some(radii),
+                    _ => eprintln!("worldline: --zoom needs a number of radii above 1"),
+                },
                 "--advance" => match args.next().and_then(|y| y.parse::<f64>().ok()) {
                     Some(years) if years >= 0.0 => options.advance_years = years,
                     _ => eprintln!("worldline: --advance needs a number of years, 0 or more"),
@@ -77,13 +85,22 @@ mod tests {
 
     #[test]
     fn parses_focus_and_paused() {
-        let args = ["--focus", "Earth", "--paused", "--advance", "7.5"]
-            .map(String::from)
-            .into_iter();
+        let args = [
+            "--focus",
+            "Earth",
+            "--zoom",
+            "30",
+            "--paused",
+            "--advance",
+            "7.5",
+        ]
+        .map(String::from)
+        .into_iter();
         assert_eq!(
             StartOptions::parse(args),
             StartOptions {
                 focus: Some("Earth".into()),
+                zoom_radii: Some(30.0),
                 paused: true,
                 advance_years: 7.5,
             }

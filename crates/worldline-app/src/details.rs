@@ -113,13 +113,61 @@ const PLUTO: &[Detail] = &[
     detail("Spin and tilt: IAU rotation model", Kind::Measured),
 ];
 
+const MARS_MOONS: &[Detail] = &[
+    detail("No global map bundled yet: flat color", Kind::Visual),
+    detail(
+        "Orbit: Mars's lumpy gravity (the Tharsis bulge) and oblateness, the Sun's tide",
+        Kind::Model,
+    ),
+    detail(
+        "Shape: stretched toward Mars (J2, C22 from JPL), which tugs on the orbit",
+        Kind::Model,
+    ),
+    detail("Spin and tilt: IAU rotation model", Kind::Measured),
+];
+
+const GALILEAN_MOONS: &[Detail] = &[
+    detail("No global map bundled yet: flat color", Kind::Visual),
+    detail(
+        "Orbit: Jupiter's oblateness, the other moons (Laplace resonance), the Sun's tide",
+        Kind::Model,
+    ),
+    detail(
+        "Shape: stretched toward Jupiter (J2, C22 from JPL), which tugs on the orbit",
+        Kind::Model,
+    ),
+    detail("Spin and tilt: IAU rotation model", Kind::Measured),
+];
+
+const HYPERION: &[Detail] = &[
+    detail("No global map bundled yet: flat color", Kind::Visual),
+    detail(
+        "Orbit: Saturn's oblateness and rings' mass, Titan's pull, the Sun's tide",
+        Kind::Model,
+    ),
+    detail(
+        "Tumbles chaotically: no rotation model exists, so it is drawn without spin",
+        Kind::Visual,
+    ),
+];
+
+const MOON: &[Detail] = &[
+    detail("No global map bundled yet: flat color", Kind::Visual),
+    detail(
+        "Orbit: its planet's oblateness, the other moons, the Sun's tide",
+        Kind::Model,
+    ),
+    detail("Spin and tilt: IAU rotation model", Kind::Measured),
+];
+
 const OTHER: &[Detail] = &[
     detail("Surface map from NASA data", Kind::Measured),
     detail("Spin and tilt: IAU rotation model", Kind::Measured),
 ];
 
-/// The details Worldline shows for a body when you look closely.
-pub fn details(name: &str) -> &'static [Detail] {
+/// The details Worldline shows for a body when you look closely. `moon`
+/// says whether it orbits a planet.
+pub fn details(name: &str, moon: bool) -> &'static [Detail] {
     match name {
         "Sun" => SUN,
         "Earth" => EARTH,
@@ -127,6 +175,11 @@ pub fn details(name: &str) -> &'static [Detail] {
         "Jupiter" => JUPITER,
         "Venus" => VENUS,
         "Pluto" => PLUTO,
+        "Phobos" | "Deimos" => MARS_MOONS,
+        "Io" | "Europa" | "Ganymede" | "Callisto" => GALILEAN_MOONS,
+        "Hyperion" => HYPERION,
+        // Earth's Moon has a map; the others don't yet.
+        _ if moon && name != "Moon" => MOON,
         _ => OTHER,
     }
 }

@@ -8,6 +8,7 @@ pub mod body;
 pub mod constants;
 pub mod diagnostics;
 pub mod gravity;
+pub mod hierarchy;
 pub mod integrator;
 pub mod orbit;
 pub mod rotation;

@@ -1,0 +1,11 @@
+# Shapes of tidally locked moons (unnormalized J2 and C22) and their reference radius.
+# Regenerate with: python tools/fetch_moons.py
+# source: constants of the JPL satellite ephemeris integrations, from the NASA NAIF comment
+#         files: MAR099.01 in mar099.cmt, JUP365.26 in jup365.cmt, SAT441.24 in sat441.cmt, URA182.21 in ura184_part-1.cmt, NEP098 in nep098_part-1.cmt, PLU060 in plu060.cmt; fetched 2026-10-05
+name,naif_id,reference_radius_km,j2,c22
+Phobos,401,1.300000000000000E+01,7.482678535583680E-02,1.185623335197713E-02
+Deimos,402,6.250000000000000E+00,1.081173156537400E-01,3.350309995381218E-02
+Io,501,1.829400000000000E+03,1.823600000000000E-03,5.497000000000000E-04
+Europa,502,1.562600000000000E+03,4.389000000000000E-04,1.324000000000000E-04
+Ganymede,503,2.631200000000000E+03,1.335000000000000E-04,4.000000000000000E-05
+Callisto,504,2.410300000000000E+03,3.660000000000000E-05,1.000000000000000E-05
