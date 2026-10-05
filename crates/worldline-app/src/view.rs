@@ -5,6 +5,7 @@
 use eframe::egui::{Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape, Stroke, vec2};
 use worldline_core::DVec3;
 use worldline_core::constants::AU;
+use worldline_core::orbit::osculating_orbit;
 
 use crate::camera::{Camera, Projection};
 use crate::simulation::Simulation;
@@ -50,8 +51,8 @@ const MAX_SCREEN_OFFSET: f32 = 1e6;
 /// Globes larger than this on screen skip the selection ring.
 const SELECTION_RING_MAX_RADIUS: f32 = 20.0;
 
-/// Bodies closer than this on screen share one label.
-const LABEL_CLEARANCE: f32 = 14.0;
+/// Labels keep at least this much space between them.
+const LABEL_GAP: f32 = 2.0;
 
 /// Reference rings in the ecliptic plane, in AU.
 const RING_RADII_AU: [f64; 6] = [1.0, 2.0, 5.0, 10.0, 20.0, 50.0];
@@ -70,6 +71,20 @@ pub fn body_color(name: &str) -> Color32 {
         "Uranus" => Color32::from_rgb(150, 215, 225),
         "Neptune" => Color32::from_rgb(90, 120, 240),
         "Pluto" => Color32::from_rgb(200, 170, 140),
+        // Moons, in roughly their true tints.
+        "Phobos" | "Deimos" => Color32::from_rgb(150, 135, 120),
+        "Io" => Color32::from_rgb(235, 215, 110),
+        "Europa" => Color32::from_rgb(220, 205, 180),
+        "Ganymede" => Color32::from_rgb(175, 160, 145),
+        "Callisto" => Color32::from_rgb(130, 115, 100),
+        "Titan" => Color32::from_rgb(225, 170, 80),
+        "Iapetus" => Color32::from_rgb(170, 150, 120),
+        "Triton" => Color32::from_rgb(215, 195, 190),
+        "Charon" => Color32::from_rgb(170, 165, 160),
+        "Mimas" | "Enceladus" | "Tethys" | "Dione" | "Rhea" | "Hyperion" => {
+            Color32::from_rgb(225, 225, 225)
+        }
+        "Miranda" | "Ariel" | "Umbriel" | "Titania" | "Oberon" => Color32::from_rgb(185, 180, 175),
         _ => Color32::WHITE,
     }
 }
@@ -81,20 +96,30 @@ fn screen(camera: &Camera, viewport: Rect, point: DVec3) -> Option<Projection> {
 }
 
 /// Works out which bodies are visible, how big, and which become globes.
-/// Sorted far to near.
+/// Sorted far to near. A moon is left out until the view resolves its
+/// orbit: until its distance from its planet, on screen, clears the
+/// planet's dot or globe.
 pub fn layout(
     camera: &Camera,
     viewport: Rect,
     simulation: &Simulation,
     globes_allowed: bool,
 ) -> Vec<OnScreen> {
-    let mut visible: Vec<OnScreen> = simulation
-        .system
-        .bodies
+    let bodies = &simulation.bodies;
+    let mut visible: Vec<OnScreen> = bodies
         .iter()
         .enumerate()
         .filter_map(|(index, body)| {
             let projection = screen(camera, viewport, body.position)?;
+            if let Some(parent) = simulation.parent(index) {
+                let planet = &bodies[parent];
+                let orbit =
+                    (body.position - planet.position).length() * projection.points_per_meter;
+                let planet_radius = (planet.radius * projection.points_per_meter) as f32;
+                if (orbit as f32) < planet_radius.max(MIN_RADIUS) + 2.0 * MIN_RADIUS {
+                    return None;
+                }
+            }
             let true_radius = (body.radius * projection.points_per_meter) as f32;
             let min_radius = if index == 0 {
                 SUN_MIN_RADIUS
@@ -146,10 +171,34 @@ pub fn draw_under(
         }
     }
 
-    let bodies = &simulation.system.bodies;
+    let bodies = &simulation.bodies;
     if options.trails {
-        for (trail, body) in simulation.trails.iter().zip(bodies) {
-            let points: Vec<_> = trail.points().chain([body.position]).map(screen).collect();
+        for (index, (trail, body)) in simulation.trails.iter().zip(bodies).enumerate() {
+            let points: Vec<_> = match simulation.parent(index) {
+                // A moon can circle its planet several times between
+                // physics steps, too fast for a recorded trail: it gets its
+                // current (osculating) orbit instead, once it is drawn at
+                // all (see `layout`).
+                Some(parent) => {
+                    if !layout.iter().any(|s| s.index == index) {
+                        continue;
+                    }
+                    let planet = &bodies[parent];
+                    let Some(orbit) = osculating_orbit(
+                        body.position - planet.position,
+                        body.velocity - planet.velocity,
+                        planet.gm + body.gm,
+                        180,
+                    ) else {
+                        continue;
+                    };
+                    orbit
+                        .into_iter()
+                        .map(|p| screen(planet.position + p))
+                        .collect()
+                }
+                None => trail.points().chain([body.position]).map(screen).collect(),
+            };
             draw_trail(painter, &points, body_color(&body.name));
         }
     }
@@ -215,7 +264,7 @@ pub fn draw_over(
     layout: &[OnScreen],
     selected: usize,
 ) -> Vec<DrawnBody> {
-    let bodies = &simulation.system.bodies;
+    let bodies = &simulation.bodies;
     let mut drawn = Vec::with_capacity(layout.len());
     for item in layout {
         if !item.globe && hidden_behind_globe(item, layout) {
@@ -268,30 +317,29 @@ pub fn draw_over(
 
     if options.labels {
         // The selected body is labeled first, then the most massive ones. A
-        // label is skipped if its body sits on top of one already labeled,
-        // like the Moon next to Earth when zoomed out.
+        // label is skipped if it would overlap one already placed, as with
+        // a planet's inner moons when zoomed out.
         let mut order: Vec<&DrawnBody> = drawn.iter().collect();
         order.sort_by(|a, b| {
             (b.index == selected)
                 .cmp(&(a.index == selected))
                 .then(bodies[b.index].gm.total_cmp(&bodies[a.index].gm))
         });
-        let mut labeled: Vec<Pos2> = Vec::new();
+        let color = Color32::from_gray(215);
+        let mut placed: Vec<Rect> = Vec::new();
         for d in order {
-            if labeled
-                .iter()
-                .any(|p| (*p - d.center).length() < LABEL_CLEARANCE)
-            {
+            let galley = painter.layout_no_wrap(
+                bodies[d.index].name.clone(),
+                FontId::proportional(13.0),
+                color,
+            );
+            let anchor = d.center + vec2(d.radius + 5.0, 0.0);
+            let rect = Align2::LEFT_CENTER.anchor_size(anchor, galley.size());
+            if placed.iter().any(|r| r.expand(LABEL_GAP).intersects(rect)) {
                 continue;
             }
-            labeled.push(d.center);
-            painter.text(
-                d.center + vec2(d.radius + 5.0, 0.0),
-                Align2::LEFT_CENTER,
-                &bodies[d.index].name,
-                FontId::proportional(13.0),
-                Color32::from_gray(215),
-            );
+            placed.push(rect);
+            painter.galley(rect.min, galley, color);
         }
     }
     drawn

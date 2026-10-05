@@ -5,12 +5,15 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use worldline_core::constants::DAY;
-use worldline_core::gravity::{EinsteinInfeldHoffmann, Gravity};
+use worldline_core::gravity::Gravity;
+use worldline_core::hierarchy::{Hierarchy, MOON_SYSTEM_GRAVITY};
 use worldline_core::integrator::{Ias15, Integrator};
 use worldline_core::rotation::RotationModel;
-use worldline_core::{DVec3, System};
+use worldline_core::{Body, DVec3};
 
-/// The recent path of one body: about one orbit's worth.
+/// The recent path of one body around the Sun: about one orbit's worth.
+/// Moons have none; they are shown with their current orbit (see
+/// `view.rs`).
 #[derive(Debug, Clone, Default)]
 pub struct Trail {
     points: VecDeque<DVec3>,
@@ -52,45 +55,107 @@ impl Trail {
     }
 }
 
+/// Where a body in the flat list lives in the hierarchy.
+#[derive(Debug, Clone, Copy)]
+enum Source {
+    /// A top-level body.
+    Top(usize),
+    /// Body `body` of moon system `system` (body 0 is the planet).
+    Moon { system: usize, body: usize },
+}
+
 /// The solar system running live.
 pub struct Simulation {
-    /// The bodies and the clock (seconds since `epoch_jd_tdb`).
-    pub system: System,
+    /// Every body: the Sun and planets (each planet with moons in place of
+    /// its system's barycenter) in the snapshot's order, then the moons.
+    /// Positions are refreshed after every step.
+    pub bodies: Vec<Body>,
     /// The starting moment, as a Julian Date (TDB).
     pub epoch_jd_tdb: f64,
     /// Simulated seconds per real second.
     pub speed: f64,
     /// Whether time is stopped.
     pub paused: bool,
-    /// One trail per body, in the same order as the bodies.
+    /// One trail per body, in the same order as the bodies (empty for moons).
     pub trails: Vec<Trail>,
     /// Fraction of the requested speed the last update achieved: 1.0 when
     /// physics kept up, less when it ran out of time.
     pub achieved: f64,
+    /// The body each one closely orbits (a moon's planet), if any.
+    parents: Vec<Option<usize>>,
+    sources: Vec<Source>,
     /// IAU rotation model of each body, where one exists.
     rotations: Vec<Option<RotationModel>>,
-    gravity: EinsteinInfeldHoffmann,
-    integrator: Ias15,
+    hierarchy: Hierarchy,
 }
 
 impl Simulation {
-    /// The real solar system on 2025-01-01, with relativistic gravity.
+    /// The real solar system on 2025-01-01, with its major moons:
+    /// relativistic gravity between the Sun and planets, and each planet
+    /// with moons simulated in its own frame.
     pub fn solar_system(speed: f64) -> Self {
-        let snapshot = worldline_data::solar_system();
-        let system = snapshot.system();
+        let epoch_jd_tdb = worldline_data::solar_system().epoch_jd_tdb;
+        let hierarchy = worldline_data::solar_system_with_moons();
+
+        let mut sources: Vec<Source> = (0..hierarchy.top.bodies.len()).map(Source::Top).collect();
+        for (system, moons) in hierarchy.moon_systems.iter().enumerate() {
+            sources[moons.host] = Source::Moon { system, body: 0 };
+        }
+        for (system, moons) in hierarchy.moon_systems.iter().enumerate() {
+            sources
+                .extend((1..moons.system.bodies.len()).map(|body| Source::Moon { system, body }));
+        }
+        let bodies: Vec<Body> = sources
+            .iter()
+            .map(|source| match *source {
+                Source::Top(k) => hierarchy.top.bodies[k].clone(),
+                Source::Moon { system, body } => {
+                    hierarchy.moon_systems[system].system.bodies[body].clone()
+                }
+            })
+            .collect();
+        let index_of = |name: &str| bodies.iter().position(|b| b.name == name);
+        let parents = sources
+            .iter()
+            .zip(&bodies)
+            .map(|(source, body)| match *source {
+                Source::Moon { system, body } if body > 0 => {
+                    let host = hierarchy.moon_systems[system].host;
+                    Some(host)
+                }
+                // The Moon is simulated at the top level, beside Earth.
+                _ if body.name == "Moon" => index_of("Earth"),
+                _ => None,
+            })
+            .collect();
+
         let mut simulation = Self {
-            trails: vec![Trail::default(); system.bodies.len()],
-            system,
-            epoch_jd_tdb: snapshot.epoch_jd_tdb,
+            trails: vec![Trail::default(); bodies.len()],
+            rotations: bodies
+                .iter()
+                .map(|b| worldline_data::rotation_model(&b.name))
+                .collect(),
+            bodies,
+            epoch_jd_tdb,
             speed,
             paused: false,
             achieved: 1.0,
-            rotations: system_rotations(&snapshot.bodies),
-            gravity: EinsteinInfeldHoffmann,
-            integrator: Ias15::new(),
+            parents,
+            sources,
+            hierarchy,
         };
-        simulation.record_trails();
+        simulation.refresh();
         simulation
+    }
+
+    /// Simulated time since the start, in s.
+    pub fn time(&self) -> f64 {
+        self.hierarchy.time()
+    }
+
+    /// The body that body `index` closely orbits (a moon's planet), if any.
+    pub fn parent(&self, index: usize) -> Option<usize> {
+        self.parents[index]
     }
 
     /// How body `index` is oriented and spins, if known.
@@ -98,34 +163,32 @@ impl Simulation {
         self.rotations.get(index)?.as_ref()
     }
 
-    /// The gravity model in use.
+    /// The gravity model between the Sun and planets.
     pub fn gravity(&self) -> &dyn Gravity {
-        &self.gravity
+        self.hierarchy.gravity()
     }
 
-    /// The integrator in use.
+    /// The gravity model inside each planet's moon system.
+    pub fn moon_gravity_name(&self) -> &'static str {
+        MOON_SYSTEM_GRAVITY
+    }
+
+    /// The integrator in use, at both levels.
     pub fn integrator_name(&self) -> &'static str {
-        self.integrator.name()
+        Ias15::new().name()
     }
 
     /// The current moment, as a Julian Date (TDB).
     pub fn julian_date(&self) -> f64 {
-        self.epoch_jd_tdb + self.system.time() / DAY
+        self.epoch_jd_tdb + self.time() / DAY
     }
 
     /// Advances the simulation by `seconds` of simulated time, however
     /// long that takes to compute.
     pub fn advance_by(&mut self, seconds: f64) {
-        let target = self.system.time() + seconds;
-        while self.system.time() < target {
-            let remaining = target - self.system.time();
-            let taken = self
-                .integrator
-                .step(&mut self.system, &self.gravity, remaining);
-            if taken >= remaining {
-                self.system.set_time(target);
-            }
-            self.record_trails();
+        let target = self.time() + seconds;
+        while self.time() < target {
+            self.step_toward(target);
         }
     }
 
@@ -141,34 +204,46 @@ impl Simulation {
             self.achieved = 1.0;
             return;
         }
-        let start = self.system.time();
+        let start = self.time();
         let target = start + requested;
         let clock = Instant::now();
-        while self.system.time() < target && clock.elapsed() < budget {
-            let remaining = target - self.system.time();
-            let taken = self
-                .integrator
-                .step(&mut self.system, &self.gravity, remaining);
-            if taken >= remaining {
-                self.system.set_time(target);
+        while self.time() < target && clock.elapsed() < budget {
+            self.step_toward(target);
+        }
+        self.achieved = (self.time() - start) / requested;
+    }
+
+    /// One step of the whole hierarchy, landing exactly on `target` if it
+    /// gets there.
+    fn step_toward(&mut self, target: f64) {
+        let remaining = target - self.time();
+        let taken = self.hierarchy.step(remaining);
+        if taken >= remaining {
+            self.hierarchy.set_time(target);
+        }
+        self.refresh();
+    }
+
+    /// Copies positions and velocities out of the hierarchy and extends
+    /// the trails of bodies that orbit the Sun.
+    fn refresh(&mut self) {
+        for (body, source) in self.bodies.iter_mut().zip(&self.sources) {
+            let (position, velocity) = match *source {
+                Source::Top(k) => {
+                    let b = &self.hierarchy.top.bodies[k];
+                    (b.position, b.velocity)
+                }
+                Source::Moon { system, body } => self.hierarchy.absolute(system, body),
+            };
+            body.position = position;
+            body.velocity = velocity;
+        }
+        for ((trail, body), parent) in self.trails.iter_mut().zip(&self.bodies).zip(&self.parents) {
+            if parent.is_none() {
+                trail.record(body.position);
             }
-            self.record_trails();
-        }
-        self.achieved = (self.system.time() - start) / requested;
-    }
-
-    fn record_trails(&mut self) {
-        for (trail, body) in self.trails.iter_mut().zip(&self.system.bodies) {
-            trail.record(body.position);
         }
     }
-}
-
-fn system_rotations(bodies: &[worldline_core::Body]) -> Vec<Option<RotationModel>> {
-    bodies
-        .iter()
-        .map(|b| worldline_data::rotation_model(&b.name))
-        .collect()
 }
 
 #[cfg(test)]
@@ -181,7 +256,7 @@ mod tests {
     fn one_real_second_advances_by_the_speed() {
         let mut sim = Simulation::solar_system(DAY);
         sim.update(1.0, GENEROUS);
-        assert_eq!(sim.system.time(), DAY);
+        assert_eq!(sim.time(), DAY);
         assert_eq!(sim.achieved, 1.0);
         assert_eq!(sim.julian_date(), sim.epoch_jd_tdb + 1.0);
     }
@@ -191,7 +266,7 @@ mod tests {
         let mut sim = Simulation::solar_system(DAY);
         sim.paused = true;
         sim.update(1.0, GENEROUS);
-        assert_eq!(sim.system.time(), 0.0);
+        assert_eq!(sim.time(), 0.0);
     }
 
     #[test]
@@ -202,6 +277,27 @@ mod tests {
     }
 
     #[test]
+    fn planets_stand_in_for_their_systems_and_moons_follow() {
+        // Jupiter's entry is the planet itself, not its system's
+        // barycenter, and Io is listed with Jupiter as its parent, about
+        // 422,000 km away.
+        let sim = Simulation::solar_system(DAY);
+        let find = |name: &str| sim.bodies.iter().position(|b| b.name == name).unwrap();
+        let (jupiter, io) = (find("Jupiter"), find("Io"));
+        assert!(
+            sim.bodies[jupiter].gm < 1.267e17,
+            "Jupiter's GM is the planet's own"
+        );
+        assert_eq!(sim.parent(io), Some(jupiter));
+        assert_eq!(sim.parent(find("Moon")), Some(find("Earth")));
+        assert_eq!(sim.parent(jupiter), None);
+        let distance = (sim.bodies[io].position - sim.bodies[jupiter].position).length();
+        assert!((distance / 4.22e8 - 1.0).abs() < 0.01, "Io at {distance} m");
+        // The top level's order is kept: Earth is still body 3.
+        assert_eq!(find("Earth"), 3);
+    }
+
+    #[test]
     fn trails_cover_about_one_orbit() {
         // After more than a year, Earth's trail should reach back about one
         // orbit: its oldest point lies close to where Earth is now.
@@ -209,7 +305,7 @@ mod tests {
         sim.update(1.2, GENEROUS);
         let earth = &sim.trails[3];
         let oldest = earth.points().next().unwrap();
-        let now = sim.system.bodies[3].position;
+        let now = sim.bodies[3].position;
         assert!((now - oldest).length() < 0.2 * now.length());
         assert!(
             earth.points().len() > 300,

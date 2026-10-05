@@ -38,7 +38,6 @@ const GM_EARTH: f64 = 3.986_004_355_070_227e14;
 
 const SUN: usize = 0;
 const EARTH: usize = 3;
-const MOON: usize = 4;
 
 /// Where the camera settles when you focus on a body, in body radii: close
 /// enough that the globe fills most of the view.
@@ -94,14 +93,8 @@ impl WorldlineApp {
         app.simulation.paused = start.paused;
         app.simulation.advance_by(start.advance_years * JULIAN_YEAR);
         if let Some(name) = &start.focus {
-            match app
-                .simulation
-                .system
-                .bodies
-                .iter()
-                .position(|b| &b.name == name)
-            {
-                Some(i) => app.focus_on(i),
+            match app.simulation.bodies.iter().position(|b| &b.name == name) {
+                Some(i) => app.fly_to(i, start.zoom_radii.unwrap_or(FOCUS_DISTANCE_RADII)),
                 None => eprintln!("worldline: no body named `{name}` to focus on"),
             }
         }
@@ -117,11 +110,16 @@ impl WorldlineApp {
 
     /// Makes the camera follow a body, flying in close to it.
     fn focus_on(&mut self, index: usize) {
-        let radius = self.simulation.system.bodies[index].radius;
+        self.fly_to(index, FOCUS_DISTANCE_RADII);
+    }
+
+    /// Makes the camera follow a body, settling `radii` of its radii away.
+    fn fly_to(&mut self, index: usize, radii: f64) {
+        let radius = self.simulation.bodies[index].radius;
         self.flight = Some(Flight {
             from_target: self.camera.target,
             from_distance: self.camera.distance,
-            to_distance: FOCUS_DISTANCE_RADII * radius,
+            to_distance: radii * radius,
             start: Instant::now(),
         });
         self.focus = index;
@@ -131,7 +129,7 @@ impl WorldlineApp {
     /// Points the camera at the focused body, partway along a flight if one
     /// is under way.
     fn aim_camera(&mut self) {
-        let target = self.simulation.system.bodies[self.focus].position;
+        let target = self.simulation.bodies[self.focus].position;
         let Some(flight) = &self.flight else {
             self.camera.target = target;
             return;
@@ -194,15 +192,34 @@ impl WorldlineApp {
                     .small()
                     .weak(),
             );
+            // Each planet with its moons listed beneath it.
             let mut fly_to = None;
-            for (i, body) in self.simulation.system.bodies.iter().enumerate() {
-                let text = RichText::new(&body.name).color(body_color(&body.name));
+            let simulation = &self.simulation;
+            let mut entry = |ui: &mut egui::Ui, i: usize| {
+                let name = &simulation.bodies[i].name;
+                let text = RichText::new(name).color(body_color(name));
                 let response = ui.selectable_label(i == self.selected, text);
                 if response.clicked() {
                     self.selected = i;
                 }
                 if response.double_clicked() {
                     fly_to = Some(i);
+                }
+            };
+            for i in 0..simulation.bodies.len() {
+                if simulation.parent(i).is_some() {
+                    continue;
+                }
+                entry(ui, i);
+                let moons: Vec<usize> = (0..simulation.bodies.len())
+                    .filter(|&m| simulation.parent(m) == Some(i))
+                    .collect();
+                if !moons.is_empty() {
+                    ui.indent(i, |ui| {
+                        for m in moons {
+                            entry(ui, m);
+                        }
+                    });
                 }
             }
             if let Some(i) = fly_to {
@@ -217,11 +234,14 @@ impl WorldlineApp {
                 ui.label("Gravity");
                 ui.label(self.simulation.gravity().name());
                 ui.end_row();
+                ui.label("Moons");
+                ui.label(self.simulation.moon_gravity_name());
+                ui.end_row();
                 ui.label("Integrator");
                 ui.label(self.simulation.integrator_name());
                 ui.end_row();
                 ui.label("Data");
-                ui.label("NASA JPL Horizons (DE441)");
+                ui.label("NASA JPL Horizons (DE441 and satellite ephemerides)");
                 ui.end_row();
                 ui.label("Start");
                 ui.label("2025-01-01 00:00 TDB");
@@ -236,7 +256,10 @@ impl WorldlineApp {
             ui.separator();
 
             ui.heading("Display");
-            ui.checkbox(&mut self.options.trails, "Orbit trails");
+            ui.checkbox(
+                &mut self.options.trails,
+                "Orbit trails (moons: current orbit)",
+            );
             ui.checkbox(&mut self.options.grid, "Distance rings (ecliptic plane)");
             ui.checkbox(&mut self.options.labels, "Labels");
             ui.checkbox(
@@ -258,9 +281,10 @@ impl WorldlineApp {
     }
 
     fn selected_body(&mut self, ui: &mut egui::Ui) {
-        let bodies = &self.simulation.system.bodies;
+        let bodies = &self.simulation.bodies;
         let body = &bodies[self.selected];
         let sun = &bodies[SUN];
+        let parent = self.simulation.parent(self.selected);
         ui.heading(RichText::new(&body.name).color(body_color(&body.name)));
         egui::Grid::new("selected").num_columns(2).show(ui, |ui| {
             ui.label("Mass");
@@ -272,7 +296,21 @@ impl WorldlineApp {
             ui.label("Radius");
             ui.label(format!("{:.0} km", body.radius / 1e3));
             ui.end_row();
-            if self.selected != SUN {
+            if let Some(parent) = parent {
+                let planet = &bodies[parent];
+                ui.label(format!("Distance from {}", planet.name));
+                ui.label(format!(
+                    "{:.0} km",
+                    (body.position - planet.position).length() / 1e3
+                ));
+                ui.end_row();
+                ui.label(format!("Speed relative to {}", planet.name));
+                ui.label(format!(
+                    "{:.3} km/s",
+                    (body.velocity - planet.velocity).length() / 1e3
+                ));
+                ui.end_row();
+            } else if self.selected != SUN {
                 ui.label("Distance from Sun");
                 ui.label(format!(
                     "{:.4} AU",
@@ -303,11 +341,12 @@ impl WorldlineApp {
                     "retrograde"
                 });
                 ui.end_row();
-                // Tilt of the spin axis to the orbit: around Earth for the
-                // Moon, around the Sun for the planets, to the ecliptic for the Sun.
-                let orbit_normal = match self.selected {
-                    SUN => DVec3::Z,
-                    MOON => orbit_normal(body, &bodies[EARTH]),
+                // Tilt of the spin axis to the orbit: around its planet for
+                // a moon, around the Sun for a planet, to the ecliptic for
+                // the Sun.
+                let orbit_normal = match (self.selected, parent) {
+                    (SUN, _) => DVec3::Z,
+                    (_, Some(planet)) => orbit_normal(body, &bodies[planet]),
                     _ => orbit_normal(body, sun),
                 };
                 ui.label(if self.selected == SUN {
@@ -323,7 +362,7 @@ impl WorldlineApp {
             }
         });
         ui.add_space(4.0);
-        for detail in details::details(&body.name) {
+        for detail in details::details(&body.name, parent.is_some()) {
             ui.horizontal_wrapped(|ui| {
                 ui.label(
                     RichText::new(detail.kind.tag())
@@ -349,7 +388,7 @@ impl WorldlineApp {
             let delta = response.drag_delta();
             self.camera.orbit(delta.x, delta.y);
         }
-        let focus_radius = self.simulation.system.bodies[self.focus].radius;
+        let focus_radius = self.simulation.bodies[self.focus].radius;
         let min_distance = (MIN_DISTANCE_RADII * focus_radius).max(1e3);
         if response.hovered() && self.flight.is_none() {
             let scroll = ui.ctx().input(|i| i.smooth_scroll_delta.y);
@@ -417,7 +456,7 @@ impl WorldlineApp {
     ) -> Option<TextureId> {
         let eye = self.camera.eye();
         let jd = self.simulation.julian_date();
-        let bodies = &self.simulation.system.bodies;
+        let bodies = &self.simulation.bodies;
         let sun = bodies[SUN].position;
         let globes: Vec<Globe> = layout
             .iter()

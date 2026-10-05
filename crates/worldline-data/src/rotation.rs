@@ -31,6 +31,27 @@ fn naif_body_id(name: &str) -> Option<u32> {
         "Uranus" => 799,
         "Neptune" => 899,
         "Pluto" => 999,
+        "Phobos" => 401,
+        "Deimos" => 402,
+        "Io" => 501,
+        "Europa" => 502,
+        "Ganymede" => 503,
+        "Callisto" => 504,
+        "Mimas" => 601,
+        "Enceladus" => 602,
+        "Tethys" => 603,
+        "Dione" => 604,
+        "Rhea" => 605,
+        "Titan" => 606,
+        "Hyperion" => 607,
+        "Iapetus" => 608,
+        "Ariel" => 701,
+        "Umbriel" => 702,
+        "Titania" => 703,
+        "Oberon" => 704,
+        "Miranda" => 705,
+        "Triton" => 801,
+        "Charon" => 901,
         _ => return None,
     })
 }
@@ -40,6 +61,11 @@ fn naif_body_id(name: &str) -> Option<u32> {
 pub fn rotation_model(name: &str) -> Option<RotationModel> {
     let id = naif_body_id(name)?;
     let values = kernel();
+    // Some bodies have a shape but no rotation model: Hyperion tumbles
+    // chaotically, so no fixed spin can describe it.
+    if !values.contains_key(&format!("BODY{id}_PM")) {
+        return None;
+    }
     let get = |key: String| values.get(&key).cloned().unwrap_or_default();
     let three = |key: String| -> [f64; 3] {
         let v = get(key);

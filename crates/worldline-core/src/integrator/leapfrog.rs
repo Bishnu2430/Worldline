@@ -48,15 +48,16 @@ impl Integrator for Leapfrog {
             gravity.name()
         );
         let h = self.dt.min(max_dt);
+        let t0 = system.time();
         let bodies = &mut system.bodies;
         self.acc.resize(bodies.len(), DVec3::ZERO);
 
-        gravity.accelerations(bodies, &mut self.acc);
+        gravity.accelerations(t0, bodies, &mut self.acc);
         for (b, a) in bodies.iter_mut().zip(&self.acc) {
             b.velocity += 0.5 * h * *a;
             b.position += h * b.velocity;
         }
-        gravity.accelerations(bodies, &mut self.acc);
+        gravity.accelerations(t0 + h, bodies, &mut self.acc);
         for (b, a) in bodies.iter_mut().zip(&self.acc) {
             b.velocity += 0.5 * h * *a;
         }

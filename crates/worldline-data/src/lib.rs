@@ -5,11 +5,16 @@
 
 mod atmosphere;
 mod kernel;
+mod moons;
 mod rings;
 mod rotation;
 mod snapshot;
 
 pub use atmosphere::{Atmosphere, atmosphere};
+pub use moons::{
+    MoonSystemData, moon_figure, moon_systems, parse_moons, ring_mass, solar_system_with_moons,
+    tesseral_harmonics, zonal_harmonics,
+};
 pub use rings::{RingFeature, RingProfile, saturn_ring_features, saturn_rings};
 pub use rotation::{rotation_model, triaxial_radii};
 pub use snapshot::{ParseError, Snapshot};

@@ -19,8 +19,14 @@ from pathlib import Path
 KERNEL = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc"
 OUT = Path(__file__).resolve().parent.parent / "crates" / "worldline-data" / "data" / "pck00011-subset.tpc"
 
-# Sun, Mercury, Venus, Earth, Moon, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto
-BODIES = "10|199|299|399|301|499|599|699|799|899|999"
+# Sun, Mercury, Venus, Earth, Moon, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto,
+# and the major moons: Phobos, Deimos; Io, Europa, Ganymede, Callisto; Mimas,
+# Enceladus, Tethys, Dione, Rhea, Titan, Hyperion, Iapetus; Ariel, Umbriel,
+# Titania, Oberon, Miranda; Triton; Charon.
+BODIES = (
+    "10|199|299|399|301|499|599|699|799|899|999"
+    "|401|402|501|502|503|504|601|602|603|604|605|606|607|608|701|702|703|704|705|801|901"
+)
 WANTED = re.compile(
     rf"^BODY({BODIES})_(POLE_RA|POLE_DEC|PM|NUT_PREC_RA|NUT_PREC_DEC|NUT_PREC_PM|RADII)$"
     r"|^BODY[1-9]_(NUT_PREC_ANGLES|MAX_PHASE_DEGREE)$"

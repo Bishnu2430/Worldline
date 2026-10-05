@@ -25,6 +25,14 @@ Each crate is added when its milestone starts, not before. The 3D view is drawn 
 
 Everything uses SI units in `f64`. Bodies store their gravitational parameter GM instead of mass, because GM is measured about 100,000 times more precisely than G (see [newtonian-gravity.md](physics/newtonian-gravity.md)). Each gravitationally bound system is simulated in its own local frame, centered near its barycenter, to keep precision. The renderer draws everything relative to the camera, so the GPU's single precision never limits accuracy.
 
+## Hierarchical integration
+
+Fast inner orbits shouldn't set the pace for everything. The solar system runs as a hierarchy (`worldline-core/src/hierarchy.rs`):
+- **The top level** holds the Sun, the planets, and each planetary system as one point at its barycenter. It uses relativistic gravity and its own IAS15 integrator.
+- **Each moon system** holds a planet and its moons in their own barycentric frame. After each top-level step it catches up with its own IAS15, taking as many small steps as its moons need. Inside, bodies feel each other, the planet's gravity field (oblateness and, for Mars, its lumps), tidally locked moons' shapes, and the tides of the Sun and planets, interpolated across the step.
+
+This mirrors how JPL builds its ephemerides: planetary ephemerides for the barycenters, satellite ephemerides for the moons. See [physics/moons.md](physics/moons.md).
+
 ## Choosing a physics model
 
 For each body or pair of bodies, the engine computes a few dimensionless numbers:
@@ -41,6 +49,7 @@ It uses them to pick a model:
 | Situation | Model | Source |
 |---|---|---|
 | Ordinary orbits | Newtonian plus first post-Newtonian (Einstein–Infeld–Hoffmann) N-body | Einstein, Infeld & Hoffmann 1938; used in JPL planetary ephemerides |
+| Moons, inside their planet's system | Newtonian N-body plus the planet's zonal and tesseral harmonics, locked moons' shapes, and outside tides | JPL satellite ephemeris models; Montenbruck & Gill 2000 |
 | Compact binaries | Post-Newtonian up to 3.5PN, including radiation reaction | Blanchet, *Living Reviews in Relativity* 2014; Peters 1964 |
 | Near a dominant black hole (q ≪ 1) | Kerr geodesics with radiation reaction | Kerr 1963; Bardeen, Press & Teukolsky 1972 |
 | Merger | Fits to numerical relativity: final mass, spin, kick, ringdown | Jiménez-Forteza et al. 2017; Campanelli et al. 2007; Berti, Cardoso & Will 2006 |
