@@ -1,6 +1,6 @@
 # The desktop app
 
-**Code:** `crates/worldline-app/` · **Run:** `cargo run --release` (options: `-- --focus Earth --paused`)
+**Code:** `crates/worldline-app/` · **Run:** `cargo run --release` (options: `-- --focus Earth --paused --advance 7`; `--advance` runs the physics that many years past the 2025 snapshot before the window opens)
 
 The app is a window around the physics engine. It never does physics itself. It asks `worldline-core` to advance the simulation, then draws the result.
 
@@ -21,6 +21,7 @@ The app is a window around the physics engine. It never does physics itself. It 
 - **Trails.** Each trail keeps about one orbit of path, measured as one circle's length at the body's distance from the barycenter, so Mercury and Neptune both show one loop. Trails are drawn in the barycentric frame, and they fade from old to new.
 - **Labels.** The selected body is labeled first, then bodies in order of mass. A label is skipped if its body overlaps one already labeled, which hides the Moon's label when zoomed out on the Earth–Moon pair.
 - **Spin axes.** Each body gets a line along its spin axis, from the IAU rotation models. A white dot marks the end the spin points toward (right-hand rule), so Venus's dot points down. The inspector shows each body's sidereal day, spin direction and axial tilt. See [physics/rotation.md](physics/rotation.md).
+- **Details and their kind.** The inspector lists what's shown up close for the selected body, each tagged **measured** (observed data), **model** (a physics model) or **visual** (a visual aid or simplification). See [rendering.md](rendering.md).
 - **Dates.** The top bar shows the simulation time as a calendar date in TDB, JPL's time scale, using Meeus's Julian Date algorithm.
 
 ## Tests

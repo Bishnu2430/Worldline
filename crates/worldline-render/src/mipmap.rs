@@ -69,6 +69,33 @@ pub fn chain(width: u32, height: u32, rgba: &[u8]) -> Vec<Level> {
     levels
 }
 
+/// Builds the levels of a one-dimensional profile (such as a ring's
+/// transmission versus radius), halving down to one value. Level sizes
+/// follow the GPU's rule, each half the previous rounded down; with an odd
+/// count the last value joins the final average, so nothing is dropped.
+/// Averaging transmission is exactly right: it's what an unresolved
+/// stretch of ring lets through.
+pub fn profile_chain(values: &[f32]) -> Vec<Vec<f32>> {
+    let mut levels = vec![values.to_vec()];
+    while levels.last().is_some_and(|l| l.len() > 1) {
+        let previous = levels.last().unwrap();
+        let count = previous.len() / 2;
+        let next = (0..count)
+            .map(|i| {
+                let end = if i + 1 == count {
+                    previous.len()
+                } else {
+                    2 * i + 2
+                };
+                let group = &previous[2 * i..end];
+                group.iter().sum::<f32>() / group.len() as f32
+            })
+            .collect();
+        levels.push(next);
+    }
+    levels
+}
+
 /// sRGB-encoded byte to linear light (IEC 61966-2-1).
 fn to_linear(value: u8) -> f32 {
     let c = f32::from(value) / 255.0;
@@ -110,6 +137,25 @@ mod tests {
         let rgba = [0, 0, 0, 255, 255, 255, 255, 255];
         let level = &chain(2, 1, &rgba)[0];
         assert_eq!(&level.rgba, &[188, 188, 188, 255]);
+    }
+
+    #[test]
+    fn profile_levels_average_pairs() {
+        let levels = profile_chain(&[1.0, 0.0, 0.5, 0.5, 0.2]);
+        assert_eq!(levels[1], [0.5, 0.4]);
+        assert_eq!(levels[2], [0.45]);
+    }
+
+    #[test]
+    fn profile_level_sizes_follow_the_gpu_rule() {
+        // Each level is max(1, n >> level) long, and there are
+        // floor(log2(n)) + 1 levels. 7,222 bins (the Saturn profile) → 13.
+        let n = 7_222;
+        let levels = profile_chain(&vec![0.5; n]);
+        assert_eq!(levels.len(), 13);
+        for (level, values) in levels.iter().enumerate() {
+            assert_eq!(values.len(), (n >> level).max(1), "level {level}");
+        }
     }
 
     #[test]

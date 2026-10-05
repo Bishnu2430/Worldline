@@ -10,6 +10,8 @@ pub struct SurfaceMaps {
     pub surface: &'static [u8],
     /// What glows on the night side (Earth's city lights), if anything.
     pub night: Option<&'static [u8]>,
+    /// Clouds, white on black, if the body has a cloud map.
+    pub clouds: Option<&'static [u8]>,
 }
 
 macro_rules! map {
@@ -35,7 +37,12 @@ pub fn surface_maps(name: &str) -> Option<SurfaceMaps> {
         _ => return None,
     };
     let night = (name == "Earth").then(|| map!("2k_earth_nightmap.jpg"));
-    Some(SurfaceMaps { surface, night })
+    let clouds = (name == "Earth").then(|| map!("2k_earth_clouds.jpg"));
+    Some(SurfaceMaps {
+        surface,
+        night,
+        clouds,
+    })
 }
 
 /// Decodes a JPEG into width, height and sRGB RGBA8 pixels.
@@ -58,7 +65,10 @@ mod tests {
         ];
         for name in names {
             let maps = surface_maps(name).unwrap();
-            for bytes in [Some(maps.surface), maps.night].into_iter().flatten() {
+            for bytes in [Some(maps.surface), maps.night, maps.clouds]
+                .into_iter()
+                .flatten()
+            {
                 let (width, height, rgba) = decode(bytes);
                 assert_eq!((width, height), (2048, 1024), "{name}");
                 assert_eq!(rgba.len(), 2048 * 1024 * 4);

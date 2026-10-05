@@ -10,4 +10,6 @@ mod mesh;
 mod mipmap;
 mod renderer;
 
-pub use renderer::{Image, Material, Renderer, SphereDraw, View};
+pub use renderer::{
+    Atmosphere, Image, Material, MaterialImages, Renderer, Rings, SphereDraw, View,
+};

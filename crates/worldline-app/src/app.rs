@@ -8,10 +8,11 @@ use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
 use worldline_core::DVec3;
 use worldline_core::constants::{AU, DAY, JULIAN_YEAR};
-use worldline_render::View;
+use worldline_render::{Atmosphere, Rings, View};
 
 use crate::calendar::DateTime;
 use crate::camera::Camera;
+use crate::details;
 use crate::gpu::{Globe, GpuGlobes};
 use crate::simulation::Simulation;
 use crate::view::{self, OnScreen, ViewOptions, body_color};
@@ -91,6 +92,7 @@ impl WorldlineApp {
             gpu: None,
         };
         app.simulation.paused = start.paused;
+        app.simulation.advance_by(start.advance_years * JULIAN_YEAR);
         if let Some(name) = &start.focus {
             match app
                 .simulation
@@ -320,6 +322,17 @@ impl WorldlineApp {
                 ui.end_row();
             }
         });
+        ui.add_space(4.0);
+        for detail in details::details(&body.name) {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(
+                    RichText::new(detail.kind.tag())
+                        .small()
+                        .color(detail.kind.color()),
+                );
+                ui.label(RichText::new(detail.what).small());
+            });
+        }
         if self.focus == self.selected {
             ui.label(RichText::new("The camera is following this body.").weak());
         } else if ui.button("Fly to it").clicked() {
@@ -420,25 +433,48 @@ impl WorldlineApp {
                     .map_or(Mat3::IDENTITY, |m| {
                         m.orientation(jd).body_to_ecliptic.as_mat3()
                     });
+                // True shape from the IAU models; mean radius if unknown.
+                let radii = worldline_data::triaxial_radii(&body.name)
+                    .map_or(DVec3::splat(body.radius), DVec3::from_array)
+                    .as_vec3();
+                let rings = (body.name == "Saturn").then(|| {
+                    let profile = worldline_data::saturn_rings();
+                    Rings {
+                        inner: profile.inner as f32,
+                        outer: profile.outer() as f32,
+                    }
+                });
+                let atmosphere = worldline_data::atmosphere(&body.name).map(|a| Atmosphere {
+                    height: a.height as f32,
+                    scale_height: a.scale_height as f32,
+                    rayleigh: DVec3::from_array(a.rayleigh).as_vec3(),
+                });
                 Globe {
                     name: body.name.clone(),
                     color: body_color(&body.name),
                     center,
-                    radius: body.radius as f32,
+                    radii,
                     orientation,
                     sun_direction: (sun - body.position).normalize_or_zero().as_vec3(),
                     emissive: item.index == SUN,
                     night_glow: if item.index == EARTH { 1.0 } else { 0.0 },
+                    rings,
+                    atmosphere,
                 }
             })
             .collect();
         if globes.is_empty() {
             return None;
         }
-        // The near clipping plane sits halfway to the closest surface.
+        // The near clipping plane sits halfway to the closest surface, ring
+        // or top of the atmosphere.
         let nearest_surface = globes
             .iter()
-            .map(|g| g.center.length() - g.radius)
+            .map(|g| {
+                let reach = g.radii.max_element().max(g.rings.map_or(0.0, |r| r.outer))
+                    + g.atmosphere.map_or(0.0, |a| a.height);
+                g.center.length() - reach
+            })
             .fold(f32::INFINITY, f32::min);
         let (forward, _, up) = self.camera.basis();
         let view = View {

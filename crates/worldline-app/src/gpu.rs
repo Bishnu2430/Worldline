@@ -1,4 +1,5 @@
-//! The GPU-drawn part of the 3D view: textured, lit, rotating globes.
+//! The GPU-drawn part of the 3D view: textured, lit, rotating globes with
+//! their atmospheres and rings.
 
 use std::collections::HashMap;
 
@@ -6,7 +7,9 @@ use eframe::egui::{Color32, TextureId};
 use eframe::egui_wgpu::RenderState;
 use eframe::wgpu;
 use glam::{Mat3, Vec3};
-use worldline_render::{Image, Material, Renderer, SphereDraw, View};
+use worldline_render::{
+    Atmosphere, Image, Material, MaterialImages, Renderer, Rings, SphereDraw, View,
+};
 
 use crate::textures;
 
@@ -18,8 +21,8 @@ pub struct Globe {
     pub color: Color32,
     /// Center relative to the camera, in m.
     pub center: Vec3,
-    /// Radius, in m.
-    pub radius: f32,
+    /// Triaxial radii (equatorial, equatorial, polar), in m.
+    pub radii: Vec3,
     /// Body-fixed frame → world axes.
     pub orientation: Mat3,
     /// Unit vector toward the Sun.
@@ -28,12 +31,17 @@ pub struct Globe {
     pub emissive: bool,
     /// Night-side glow (Earth's city lights).
     pub night_glow: f32,
+    /// Rings, with their measured profile.
+    pub rings: Option<Rings>,
+    /// A clear atmosphere, if any.
+    pub atmosphere: Option<Atmosphere>,
 }
 
 /// Owns the GPU renderer and the uploaded textures.
 pub struct GpuGlobes {
     renderer: Renderer,
-    materials: HashMap<String, Material>,
+    /// Each body's textures, and whether they include clouds.
+    materials: HashMap<String, (Material, bool)>,
     /// The renderer's output, registered with egui so it can be painted.
     texture: Option<TextureId>,
 }
@@ -41,15 +49,15 @@ pub struct GpuGlobes {
 impl GpuGlobes {
     pub fn new(state: &RenderState) -> Self {
         Self {
-            renderer: Renderer::new(&state.device),
+            renderer: Renderer::new(&state.device, &state.queue),
             materials: HashMap::new(),
             texture: None,
         }
     }
 
     /// Draws the globes and returns the texture holding the result.
-    /// Surface maps are decoded and uploaded the first time a body needs
-    /// one: detail follows focus.
+    /// Textures are decoded and uploaded the first time a body needs them:
+    /// detail follows focus.
     pub fn draw(&mut self, state: &RenderState, view: View, globes: &[Globe]) -> Option<TextureId> {
         for globe in globes {
             if !self.materials.contains_key(&globe.name) {
@@ -59,14 +67,20 @@ impl GpuGlobes {
         }
         let draws: Vec<SphereDraw<'_>> = globes
             .iter()
-            .map(|g| SphereDraw {
-                center: g.center,
-                radius: g.radius,
-                orientation: g.orientation,
-                sun_direction: g.sun_direction,
-                emissive: g.emissive,
-                night_glow: g.night_glow,
-                material: &self.materials[&g.name],
+            .map(|g| {
+                let (material, clouds) = &self.materials[&g.name];
+                SphereDraw {
+                    center: g.center,
+                    radii: g.radii,
+                    orientation: g.orientation,
+                    sun_direction: g.sun_direction,
+                    emissive: g.emissive,
+                    night_glow: g.night_glow,
+                    clouds: *clouds,
+                    rings: g.rings,
+                    atmosphere: g.atmosphere,
+                    material,
+                }
             })
             .collect();
 
@@ -95,28 +109,44 @@ impl GpuGlobes {
     }
 }
 
-fn load_material(renderer: &Renderer, state: &RenderState, globe: &Globe) -> Material {
-    let Some(maps) = textures::surface_maps(&globe.name) else {
-        let c = globe.color;
-        let pixel = [c.r(), c.g(), c.b(), 255];
-        let image = Image {
+/// Decodes and uploads a body's maps (and ring profile), returning the
+/// material and whether it has clouds.
+fn load_material(renderer: &Renderer, state: &RenderState, globe: &Globe) -> (Material, bool) {
+    let c = globe.color;
+    let flat_color = [c.r(), c.g(), c.b(), 255];
+    let maps = textures::surface_maps(&globe.name);
+    let decode = |bytes: Option<&'static [u8]>| bytes.map(textures::decode);
+    let surface = decode(maps.as_ref().map(|m| m.surface));
+    let night = decode(maps.as_ref().and_then(|m| m.night));
+    let clouds = decode(maps.as_ref().and_then(|m| m.clouds));
+    fn image(decoded: &(u32, u32, Vec<u8>)) -> Image<'_> {
+        Image {
+            width: decoded.0,
+            height: decoded.1,
+            rgba: &decoded.2,
+        }
+    }
+    let ring_transmission: Option<Vec<f32>> = globe.rings.map(|_| {
+        worldline_data::saturn_rings()
+            .transmission()
+            .iter()
+            .map(|&t| t as f32)
+            .collect()
+    });
+
+    let images = MaterialImages {
+        surface: surface.as_ref().map(image).unwrap_or(Image {
             width: 1,
             height: 1,
-            rgba: &pixel,
-        };
-        return renderer.create_material(&state.device, &state.queue, &image, None);
+            rgba: &flat_color,
+        }),
+        night: night.as_ref().map(image),
+        clouds: clouds.as_ref().map(image),
+        ring_transmission: ring_transmission.as_deref(),
     };
-    let (width, height, rgba) = textures::decode(maps.surface);
-    let surface = Image {
-        width,
-        height,
-        rgba: &rgba,
-    };
-    let night = maps.night.map(textures::decode);
-    let night_image = night.as_ref().map(|(width, height, rgba)| Image {
-        width: *width,
-        height: *height,
-        rgba,
-    });
-    renderer.create_material(&state.device, &state.queue, &surface, night_image.as_ref())
+    let has_clouds = images.clouds.is_some();
+    (
+        renderer.create_material(&state.device, &state.queue, &images),
+        has_clouds,
+    )
 }

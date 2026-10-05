@@ -1,7 +1,8 @@
 # Rotation: how bodies are oriented and spin
 
 **Code:** `crates/worldline-core/src/rotation.rs` (model), `crates/worldline-data/src/rotation.rs` and `kernel.rs` (data)
-**Data:** `crates/worldline-data/data/rotation-pck00011.tpc` · **Fetch script:** `tools/fetch_rotation.py`
+**Data:** `crates/worldline-data/data/pck00011-subset.tpc` · **Fetch script:** `tools/fetch_rotation.py`
+**Also:** each body's triaxial shape (`BODYnnn_RADII`) comes from the same kernel; a unit test checks Jupiter's and Saturn's flattening (0.06487, 0.09796) against NASA's fact sheet.
 **Sources:** the IAU Working Group on Cartographic Coordinates and Rotational Elements: Archinal et al. (2018), *Celestial Mechanics and Dynamical Astronomy* 130, 22. Values come from NASA NAIF's planetary constants kernel `pck00011.tpc`, copied character for character.
 
 ## The model

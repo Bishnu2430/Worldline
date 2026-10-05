@@ -11,7 +11,7 @@ use crate::kernel;
 fn kernel() -> &'static HashMap<String, Vec<f64>> {
     static KERNEL: OnceLock<HashMap<String, Vec<f64>>> = OnceLock::new();
     KERNEL.get_or_init(|| {
-        kernel::parse(include_str!("../data/rotation-pck00011.tpc"))
+        kernel::parse(include_str!("../data/pck00011-subset.tpc"))
             .expect("bundled rotation kernel is valid")
     })
 }
@@ -85,6 +85,14 @@ pub fn rotation_model(name: &str) -> Option<RotationModel> {
     })
 }
 
+/// A body's triaxial shape from the IAU models (pck00011), in m:
+/// equatorial radius a, equatorial radius b, polar radius c.
+pub fn triaxial_radii(name: &str) -> Option<[f64; 3]> {
+    let id = naif_body_id(name)?;
+    let radii = kernel().get(&format!("BODY{id}_RADII"))?;
+    (radii.len() == 3).then(|| [radii[0] * 1e3, radii[1] * 1e3, radii[2] * 1e3])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -110,5 +118,19 @@ mod tests {
         // Mars uses quadratic angles.
         let mars = rotation_model("Mars").unwrap();
         assert!(mars.terms.iter().all(|t| t.angle.len() == 3));
+    }
+
+    #[test]
+    fn giant_planets_are_flattened_as_nasa_reports() {
+        // Flattening (a − c) / a. NASA Planetary Fact Sheet: Jupiter 0.06487,
+        // Saturn 0.09796, Earth 0.00335.
+        let flattening = |name| {
+            let [a, _, c] = triaxial_radii(name).unwrap();
+            (a - c) / a
+        };
+        assert!((flattening("Jupiter") - 0.06487).abs() < 1e-5);
+        assert!((flattening("Saturn") - 0.09796).abs() < 1e-5);
+        assert!((flattening("Earth") - 0.00335).abs() < 1e-5);
+        assert_eq!(triaxial_radii("Moon").unwrap(), [1_737_400.0; 3]);
     }
 }
