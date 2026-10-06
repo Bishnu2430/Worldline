@@ -2,7 +2,7 @@
 
 **A relativistic universe sandbox.** Drop black holes, neutron stars and planets into the real universe and watch general relativity play out. Every physics model is validated against theory and observation.
 
-> **Status:** pre-alpha. The engine runs the real solar system, with relativistic gravity and its 21 major moons, in a 3D window. See the [roadmap](docs/ROADMAP.md).
+> **Status:** pre-alpha. The engine runs the real solar system, with relativistic gravity and all 459 of its known moons, in a 3D window. See the [roadmap](docs/ROADMAP.md).
 
 ![Worldline running the real solar system with relativistic gravity, five months after 1 January 2025](docs/images/solar-system-step-1.5.png)
 
@@ -37,7 +37,10 @@
 | Saturn's rings edge-on to Earth | 23 March 2025 | ✅ passing, +0.73 days |
 | Saturn's equinox (Sun crosses the ring plane) | 6 May 2025 | ✅ passing, +0.54 days |
 | Cassini-measured ring structure vs. PDS boundaries | B ring edge 117,570 km; empty Encke Gap | ✅ passing, 117,630 km (edge oscillates ±70 km); τ = 0.000 |
-| 21 major moons after 30 days vs. NASA JPL | each within its own radius | ✅ passing, 17 within 1.6 km; worst Triton 22 km (radius 1353 km) |
+| 21 major moons after 30 days vs. NASA JPL | each within its own radius | ✅ passing, 18 within 1.6 km; worst Mimas 13 km (radius 198 km) |
+| Every moon in JPL's list loads | 459 | ✅ passing, 459 (1 Moon, 21 major, 437 small) |
+| Small moons after 30 days vs. NASA JPL, spot checks with measured sizes | each within its own radius | 🟨 41 of 48; 7 listed residuals (Epimetheus, four Saturn moonlets, Styx, Kerberos), 3–62 km |
+| Janus and Epimetheus trade orbits | January 2026 | ✅ passing, 30 January 2026 |
 | Phobos and Deimos need Mars's lumpy (Tharsis) gravity | off by more than their size without it | ✅ passing, 108 and 175 km without, 0.10 and 0.28 km with |
 | Io–Europa–Ganymede Laplace resonance, after nudging Io | φ librates about 180° with a period of about 2071 days | ✅ passing, swings 148°–213°, period 2045 days |
 | Light bending at the Sun's edge | 1.75″ | planned |
@@ -92,6 +95,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · textures from Solar Syste
 - [Rendering globes](docs/rendering.md): GPU globes, precision across 12 orders of magnitude, lighting, atmospheres
 - [Saturn's rings](docs/physics/saturn-rings.md): Cassini's measured profile, transparency, shadows
 - [Moons](docs/physics/moons.md): hierarchical integration, planets' gravity fields, and how each residual against JPL was tracked down
+- [Small moons](docs/physics/small-moons.md): every known moon, computed in detail where you look
 
 ## License
 

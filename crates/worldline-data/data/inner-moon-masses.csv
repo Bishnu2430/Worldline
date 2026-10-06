@@ -1,0 +1,15 @@
+# Small moons that orbit inside a planet's innermost major moon and that JPL's integration of the
+# major moons includes with a mass. Regenerate with: python tools/fetch_small_moons.py
+# source: the NASA NAIF comment files: MAR099.01 in mar099.cmt, JUP365.26 in jup365.cmt, SAT441.24 in sat441.cmt, URA182.21 in ura184_part-1.cmt, NEP098 in nep098_part-1.cmt, PLU060 in plu060.cmt; fetched 2026-10-06
+planet,name,naif_id,gm_km3_s2
+Jupiter,Amalthea,505,1.645634534798259E-01
+Jupiter,Thebe,514,3.014800000000000E-02
+Jupiter,Adrastea,515,1.390000000000000E-04
+Jupiter,Metis,516,2.501000000000000E-03
+Uranus,Puck,715,1.275000000000000E-01
+Neptune,Naiad,803,8.530281246540886E-03
+Neptune,Thalassa,804,2.358873197992170E-02
+Neptune,Despina,805,1.167318403814998E-01
+Neptune,Galatea,806,1.898985039060690E-01
+Neptune,Larissa,807,2.548437405693583E-01
+Neptune,Proteus,808,2.583422379120727E+00

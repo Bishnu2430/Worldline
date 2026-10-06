@@ -1,10 +1,11 @@
 Worldline rotation models and shapes. Regenerate with: python tools/fetch_rotation.py
 
-Source:  NASA NAIF generic kernel pck00011.tpc, fetched 2026-10-05
+Source:  NASA NAIF generic kernel pck00011.tpc, fetched 2026-10-06
          https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc
 Models:  IAU WGCCRE (Archinal et al. 2018, Celest. Mech. Dyn. Astr. 130, 22)
 Content: the entries below are copied character for character from the
-         kernel's data blocks, for the Sun, the planets, the Moon and Pluto.
+         kernel's data blocks, for the Sun, the planets, the Moon, Pluto
+         and the moons of Mars through Pluto.
 Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
          since J2000; prime meridian in degrees with time in days (TDB)
          since J2000; reference frame J2000 (equatorial); RADII in km,
@@ -370,6 +371,42 @@ Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
 
         BODY504_NUT_PREC_PM   = ( 0. 0. 0. 0.   0.061  -0.533  0.  -0.009 )
 
+        BODY505_POLE_RA       = (   268.05    -0.009      0.  )
+
+        BODY505_POLE_DEC      = (    64.49     0.003      0.  )
+
+        BODY505_PM            = (   231.67   722.6314560  0.  )
+
+        BODY505_NUT_PREC_RA  = ( -0.84  0. 0. 0. 0. 0. 0. 0.   0.01  0. )
+
+        BODY505_NUT_PREC_DEC = ( -0.36  0. 0. 0. 0. 0. 0. 0.   0.    0. )
+
+        BODY505_NUT_PREC_PM  = (  0.76  0. 0. 0. 0. 0. 0. 0.  -0.01  0. )
+
+        BODY514_POLE_RA       = (  268.05     -0.009       0.  )
+
+        BODY514_POLE_DEC      = (   64.49      0.003       0.  )
+
+        BODY514_PM            = (    8.56    533.7004100   0.  )
+
+        BODY514_NUT_PREC_RA  = ( 0.  -2.11  0. 0. 0. 0. 0. 0. 0.  0.04 )
+
+        BODY514_NUT_PREC_DEC = ( 0.  -0.91  0. 0. 0. 0. 0. 0. 0.  0.01 )
+
+        BODY514_NUT_PREC_PM  = ( 0.   1.91  0. 0. 0. 0. 0. 0. 0. -0.04 )
+
+        BODY515_POLE_RA       = (  268.05     -0.009       0.  )
+
+        BODY515_POLE_DEC      = (   64.49      0.003       0.  )
+
+        BODY515_PM            = (   33.29   1206.9986602   0.  )
+
+        BODY516_POLE_RA       = (  268.05     -0.009       0.  )
+
+        BODY516_POLE_DEC      = (   64.49      0.003       0.  )
+
+        BODY516_PM            = (  346.09   1221.2547301   0.  )
+
            BODY601_POLE_RA       = (   40.66     -0.036      0.  )
 
            BODY601_POLE_DEC      = (   83.52     -0.004      0.  )
@@ -435,6 +472,78 @@ Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
            BODY608_POLE_DEC      = (    75.03  -1.143      0.  )
 
            BODY608_PM            = (   355.2    4.5379572  0.  )
+
+           BODY609_POLE_RA       = ( 356.90       0.         0.  )
+
+           BODY609_POLE_DEC      = (  77.80       0.         0.  )
+
+           BODY609_PM            = ( 178.58     931.639      0.  )
+
+           BODY610_POLE_RA       = (  40.58    -0.036       0. )
+
+           BODY610_POLE_DEC      = (  83.52    -0.004       0. )
+
+           BODY610_PM            = (  58.83   518.2359876   0. )
+
+           BODY610_NUT_PREC_RA   = ( 0. -1.623  0. 0. 0. 0. 0.  0.023 )
+
+           BODY610_NUT_PREC_DEC  = ( 0. -0.183  0. 0. 0. 0. 0.  0.001 )
+
+           BODY610_NUT_PREC_PM   = ( 0.  1.613  0. 0. 0. 0. 0. -0.023 )
+
+           BODY611_POLE_RA       = (  40.58    -0.036        0. )
+
+           BODY611_POLE_DEC      = (  83.52    -0.004        0. )
+
+           BODY611_PM            = ( 293.87   518.4907239    0. )
+
+           BODY611_NUT_PREC_RA   = ( -3.153   0. 0. 0. 0. 0.   0.086  0. )
+
+           BODY611_NUT_PREC_DEC  = ( -0.356   0. 0. 0. 0. 0.   0.005  0. )
+
+           BODY611_NUT_PREC_PM   = (  3.133   0. 0. 0. 0. 0.  -0.086  0. )
+
+           BODY612_POLE_RA       = (  40.85     -0.036        0. )
+
+           BODY612_POLE_DEC      = (  83.34     -0.004        0. )
+
+           BODY612_PM            = ( 245.12    131.6174056    0. )
+
+           BODY613_POLE_RA       = ( 50.51    -0.036      0.  )
+
+           BODY613_POLE_DEC      = ( 84.06    -0.004      0.  )
+
+           BODY613_PM            = ( 56.88   190.6979332  0.  )
+
+           BODY614_POLE_RA       = (   36.41    -0.036        0.  )
+
+           BODY614_POLE_DEC      = (   85.04    -0.004        0.  )
+
+           BODY614_PM            = (  153.51   190.6742373    0.  )
+
+           BODY615_POLE_RA       = (   40.58     -0.036      0. )
+
+           BODY615_POLE_DEC      = (   83.53     -0.004      0. )
+
+           BODY615_PM            = (  137.88    598.3060000  0. )
+
+           BODY616_POLE_RA       = (  40.58      -0.036    )
+
+           BODY616_POLE_DEC      = (  83.53      -0.004    )
+
+           BODY616_PM            = ( 296.14     587.289000 )
+
+           BODY617_POLE_RA       = (   40.58     -0.036      0.  )
+
+           BODY617_POLE_DEC      = (   83.53     -0.004      0.  )
+
+           BODY617_PM            = (  162.92    572.7891000  0.  )
+
+           BODY618_POLE_RA       = (   40.6     -0.036       0. )
+
+           BODY618_POLE_DEC      = (   83.5     -0.004       0. )
+
+           BODY618_PM            = (   48.8    626.0440000   0. )
 
            BODY701_POLE_RA       = ( 257.43     0.          0. )
 
@@ -520,6 +629,216 @@ Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
                                     1.15  -1.27   0.    0.    0.
                                     0.    -0.09   0.15           )
 
+           BODY706_POLE_RA      = (   257.31      0.         0.  )
+
+           BODY706_POLE_DEC     = (   -15.18      0.         0.  )
+
+           BODY706_PM           = (   127.69  -1074.5205730  0.  )
+
+           BODY706_NUT_PREC_RA  = (   -0.15    0.     0.    0.    0.
+                                       0.      0.     0.    0.    0.
+                                       0.      0.     0.    0.    0.
+                                       0.      0.     0.             )
+
+           BODY706_NUT_PREC_DEC = (    0.14    0.     0.    0.    0.
+                                       0.      0.     0.    0.    0.
+                                       0.      0.     0.    0.    0.
+                                       0.      0.     0.             )
+
+           BODY706_NUT_PREC_PM  = (   -0.04    0.     0.    0.    0.
+                                       0.      0.     0.    0.    0.
+                                       0.      0.     0.    0.    0.
+                                       0.      0.     0.             )
+
+           BODY707_POLE_RA      = (  257.31     0.         0. )
+
+           BODY707_POLE_DEC     = (  -15.18     0.         0. )
+
+           BODY707_PM           = (  130.35  -956.4068150  0. )
+
+           BODY707_NUT_PREC_RA  = (    0.     -0.09   0.    0.    0.
+                                       0.      0.     0.    0.    0.
+                                       0.      0.     0.    0.    0.
+                                       0.      0.     0.             )
+
+           BODY707_NUT_PREC_DEC = (    0.      0.09   0.    0.    0.
+                                       0.      0.     0.    0.    0.
+                                       0.      0.     0.    0.    0.
+                                       0.      0.     0.             )
+
+           BODY707_NUT_PREC_PM  = (    0.     -0.03   0.    0.    0.
+                                       0.      0.     0.    0.    0.
+                                       0.      0.     0.    0.    0.
+                                       0.      0.     0.             )
+
+           BODY708_POLE_RA      = (  257.31     0.         0.  )
+
+           BODY708_POLE_DEC     = (  -15.18     0.         0.  )
+
+           BODY708_PM           = (  105.46  -828.3914760  0.  )
+
+           BODY708_NUT_PREC_RA  = (    0.      0.    -0.16    0.    0.
+                                       0.      0.     0.      0.    0.
+                                       0.      0.     0.      0.    0.
+                                       0.      0.     0.               )
+
+           BODY708_NUT_PREC_DEC = (    0.      0.     0.16    0.    0.
+                                       0.      0.     0.      0.    0.
+                                       0.      0.     0.      0.    0.
+                                       0.      0.     0.               )
+
+           BODY708_NUT_PREC_PM  = (    0.      0.    -0.04    0.    0.
+                                       0.      0.     0.      0.    0.
+                                       0.      0.     0.      0.    0.
+                                       0.      0.     0.               )
+
+           BODY709_POLE_RA      = (  257.31      0.          0.  )
+
+           BODY709_POLE_DEC     = (  -15.18      0.          0.  )
+
+           BODY709_PM           = (   59.16   -776.5816320   0.  )
+
+           BODY709_NUT_PREC_RA  = (    0.      0.     0.     -0.04   0.
+                                       0.      0.     0.      0.     0.
+                                       0.      0.     0.      0.     0.
+                                       0.      0.     0.                )
+
+           BODY709_NUT_PREC_DEC = (    0.      0.     0.      0.04   0.
+                                       0.      0.     0.      0.     0.
+                                       0.      0.     0.      0.     0.
+                                       0.      0.     0.                )
+
+           BODY709_NUT_PREC_PM  = (    0.      0.     0.     -0.01   0.
+                                       0.      0.     0.      0.     0.
+                                       0.      0.     0.      0.     0.
+                                       0.      0.     0.                )
+
+           BODY710_POLE_RA      = ( 257.31      0.           0.  )
+
+           BODY710_POLE_DEC     = ( -15.18      0.           0.  )
+
+           BODY710_PM           = (  95.08   -760.0531690    0.  )
+
+           BODY710_NUT_PREC_RA  = (   0.      0.     0.      0.    -0.17
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                  )
+
+           BODY710_NUT_PREC_DEC = (   0.      0.     0.      0.     0.16
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                  )
+
+           BODY710_NUT_PREC_PM  = (   0.      0.     0.      0.    -0.04
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                 )
+
+           BODY711_POLE_RA      = (  257.31     0.           0.   )
+
+           BODY711_POLE_DEC     = (  -15.18     0.           0.   )
+
+           BODY711_PM           = (  302.56  -730.1253660    0.   )
+
+           BODY711_NUT_PREC_RA  = (   0.      0.     0.      0.     0.
+                                     -0.06    0.     0.      0.     0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                 )
+
+           BODY711_NUT_PREC_DEC = (   0.      0.     0.      0.     0.
+                                      0.06    0.     0.      0.     0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                 )
+
+           BODY711_NUT_PREC_PM  = (   0.      0.     0.      0.     0.
+                                     -0.02    0.     0.      0.     0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                 )
+
+           BODY712_POLE_RA      = (  257.31      0.           0.   )
+
+           BODY712_POLE_DEC     = (  -15.18      0.           0.   )
+
+           BODY712_PM           = (   25.03   -701.4865870    0.   )
+
+           BODY712_NUT_PREC_RA  = (   0.      0.     0.      0.     0.
+                                      0.     -0.09   0.      0.     0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                )
+
+           BODY712_NUT_PREC_DEC = (   0.      0.     0.      0.     0.
+                                      0.      0.09   0.      0.     0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.               )
+
+           BODY712_NUT_PREC_PM  = (   0.      0.     0.      0.     0.
+                                      0.     -0.02   0.      0.     0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.               )
+
+           BODY713_POLE_RA      = ( 257.31      0.          0.  )
+
+           BODY713_POLE_DEC     = ( -15.18      0.          0.  )
+
+           BODY713_PM           = ( 314.90   -644.6311260   0.  )
+
+           BODY713_NUT_PREC_RA  = (   0.      0.     0.      0.     0.
+                                      0.      0.    -0.29    0.     0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.               )
+
+           BODY713_NUT_PREC_DEC = (   0.      0.     0.      0.     0.
+                                      0.      0.     0.28    0.     0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.              )
+
+           BODY713_NUT_PREC_PM  = (   0.      0.     0.      0.     0.
+                                      0.      0.    -0.08    0.     0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.              )
+
+           BODY714_POLE_RA      = (   257.31      0.         0. )
+
+           BODY714_POLE_DEC     = (   -15.18      0.         0. )
+
+           BODY714_PM           = (   297.46   -577.3628170  0. )
+
+           BODY714_NUT_PREC_RA  = (   0.      0.     0.      0.     0.
+                                      0.      0.     0.     -0.03   0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                )
+
+           BODY714_NUT_PREC_DEC = (   0.      0.     0.      0.     0.
+                                      0.      0.     0.      0.03   0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                )
+
+           BODY714_NUT_PREC_PM  = (   0.      0.     0.      0.     0.
+                                      0.      0.     0.     -0.01   0.
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                )
+
+           BODY715_POLE_RA      = (  257.31      0.         0.  )
+
+           BODY715_POLE_DEC     = (  -15.18      0.         0.  )
+
+           BODY715_PM           = (   91.24   -472.5450690  0.  )
+
+           BODY715_NUT_PREC_RA  = (   0.      0.     0.      0.     0.
+                                      0.      0.     0.      0.    -0.33
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                  )
+
+           BODY715_NUT_PREC_DEC = (   0.      0.     0.      0.     0.
+                                      0.      0.     0.      0.     0.31
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                  )
+
+           BODY715_NUT_PREC_PM  = (   0.      0.     0.      0.     0.
+                                      0.      0.     0.      0.    -0.09
+                                      0.      0.     0.      0.     0.
+                                      0.      0.     0.                  )
+
            BODY801_POLE_RA       = ( 299.36     0.         0.  )
 
            BODY801_POLE_DEC      = (  41.17     0.         0.  )
@@ -543,6 +862,150 @@ Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
                                       0.      6.73    2.05    0.74
                                       0.28    0.11    0.05    0.02
                                       0.01                         )
+
+           BODY803_POLE_RA       = (  299.36      0.          0.  )
+
+           BODY803_POLE_DEC      = (   43.36      0.          0.  )
+
+           BODY803_PM            = (  254.06  +1222.8441209   0.  )
+
+           BODY803_NUT_PREC_RA   = (    0.70     -6.49     0.      0.
+                                        0.        0.       0.      0.
+                                        0.25      0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                            )
+
+           BODY803_NUT_PREC_DEC  = (   -0.51     -4.75     0.      0.
+                                        0.        0.       0.      0.
+                                        0.09      0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                            )
+
+           BODY803_NUT_PREC_PM   = (   -0.48      4.40     0.      0.
+                                        0.        0.       0.      0.
+                                       -0.27      0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                            )
+
+           BODY804_POLE_RA       = (  299.36      0.          0. )
+
+           BODY804_POLE_DEC      = (   43.45      0.          0. )
+
+           BODY804_PM            = (  102.06   1155.7555612   0. )
+
+           BODY804_NUT_PREC_RA   = (    0.70      0.      -0.28    0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                             )
+
+           BODY804_NUT_PREC_DEC  = (   -0.51      0.      -0.21    0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                             )
+
+           BODY804_NUT_PREC_PM   = (   -0.48      0.       0.19    0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                             )
+
+           BODY805_POLE_RA       = (  299.36      0.          0. )
+
+           BODY805_POLE_DEC      = (   43.45      0.          0. )
+
+           BODY805_PM            = (  306.51  +1075.7341562   0. )
+
+           BODY805_NUT_PREC_RA   = (    0.70      0.       0.     -0.09
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                              )
+
+           BODY805_NUT_PREC_DEC  = (   -0.51      0.       0.     -0.07
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                              )
+
+           BODY805_NUT_PREC_PM   = (   -0.49      0.       0.      0.06
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                              )
+
+           BODY806_POLE_RA       = (   299.36      0.          0. )
+
+           BODY806_POLE_DEC      = (    43.43      0.          0. )
+
+           BODY806_PM            = (   258.09    839.6597686   0. )
+
+           BODY806_NUT_PREC_RA   = (    0.70      0.       0.      0.
+                                       -0.07      0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                             )
+
+           BODY806_NUT_PREC_DEC  = (   -0.51      0.       0.      0.
+                                       -0.05      0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                             )
+
+           BODY806_NUT_PREC_PM   = (   -0.48      0.       0.      0.
+                                        0.05      0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                             )
+
+           BODY807_POLE_RA       = (   299.36     0.           0. )
+
+           BODY807_POLE_DEC      = (    43.41     0.           0. )
+
+           BODY807_PM            = (   179.41  +649.0534470    0. )
+
+           BODY807_NUT_PREC_RA   = (    0.70      0.       0.      0.
+                                        0.       -0.27     0.      0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                            )
+
+           BODY807_NUT_PREC_DEC  = (   -0.51      0.       0.      0.
+                                        0.       -0.20     0.      0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                            )
+
+           BODY807_NUT_PREC_PM   = (   -0.48      0.       0.      0.
+                                        0.        0.19     0.      0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                            )
+
+           BODY808_POLE_RA       = (  299.27      0.          0.  )
+
+           BODY808_POLE_DEC      = (   42.91      0.          0.  )
+
+           BODY808_PM            = (   93.38   +320.7654228   0.  )
+
+           BODY808_NUT_PREC_RA   = (    0.70      0.       0.      0.
+                                        0.        0.      -0.05    0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                             )
+
+           BODY808_NUT_PREC_DEC  = (   -0.51      0.       0.      0.
+                                        0.        0.      -0.04    0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                             )
+
+           BODY808_NUT_PREC_PM   = (   -0.48      0.       0.      0.
+                                        0.        0.       0.04    0.
+                                        0.        0.       0.      0.
+                                        0.        0.       0.      0.
+                                        0.                             )
 
            BODY901_POLE_RA       = (   132.993    0.         0. )
 
@@ -584,6 +1047,30 @@ Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
 
         BODY504_RADII     = ( 2410.3  2410.3    2410.3  )
 
+        BODY505_RADII     = (  125       73       64    )
+
+        BODY506_RADII    = (    85       85       85   )
+
+        BODY507_RADII    = (    40       40       40   )
+
+        BODY508_RADII    = (    18       18       18   )
+
+        BODY509_RADII    = (    14       14       14   )
+
+        BODY510_RADII    = (    12       12       12   )
+
+        BODY511_RADII    = (    15       15       15   )
+
+        BODY512_RADII    = (    10       10       10   )
+
+        BODY513_RADII    = (     5        5        5   )
+
+        BODY514_RADII    = (    58       49       42   )
+
+        BODY515_RADII    = (    10        8        7   )
+
+        BODY516_RADII    = (    30       20       17   )
+
         BODY601_RADII     = (  207.8     196.7     190.6   )
 
         BODY602_RADII     = (  256.6     251.4     248.3   )
@@ -600,6 +1087,38 @@ Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
 
         BODY608_RADII     = (  745.7     745.7     712.1   )
 
+        BODY609_RADII     = (  109.4     108.5     101.8   )
+
+        BODY610_RADII     = (  101.7      93.0      76.3   )
+
+        BODY611_RADII     = (   64.9      57.3      53.0   )
+
+        BODY612_RADII     = (   22.5      19.6      13.3   )
+
+        BODY613_RADII     = (   16.3      11.8       9.8   )
+
+        BODY614_RADII     = (   15.3       9.3       6.3   )
+
+        BODY615_RADII     = (   20.5      17.8       9.4   )
+
+        BODY616_RADII     = (   68.2      41.6      28.2   )
+
+        BODY617_RADII     = (   52.2      40.8      31.5   )
+
+        BODY618_RADII     = (   17.2      15.4      10.4   )
+
+        BODY632_RADII     = (    1.94      1.29      1.21  )
+
+        BODY633_RADII     = (    2.88      2.08      1.8   )
+
+        BODY634_RADII     = (    1.5       1.2       1.0   )
+
+        BODY635_RADII     = (    4.6       4.5       2.8   )
+
+        BODY649_RADII     = (    0.5       0.5       0.5   )
+
+        BODY653_RADII     = (    0.7       0.25      0.2   )
+
         BODY701_RADII     = (  581.1   577.9   577.7 )
 
         BODY702_RADII     = (  584.7   584.7   584.7 )
@@ -610,7 +1129,41 @@ Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
 
         BODY705_RADII     = (  240.4   234.2   232.9 )
 
+        BODY706_RADII     = (   13      13      13 )
+
+        BODY707_RADII     = (   15      15      15 )
+
+        BODY708_RADII     = (   21      21      21 )
+
+        BODY709_RADII     = (   31      31      31 )
+
+        BODY710_RADII     = (   27      27      27 )
+
+        BODY711_RADII     = (   42      42      42 )
+
+        BODY712_RADII     = (   54      54      54 )
+
+        BODY713_RADII     = (   27      27      27 )
+
+        BODY714_RADII     = (   33      33      33 )
+
+        BODY715_RADII     = (   77      77      77 )
+
         BODY801_RADII     = ( 1352.6  1352.6  1352.6 )
+
+        BODY802_RADII     = (  170     170     170   )
+
+        BODY803_RADII     = (   29      29     29    )
+
+        BODY804_RADII     = (   40      40     40    )
+
+        BODY805_RADII     = (   74      74     74    )
+
+        BODY806_RADII     = (   79      79     79    )
+
+        BODY807_RADII     = (   96      96     96   )
+
+        BODY808_RADII     = (  218     208    201   )
 
         BODY901_RADII     = (  606     606    606   )
 

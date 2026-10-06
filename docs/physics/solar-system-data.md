@@ -18,7 +18,7 @@ The fetch script copies JPL's numbers into the files exactly as published, with 
 - **Frame:** ICRF axes, aligned with the ecliptic and mean equinox of J2000, so planets orbit close to the x–y plane. The origin is the solar system barycenter.
 - **Bodies:** the Sun, Mercury, Venus, Earth, the Moon, and the system barycenters of Mars, Jupiter, Saturn, Uranus, Neptune and Pluto. A system barycenter is a planet plus its moons treated as one point at their combined center of mass. JPL's own ephemerides model the outer planets the same way. Earth and the Moon are separate, because the Moon is large and close enough that their separate motions matter.
 - **Epochs:** 2025-01-01 00:00 TDB (the starting snapshot) and exactly one Julian year later, 2026-01-01 06:00 TDB (the reference for validation).
-- **Moons:** the 21 major moons, with their planets' centers and gravity fields, come from a separate script, `tools/fetch_moons.py`. See [moons.md](moons.md).
+- **Moons:** the 21 major moons, with their planets' centers and gravity fields, come from a separate script, `tools/fetch_moons.py` (see [moons.md](moons.md)). The other 437 known moons come from `tools/fetch_small_moons.py` (see [small-moons.md](small-moons.md)).
 
 ## Validation
 

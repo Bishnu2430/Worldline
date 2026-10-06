@@ -139,6 +139,7 @@ pub fn layout(
 }
 
 /// The back layer: reference rings, orbit trails and the Sun's glow.
+/// Small moons, hundreds of them, show their orbit only when `selected`.
 pub fn draw_under(
     painter: &Painter,
     viewport: Rect,
@@ -146,6 +147,7 @@ pub fn draw_under(
     simulation: &Simulation,
     options: ViewOptions,
     layout: &[OnScreen],
+    selected: usize,
 ) {
     let screen = |point: DVec3| screen(camera, viewport, point);
     if options.grid {
@@ -180,7 +182,9 @@ pub fn draw_under(
                 // current (osculating) orbit instead, once it is drawn at
                 // all (see `layout`).
                 Some(parent) => {
-                    if !layout.iter().any(|s| s.index == index) {
+                    if !layout.iter().any(|s| s.index == index)
+                        || (simulation.is_small_moon(index) && index != selected)
+                    {
                         continue;
                     }
                     let planet = &bodies[parent];

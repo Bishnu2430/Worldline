@@ -91,7 +91,7 @@ Saturn's rings carry about 1.1 km³/s² of GM, which SAT441 lists separately fro
 - **Fixed poles.** Planets' poles are held at their 2025 directions. They drift by hundredths of a degree per century.
 - **No tidal dissipation.** Tides that slowly push moons outward (Io, the Moon) or pull them in (Phobos) change positions by meters over decades.
 - **Not yet modeled:**
-  - the small moons, which arrive in step 1b.5: Neptune's six inner moons, Uranus's Puck, Jupiter's Amalthea group;
+  - the small moons' pull on the major moons. Since step 1b.5, the small moons that JPL's integration of the major moons includes, and that orbit inside the innermost major moon, count as extra mass at the planet's center: Neptune's six inner moons, Puck, and Jupiter's Amalthea group (`inner-moon-masses.csv`). To the major moons outside them, that is how they pull. See [small-moons.md](small-moons.md);
   - the shapes of Saturn's moons, which SAT441 lists without the reference radius their coefficients need.
 - **Hyperion tumbles chaotically.** The IAU publishes no rotation model for it, so it is drawn without spin.
 
@@ -107,10 +107,10 @@ Saturn's rings carry about 1.1 km³/s² of GM, which SAT441 lists separately fro
 |---|---|---|---|
 | Phobos | 0.10 | 11 | 0.0006 |
 | Deimos | 0.28 | 6 | 0.0007 |
-| Io | 0.64 | 1822 | 0.0001 |
-| Europa | 0.87 | 1561 | 0.0001 |
-| Ganymede | 0.36 | 2631 | 0.00002 |
-| Callisto | 1.44 | 2410 | 0.00004 |
+| Io | 0.78 | 1822 | 0.0001 |
+| Europa | 0.98 | 1561 | 0.0001 |
+| Ganymede | 0.45 | 2631 | 0.00002 |
+| Callisto | 1.52 | 2410 | 0.00005 |
 | Mimas | 12.91 | 198 | 0.0040 |
 | Enceladus | 1.30 | 252 | 0.0003 |
 | Tethys | 8.21 | 531 | 0.0016 |
@@ -119,12 +119,12 @@ Saturn's rings carry about 1.1 km³/s² of GM, which SAT441 lists separately fro
 | Titan | 0.26 | 2575 | 0.00001 |
 | Hyperion | 0.17 | 139 | 0.00001 |
 | Iapetus | 0.06 | 734 | < 0.00001 |
-| Miranda | 1.55 | 236 | 0.0007 |
-| Ariel | 0.10 | 579 | 0.00003 |
-| Umbriel | 0.71 | 585 | 0.0002 |
-| Titania | 0.02 | 789 | < 0.00001 |
-| Oberon | 0.19 | 761 | 0.00002 |
-| Triton | 21.64 | 1353 | 0.0035 |
+| Miranda | 0.80 | 236 | 0.0004 |
+| Ariel | 0.56 | 579 | 0.0002 |
+| Umbriel | 0.18 | 585 | 0.00004 |
+| Titania | 0.43 | 789 | 0.00006 |
+| Oberon | 0.15 | 761 | 0.00001 |
+| Triton | 11.27 | 1353 | 0.0018 |
 | Charon | 0.33 | 606 | 0.0010 |
 
 ### Mars's lumps are needed
@@ -166,10 +166,10 @@ The first run was much worse than the table above. Each fix came from finding wh
 | Every Saturn moon behind JPL by ≈ 5 × 10⁻⁸ in mean motion | Ring mass (1.1 km³/s²) listed apart from Saturn's | Add it at Saturn's center | Dione, Rhea, Titan, Hyperion, Iapetus ≤ 0.3 km |
 
 What remains:
-- **Triton, 22 km** (2 × 10⁻⁶ in mean motion). Neptune's six small inner moons (3.2 km³/s² in all) aren't modeled yet; adding their mass at Neptune's center halves the error. They arrive in step 1b.5. The other half is unexplained.
+- **Triton, 11 km** (10⁻⁶ in mean motion). It was 22 km until step 1b.5 counted Neptune's six small inner moons (3.2 km³/s² in all) as mass at Neptune's center, as predicted. The rest is unexplained.
 - **Mimas, 13 km, and Tethys, 8 km** (3 × 10⁻⁷ in mean motion, both behind). These two are locked in a 2:1 resonance of their own. Their shapes, Saturn's tidal response and the rings' exact geometry are all too small by our estimates. The cause is not yet found.
 - **Enceladus, 1.3 km.** Its shape, which SAT441 lists without a reference radius, accounts for about 1.6 km by estimate.
-- **Miranda, 1.6 km.** Puck (0.13 km³/s², inside Miranda's orbit) accounts for about 0.8 km.
+- **Miranda, 0.8 km.** It was 1.6 km until step 1b.5 counted Puck's mass (0.13 km³/s², inside Miranda's orbit), as predicted.
 
 ## Cost
 

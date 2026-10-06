@@ -52,7 +52,8 @@ fn naif_body_id(name: &str) -> Option<u32> {
         "Miranda" => 705,
         "Triton" => 801,
         "Charon" => 901,
-        _ => return None,
+        // Every other moon, by the name in JPL's list.
+        _ => return crate::small_moons::naif_id(name),
     })
 }
 

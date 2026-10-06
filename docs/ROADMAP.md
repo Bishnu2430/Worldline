@@ -28,7 +28,7 @@ Added 2026-10-05, before steps 1.6 and 1.7. Detail follows focus: see [SCOPE.md]
 | 1b.2 | GPU renderer: textured, lit, rotating planets. Dots far away, spheres up close. Focusing zooms in. Earth's night side lit by cities. | Earth's continents turn once per 23.93 h. Uranus rolls on its side. Venus turns backwards. | ✅ |
 | 1b.3 | Focus details: Earth's clouds and atmosphere, Saturn's rings (real structure up close, with shadows), Jupiter's bands and Great Red Spot, the Sun's surface | Measured ring structure matches the PDS boundaries (e.g. the Cassini Division, 117,500–122,050 km). Rings turn edge-on on the published 2025 dates. The Great Red Spot turns with Jupiter's 9.9 h day. | ✅ |
 | 1b.4 | Hierarchical integration and the major moons | Io, Europa and Ganymede hold their 1:2:4 resonance. Moon positions match JPL after 30 days. | ✅ |
-| 1b.5 | All known moons (more than 400), computed in detail when their planet is in focus | Every moon in JPL's list loads, and spot checks match JPL | ⬜ |
+| 1b.5 | All known moons (more than 400), computed in detail when their planet is in focus | Every moon in JPL's list loads, and spot checks match JPL | ✅ |
 | 1b.6 | Dwarf planets, major asteroids and comets | Adding the asteroids' mass shrinks Mars's error against JPL. Halley's Comet returns in July 2061. | ⬜ |
 | 1b.7 | The asteroid belt, Jupiter's Trojans, the Kuiper belt and zodiacal dust, from real catalogs | Kirkwood gaps appear in the real asteroids' orbits. Trojans cluster 60° ahead of and behind Jupiter. | ⬜ |
 | 1b.8 | The Sun in focus: solar wind (Parker spiral), heliosphere boundaries, sunlight and light travel time | 1361 W/m² of sunlight at Earth. Light takes 8.3 min to reach Earth. The spiral crosses 1 AU at about 45°. | ⬜ |

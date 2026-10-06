@@ -46,6 +46,9 @@ const FOCUS_DISTANCE_RADII: f64 = 4.0;
 const FLIGHT_SECONDS: f64 = 1.2;
 /// Closest the camera may get to a body's center, in body radii.
 const MIN_DISTANCE_RADII: f64 = 1.1;
+/// How far away the camera settles on a moon whose size hasn't been
+/// measured (it is drawn as a dot).
+const UNKNOWN_SIZE_DISTANCE: f64 = 1_000e3;
 
 /// A smooth camera move to a newly focused body.
 struct Flight {
@@ -119,9 +122,16 @@ impl WorldlineApp {
         self.flight = Some(Flight {
             from_target: self.camera.target,
             from_distance: self.camera.distance,
-            to_distance: radii * radius,
+            to_distance: if radius > 0.0 {
+                radii * radius
+            } else {
+                UNKNOWN_SIZE_DISTANCE
+            },
             start: Instant::now(),
         });
+        // Detail follows focus: the small moons around this body are
+        // now computed in full.
+        self.simulation.focus_detail_on(index);
         self.focus = index;
         self.selected = index;
     }
@@ -211,13 +221,22 @@ impl WorldlineApp {
                     continue;
                 }
                 entry(ui, i);
-                let moons: Vec<usize> = (0..simulation.bodies.len())
+                let (small, major): (Vec<usize>, Vec<usize>) = (0..simulation.bodies.len())
                     .filter(|&m| simulation.parent(m) == Some(i))
-                    .collect();
-                if !moons.is_empty() {
+                    .partition(|&m| simulation.is_small_moon(m));
+                if !major.is_empty() || !small.is_empty() {
                     ui.indent(i, |ui| {
-                        for m in moons {
+                        for m in major {
                             entry(ui, m);
+                        }
+                        if !small.is_empty() {
+                            egui::CollapsingHeader::new(format!("{} small moons", small.len()))
+                                .id_salt(("small moons", i))
+                                .show(ui, |ui| {
+                                    for m in small {
+                                        entry(ui, m);
+                                    }
+                                });
                         }
                     });
                 }
@@ -288,13 +307,21 @@ impl WorldlineApp {
         ui.heading(RichText::new(&body.name).color(body_color(&body.name)));
         egui::Grid::new("selected").num_columns(2).show(ui, |ui| {
             ui.label("Mass");
-            ui.label(format!("{:.4e} kg", body.mass()));
-            ui.end_row();
-            ui.label("");
-            ui.label(format!("{:.6} Earth masses", body.gm / GM_EARTH));
+            if body.gm > 0.0 {
+                ui.label(format!("{:.4e} kg", body.mass()));
+                ui.end_row();
+                ui.label("");
+                ui.label(format!("{:.6} Earth masses", body.gm / GM_EARTH));
+            } else {
+                ui.label("not measured");
+            }
             ui.end_row();
             ui.label("Radius");
-            ui.label(format!("{:.0} km", body.radius / 1e3));
+            ui.label(if body.radius > 0.0 {
+                format!("{:.1} km", body.radius / 1e3)
+            } else {
+                "not measured".to_string()
+            });
             ui.end_row();
             if let Some(parent) = parent {
                 let planet = &bodies[parent];
@@ -362,7 +389,16 @@ impl WorldlineApp {
             }
         });
         ui.add_space(4.0);
-        for detail in details::details(&body.name, parent.is_some()) {
+        let kind = if self.simulation.is_detailed(self.selected) {
+            details::BodyKind::SmallMoonInDetail
+        } else if self.simulation.is_small_moon(self.selected) {
+            details::BodyKind::SmallMoonOnMeanOrbit
+        } else if parent.is_some() {
+            details::BodyKind::Moon
+        } else {
+            details::BodyKind::Other
+        };
+        for detail in details::details(&body.name, kind) {
             ui.horizontal_wrapped(|ui| {
                 ui.label(
                     RichText::new(detail.kind.tag())
@@ -408,6 +444,7 @@ impl WorldlineApp {
             &self.simulation,
             self.options,
             &layout,
+            self.selected,
         );
         if let Some(state) = render_state
             && let Some(texture) =

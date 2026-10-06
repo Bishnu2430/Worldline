@@ -84,7 +84,7 @@ def ephemeris_constants(name, planet_id, moon_ids):
     text = fetch(NAIF + name + ".cmt")
     for block in re.split(r"^\s*Satellite Ephemeris:", text, flags=re.M)[1:]:
         span = re.search(r"Timespan from JED\s+([\d.]+)\S*\s+to JED\s+([\d.]+)", block)
-        if not span or not float(span.group(1)) <= min(EPOCHS) <= max(EPOCHS) <= float(span.group(2)):
+        if not span or not float(span.group(1)) <= min(EPOCHS) < max(EPOCHS) <= float(span.group(2)):
             continue
         gms = {int(m.group(1)): m.group(2) for m in TABLE_ROW.finditer(block)}
         if not all(i in gms for i in moon_ids):
@@ -135,14 +135,20 @@ def mean_radii():
     return radii
 
 
-def states(naif_id):
+class NoEphemeris(Exception):
+    """Horizons has no ephemeris for the body over the epochs."""
+
+
+def states(naif_id, center="500@0"):
+    """Horizons states at both epochs, relative to `center` (the solar
+    system barycenter by default), and the ephemeris they come from."""
     params = {
         "format": "json",
         "COMMAND": f"'{naif_id}'",
         "OBJ_DATA": "'NO'",
         "MAKE_EPHEM": "'YES'",
         "EPHEM_TYPE": "'VECTORS'",
-        "CENTER": "'500@0'",
+        "CENTER": f"'{center}'",
         "START_TIME": f"'JD{min(EPOCHS)}'",
         "STOP_TIME": f"'JD{max(EPOCHS)}'",
         "STEP_SIZE": "'1'",
@@ -154,7 +160,9 @@ def states(naif_id):
         "CSV_FORMAT": "'YES'",
     }
     result = json.loads(fetch(HORIZONS + "?" + urllib.parse.urlencode(params)))["result"]
-    source = re.search(r"Target body name: .*\{source: ([\w-]+)\}", result).group(1)
+    if "No ephemeris for target" in result:
+        raise NoEphemeris(result.strip().splitlines()[-1])
+    source = re.search(r"Target body name: .*\{source: ([^}]+)\}", result).group(1).strip()
     block = result.split("$$SOE")[1].split("$$EOE")[0]
     rows = {}
     for line in block.strip().splitlines():
