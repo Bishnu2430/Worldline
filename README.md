@@ -2,7 +2,7 @@
 
 **A relativistic universe sandbox.** Drop black holes, neutron stars and planets into the real universe and watch general relativity play out. Every physics model is validated against theory and observation.
 
-> **Status:** pre-alpha. The engine runs the real solar system, with relativistic gravity and all 459 of its known moons, in a 3D window. See the [roadmap](docs/ROADMAP.md).
+> **Status:** pre-alpha. The engine runs the real solar system in a 3D window, with relativistic gravity, all 459 of its known moons, and 62 dwarf planets, asteroids and comets. See the [roadmap](docs/ROADMAP.md).
 
 ![Worldline running the real solar system with relativistic gravity, five months after 1 January 2025](docs/images/solar-system-step-1.5.png)
 
@@ -27,7 +27,7 @@
 | Test | Expected | Status |
 |---|---|---|
 | Kepler's third law (Mercury, Earth and Jupiter orbit periods) | T = 2π √(a³/GM) | ✅ passing, to 1 part in 100 million |
-| Energy conservation over 10,000 orbits (IAS15 integrator) | at the limit of double-precision rounding | ✅ passing, error 1 × 10⁻¹⁴ |
+| Energy conservation over 10,000 orbits (IAS15 integrator) | at the limit of double-precision rounding | ✅ passing, error 4 × 10⁻¹⁴ |
 | One year of the real solar system vs. NASA JPL | Earth within 1 part in 10,000 | ✅ passing, Earth within 0.41 km with relativity (61 km without) |
 | Mercury's perihelion precession (relativistic part) | 42.9805″ per century | ✅ passing, 42.9807″ per century |
 | Planets' axial tilts (IAU rotation models plus simulated orbits) | NASA Planetary Fact Sheet | ✅ passing, all within 0.05° |
@@ -43,6 +43,9 @@
 | Janus and Epimetheus trade orbits | January 2026 | ✅ passing, 30 January 2026 |
 | Phobos and Deimos need Mars's lumpy (Tharsis) gravity | off by more than their size without it | ✅ passing, 108 and 175 km without, 0.10 and 0.28 km with |
 | Io–Europa–Ganymede Laplace resonance, after nudging Io | φ librates about 180° with a period of about 2071 days | ✅ passing, swings 148°–213°, period 2045 days |
+| The heaviest asteroids' pull brings Mars closer to JPL | smaller error with them | ✅ passing, Mars 0.19 → 0.11 km after a year (Earth 0.41 → 0.21 km) |
+| 62 dwarf planets, asteroids and comets after one year vs. NASA JPL | within 1 part in 10,000 | ✅ passing, 61 within 0.2 km; Bennu 2,420 km (1.5 × 10⁻⁵), a listed residual |
+| Halley's Comet returns | July 2061 (JPL: 28 July) | ✅ passing, 28 July 2061, 17 minutes from JPL's time |
 | Light bending at the Sun's edge | 1.75″ | planned |
 | Hulse–Taylor binary pulsar orbital decay | −2.40 × 10⁻¹² s/s | planned |
 | Innermost stable orbit, photon sphere and shadow of a non-spinning black hole | 6, 3 and √27 GM/c² | planned |
@@ -96,6 +99,8 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · textures from Solar Syste
 - [Saturn's rings](docs/physics/saturn-rings.md): Cassini's measured profile, transparency, shadows
 - [Moons](docs/physics/moons.md): hierarchical integration, planets' gravity fields, and how each residual against JPL was tracked down
 - [Small moons](docs/physics/small-moons.md): every known moon, computed in detail where you look
+- [Small bodies](docs/physics/small-bodies.md): dwarf planets, asteroids and comets, outgassing comets, and Halley's 2061 return
+- [Integrators](docs/physics/integrators.md): IAS15, and how a 2029 asteroid flyby changed how it picks its steps
 
 ## License
 

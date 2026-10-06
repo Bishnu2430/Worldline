@@ -19,10 +19,10 @@ from pathlib import Path
 KERNEL = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc"
 OUT = Path(__file__).resolve().parent.parent / "crates" / "worldline-data" / "data" / "pck00011-subset.tpc"
 
-# The Sun, Mercury, Venus, Earth and the Moon, and every planet, dwarf
-# planet and moon of the Mars-to-Pluto systems that the kernel describes
-# (NAIF ids 401-999).
-BODIES = "10|199|299|399|301|[4-9][0-9][0-9]"
+# The Sun, Mercury, Venus, Earth and the Moon, every planet, dwarf planet
+# and moon of the Mars-to-Pluto systems that the kernel describes (NAIF ids
+# 401-999), and the asteroids and comets it describes (seven-digit ids).
+BODIES = "10|199|299|399|301|[4-9][0-9][0-9]|[129][0-9]{6}"
 WANTED = re.compile(
     rf"^BODY({BODIES})_(POLE_RA|POLE_DEC|PM|NUT_PREC_RA|NUT_PREC_DEC|NUT_PREC_PM|RADII)$"
     r"|^BODY[1-9]_(NUT_PREC_ANGLES|MAX_PHASE_DEGREE)$"
@@ -64,8 +64,8 @@ Source:  NASA NAIF generic kernel pck00011.tpc, fetched {date.today()}
          {KERNEL}
 Models:  IAU WGCCRE (Archinal et al. 2018, Celest. Mech. Dyn. Astr. 130, 22)
 Content: the entries below are copied character for character from the
-         kernel's data blocks, for the Sun, the planets, the Moon, Pluto
-         and the moons of Mars through Pluto.
+         kernel's data blocks, for the Sun, the planets, the Moon, Pluto,
+         the moons of Mars through Pluto, and asteroids and comets.
 Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
          since J2000; prime meridian in degrees with time in days (TDB)
          since J2000; reference frame J2000 (equatorial); RADII in km,

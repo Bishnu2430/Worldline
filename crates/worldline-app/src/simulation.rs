@@ -10,7 +10,7 @@ use worldline_core::hierarchy::{Hierarchy, MOON_SYSTEM_GRAVITY};
 use worldline_core::integrator::{Ias15, Integrator};
 use worldline_core::rotation::RotationModel;
 use worldline_core::{Body, DVec3};
-use worldline_data::SmallMoon;
+use worldline_data::{SmallBodyKind, SmallMoon};
 
 /// The recent path of one body around the Sun: about one orbit's worth.
 /// Moons have none; they are shown with their current orbit (see
@@ -20,17 +20,43 @@ pub struct Trail {
     points: VecDeque<DVec3>,
     /// Total length of the path through `points`, in m.
     length: f64,
+    /// The last state seen: time (s), position and velocity.
+    last: Option<(f64, DVec3, DVec3)>,
 }
 
 impl Trail {
     /// A new point is recorded once the body has moved this fraction of its
-    /// distance from the barycenter: about 0.5° of arc, or more if the
-    /// physics steps are coarser than that.
+    /// distance from the barycenter: about 0.5° of arc.
     const SPACING: f64 = 0.008_7;
     /// Upper limit on stored points, as a memory guard.
     const CAPACITY: usize = 4096;
 
-    fn record(&mut self, position: DVec3) {
+    /// Adds the body's state at `time`. When a physics step jumps farther
+    /// than the spacing, points in between come from cubic Hermite
+    /// interpolation of the positions and velocities at both ends, so the
+    /// trail stays smooth however long the steps (it's a drawing aid: the
+    /// physics doesn't use it).
+    fn record(&mut self, time: f64, position: DVec3, velocity: DVec3) {
+        if let Some((t0, p0, v0)) = self.last {
+            let h = time - t0;
+            let pieces = ((position - p0).length() / (Self::SPACING * position.length())).ceil();
+            if h > 0.0 && pieces > 1.0 && pieces < Self::CAPACITY as f64 {
+                for k in 1..pieces as usize {
+                    let s = k as f64 / pieces;
+                    let (s2, s3) = (s * s, s * s * s);
+                    let point = p0 * (2.0 * s3 - 3.0 * s2 + 1.0)
+                        + v0 * (h * (s3 - 2.0 * s2 + s))
+                        + position * (-2.0 * s3 + 3.0 * s2)
+                        + velocity * (h * (s3 - s2));
+                    self.add(point);
+                }
+            }
+        }
+        self.last = Some((time, position, velocity));
+        self.add(position);
+    }
+
+    fn add(&mut self, position: DVec3) {
         let step = self.points.back().map(|last| (position - *last).length());
         if step.is_some_and(|s| s <= Self::SPACING * position.length()) {
             return;
@@ -65,14 +91,17 @@ enum Source {
     Moon { system: usize, body: usize },
     /// Small moon `index` of moon system `system`.
     Small { system: usize, index: usize },
+    /// A massless body following the top level (a comet, a small asteroid).
+    Follower(usize),
 }
 
 /// The solar system running live.
 pub struct Simulation {
     /// Every body: the Sun and planets (each planet with moons in place of
-    /// its system's barycenter) in the snapshot's order, then the major
-    /// moons, then the small moons. Positions are refreshed after every
-    /// step (the small moons' once per update).
+    /// its system's barycenter) in the snapshot's order, the dwarf planets
+    /// and asteroids heavy enough to pull on them, then the major moons, the
+    /// small moons, and the massless asteroids and comets. Positions are
+    /// refreshed after every step (the small moons' once per update).
     pub bodies: Vec<Body>,
     /// The starting moment, as a Julian Date (TDB).
     pub epoch_jd_tdb: f64,
@@ -94,16 +123,20 @@ pub struct Simulation {
     small: Vec<Vec<SmallMoon>>,
     /// The moon system whose small moons are being computed in detail.
     detailed: Option<usize>,
+    /// For each body, what sort of small body it is, if it is one, and
+    /// whether it has a non-gravitational force model.
+    small_bodies: Vec<Option<(SmallBodyKind, bool)>>,
     hierarchy: Hierarchy,
 }
 
 impl Simulation {
-    /// The real solar system on 2025-01-01, with its major moons:
-    /// relativistic gravity between the Sun and planets, and each planet
-    /// with moons simulated in its own frame.
+    /// The real solar system on 2025-01-01: relativistic gravity between
+    /// the Sun, planets and heaviest asteroids, each planet with moons
+    /// simulated in its own frame, and the lighter asteroids and comets
+    /// following along.
     pub fn solar_system(speed: f64) -> Self {
         let epoch_jd_tdb = worldline_data::solar_system().epoch_jd_tdb;
-        let hierarchy = worldline_data::solar_system_with_moons();
+        let hierarchy = worldline_data::full_solar_system();
 
         let mut sources: Vec<Source> = (0..hierarchy.top.bodies.len()).map(Source::Top).collect();
         for (system, moons) in hierarchy.moon_systems.iter().enumerate() {
@@ -129,6 +162,7 @@ impl Simulation {
         for (system, moons) in small.iter().enumerate() {
             sources.extend((0..moons.len()).map(|index| Source::Small { system, index }));
         }
+        sources.extend((0..hierarchy.follower_count()).map(Source::Follower));
         let bodies: Vec<Body> = sources
             .iter()
             .map(|source| match *source {
@@ -145,6 +179,17 @@ impl Simulation {
                         moon.radius.unwrap_or(0.0),
                     )
                 }
+                Source::Follower(i) => hierarchy.follower(i).clone(),
+            })
+            .collect();
+        let catalog = worldline_data::small_bodies();
+        let small_bodies = bodies
+            .iter()
+            .map(|b| {
+                catalog
+                    .iter()
+                    .find(|s| s.name == b.name)
+                    .map(|s| (s.kind, s.forces.is_some()))
             })
             .collect();
         let index_of = |name: &str| bodies.iter().position(|b| b.name == name);
@@ -178,6 +223,7 @@ impl Simulation {
             sources,
             small,
             detailed: None,
+            small_bodies,
             hierarchy,
         };
         simulation.refresh();
@@ -227,6 +273,13 @@ impl Simulation {
             self.hierarchy.moon_systems[system].set_small_moons(moons);
         }
         self.refresh_small_moons();
+    }
+
+    /// What sort of small body body `index` is (a dwarf planet, an
+    /// asteroid, a comet…), and whether it feels non-gravitational forces,
+    /// if it is one.
+    pub fn small_body(&self, index: usize) -> Option<(SmallBodyKind, bool)> {
+        self.small_bodies[index]
     }
 
     /// Whether body `index` is a small moon.
@@ -329,13 +382,18 @@ impl Simulation {
                 }
                 Source::Moon { system, body } => self.hierarchy.absolute(system, body),
                 Source::Small { .. } => continue,
+                Source::Follower(i) => {
+                    let b = self.hierarchy.follower(i);
+                    (b.position, b.velocity)
+                }
             };
             body.position = position;
             body.velocity = velocity;
         }
+        let time = self.hierarchy.time();
         for ((trail, body), parent) in self.trails.iter_mut().zip(&self.bodies).zip(&self.parents) {
             if parent.is_none() {
-                trail.record(body.position);
+                trail.record(time, body.position, body.velocity);
             }
         }
     }

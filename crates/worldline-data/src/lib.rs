@@ -8,6 +8,7 @@ mod kernel;
 mod moons;
 mod rings;
 mod rotation;
+mod small_bodies;
 mod small_moons;
 mod snapshot;
 
@@ -18,6 +19,10 @@ pub use moons::{
 };
 pub use rings::{RingFeature, RingProfile, saturn_ring_features, saturn_rings};
 pub use rotation::{rotation_model, triaxial_radii};
+pub use small_bodies::{
+    SmallBody, SmallBodyKind, full_solar_system, jpl_halley_perihelion_jd, small_bodies,
+    small_bodies_one_year_on,
+};
 pub use small_moons::{
     ElementsRow, SmallMoon, SolutionZonal, display_name, inner_moon_mass, moon_elements,
     parse_elements, satellites_in_jpls_list, small_moon_states_30_days_on,

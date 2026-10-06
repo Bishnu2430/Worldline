@@ -4,8 +4,8 @@ Source:  NASA NAIF generic kernel pck00011.tpc, fetched 2026-10-06
          https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc
 Models:  IAU WGCCRE (Archinal et al. 2018, Celest. Mech. Dyn. Astr. 130, 22)
 Content: the entries below are copied character for character from the
-         kernel's data blocks, for the Sun, the planets, the Moon, Pluto
-         and the moons of Mars through Pluto.
+         kernel's data blocks, for the Sun, the planets, the Moon, Pluto,
+         the moons of Mars through Pluto, and asteroids and comets.
 Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
          since J2000; prime meridian in degrees with time in days (TDB)
          since J2000; reference frame J2000 (equatorial); RADII in km,
@@ -1013,6 +1013,90 @@ Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
 
            BODY901_PM            = (   122.695   56.3625225  0. )
 
+           BODY2000001_POLE_RA       = (   291.418    0.         0.  )
+
+           BODY2000001_POLE_DEC      = (    66.764    0.         0.  )
+
+           BODY2000001_PM            = (   170.650  952.1532     0.  )
+
+           BODY2000002_POLE_RA       = (    33.       0.         0.  )
+
+           BODY2000002_POLE_DEC      = (    -3.       0.         0.  )
+
+           BODY2000002_PM            = (    38.    1105.8036     0.  )
+
+           BODY2000004_POLE_RA       = (   309.031   0.         0.  )
+
+           BODY2000004_POLE_DEC      = (    42.235   0.         0.  )
+
+           BODY2000004_PM            = (   285.39 1617.3329428  0.  )
+
+           BODY2000052_POLE_RA       = (   257.0     0.         0.  )
+
+           BODY2000052_POLE_DEC      = (    12.0     0.         0.  )
+
+           BODY2000052_PM            = (    55.0  1534.6472187  0.  )
+
+           BODY2000021_POLE_RA       = (    52.       0.         0.  )
+
+           BODY2000021_POLE_DEC      = (    12.       0.         0.  )
+
+           BODY2000021_PM            = (    94.    1057.7515     0.  )
+
+           BODY2431010_POLE_RA       = (  168.76      0.         0. )
+
+           BODY2431010_POLE_DEC      = (  -87.12      0.         0. )
+
+           BODY2431010_PM            = (  274.05  +1864.6280070  0. )
+
+           BODY2000433_POLE_RA       = (   11.35       0.           0. )
+
+           BODY2000433_POLE_DEC      = (   17.22       0.           0. )
+
+           BODY2000433_PM            = (  326.07    1639.38864745   0. )
+
+           BODY2000511_POLE_RA       = (  297.        0.           0. )
+
+           BODY2000511_POLE_DEC      = (    5.        0.           0. )
+
+           BODY2000511_PM            = (  268.1    1684.4193549    0. )
+
+           BODY9511010_POLE_RA       = (   9.47     0.         0. )
+
+           BODY9511010_POLE_DEC      = (  26.70     0.         0. )
+
+           BODY9511010_PM            = (  83.67  1226.9114850  0. )
+
+           BODY2002867_POLE_RA       = (  91.        0.        0. )
+
+           BODY2002867_POLE_DEC      = ( -62.        0.        0. )
+
+           BODY2002867_PM            = ( 321.76   1428.09917   0. )
+
+           BODY2025143_POLE_RA       = (   90.53       0.           0. )
+
+           BODY2025143_POLE_DEC      = (  -66.30       0.           0. )
+
+           BODY2025143_PM            = (  000.0      712.143        0. )
+
+           BODY1000093_POLE_RA       = (   255.       0.         0.  )
+
+           BODY1000093_POLE_DEC      = (    64.5      0.         0.  )
+
+           BODY1000093_PM            = (    69.2    212.807      0.  )
+
+           BODY1000005_POLE_RA       = (   218.5      0.         0.  )
+
+           BODY1000005_POLE_DEC      = (   -12.5      0.         0.  )
+
+           BODY1000005_PM            = (   000.     324.3        0.  )
+
+           BODY1000012_POLE_RA       = (    69.54      0.           0.  )
+
+           BODY1000012_POLE_DEC      = (    64.11      0.           0.  )
+
+           BODY1000012_PM            = (   114.69    696.543884683  0.  )
+
         BODY10_RADII      = (  695700.  695700.  695700.  )
 
         BODY199_RADII     = ( 2440.53  2440.53  2438.26 )
@@ -1166,5 +1250,41 @@ Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
         BODY808_RADII     = (  218     208    201   )
 
         BODY901_RADII     = (  606     606    606   )
+
+        BODY2000001_RADII     = ( 487.3  487.3  446. )
+
+        BODY2000004_RADII     = ( 289.  280.  229.  )
+
+        BODY2000016_RADII     = ( 139.5  116.  94.5  )
+
+        BODY2000021_RADII     = (  62.0   50.5   46.5  )
+
+        BODY2000052_RADII     = (  189.5  165.  124.5 )
+
+        BODY2431010_RADII     = (   26.8   12.0    7.6 )
+
+        BODY2000253_RADII     = (  33.   24.   23.  )
+
+        BODY2000433_RADII     = (  17.0   5.5   5.5  )
+
+        BODY2000511_RADII     = (  180.   147.   127.  )
+
+        BODY9511010_RADII     = (    9.1    5.2    4.4 )
+
+        BODY2002867_RADII     = (  3.24     2.73     2.04  )
+
+        BODY2004179_RADII     = (  2.13  1.015  0.85  )
+
+        BODY2025143_RADII     = (  0.268   0.147   0.104  )
+
+        BODY1000036_RADII     = (  8.0   4.0   4.0  )
+
+        BODY1000093_RADII     = (  3.0   3.0   3.0  )
+
+        BODY1000005_RADII     = (  4.22   4.22   4.22  )
+
+        BODY1000107_RADII     = (  2.7  1.9  1.5  )
+
+        BODY1000012_RADII     = (  2.40  1.55  1.20  )
 
 \begintext

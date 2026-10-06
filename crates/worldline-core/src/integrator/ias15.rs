@@ -38,6 +38,20 @@ const CONVERGED: f64 = 1e-16;
 /// Upper limit on predictor–corrector iterations per step.
 const MAX_ITERATIONS: usize = 12;
 
+/// How IAS15 chooses its next step.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepCriterion {
+    /// From the shortest dynamical timescale among the bodies, built from
+    /// acceleration, jerk and snap (Pham, Rein & Spiegel 2024). Robust to
+    /// rounding noise in close encounters. The default, as in REBOUND.
+    Timescale,
+    /// From the size of the acceleration polynomial's highest term relative
+    /// to the acceleration (Rein & Spiegel 2015). Use it when accelerations
+    /// pass through zero, as in a harmonic oscillator, where the timescale
+    /// criterion asks for ever shorter steps; gravity never does.
+    HighestTerm,
+}
+
 /// IAS15: an adaptive 15th-order integrator accurate to machine precision.
 ///
 /// Within each step, every body's acceleration is modeled as a polynomial in
@@ -56,6 +70,8 @@ pub struct Ias15 {
     /// Precision parameter ε. The default, 10⁻⁹, keeps the per-step error
     /// below double-precision rounding.
     pub epsilon: f64,
+    /// How the next step is chosen.
+    pub criterion: StepCriterion,
     /// The next step to try, in s. Zero until the first step picks one.
     dt: f64,
     /// The last accepted step, in s. Zero before the first one.
@@ -84,6 +100,7 @@ impl Default for Ias15 {
     fn default() -> Self {
         Self {
             epsilon: 1e-9,
+            criterion: StepCriterion::Timescale,
             dt: 0.0,
             dt_last_done: 0.0,
             x0: Vec::new(),
@@ -116,6 +133,7 @@ impl Ias15 {
         }
         *self = Self {
             epsilon: self.epsilon,
+            criterion: self.criterion,
             ..Self::default()
         };
         let zeros = vec![DVec3::ZERO; n];
@@ -204,14 +222,56 @@ impl Ias15 {
         }
     }
 
-    /// Relative size of the highest-order term: the step's error estimate.
-    fn error_estimate(&self) -> f64 {
+    /// Relative size of the highest-order term: the original error estimate.
+    fn highest_term(&self) -> f64 {
         let (mut max_b6, mut max_acc): (f64, f64) = (0.0, 0.0);
         for (b, a) in self.b.iter().zip(&self.at) {
             max_b6 = max_b6.max(b[6].abs().max_element());
             max_acc = max_acc.max(a.abs().max_element());
         }
         max_b6 / max_acc
+    }
+
+    /// The shortest dynamical timescale among the bodies at the end of the
+    /// step, as a fraction of the step: τ = √(2a² / (j² + a·s)) from each
+    /// body's acceleration a, jerk j and snap s (Pham, Rein & Spiegel 2024,
+    /// eq. 16). `None` if no body accelerates.
+    ///
+    /// It replaced IAS15's original estimate as the default: the size of
+    /// the polynomial's highest term can be dominated by rounding noise in a
+    /// close encounter, and the integrator then keeps shrinking its steps to
+    /// chase the noise (it stalled on Apophis passing Earth in 2029).
+    fn shortest_timescale(&self) -> Option<f64> {
+        let mut shortest: Option<f64> = None;
+        for (b, a0) in self.b.iter().zip(&self.a0) {
+            // The acceleration polynomial a(s) = a₀ + Σ bₖ s^(k+1) and its
+            // first two derivatives at the end of the step, s = 1 (jerk and
+            // snap in units of the step).
+            let acceleration = *a0 + b.iter().sum::<DVec3>();
+            let jerk: DVec3 = b
+                .iter()
+                .enumerate()
+                .map(|(k, bk)| *bk * (k + 1) as f64)
+                .sum();
+            let snap: DVec3 = b
+                .iter()
+                .enumerate()
+                .map(|(k, bk)| *bk * ((k + 1) * k) as f64)
+                .sum();
+            let (y2, y3, y4) = (
+                acceleration.length_squared(),
+                jerk.length_squared(),
+                snap.length_squared(),
+            );
+            if !y2.is_normal() {
+                continue;
+            }
+            let timescale2 = 2.0 * y2 / (y3 + (y4 * y2).sqrt());
+            if timescale2.is_normal() {
+                shortest = Some(shortest.map_or(timescale2, |s: f64| s.min(timescale2)));
+            }
+        }
+        shortest.map(f64::sqrt)
     }
 
     /// Predicts the next step's polynomial from the last accepted step's,
@@ -262,11 +322,21 @@ impl Integrator for Ias15 {
             }
             self.converge(system, gravity, dt);
 
-            let error = self.error_estimate();
-            let dt_new = if error.is_normal() {
-                dt * (self.epsilon / error).powf(1.0 / 7.0)
-            } else {
-                dt / SAFETY
+            let dt_new = match self.criterion {
+                // Equation 17: (5040 ε)^(1/7) τ, which gives the same steps
+                // as the original criterion on circular orbits.
+                StepCriterion::Timescale => match self.shortest_timescale() {
+                    Some(timescale) => (5040.0 * self.epsilon).powf(1.0 / 7.0) * timescale * dt,
+                    None => dt / SAFETY,
+                },
+                StepCriterion::HighestTerm => {
+                    let error = self.highest_term();
+                    if error.is_normal() {
+                        dt * (self.epsilon / error).powf(1.0 / 7.0)
+                    } else {
+                        dt / SAFETY
+                    }
+                }
             };
 
             if dt_new < SAFETY * dt {
@@ -520,7 +590,12 @@ mod tests {
             damping: 0.0,
         };
         let mut system = oscillator();
-        let mut ias = Ias15::new();
+        // Its acceleration passes through zero twice per cycle, which the
+        // timescale criterion can't handle: use the original one.
+        let mut ias = Ias15 {
+            criterion: StepCriterion::HighestTerm,
+            ..Ias15::new()
+        };
         let end = 1000.0 * TAU;
         let mut steps = 0.0_f64;
         while system.time() < end {
@@ -550,7 +625,12 @@ mod tests {
         let (omega, damping) = (2.0, 0.3);
         let spring = Spring { omega, damping };
         let mut system = oscillator();
-        let mut ias = Ias15::new();
+        // An oscillator's acceleration passes through zero: the original
+        // step criterion suits it.
+        let mut ias = Ias15 {
+            criterion: StepCriterion::HighestTerm,
+            ..Ias15::new()
+        };
         advance(&mut system, &spring, &mut ias, 30.0);
         let t = system.time();
         let wd = (omega * omega - damping * damping / 4.0).sqrt();

@@ -85,8 +85,29 @@ pub fn body_color(name: &str) -> Color32 {
             Color32::from_rgb(225, 225, 225)
         }
         "Miranda" | "Ariel" | "Umbriel" | "Titania" | "Oberon" => Color32::from_rgb(185, 180, 175),
-        _ => Color32::WHITE,
+        _ => small_body_color(name).unwrap_or(Color32::WHITE),
     }
+}
+
+/// Colors for the dwarf planets, asteroids and comets, by kind.
+fn small_body_color(name: &str) -> Option<Color32> {
+    use std::collections::HashMap;
+    use std::sync::OnceLock;
+    use worldline_data::SmallBodyKind;
+    static KINDS: OnceLock<HashMap<String, SmallBodyKind>> = OnceLock::new();
+    let kinds = KINDS.get_or_init(|| {
+        worldline_data::small_bodies()
+            .into_iter()
+            .map(|b| (b.name, b.kind))
+            .collect()
+    });
+    Some(match kinds.get(name)? {
+        SmallBodyKind::DwarfPlanet => Color32::from_rgb(210, 190, 165),
+        SmallBodyKind::TransNeptunian => Color32::from_rgb(190, 150, 130),
+        SmallBodyKind::Asteroid => Color32::from_rgb(165, 155, 140),
+        SmallBodyKind::Comet => Color32::from_rgb(150, 220, 235),
+        SmallBodyKind::Interstellar => Color32::from_rgb(230, 140, 220),
+    })
 }
 
 fn screen(camera: &Camera, viewport: Rect, point: DVec3) -> Option<Projection> {

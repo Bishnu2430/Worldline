@@ -3,7 +3,7 @@
 mod ias15;
 mod leapfrog;
 
-pub use ias15::Ias15;
+pub use ias15::{Ias15, StepCriterion};
 pub use leapfrog::Leapfrog;
 
 use crate::System;

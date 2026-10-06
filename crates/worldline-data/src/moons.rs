@@ -173,8 +173,13 @@ pub fn ring_mass(planet: &str) -> f64 {
 /// from the 2025-01-01 snapshot with relativistic gravity, and each planet
 /// with major moons as its own moon system with the planet's gravity field.
 pub fn solar_system_with_moons() -> Hierarchy {
+    hierarchy_with_moons(solar_system().system())
+}
+
+/// A hierarchy with `top` as its top level (the snapshot's bodies first,
+/// in order) and every planet's major moons.
+pub(crate) fn hierarchy_with_moons(top: worldline_core::System) -> Hierarchy {
     let snapshot = solar_system();
-    let top = snapshot.system();
     let index: HashMap<&str, usize> = top
         .bodies
         .iter()
