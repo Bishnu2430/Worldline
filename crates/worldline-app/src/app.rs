@@ -16,6 +16,7 @@ use crate::details;
 use crate::gpu::{Globe, GpuGlobes};
 use crate::simulation::Simulation;
 use crate::view::{self, OnScreen, ViewOptions, body_color};
+use worldline_data::SmallBodyKind;
 
 /// Simulation speeds the user can pick: simulated time per real second.
 const SPEEDS: [(&str, f64); 7] = [
@@ -217,7 +218,7 @@ impl WorldlineApp {
                 }
             };
             for i in 0..simulation.bodies.len() {
-                if simulation.parent(i).is_some() {
+                if simulation.parent(i).is_some() || simulation.small_body(i).is_some() {
                     continue;
                 }
                 entry(ui, i);
@@ -240,6 +241,25 @@ impl WorldlineApp {
                         }
                     });
                 }
+            }
+            // The dwarf planets, asteroids and comets, each kind in a fold.
+            for (kind, label) in [
+                (SmallBodyKind::DwarfPlanet, "Dwarf planets"),
+                (SmallBodyKind::TransNeptunian, "Beyond Neptune"),
+                (SmallBodyKind::Asteroid, "Asteroids"),
+                (SmallBodyKind::Comet, "Comets"),
+                (SmallBodyKind::Interstellar, "Interstellar visitors"),
+            ] {
+                let members: Vec<usize> = (0..simulation.bodies.len())
+                    .filter(|&i| simulation.small_body(i).map(|s| s.0) == Some(kind))
+                    .collect();
+                egui::CollapsingHeader::new(format!("{label} ({})", members.len()))
+                    .id_salt(label)
+                    .show(ui, |ui| {
+                        for i in members {
+                            entry(ui, i);
+                        }
+                    });
             }
             if let Some(i) = fly_to {
                 self.focus_on(i);
@@ -389,7 +409,13 @@ impl WorldlineApp {
             }
         });
         ui.add_space(4.0);
-        let kind = if self.simulation.is_detailed(self.selected) {
+        let kind = if let Some((kind, outgassing)) = self.simulation.small_body(self.selected) {
+            details::BodyKind::SmallBody {
+                comet: matches!(kind, SmallBodyKind::Comet | SmallBodyKind::Interstellar),
+                outgassing,
+                massive: body.gm > 0.0,
+            }
+        } else if self.simulation.is_detailed(self.selected) {
             details::BodyKind::SmallMoonInDetail
         } else if self.simulation.is_small_moon(self.selected) {
             details::BodyKind::SmallMoonOnMeanOrbit

@@ -22,6 +22,11 @@
 //!    other; the irregular ones (distant, tilted) each have their own and
 //!    keep their own slow pace.
 //!
+//! 4. **Followers**: bodies at the top level too light to pull on anything
+//!    (comets, small asteroids) follow the recorded paths of the Sun,
+//!    planets and massive asteroids, each with its own integrator, so a
+//!    comet grazing the Sun doesn't shrink everyone's steps.
+//!
 //! The top level sees each system as a point mass at its barycenter, which
 //! is exact apart from tiny tidal coupling terms (relative size ~ (r/R)²
 //! times the moons' share of the mass). See `docs/physics/moons.md` and
@@ -29,7 +34,10 @@
 
 use glam::DVec3;
 
-use crate::gravity::{Gravity, Newtonian, SynchronousFigure, TesseralField, ZonalField};
+use crate::constants::C;
+use crate::gravity::{
+    Gravity, Newtonian, NonGravitational, SynchronousFigure, TesseralField, ZonalField,
+};
 use crate::integrator::{Ias15, Integrator, advance};
 use crate::{Body, System};
 
@@ -211,6 +219,15 @@ pub struct Hierarchy {
     pub moon_systems: Vec<MoonSystem>,
     gravity: Box<dyn Gravity + Send + Sync>,
     integrator: Ias15,
+    followers: Vec<Follower>,
+}
+
+/// A body too light to pull on anything, following the top level.
+struct Follower {
+    /// The body alone, in the top level's frame.
+    system: System,
+    forces: Option<NonGravitational>,
+    integrator: Ias15,
 }
 
 impl Hierarchy {
@@ -241,7 +258,36 @@ impl Hierarchy {
             moon_systems,
             gravity,
             integrator: Ias15::new(),
+            followers: Vec::new(),
         }
+    }
+
+    /// Adds bodies that follow the top level without pulling on it, given
+    /// in the top level's frame, each with its non-gravitational force
+    /// model if it has one. Each feels every top-level body's Newtonian
+    /// pull, plus the Sun's (top-level body 0) first relativistic
+    /// correction.
+    pub fn add_followers(&mut self, bodies: Vec<(Body, Option<NonGravitational>)>) {
+        let time = self.top.time();
+        for (body, forces) in bodies {
+            let mut system = System::new(vec![body]);
+            system.set_time(time);
+            self.followers.push(Follower {
+                system,
+                forces,
+                integrator: Ias15::new(),
+            });
+        }
+    }
+
+    /// How many followers there are.
+    pub fn follower_count(&self) -> usize {
+        self.followers.len()
+    }
+
+    /// Follower `index`, in the top level's frame.
+    pub fn follower(&self, index: usize) -> &Body {
+        &self.followers[index].system.bodies[0]
     }
 
     /// Simulation time, in s.
@@ -264,6 +310,9 @@ impl Hierarchy {
                 group.system.set_time(time);
             }
         }
+        for follower in &mut self.followers {
+            follower.system.set_time(time);
+        }
     }
 
     /// Advances everything by one top-level step of at most `max_dt`
@@ -276,10 +325,44 @@ impl Hierarchy {
             .iter()
             .map(|b| (b.position, b.velocity))
             .collect();
-        let taken = self
-            .integrator
-            .step(&mut self.top, self.gravity.as_ref(), max_dt);
+        let track = (!self.followers.is_empty())
+            .then(|| Track::starting_at(&self.top, self.gravity.as_ref()));
+        // The Sun alone has nothing to integrate (and a zero force would
+        // leave the integrator's error estimate only rounding noise).
+        let taken = if self.top.bodies.len() == 1 {
+            self.top.tick(max_dt);
+            max_dt
+        } else {
+            self.integrator
+                .step(&mut self.top, self.gravity.as_ref(), max_dt)
+        };
         let t1 = self.top.time();
+        if let Some(mut track) = track {
+            track.record(&self.top, self.gravity.as_ref());
+            // Followers run on a clock that starts at zero with each step.
+            // Seconds since the snapshot reach 10⁸ within a few years, where
+            // a double resolves only about 10⁻⁸ s; in a close flyby (Apophis
+            // past Earth in 2029) the integrator takes steps short enough
+            // for that graininess to look like error, and would shrink its
+            // steps without end.
+            track.rebase(t0);
+            let gms: Vec<f64> = self.top.bodies.iter().map(|b| b.gm).collect();
+            for follower in &mut self.followers {
+                let gravity = FollowerGravity {
+                    track: &track,
+                    gms: &gms,
+                    forces: follower.forces,
+                };
+                follower.system.set_time(0.0);
+                advance(
+                    &mut follower.system,
+                    &gravity,
+                    &mut follower.integrator,
+                    t1 - t0,
+                );
+                follower.system.set_time(t1);
+            }
+        }
 
         for moons in &mut self.moon_systems {
             // Everything else at the top level, seen from this system's
@@ -362,7 +445,11 @@ impl Hierarchy {
         let end = self.time() + duration;
         while self.time() < end {
             let remaining = end - self.time();
-            self.step(remaining);
+            if self.step(remaining) >= remaining {
+                // Land exactly on `end`. Otherwise rounding can leave a
+                // sliver too thin to move the clock, and the loop never ends.
+                self.set_time(end);
+            }
         }
     }
 
@@ -465,6 +552,13 @@ impl Track {
         );
     }
 
+    /// Counts the recorded times from `origin`.
+    fn rebase(&mut self, origin: f64) {
+        for time in &mut self.times {
+            *time -= origin;
+        }
+    }
+
     /// The recorded step containing `time`: its index, how far through it
     /// `time` is (0 to 1), and its length.
     fn locate(&self, time: f64) -> (usize, f64, f64) {
@@ -485,6 +579,17 @@ impl Track {
         (k, s, h)
     }
 
+    /// Body `body`'s velocity at a place found by [`Self::locate`], by
+    /// linear interpolation (used only for the Sun, which barely changes
+    /// speed within a step).
+    fn velocity(&self, (k, s, h): (usize, f64, f64), body: usize) -> DVec3 {
+        let v0 = self.states[k][body][1];
+        if h == 0.0 {
+            return v0;
+        }
+        v0.lerp(self.states[k + 1][body][1], s)
+    }
+
     /// Body `body`'s position at a place found by [`Self::locate`].
     fn position(&self, (k, s, h): (usize, f64, f64), body: usize) -> DVec3 {
         let [p0, v0, a0] = self.states[k][body];
@@ -501,6 +606,54 @@ impl Track {
             + a1 * (h * h * (0.5 * s3 - s4 + 0.5 * s5))
             + v1 * (h * (-4.0 * s3 + 7.0 * s4 - 3.0 * s5))
             + p1 * (10.0 * s3 - 15.0 * s4 + 6.0 * s5)
+    }
+}
+
+/// Gravity on a follower: every top-level body's Newtonian pull along its
+/// recorded path, the Sun's first relativistic correction, and the
+/// follower's non-gravitational force, if any.
+struct FollowerGravity<'a> {
+    track: &'a Track,
+    /// GMs of the top-level bodies, in the track's order; body 0 is the Sun.
+    gms: &'a [f64],
+    forces: Option<NonGravitational>,
+}
+
+impl Gravity for FollowerGravity<'_> {
+    fn name(&self) -> &'static str {
+        "Newtonian + the Sun's 1PN term + non-gravitational forces"
+    }
+
+    fn velocity_dependent(&self) -> bool {
+        true
+    }
+
+    fn accelerations(&self, time: f64, bodies: &[Body], out: &mut [DVec3]) {
+        let at = self.track.locate(time);
+        let positions: Vec<DVec3> = (0..self.gms.len())
+            .map(|j| self.track.position(at, j))
+            .collect();
+        let sun_velocity = self.track.velocity(at, 0);
+        let mu = self.gms[0];
+        for (body, a) in bodies.iter().zip(out.iter_mut()) {
+            *a = DVec3::ZERO;
+            for (position, gm) in positions.iter().zip(self.gms) {
+                let d = *position - body.position;
+                *a += d * (gm / d.length().powi(3));
+            }
+            // The Sun's first post-Newtonian term for a test body, in
+            // harmonic coordinates with β = γ = 1 (the Schwarzschild term,
+            // IERS Conventions 2010, eq. 10.12; the one-body limit of
+            // Moyer 2003, eq. 4-61): (μ/c²r³)[(4μ/r − v²) r + 4 (r·v) v].
+            let r = body.position - positions[0];
+            let v = body.velocity - sun_velocity;
+            let distance = r.length();
+            *a += (r * (4.0 * mu / distance - v.length_squared()) + v * (4.0 * r.dot(v)))
+                * (mu / (C * C * distance.powi(3)));
+            if let Some(forces) = self.forces {
+                *a += forces.acceleration(r, v, mu);
+            }
+        }
     }
 }
 
@@ -661,6 +814,36 @@ mod tests {
         let (moon, _) = h.absolute_small(0, 0);
         let angle = mr.angle_between(moon - planet).to_degrees();
         assert!(angle < 1e-3, "small moon off by {angle}° after one period");
+    }
+
+    #[test]
+    fn a_follower_on_mercurys_orbit_precesses_as_relativity_says() {
+        // A massless body on Mercury's orbit, following a lone Sun: its
+        // perihelion must turn by 6πGM/(c²a(1 − e²)) per orbit, the same
+        // 43″ per century as Mercury's (validation_mercury.rs). Measured
+        // over 10 orbits from the Laplace–Runge–Lenz vector; the bound is
+        // the 0.01% the Mercury test holds.
+        let (a, e) = (0.387_098_93 * AU, 0.205_630_69);
+        let top = System::new(vec![Body::new("Sun", GM_SUN, 7e8)]);
+        let mut h = Hierarchy::new(top, Box::new(Newtonian), Vec::new());
+        let (r, v) = periapsis_state(a, e, GM_SUN);
+        h.add_followers(vec![(
+            Body::new("follower", 0.0, 1.0).at(r).moving(v),
+            None,
+        )]);
+        let perihelion = |h: &Hierarchy| {
+            let b = h.follower(0);
+            let lrl =
+                b.velocity.cross(b.position.cross(b.velocity)) - GM_SUN * b.position.normalize();
+            lrl.y.atan2(lrl.x)
+        };
+        let period = kepler_period(a, GM_SUN);
+        let start = perihelion(&h);
+        h.advance(10.0 * period);
+        let turned = perihelion(&h) - start;
+        let theory = 10.0 * 6.0 * std::f64::consts::PI * GM_SUN / (C * C * a * (1.0 - e * e));
+        println!("perihelion turned {turned:.6e} rad, theory {theory:.6e} rad");
+        assert!((turned / theory - 1.0).abs() < 1e-4);
     }
 
     #[test]

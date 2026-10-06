@@ -33,6 +33,7 @@ impl Kind {
 }
 
 /// One detail shown for a body.
+#[derive(Clone, Copy)]
 pub struct Detail {
     pub what: &'static str,
     pub kind: Kind,
@@ -202,13 +203,29 @@ pub enum BodyKind {
     SmallMoonInDetail,
     /// A small moon placed by its mean orbit.
     SmallMoonOnMeanOrbit,
+    /// A dwarf planet, asteroid or comet.
+    SmallBody {
+        /// A comet (or interstellar visitor) rather than an asteroid.
+        comet: bool,
+        /// Whether JPL's orbit includes non-gravitational forces.
+        outgassing: bool,
+        /// Whether it is heavy enough to pull on the planets.
+        massive: bool,
+    },
 }
 
 /// The details Worldline shows for a body when you look closely.
-pub fn details(name: &str, kind: BodyKind) -> &'static [Detail] {
+pub fn details(name: &str, kind: BodyKind) -> Vec<Detail> {
     match kind {
-        BodyKind::SmallMoonInDetail => return SMALL_MOON_IN_DETAIL,
-        BodyKind::SmallMoonOnMeanOrbit => return SMALL_MOON_ON_MEAN_ORBIT,
+        BodyKind::SmallMoonInDetail => return SMALL_MOON_IN_DETAIL.to_vec(),
+        BodyKind::SmallMoonOnMeanOrbit => return SMALL_MOON_ON_MEAN_ORBIT.to_vec(),
+        BodyKind::SmallBody {
+            comet,
+            outgassing,
+            massive,
+        } => {
+            return small_body_details(comet, outgassing, massive);
+        }
         BodyKind::Other | BodyKind::Moon => {}
     }
     let moon = kind == BodyKind::Moon;
@@ -226,4 +243,38 @@ pub fn details(name: &str, kind: BodyKind) -> &'static [Detail] {
         _ if moon && name != "Moon" => MOON,
         _ => OTHER,
     }
+    .to_vec()
+}
+
+fn small_body_details(comet: bool, outgassing: bool, massive: bool) -> Vec<Detail> {
+    let mut list = vec![detail("No map: flat color, or a dot", Kind::Visual)];
+    list.push(if massive {
+        detail(
+            "Orbit: relativistic gravity among the Sun, planets and heaviest asteroids; heavy enough to pull on the planets (JPL DE440's mass)",
+            Kind::Model,
+        )
+    } else {
+        detail(
+            "Orbit: follows the Sun, planets and heaviest asteroids (Newtonian, plus the Sun's relativistic term); too light to pull on them",
+            Kind::Model,
+        )
+    });
+    if outgassing {
+        list.push(if comet {
+            detail(
+                "Outgassing pushes it: JPL's non-gravitational model (Marsden, Sekanina & Yeomans 1973)",
+                Kind::Model,
+            )
+        } else {
+            detail(
+                "Sunlight warming its surface pushes it (the Yarkovsky effect): JPL's fitted model",
+                Kind::Model,
+            )
+        });
+    }
+    list.push(detail(
+        "Starting state: JPL Horizons small-body solution",
+        Kind::Measured,
+    ));
+    list
 }

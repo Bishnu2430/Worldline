@@ -19,6 +19,7 @@ The fetch script copies JPL's numbers into the files exactly as published, with 
 - **Bodies:** the Sun, Mercury, Venus, Earth, the Moon, and the system barycenters of Mars, Jupiter, Saturn, Uranus, Neptune and Pluto. A system barycenter is a planet plus its moons treated as one point at their combined center of mass. JPL's own ephemerides model the outer planets the same way. Earth and the Moon are separate, because the Moon is large and close enough that their separate motions matter.
 - **Epochs:** 2025-01-01 00:00 TDB (the starting snapshot) and exactly one Julian year later, 2026-01-01 06:00 TDB (the reference for validation).
 - **Moons:** the 21 major moons, with their planets' centers and gravity fields, come from a separate script, `tools/fetch_moons.py` (see [moons.md](moons.md)). The other 437 known moons come from `tools/fetch_small_moons.py` (see [small-moons.md](small-moons.md)).
+- **Dwarf planets, asteroids and comets:** 62 of them, from `tools/fetch_small_bodies.py` (see [small-bodies.md](small-bodies.md)).
 
 ## Validation
 
@@ -44,7 +45,7 @@ The roadmap asked for Earth within 1 part in 10,000 (about 15,000 km). With rela
 With Newtonian gravity alone, the errors followed relativity's signature: tens of km for the inner planets and well under 1 km for the outer ones. Step 1.3 predicted that adding relativity would shrink them, and step 1.4 confirmed it, by factors of 150 to 760.
 
 What remains is physics JPL models that Worldline doesn't yet:
-- **asteroids,** whose pull matters most for Mars;
+- **asteroids,** whose pull matters most for Mars. Step 1b.6 added the 22 heaviest, which cut Mars's error from 0.19 to 0.11 km and Earth's from 0.41 to 0.21 km (see [small-bodies.md](small-bodies.md#validation));
 - **the Sun's slight flattening;**
 - **for the Moon,** Earth's equatorial bulge and the tides between Earth and the Moon. These explain why the Moon improves only 3×.
 

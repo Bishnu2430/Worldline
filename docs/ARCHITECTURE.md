@@ -39,6 +39,12 @@ This mirrors how JPL builds its ephemerides: planetary ephemerides for the baryc
 
 Out of focus, they ride approximate orbits that cost almost nothing. This is principle 5 at work. See [physics/small-moons.md](physics/small-moons.md).
 
+**Dwarf planets, asteroids and comets** split by mass:
+- **The 22 heaviest** (Ceres, Vesta, Eris and others whose masses JPL's DE440 publishes) join the top level, with relativistic gravity.
+- **The other 40 are followers.** They are massless, so they can't pull on anything. Each has its own IAS15 and follows the top level's recorded path, the way small moons follow the major moons. A comet rounding the Sun takes many short steps without forcing them on the planets.
+
+Followers feel Newtonian gravity from every top-level body, the Sun's relativistic term, and the outgassing or Yarkovsky push JPL fits for them. See [physics/small-bodies.md](physics/small-bodies.md).
+
 ## Choosing a physics model
 
 For each body or pair of bodies, the engine computes a few dimensionless numbers:
@@ -55,6 +61,7 @@ It uses them to pick a model:
 | Situation | Model | Source |
 |---|---|---|
 | Ordinary orbits | Newtonian plus first post-Newtonian (Einstein–Infeld–Hoffmann) N-body | Einstein, Infeld & Hoffmann 1938; used in JPL planetary ephemerides |
+| Asteroids and comets too light to pull on the planets | Newtonian pull of the Sun and planets, plus the Sun's 1PN (Schwarzschild) term and JPL's non-gravitational forces | IERS Conventions 2010; Marsden, Sekanina & Yeomans 1973 |
 | Moons, inside their planet's system | Newtonian N-body plus the planet's zonal and tesseral harmonics, locked moons' shapes, and outside tides | JPL satellite ephemeris models; Montenbruck & Gill 2000 |
 | Compact binaries | Post-Newtonian up to 3.5PN, including radiation reaction | Blanchet, *Living Reviews in Relativity* 2014; Peters 1964 |
 | Near a dominant black hole (q ≪ 1) | Kerr geodesics with radiation reaction | Kerr 1963; Bardeen, Press & Teukolsky 1972 |
@@ -64,6 +71,6 @@ It uses them to pick a model:
 | Neutron stars | TOV structure with piecewise-polytrope equations of state | Tolman 1939; Oppenheimer & Volkoff 1939; Read et al. 2009 |
 | Neutron star merger outcome | Prompt-collapse threshold | Bauswein, Baumgarte & Janka 2013 |
 | Small black holes | Hawking evaporation (semiclassical) | Hawking 1974, 1975; Page 1976 |
-| Time integration | IAS15 adaptive integrator | Rein & Spiegel 2015 |
+| Time integration | IAS15 adaptive integrator, with the timescale step criterion | Rein & Spiegel 2015; Pham, Rein & Spiegel 2024 |
 
 The app always shows which model is active for the selected body, and warns when a scenario leaves that model's validity range.

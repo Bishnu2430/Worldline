@@ -52,8 +52,20 @@ fn naif_body_id(name: &str) -> Option<u32> {
         "Miranda" => 705,
         "Triton" => 801,
         "Charon" => 901,
-        // Every other moon, by the name in JPL's list.
-        _ => return crate::small_moons::naif_id(name),
+        // Galileo's asteroids keep the ids NAIF gave them before the
+        // 2,000,000 + number rule (NAIF IDs Required Reading).
+        "Ida" => 2_431_010,
+        "Gaspra" => 9_511_010,
+        // Every other moon, by the name in JPL's list, then the dwarf
+        // planets, asteroids and comets.
+        _ => {
+            return crate::small_moons::naif_id(name).or_else(|| {
+                crate::small_bodies()
+                    .into_iter()
+                    .find(|b| b.name == name)
+                    .map(|b| b.naif_id)
+            });
+        }
     })
 }
 
@@ -130,6 +142,21 @@ mod tests {
             let model = rotation_model(&body.name).unwrap();
             assert!(model.spin_rate() != 0.0, "{} doesn't spin", body.name);
         }
+    }
+
+    #[test]
+    fn spacecraft_targets_have_their_iau_models() {
+        // pck00011 models 14 of Worldline's small bodies, most of them
+        // visited by spacecraft. Ida and Gaspra are listed under their
+        // older ids.
+        let modeled: Vec<String> = crate::small_bodies()
+            .into_iter()
+            .filter(|b| rotation_model(&b.name).is_some())
+            .map(|b| b.name)
+            .collect();
+        println!("{modeled:?}");
+        assert_eq!(modeled.len(), 14);
+        assert!(modeled.iter().any(|n| n == "Ida") && modeled.iter().any(|n| n == "Gaspra"));
     }
 
     #[test]
