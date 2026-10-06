@@ -23,7 +23,8 @@ The app is a window around the physics engine. It never does physics itself. It 
 - **Labels.** The selected body is labeled first, then bodies in order of mass. A label is skipped if it would overlap one already placed, which keeps a planet's crowded inner moons from piling up.
 - **Spin axes.** Each body gets a line along its spin axis, from the IAU rotation models. A white dot marks the end the spin points toward (right-hand rule), so Venus's dot points down. The inspector shows each body's sidereal day, spin direction and axial tilt. See [physics/rotation.md](physics/rotation.md).
 - **Details and their kind.** The inspector lists what's shown up close for the selected body, each tagged **measured** (observed data), **model** (a physics model) or **visual** (a visual aid or simplification). See [rendering.md](rendering.md).
-- **The body list** shows each planet with its moons indented beneath it. For a moon, the inspector gives its distance and speed relative to its planet, and its axial tilt relative to its orbit around the planet. The Physics panel names both gravity models: the one between the planets and the one inside moon systems.
+- **Small moons and focus.** All 459 known moons are in the list. Flying to a planet, or to any of its moons, switches that planet's small moons to detailed simulation. Every other small moon rides an approximate orbit, and the inspector says which it is. A small moon shows its orbit only while selected, since hundreds of ellipses would hide everything else. A moon whose size hasn't been measured is drawn as a dot, and the camera flies to 1,000 km from it. See [physics/small-moons.md](physics/small-moons.md).
+- **The body list** shows each planet with its moons indented beneath it, the small moons folded into a collapsible "N small moons" entry. For a moon, the inspector gives its distance and speed relative to its planet, and its axial tilt relative to its orbit around the planet. The Physics panel names both gravity models: the one between the planets and the one inside moon systems.
 - **Dates.** The top bar shows the simulation time as a calendar date in TDB, JPL's time scale, using Meeus's Julian Date algorithm.
 
 ## Tests
@@ -31,5 +32,5 @@ The app is a window around the physics engine. It never does physics itself. It 
 `cargo test -p worldline-app` covers:
 - **Calendar:** known dates, including J2000, Sputnik 1 and the first Gregorian day, and rounding at midnight.
 - **Camera:** projection geometry, hiding points behind the camera, size falling off with distance, double-precision stability 30 AU out, and the zoom limits.
-- **Simulation loop:** one real second advances by exactly the chosen speed; pausing stops time; running out of budget is reported; trails reach back about one orbit; planets stand in for their systems' barycenters, with their moons listed under them.
+- **Simulation loop:** one real second advances by exactly the chosen speed; pausing stops time; running out of budget is reported; trails reach back about one orbit; planets stand in for their systems' barycenters, with their moons listed under them; small moons are computed in detail only around the focus.
 - **Picking:** clicking selects the nearest body within reach.

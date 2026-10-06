@@ -160,14 +160,58 @@ const MOON: &[Detail] = &[
     detail("Spin and tilt: IAU rotation model", Kind::Measured),
 ];
 
+const SMALL_MOON_IN_DETAIL: &[Detail] = &[
+    detail(
+        "No map: flat color, or a dot if its size isn't measured",
+        Kind::Visual,
+    ),
+    detail(
+        "Orbit: computed in detail, following its planet's major moons (its planet is in focus)",
+        Kind::Model,
+    ),
+    detail(
+        "Too small to pull on the planet or major moons; small moons with measured masses pull on each other",
+        Kind::Model,
+    ),
+];
+
+const SMALL_MOON_ON_MEAN_ORBIT: &[Detail] = &[
+    detail(
+        "No map: flat color, or a dot if its size isn't measured",
+        Kind::Visual,
+    ),
+    detail(
+        "Orbit: JPL's mean elements, an approximation. Fly to its planet to compute it in detail.",
+        Kind::Model,
+    ),
+];
+
 const OTHER: &[Detail] = &[
     detail("Surface map from NASA data", Kind::Measured),
     detail("Spin and tilt: IAU rotation model", Kind::Measured),
 ];
 
-/// The details Worldline shows for a body when you look closely. `moon`
-/// says whether it orbits a planet.
-pub fn details(name: &str, moon: bool) -> &'static [Detail] {
+/// What kind of body the inspector is showing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BodyKind {
+    /// The Sun, a planet or a dwarf planet.
+    Other,
+    /// A major moon.
+    Moon,
+    /// A small moon around the planet in focus, computed in detail.
+    SmallMoonInDetail,
+    /// A small moon placed by its mean orbit.
+    SmallMoonOnMeanOrbit,
+}
+
+/// The details Worldline shows for a body when you look closely.
+pub fn details(name: &str, kind: BodyKind) -> &'static [Detail] {
+    match kind {
+        BodyKind::SmallMoonInDetail => return SMALL_MOON_IN_DETAIL,
+        BodyKind::SmallMoonOnMeanOrbit => return SMALL_MOON_ON_MEAN_ORBIT,
+        BodyKind::Other | BodyKind::Moon => {}
+    }
+    let moon = kind == BodyKind::Moon;
     match name {
         "Sun" => SUN,
         "Earth" => EARTH,

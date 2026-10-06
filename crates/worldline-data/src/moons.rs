@@ -196,7 +196,8 @@ pub fn solar_system_with_moons() -> Hierarchy {
                 .skip(1)
                 .filter_map(|(i, moon)| Some((i, moon_figure(&moon.name)?)))
                 .collect();
-            let mut moons = MoonSystem::new(index[data.host.as_str()], data.bodies);
+            let mut moons = MoonSystem::new(index[data.host.as_str()], data.bodies)
+                .with_inner_mass(crate::inner_moon_mass(&data.host));
             for (i, figure) in figures {
                 moons = moons.with_figure(i, figure);
             }
@@ -212,6 +213,17 @@ pub fn solar_system_with_moons() -> Hierarchy {
                 moons = moons.with_zonal(ZonalField {
                     radius,
                     coefficients,
+                    pole: frame.z_axis,
+                });
+            }
+            // The small moons' JPL solution may fit the planet's oblateness
+            // differently; they feel the field their own solution has.
+            if let Some(zonal) =
+                crate::small_moon_zonal_harmonics(&data.host).filter(|z| !z.coefficients.is_empty())
+            {
+                moons.small_moon_zonal = Some(ZonalField {
+                    radius: zonal.radius,
+                    coefficients: zonal.coefficients,
                     pole: frame.z_axis,
                 });
             }

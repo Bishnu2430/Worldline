@@ -9,6 +9,8 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 | Positions and velocities of the Sun, planets, Moon and Pluto | NASA JPL Horizons, ephemeris DE441 | Public domain (U.S. government work) |
 | Gravitational parameters (GM) | JPL DE440 (Park et al. 2021), via NASA NAIF `gm_de440.tpc` | Public domain (U.S. government work) |
 | Positions and velocities of the major moons | NASA JPL Horizons, satellite ephemerides MAR099, JUP365, SAT441, URA184, NEP098 and PLU060 | Public domain (U.S. government work) |
+| Every other known moon: mean orbital elements and measured sizes and masses | JPL Solar System Dynamics, Planetary Satellite Mean Elements and Physical Parameters (ssd.jpl.nasa.gov/sats) | Public domain (U.S. government work) |
+| Positions and velocities of the small moons | NASA JPL Horizons, the satellite ephemerides each moon comes from (JUP347–JUP365, SAT415–SAT459, URA184, NEP098, NEP104, PLU060) | Public domain (U.S. government work) |
 | Moon-system constants: GMs, planets' gravity harmonics (J2–J6, Mars's C_nm and S_nm), moons' shapes, Saturn's ring masses | The JPL satellite ephemerides' own constants, from the NASA NAIF comment files `mar099.cmt`, `jup365.cmt`, `sat441.cmt`, `ura184_part-1.cmt`, `nep098_part-1.cmt`, `plu060.cmt` | Public domain (U.S. government work) |
 | Rotation models (spin axes and rates) | IAU WGCCRE (Archinal et al. 2018), via NASA NAIF `pck00011.tpc` | Public domain (U.S. government work) |
 | Radii and shapes | IAU WGCCRE (Archinal et al. 2018), via NASA NAIF `pck00011.tpc`; IAU 2015 Resolution B3 for the Sun | Public domain (U.S. government work) / published values |

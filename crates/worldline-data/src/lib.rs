@@ -8,6 +8,7 @@ mod kernel;
 mod moons;
 mod rings;
 mod rotation;
+mod small_moons;
 mod snapshot;
 
 pub use atmosphere::{Atmosphere, atmosphere};
@@ -17,6 +18,11 @@ pub use moons::{
 };
 pub use rings::{RingFeature, RingProfile, saturn_ring_features, saturn_rings};
 pub use rotation::{rotation_model, triaxial_radii};
+pub use small_moons::{
+    ElementsRow, SmallMoon, SolutionZonal, display_name, inner_moon_mass, moon_elements,
+    parse_elements, satellites_in_jpls_list, small_moon_states_30_days_on,
+    small_moon_zonal_harmonics, small_moons,
+};
 pub use snapshot::{ParseError, Snapshot};
 
 /// The solar system at 2025-01-01 00:00:00 TDB: the Sun, the eight planets,

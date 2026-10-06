@@ -10,6 +10,7 @@ use worldline_core::hierarchy::{Hierarchy, MOON_SYSTEM_GRAVITY};
 use worldline_core::integrator::{Ias15, Integrator};
 use worldline_core::rotation::RotationModel;
 use worldline_core::{Body, DVec3};
+use worldline_data::SmallMoon;
 
 /// The recent path of one body around the Sun: about one orbit's worth.
 /// Moons have none; they are shown with their current orbit (see
@@ -62,13 +63,16 @@ enum Source {
     Top(usize),
     /// Body `body` of moon system `system` (body 0 is the planet).
     Moon { system: usize, body: usize },
+    /// Small moon `index` of moon system `system`.
+    Small { system: usize, index: usize },
 }
 
 /// The solar system running live.
 pub struct Simulation {
     /// Every body: the Sun and planets (each planet with moons in place of
-    /// its system's barycenter) in the snapshot's order, then the moons.
-    /// Positions are refreshed after every step.
+    /// its system's barycenter) in the snapshot's order, then the major
+    /// moons, then the small moons. Positions are refreshed after every
+    /// step (the small moons' once per update).
     pub bodies: Vec<Body>,
     /// The starting moment, as a Julian Date (TDB).
     pub epoch_jd_tdb: f64,
@@ -86,6 +90,10 @@ pub struct Simulation {
     sources: Vec<Source>,
     /// IAU rotation model of each body, where one exists.
     rotations: Vec<Option<RotationModel>>,
+    /// Each moon system's small moons, from JPL.
+    small: Vec<Vec<SmallMoon>>,
+    /// The moon system whose small moons are being computed in detail.
+    detailed: Option<usize>,
     hierarchy: Hierarchy,
 }
 
@@ -105,12 +113,37 @@ impl Simulation {
             sources
                 .extend((1..moons.system.bodies.len()).map(|body| Source::Moon { system, body }));
         }
+        let all_small = worldline_data::small_moons();
+        let small: Vec<Vec<SmallMoon>> = hierarchy
+            .moon_systems
+            .iter()
+            .map(|moons| {
+                let planet = &moons.system.bodies[0].name;
+                all_small
+                    .iter()
+                    .filter(|m| &m.parent == planet)
+                    .cloned()
+                    .collect()
+            })
+            .collect();
+        for (system, moons) in small.iter().enumerate() {
+            sources.extend((0..moons.len()).map(|index| Source::Small { system, index }));
+        }
         let bodies: Vec<Body> = sources
             .iter()
             .map(|source| match *source {
                 Source::Top(k) => hierarchy.top.bodies[k].clone(),
                 Source::Moon { system, body } => {
                     hierarchy.moon_systems[system].system.bodies[body].clone()
+                }
+                // Unknown masses and sizes are zero: no pull, drawn as a dot.
+                Source::Small { system, index } => {
+                    let moon = &small[system][index];
+                    Body::new(
+                        &moon.name,
+                        moon.gm.unwrap_or(0.0),
+                        moon.radius.unwrap_or(0.0),
+                    )
                 }
             })
             .collect();
@@ -123,6 +156,7 @@ impl Simulation {
                     let host = hierarchy.moon_systems[system].host;
                     Some(host)
                 }
+                Source::Small { system, .. } => Some(hierarchy.moon_systems[system].host),
                 // The Moon is simulated at the top level, beside Earth.
                 _ if body.name == "Moon" => index_of("Earth"),
                 _ => None,
@@ -142,10 +176,68 @@ impl Simulation {
             achieved: 1.0,
             parents,
             sources,
+            small,
+            detailed: None,
             hierarchy,
         };
         simulation.refresh();
+        simulation.refresh_small_moons();
         simulation
+    }
+
+    /// Computes the small moons around body `index` in detail: those of
+    /// its planet, if it is a planet with moons or one of their moons. All
+    /// other small moons go back to JPL's mean orbits.
+    ///
+    /// At the snapshot moment the detailed moons start from JPL's exact
+    /// states; later, from their mean orbits at that moment.
+    pub fn focus_detail_on(&mut self, index: usize) {
+        let planet = self.parents[index].unwrap_or(index);
+        let system = self
+            .hierarchy
+            .moon_systems
+            .iter()
+            .position(|m| m.host == planet);
+        if system == self.detailed {
+            return;
+        }
+        if let Some(old) = self.detailed {
+            self.hierarchy.moon_systems[old].clear_small_moons();
+        }
+        self.detailed = system;
+        if let Some(system) = system {
+            let time = self.time();
+            let moons = self.small[system]
+                .iter()
+                .map(|moon| {
+                    let (r, v) = match moon.state {
+                        Some(state) if time == 0.0 => state,
+                        _ => moon.orbit.state_at(time),
+                    };
+                    let body = Body::new(
+                        &moon.name,
+                        moon.gm.unwrap_or(0.0),
+                        moon.radius.unwrap_or(0.0),
+                    )
+                    .at(r)
+                    .moving(v);
+                    (body, moon.regular)
+                })
+                .collect();
+            self.hierarchy.moon_systems[system].set_small_moons(moons);
+        }
+        self.refresh_small_moons();
+    }
+
+    /// Whether body `index` is a small moon.
+    pub fn is_small_moon(&self, index: usize) -> bool {
+        matches!(self.sources[index], Source::Small { .. })
+    }
+
+    /// Whether body `index` is a small moon being computed in detail, rather
+    /// than placed by its mean orbit.
+    pub fn is_detailed(&self, index: usize) -> bool {
+        matches!(self.sources[index], Source::Small { system, .. } if Some(system) == self.detailed)
     }
 
     /// Simulated time since the start, in s.
@@ -190,6 +282,7 @@ impl Simulation {
         while self.time() < target {
             self.step_toward(target);
         }
+        self.refresh_small_moons();
     }
 
     /// Advances the simulation to match `real_dt` seconds of real time,
@@ -211,6 +304,7 @@ impl Simulation {
             self.step_toward(target);
         }
         self.achieved = (self.time() - start) / requested;
+        self.refresh_small_moons();
     }
 
     /// One step of the whole hierarchy, landing exactly on `target` if it
@@ -234,6 +328,7 @@ impl Simulation {
                     (b.position, b.velocity)
                 }
                 Source::Moon { system, body } => self.hierarchy.absolute(system, body),
+                Source::Small { .. } => continue,
             };
             body.position = position;
             body.velocity = velocity;
@@ -242,6 +337,28 @@ impl Simulation {
             if parent.is_none() {
                 trail.record(body.position);
             }
+        }
+    }
+
+    /// Places the small moons: from the detailed simulation for the moon
+    /// system in focus, from JPL's mean orbits for the rest. Done once per
+    /// update rather than every step, since the mean orbits can be
+    /// evaluated at any time.
+    fn refresh_small_moons(&mut self) {
+        let time = self.time();
+        for (body, source) in self.bodies.iter_mut().zip(&self.sources) {
+            let Source::Small { system, index } = *source else {
+                continue;
+            };
+            let (position, velocity) = if Some(system) == self.detailed {
+                self.hierarchy.absolute_small(system, index)
+            } else {
+                let (planet, drift) = self.hierarchy.absolute(system, 0);
+                let (r, v) = self.small[system][index].orbit.state_at(time);
+                (planet + r, drift + v)
+            };
+            body.position = position;
+            body.velocity = velocity;
         }
     }
 }
@@ -295,6 +412,29 @@ mod tests {
         assert!((distance / 4.22e8 - 1.0).abs() < 0.01, "Io at {distance} m");
         // The top level's order is kept: Earth is still body 3.
         assert_eq!(find("Earth"), 3);
+    }
+
+    #[test]
+    fn small_moons_are_detailed_only_around_the_focus() {
+        // Pan starts on its mean orbit; focusing on Saturn computes it in
+        // detail from JPL's exact state, and focusing elsewhere sends it
+        // back to its mean orbit.
+        let mut sim = Simulation::solar_system(DAY);
+        let find =
+            |sim: &Simulation, name: &str| sim.bodies.iter().position(|b| b.name == name).unwrap();
+        let (saturn, pan, io) = (find(&sim, "Saturn"), find(&sim, "Pan"), find(&sim, "Io"));
+        assert!(sim.is_small_moon(pan) && !sim.is_detailed(pan));
+        assert_eq!(sim.parent(pan), Some(saturn));
+        sim.focus_detail_on(saturn);
+        assert!(sim.is_detailed(pan));
+        let distance = (sim.bodies[pan].position - sim.bodies[saturn].position).length();
+        assert!(
+            (distance / 133_584e3 - 1.0).abs() < 0.01,
+            "Pan at {distance} m"
+        );
+        sim.update(1.0, GENEROUS);
+        sim.focus_detail_on(io);
+        assert!(!sim.is_detailed(pan));
     }
 
     #[test]

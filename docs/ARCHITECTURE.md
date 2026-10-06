@@ -33,6 +33,12 @@ Fast inner orbits shouldn't set the pace for everything. The solar system runs a
 
 This mirrors how JPL builds its ephemerides: planetary ephemerides for the barycenters, satellite ephemerides for the moons. See [physics/moons.md](physics/moons.md).
 
+**Small moons** (437 of them) are too light to pull on the major moons, so they don't take part in the major moons' integration. When their planet is in focus, they follow the major moons' recorded paths:
+- **Regular moons** share one integrator, so the ones with mass can pull on each other.
+- **Irregular moons** each get their own, at their own slow pace.
+
+Out of focus, they ride approximate orbits that cost almost nothing. This is principle 5 at work. See [physics/small-moons.md](physics/small-moons.md).
+
 ## Choosing a physics model
 
 For each body or pair of bodies, the engine computes a few dimensionless numbers:
