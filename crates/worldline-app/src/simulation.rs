@@ -303,6 +303,19 @@ impl Simulation {
         self.parents[index]
     }
 
+    /// Whether body `index` belongs in the view while the camera follows
+    /// body `focus` and body `selected` is selected. Moons appear only
+    /// around the planet in focus (the followed planet, or the planet of the
+    /// followed moon), or when selected themselves. Every other planet stays
+    /// one clean dot, without its moons' labels and orbits crowding the
+    /// view.
+    pub fn in_view(&self, index: usize, focus: usize, selected: usize) -> bool {
+        match self.parents[index] {
+            Some(planet) => planet == self.parents[focus].unwrap_or(focus) || index == selected,
+            None => true,
+        }
+    }
+
     /// How body `index` is oriented and spins, if known.
     pub fn rotation(&self, index: usize) -> Option<&RotationModel> {
         self.rotations.get(index)?.as_ref()
@@ -493,6 +506,32 @@ mod tests {
         sim.update(1.0, GENEROUS);
         sim.focus_detail_on(io);
         assert!(!sim.is_detailed(pan));
+    }
+
+    #[test]
+    fn moons_show_only_around_the_planet_in_focus() {
+        let sim = Simulation::solar_system(DAY);
+        let find = |name: &str| sim.bodies.iter().position(|b| b.name == name).unwrap();
+        let [sun, earth, moon, jupiter, io, himalia, titan] =
+            ["Sun", "Earth", "Moon", "Jupiter", "Io", "Himalia", "Titan"].map(find);
+        // Following the Sun: planets show, moons don't.
+        for (body, shown) in [(earth, true), (jupiter, true), (moon, false), (io, false)] {
+            assert_eq!(
+                sim.in_view(body, sun, earth),
+                shown,
+                "{}",
+                sim.bodies[body].name
+            );
+        }
+        // Following Jupiter, or any of its moons: all of Jupiter's moons,
+        // major and small, and no one else's.
+        for focus in [jupiter, io, himalia] {
+            assert!(sim.in_view(io, focus, focus) && sim.in_view(himalia, focus, focus));
+            assert!(!sim.in_view(titan, focus, focus) && !sim.in_view(moon, focus, focus));
+        }
+        // A selected moon shows, even if its planet isn't in focus.
+        assert!(sim.in_view(titan, sun, titan));
+        assert!(sim.in_view(moon, earth, earth));
     }
 
     #[test]
