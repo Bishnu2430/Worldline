@@ -4,6 +4,7 @@
 //! their own provenance. Scripts in `tools/` regenerate them.
 
 mod atmosphere;
+mod belts;
 mod kernel;
 mod moons;
 mod rings;
@@ -13,6 +14,7 @@ mod small_moons;
 mod snapshot;
 
 pub use atmosphere::{Atmosphere, atmosphere};
+pub use belts::{Belt, BeltKind, belts};
 pub use moons::{
     MoonSystemData, moon_figure, moon_systems, parse_moons, ring_mass, solar_system_with_moons,
     tesseral_harmonics, zonal_harmonics,

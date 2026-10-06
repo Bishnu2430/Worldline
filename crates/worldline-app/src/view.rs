@@ -6,6 +6,8 @@ use eframe::egui::{Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape, St
 use worldline_core::DVec3;
 use worldline_core::constants::AU;
 use worldline_core::orbit::osculating_orbit;
+use worldline_core::zodiacal::ZodiacalCloud;
+use worldline_data::BeltKind;
 
 use crate::camera::{Camera, Projection};
 use crate::simulation::Simulation;
@@ -18,6 +20,8 @@ pub struct ViewOptions {
     pub labels: bool,
     pub spin_axes: bool,
     pub globes: bool,
+    pub belts: bool,
+    pub dust: bool,
 }
 
 /// A visible body and how it will be drawn.
@@ -53,6 +57,14 @@ const SELECTION_RING_MAX_RADIUS: f32 = 20.0;
 
 /// Labels keep at least this much space between them.
 const LABEL_GAP: f32 = 2.0;
+
+/// The belts and the zodiacal dust are drawn only while the camera is at
+/// least this far from what it looks at: closer in, their markers would
+/// scatter across the sky like stars that aren't there.
+const BELT_MIN_VIEW: f64 = 0.05 * AU;
+
+/// Size of a belt body's marker, in points.
+const BELT_MARKER: f32 = 1.6;
 
 /// Reference rings in the ecliptic plane, in AU.
 const RING_RADII_AU: [f64; 6] = [1.0, 2.0, 5.0, 10.0, 20.0, 50.0];
@@ -197,6 +209,16 @@ pub fn draw_under(
         }
     }
 
+    if camera.distance >= BELT_MIN_VIEW {
+        let sun = simulation.bodies[0].position;
+        if options.dust {
+            draw_dust(painter, camera, viewport, sun);
+        }
+        if options.belts {
+            draw_belts(painter, camera, viewport, simulation, sun);
+        }
+    }
+
     let bodies = &simulation.bodies;
     if options.trails {
         for (index, (trail, body)) in simulation.trails.iter().zip(bodies).enumerate() {
@@ -235,6 +257,123 @@ pub fn draw_under(
     if let Some(sun) = layout.iter().find(|s| s.index == 0) {
         draw_corona(painter, sun.projection.position, sun.radius);
     }
+}
+
+/// Marker color for each belt.
+fn belt_color(kind: BeltKind) -> Color32 {
+    match kind {
+        BeltKind::AsteroidBelt => Color32::from_rgba_unmultiplied(185, 165, 135, 130),
+        BeltKind::JupiterTrojans => Color32::from_rgba_unmultiplied(225, 195, 105, 160),
+        BeltKind::KuiperBelt => Color32::from_rgba_unmultiplied(135, 170, 225, 140),
+    }
+}
+
+/// Draws every belt body as a tiny square, all in one mesh.
+fn draw_belts(
+    painter: &Painter,
+    camera: &Camera,
+    viewport: Rect,
+    simulation: &Simulation,
+    sun: DVec3,
+) {
+    let mut mesh = Mesh::default();
+    let size = vec2(BELT_MARKER, BELT_MARKER);
+    for belt in &simulation.belts {
+        let color = belt_color(belt.kind);
+        for &offset in &belt.positions {
+            if let Some(p) = screen(camera, viewport, sun + offset)
+                && viewport.contains(p.position)
+            {
+                mesh.add_colored_rect(Rect::from_center_size(p.position, size), color);
+            }
+        }
+    }
+    painter.add(Shape::mesh(mesh));
+}
+
+/// Inside this distance from the Sun, Helios didn't measure how the
+/// zodiacal light brightens (it reached 0.3 AU). The dust goes on inward
+/// (it is seen as the Sun's F-corona), but rather than extrapolate the
+/// model, the glow is held at its brightness here.
+const DUST_MEASURED_FROM: f64 = 0.3 * AU;
+
+/// The glow starts this close to the Sun, about 10 solar radii.
+const DUST_INNER_EDGE: f64 = 0.05 * AU;
+
+/// The zodiacal dust's brightness seen face-on, from `DUST_INNER_EDGE` out
+/// to the model's 5.2 AU edge: the sunlight the modeled dust scatters along
+/// a line through the cloud (see `ZodiacalCloud::scattered_light`).
+/// Computed once.
+fn dust_profile() -> &'static [(f64, f64)] {
+    static PROFILE: std::sync::OnceLock<Vec<(f64, f64)>> = std::sync::OnceLock::new();
+    PROFILE.get_or_init(|| {
+        let cloud = ZodiacalCloud::kelsall();
+        let across = cloud.pole.cross(DVec3::Z).normalize();
+        let (inner, outer) = (DUST_INNER_EDGE, cloud.outer_radius);
+        (0..=48)
+            .map(|k| {
+                let rho = inner * (outer / inner).powf(k as f64 / 48.0);
+                let above = cloud.center + across * rho + cloud.pole * (6.0 * AU);
+                (rho, cloud.scattered_light(above, -cloud.pole))
+            })
+            .collect()
+    })
+}
+
+/// Draws the zodiacal dust as a faint glow in its symmetry plane, tilted
+/// 2° to the ecliptic. Its brightness spans hundreds of times from 0.3 to
+/// 5 AU, so it is shown on a log scale, like the corona: a visual aid with
+/// the model's shape.
+fn draw_dust(painter: &Painter, camera: &Camera, viewport: Rect, sun: DVec3) {
+    const SEGMENTS: usize = 96;
+    let cloud = ZodiacalCloud::kelsall();
+    let profile = dust_profile();
+    let center = sun + cloud.center;
+    let across = cloud.pole.cross(DVec3::Z).normalize();
+    let along = cloud.pole.cross(across);
+    // A thin, transparent disk seen at a slant looks brighter by 1/|cos θ|,
+    // up to the cloud's thickness: its density falls by a factor e about
+    // 0.3 of the way from the plane to the Sun's distance.
+    let view = (camera.eye() - center).normalize();
+    let slant = 1.0 / view.dot(cloud.pole).abs().max(0.3);
+    let brightest = profile
+        .iter()
+        .find(|(rho, _)| *rho >= DUST_MEASURED_FROM)
+        .map_or(1.0, |p| p.1)
+        .ln();
+    let faintest = profile[profile.len() - 3].1.ln();
+    let mut mesh = Mesh::default();
+    let mut drawn = Vec::with_capacity(profile.len() * SEGMENTS);
+    for &(rho, light) in profile {
+        // Brightest at the measured limit and held there inward (the clamp).
+        let level = ((light.ln() - faintest) / (brightest - faintest)).clamp(0.0, 1.0);
+        let alpha = (40.0 * level * slant).min(255.0) as u8;
+        let color = Color32::from_rgba_unmultiplied(255, 240, 215, alpha);
+        for j in 0..SEGMENTS {
+            let angle = j as f64 / SEGMENTS as f64 * std::f64::consts::TAU;
+            let point = center + (across * angle.cos() + along * angle.sin()) * rho;
+            let projected = screen(camera, viewport, point);
+            drawn.push(projected.is_some());
+            mesh.colored_vertex(projected.map_or(Pos2::ZERO, |p| p.position), color);
+        }
+    }
+    let index = |ring: usize, segment: usize| ring * SEGMENTS + segment % SEGMENTS;
+    for ring in 0..profile.len() - 1 {
+        for segment in 0..SEGMENTS {
+            let quad = [
+                index(ring, segment),
+                index(ring, segment + 1),
+                index(ring + 1, segment + 1),
+                index(ring + 1, segment),
+            ];
+            if quad.iter().all(|&i| drawn[i]) {
+                let [a, b, c, d] = quad.map(|i| i as u32);
+                mesh.add_triangle(a, b, c);
+                mesh.add_triangle(a, c, d);
+            }
+        }
+    }
+    painter.add(Shape::mesh(mesh));
 }
 
 /// Brightness of the Sun's corona relative to the center of the Sun's disk,

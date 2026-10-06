@@ -89,6 +89,8 @@ impl WorldlineApp {
                 labels: true,
                 spin_axes: true,
                 globes: true,
+                belts: true,
+                dust: true,
             },
             last_frame: Instant::now(),
             flight: None,
@@ -306,12 +308,29 @@ impl WorldlineApp {
                 "Spin axes (dot marks the spin direction)",
             );
             ui.checkbox(&mut self.options.globes, "Textured globes up close");
+            let total: usize = self
+                .simulation
+                .belts
+                .iter()
+                .map(|b| b.positions.len())
+                .sum();
+            ui.checkbox(
+                &mut self.options.belts,
+                format!("Asteroid belt, Trojans and Kuiper belt ({total} real orbits)"),
+            );
+            ui.checkbox(&mut self.options.dust, "Zodiacal dust");
             ui.add_space(4.0);
             ui.label(
                 RichText::new(
                     "Distances, sizes and positions are to scale. Bodies too small to \
                      see are drawn as dots at least 3 points wide. Night sides get a \
-                     faint fill light so they don't vanish completely.",
+                     faint fill light so they don't vanish completely.\n\n\
+                     Belts: JPL's orbits (measured), on fixed ellipses around the \
+                     Sun (model, about 1/10,000 of their distance off after a year). \
+                     Dust: the COBE DIRBE model of Kelsall et al. 1998, drawn as the \
+                     sunlight it scatters on a log scale (visual), held at its \
+                     0.3 AU brightness farther in, where no probe has measured how \
+                     it brightens. Both show when zoomed out past 0.05 AU.",
                 )
                 .small()
                 .weak(),

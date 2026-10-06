@@ -14,6 +14,7 @@ pub mod mean_elements;
 pub mod orbit;
 pub mod rotation;
 pub mod system;
+pub mod zodiacal;
 
 pub use body::Body;
 pub use glam::{DMat3, DVec3};
