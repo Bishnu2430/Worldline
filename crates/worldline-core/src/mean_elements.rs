@@ -154,7 +154,7 @@ pub fn plane_frame(ra: f64, dec: f64, obliquity: f64) -> DMat3 {
 
 /// Solves Kepler's equation E − e sin E = M for the eccentric anomaly, by
 /// Newton's method from a starting guess that converges for all e < 1.
-fn solve_kepler(mean_anomaly: f64, e: f64) -> f64 {
+pub(crate) fn solve_kepler(mean_anomaly: f64, e: f64) -> f64 {
     let mut eccentric = if e < 0.8 {
         mean_anomaly
     } else {

@@ -45,6 +45,8 @@ Out of focus, they ride approximate orbits that cost almost nothing. This is pri
 
 Followers feel Newtonian gravity from every top-level body, the Sun's relativistic term, and the outgassing or Yarkovsky push JPL fits for them. See [physics/small-bodies.md](physics/small-bodies.md).
 
+**The belts** (28,331 real asteroids, Trojans and Kuiper belt objects) are the far end of principle 5. Each rides a fixed ellipse around the Sun from JPL's elements, outside the integration altogether: one Kepler's equation per body per frame, shared among the CPU's cores. Over a year they drift from their true paths by about 10⁻⁴ of their distance. See [physics/belts.md](physics/belts.md). The zodiacal dust is a density model drawn as a glow ([physics/zodiacal-dust.md](physics/zodiacal-dust.md)).
+
 ## Choosing a physics model
 
 For each body or pair of bodies, the engine computes a few dimensionless numbers:
@@ -62,6 +64,8 @@ It uses them to pick a model:
 |---|---|---|
 | Ordinary orbits | Newtonian plus first post-Newtonian (Einstein–Infeld–Hoffmann) N-body | Einstein, Infeld & Hoffmann 1938; used in JPL planetary ephemerides |
 | Asteroids and comets too light to pull on the planets | Newtonian pull of the Sun and planets, plus the Sun's 1PN (Schwarzschild) term and JPL's non-gravitational forces | IERS Conventions 2010; Marsden, Sekanina & Yeomans 1973 |
+| Belt asteroids and Kuiper belt objects (background) | Fixed two-body ellipses from JPL's osculating elements | Kepler's laws; JPL Small-Body Database |
+| Zodiacal dust | COBE DIRBE smooth-cloud density model | Kelsall et al. 1998 |
 | Moons, inside their planet's system | Newtonian N-body plus the planet's zonal and tesseral harmonics, locked moons' shapes, and outside tides | JPL satellite ephemeris models; Montenbruck & Gill 2000 |
 | Compact binaries | Post-Newtonian up to 3.5PN, including radiation reaction | Blanchet, *Living Reviews in Relativity* 2014; Peters 1964 |
 | Near a dominant black hole (q ≪ 1) | Kerr geodesics with radiation reaction | Kerr 1963; Bardeen, Press & Teukolsky 1972 |

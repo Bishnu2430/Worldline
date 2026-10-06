@@ -20,6 +20,7 @@ The fetch script copies JPL's numbers into the files exactly as published, with 
 - **Epochs:** 2025-01-01 00:00 TDB (the starting snapshot) and exactly one Julian year later, 2026-01-01 06:00 TDB (the reference for validation).
 - **Moons:** the 21 major moons, with their planets' centers and gravity fields, come from a separate script, `tools/fetch_moons.py` (see [moons.md](moons.md)). The other 437 known moons come from `tools/fetch_small_moons.py` (see [small-moons.md](small-moons.md)).
 - **Dwarf planets, asteroids and comets:** 62 of them, from `tools/fetch_small_bodies.py` (see [small-bodies.md](small-bodies.md)).
+- **The belts:** 28,331 orbits from JPL's Small-Body Database, from `tools/fetch_belts.py` (see [belts.md](belts.md)).
 
 ## Validation
 

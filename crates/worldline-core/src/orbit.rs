@@ -5,8 +5,9 @@
 
 use std::f64::consts::TAU;
 
-use glam::DVec3;
+use glam::{DMat3, DVec3};
 
+use crate::mean_elements::solve_kepler;
 use crate::{Body, System};
 
 /// Orbital period from Kepler's third law, T = 2π √(a³ / μ), in s.
@@ -79,6 +80,86 @@ pub fn osculating_orbit(r: DVec3, v: DVec3, mu: f64, count: usize) -> Option<Vec
     )
 }
 
+/// Classical orbital elements of an ellipse, with angles in the
+/// simulation's frame (the ecliptic and equinox of J2000).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Elements {
+    /// Semi-major axis, in m.
+    pub a: f64,
+    /// Eccentricity, below 1.
+    pub e: f64,
+    /// Inclination to the ecliptic, in rad.
+    pub inclination: f64,
+    /// Longitude of the ascending node, in rad.
+    pub node: f64,
+    /// Argument of periapsis, in rad.
+    pub periapsis: f64,
+    /// Mean anomaly at `epoch`, in rad.
+    pub mean_anomaly: f64,
+    /// Simulation time of the elements, in s.
+    pub epoch: f64,
+}
+
+impl Elements {
+    /// Mean longitude λ = Ω + ω + M at simulation time `time` (s), in rad
+    /// (not wrapped), moving at the mean motion √(μ/a³) around a center of
+    /// gravitational parameter `mu` (m³/s²).
+    pub fn mean_longitude(&self, time: f64, mu: f64) -> f64 {
+        self.node
+            + self.periapsis
+            + self.mean_anomaly
+            + (mu / self.a.powi(3)).sqrt() * (time - self.epoch)
+    }
+}
+
+/// A fixed ellipse around one center, ignoring every other pull: positions
+/// for massless bodies at the cost of solving Kepler's equation once each.
+/// Fast enough for the tens of thousands of asteroids in the belts.
+///
+/// Leaving out the planets' pull, it drifts from the true path by roughly
+/// the strength of those pulls relative to the center's, per orbit: about
+/// 1/1,000 for the asteroid belt, Jupiter's mass relative to the Sun's.
+/// See `docs/physics/belts.md`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct KeplerOrbit {
+    /// Toward periapsis, scaled by the semi-major axis.
+    p: DVec3,
+    /// 90° ahead of `p` in the plane of motion, scaled by the semi-minor
+    /// axis.
+    q: DVec3,
+    e: f64,
+    /// Mean anomaly at simulation time 0, in rad.
+    mean_anomaly: f64,
+    /// In rad/s.
+    mean_motion: f64,
+}
+
+impl KeplerOrbit {
+    /// The ellipse with these elements around a center of gravitational
+    /// parameter `mu` (m³/s²).
+    pub fn new(elements: &Elements, mu: f64) -> Self {
+        let Elements { a, e, .. } = *elements;
+        let orientation = DMat3::from_rotation_z(elements.node)
+            * DMat3::from_rotation_x(elements.inclination)
+            * DMat3::from_rotation_z(elements.periapsis);
+        let mean_motion = (mu / a.powi(3)).sqrt();
+        Self {
+            p: orientation.x_axis * a,
+            q: orientation.y_axis * (a * (1.0 - e * e).sqrt()),
+            e,
+            mean_anomaly: (elements.mean_anomaly - mean_motion * elements.epoch).rem_euclid(TAU),
+            mean_motion,
+        }
+    }
+
+    /// Position relative to the center (m) at simulation time `time` (s).
+    pub fn position_at(&self, time: f64) -> DVec3 {
+        let mean_anomaly = (self.mean_anomaly + self.mean_motion * time).rem_euclid(TAU);
+        let (sin, cos) = solve_kepler(mean_anomaly, self.e).sin_cos();
+        self.p * (cos - self.e) + self.q * sin
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -106,6 +187,56 @@ mod tests {
         // the "Gaussian year" astronomers used to define the AU until 2012.
         let days = kepler_period(AU, GM_SUN) / DAY;
         assert!((days - 365.256_898_3).abs() < 1e-3, "got {days} days");
+    }
+
+    #[test]
+    fn a_kepler_orbit_matches_the_mean_elements_model() {
+        // The same ellipse, placed by the general moon model (which
+        // computes velocities and precession too): positions agree to
+        // rounding over several orbits, and the orbit closes after one
+        // period.
+        use crate::mean_elements::MeanElements;
+        let elements = Elements {
+            a: 2.77 * AU,
+            e: 0.4,
+            inclination: 0.3,
+            node: 1.2,
+            periapsis: 4.0,
+            mean_anomaly: 2.5,
+            epoch: 3e7,
+        };
+        let orbit = KeplerOrbit::new(&elements, GM_SUN);
+        let reference = MeanElements {
+            frame: DMat3::IDENTITY,
+            epoch: elements.epoch,
+            a: elements.a,
+            e: elements.e,
+            inclination: elements.inclination,
+            node: elements.node,
+            periapsis: elements.periapsis,
+            mean_anomaly: elements.mean_anomaly,
+            period: kepler_period(elements.a, GM_SUN),
+            periapsis_rate: 0.0,
+            node_rate: 0.0,
+        };
+        let worst = (0..20)
+            .map(|k| {
+                let t = -1e8 + 2.3e7 * k as f64;
+                (orbit.position_at(t) - reference.state_at(t).0).length()
+            })
+            .fold(0.0, f64::max);
+        let period = kepler_period(elements.a, GM_SUN);
+        let closure = (orbit.position_at(period) - orbit.position_at(0.0)).length();
+        println!(
+            "worst difference {:.1e} of a; closure {:.1e} of a",
+            worst / elements.a,
+            closure / elements.a
+        );
+        // Angles of up to ~30 rad carry rounding of ~10⁻¹⁴ rad.
+        assert!(worst < 1e-13 * elements.a && closure < 1e-13 * elements.a);
+        // The mean longitude advances one turn per period.
+        let turn = elements.mean_longitude(period, GM_SUN) - elements.mean_longitude(0.0, GM_SUN);
+        assert!((turn - TAU).abs() < 1e-12);
     }
 
     #[test]

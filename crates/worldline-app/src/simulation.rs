@@ -5,12 +5,14 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use worldline_core::constants::DAY;
+use worldline_core::constants::GM_SUN;
 use worldline_core::gravity::Gravity;
 use worldline_core::hierarchy::{Hierarchy, MOON_SYSTEM_GRAVITY};
 use worldline_core::integrator::{Ias15, Integrator};
+use worldline_core::orbit::KeplerOrbit;
 use worldline_core::rotation::RotationModel;
 use worldline_core::{Body, DVec3};
-use worldline_data::{SmallBodyKind, SmallMoon};
+use worldline_data::{BeltKind, SmallBodyKind, SmallMoon};
 
 /// The recent path of one body around the Sun: about one orbit's worth.
 /// Moons have none; they are shown with their current orbit (see
@@ -82,6 +84,20 @@ impl Trail {
     }
 }
 
+/// One belt of asteroids or Kuiper belt objects, placed for drawing.
+///
+/// Its bodies are massless and far too many to integrate in real time, so
+/// each rides a fixed ellipse around the Sun from JPL's elements. Over a
+/// year they stray from their true paths by about a ten-thousandth of their
+/// distance (see `docs/physics/belts.md`).
+pub struct BeltCloud {
+    /// Which belt.
+    pub kind: BeltKind,
+    orbits: Vec<KeplerOrbit>,
+    /// Each body's position relative to the Sun at the last update, in m.
+    pub positions: Vec<DVec3>,
+}
+
 /// Where a body in the flat list lives in the hierarchy.
 #[derive(Debug, Clone, Copy)]
 enum Source {
@@ -126,6 +142,10 @@ pub struct Simulation {
     /// For each body, what sort of small body it is, if it is one, and
     /// whether it has a non-gravitational force model.
     small_bodies: Vec<Option<(SmallBodyKind, bool)>>,
+    /// The asteroid belt, Jupiter's Trojans and the Kuiper belt.
+    pub belts: Vec<BeltCloud>,
+    /// The simulation time the belts were last placed at.
+    belts_time: f64,
     hierarchy: Hierarchy,
 }
 
@@ -224,6 +244,19 @@ impl Simulation {
             small,
             detailed: None,
             small_bodies,
+            belts: worldline_data::belts()
+                .into_iter()
+                .map(|belt| BeltCloud {
+                    kind: belt.kind,
+                    positions: vec![DVec3::ZERO; belt.orbits.len()],
+                    orbits: belt
+                        .orbits
+                        .iter()
+                        .map(|elements| KeplerOrbit::new(elements, GM_SUN))
+                        .collect(),
+                })
+                .collect(),
+            belts_time: f64::NAN,
             hierarchy,
         };
         simulation.refresh();
@@ -414,9 +447,31 @@ impl Simulation {
     /// Places the small moons: from the detailed simulation for the moon
     /// system in focus, from JPL's mean orbits for the rest. Done once per
     /// update rather than every step, since the mean orbits can be
-    /// evaluated at any time.
+    /// evaluated at any time. The belts likewise.
     fn refresh_small_moons(&mut self) {
         let time = self.time();
+        if time != self.belts_time {
+            // 28,000 Kepler's equations take about 3.4 ms on one core;
+            // they are independent, so they are shared among all cores.
+            let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
+            for belt in &mut self.belts {
+                let chunk = belt.positions.len().div_ceil(threads).max(1);
+                std::thread::scope(|scope| {
+                    for (positions, orbits) in belt
+                        .positions
+                        .chunks_mut(chunk)
+                        .zip(belt.orbits.chunks(chunk))
+                    {
+                        scope.spawn(move || {
+                            for (position, orbit) in positions.iter_mut().zip(orbits) {
+                                *position = orbit.position_at(time);
+                            }
+                        });
+                    }
+                });
+            }
+            self.belts_time = time;
+        }
         for (body, source) in self.bodies.iter_mut().zip(&self.sources) {
             let Source::Small { system, index } = *source else {
                 continue;
@@ -532,6 +587,27 @@ mod tests {
         // A selected moon shows, even if its planet isn't in focus.
         assert!(sim.in_view(titan, sun, titan));
         assert!(sim.in_view(moon, earth, earth));
+    }
+
+    #[test]
+    fn belts_are_placed_where_their_orbits_say() {
+        // Every body lies between its orbit's perihelion a(1 − e) and
+        // aphelion a(1 + e) from the Sun, and a day later they have all
+        // moved on.
+        let mut sim = Simulation::solar_system(DAY);
+        let total: usize = sim.belts.iter().map(|b| b.positions.len()).sum();
+        assert_eq!(total, 28_331);
+        for (cloud, data) in sim.belts.iter().zip(worldline_data::belts()) {
+            for (position, orbit) in cloud.positions.iter().zip(&data.orbits) {
+                let r = position.length();
+                let (q, big_q) = (orbit.a * (1.0 - orbit.e), orbit.a * (1.0 + orbit.e));
+                // Rounding: positions are good to about 10⁻¹⁵ of a.
+                assert!(q * (1.0 - 1e-12) <= r && r <= big_q * (1.0 + 1e-12));
+            }
+        }
+        let before = sim.belts[0].positions[0];
+        sim.update(1.0, GENEROUS);
+        assert_ne!(sim.belts[0].positions[0], before);
     }
 
     #[test]

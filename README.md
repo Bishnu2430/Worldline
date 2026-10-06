@@ -2,7 +2,7 @@
 
 **A relativistic universe sandbox.** Drop black holes, neutron stars and planets into the real universe and watch general relativity play out. Every physics model is validated against theory and observation.
 
-> **Status:** pre-alpha. The engine runs the real solar system in a 3D window, with relativistic gravity, all 459 of its known moons, and 62 dwarf planets, asteroids and comets. See the [roadmap](docs/ROADMAP.md).
+> **Status:** pre-alpha. The engine runs the real solar system in a 3D window, with relativistic gravity, all 459 of its known moons, 62 dwarf planets, asteroids and comets, 28,331 belt asteroids and Kuiper belt objects, and the zodiacal dust. See the [roadmap](docs/ROADMAP.md).
 
 ![Worldline running the real solar system with relativistic gravity, five months after 1 January 2025](docs/images/solar-system-step-1.5.png)
 
@@ -11,6 +11,8 @@
 ![Saturn in April 2032 from below the ring plane: Cassini's measured ring structure, Saturn's shadow across the rings](docs/images/saturn-2032-step-1b.3.png)
 
 ![Saturn and its moons on 1 January 2025: each moon's current orbit, all in the plane of the nearly edge-on rings](docs/images/saturn-moons-step-1b.4.png)
+
+![The asteroid belt (tan) and Jupiter's two Trojan clouds (gold), 60° ahead of and behind Jupiter, from 28,331 real orbits, with the zodiacal dust glowing around the Sun](docs/images/belts-step-1b.7.png)
 
 ![Halley's Comet at perihelion on 28 July 2061, simulated from its 2025 position: its path dives in from the outer solar system past the asteroids' orbits](docs/images/halley-2061-step-1b.6.png)
 
@@ -48,6 +50,10 @@
 | The heaviest asteroids' pull brings Mars closer to JPL | smaller error with them | ✅ passing, Mars 0.19 → 0.11 km after a year (Earth 0.41 → 0.21 km) |
 | 62 dwarf planets, asteroids and comets after one year vs. NASA JPL | within 1 part in 10,000 | ✅ passing, 61 within 0.2 km; Bennu 2,420 km (1.5 × 10⁻⁵), a listed residual |
 | Halley's Comet returns | July 2061 (JPL: 28 July) | ✅ passing, 28 July 2061, 17 minutes from JPL's time |
+| Kirkwood gaps in 19,971 real main-belt asteroids | gaps at Jupiter's 3:1, 5:2, 7:3 and 2:1 resonances, beyond 5σ | ✅ passing, −13.4σ, −11.8σ, −12.1σ, −17.3σ |
+| Jupiter's Trojans (4,509) | clustered 60° ahead of and behind Jupiter | ✅ passing, medians +62.0° and −61.9° |
+| Hildas and Plutinos crowd into 3:2 resonances (Jupiter's and Neptune's) | an excess beyond 5σ | ✅ passing, +138σ and +26σ |
+| Zodiacal dust model (COBE) vs. Helios | brightens toward the Sun as R^−(2.3 ± 0.1) | ✅ passing, R^−2.30 to R^−2.38 |
 | Light bending at the Sun's edge | 1.75″ | planned |
 | Hulse–Taylor binary pulsar orbital decay | −2.40 × 10⁻¹² s/s | planned |
 | Innermost stable orbit, photon sphere and shadow of a non-spinning black hole | 6, 3 and √27 GM/c² | planned |
@@ -103,6 +109,8 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · textures from Solar Syste
 - [Small moons](docs/physics/small-moons.md): every known moon, computed in detail where you look
 - [Small bodies](docs/physics/small-bodies.md): dwarf planets, asteroids and comets, outgassing comets, and Halley's 2061 return
 - [Integrators](docs/physics/integrators.md): IAS15, and how a 2029 asteroid flyby changed how it picks its steps
+- [The belts](docs/physics/belts.md): 28,331 real orbits, and the gaps and clusters that resonances carve into them
+- [Zodiacal dust](docs/physics/zodiacal-dust.md): the COBE dust model, checked against the Helios probes
 
 ## License
 
