@@ -117,19 +117,22 @@ fn screen(camera: &Camera, viewport: Rect, point: DVec3) -> Option<Projection> {
 }
 
 /// Works out which bodies are visible, how big, and which become globes.
-/// Sorted far to near. A moon is left out until the view resolves its
-/// orbit: until its distance from its planet, on screen, clears the
-/// planet's dot or globe.
+/// Sorted far to near. A moon shows only around the planet in focus (see
+/// [`Simulation::in_view`]), and only once the view resolves its orbit:
+/// once its distance from its planet, on screen, clears the planet's dot or
+/// globe.
 pub fn layout(
     camera: &Camera,
     viewport: Rect,
     simulation: &Simulation,
     globes_allowed: bool,
+    (focus, selected): (usize, usize),
 ) -> Vec<OnScreen> {
     let bodies = &simulation.bodies;
     let mut visible: Vec<OnScreen> = bodies
         .iter()
         .enumerate()
+        .filter(|&(index, _)| simulation.in_view(index, focus, selected))
         .filter_map(|(index, body)| {
             let projection = screen(camera, viewport, body.position)?;
             if let Some(parent) = simulation.parent(index) {

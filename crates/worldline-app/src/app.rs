@@ -462,7 +462,13 @@ impl WorldlineApp {
 
         let render_state = frame.wgpu_render_state();
         let globes_allowed = self.options.globes && render_state.is_some();
-        let layout = view::layout(&self.camera, viewport, &self.simulation, globes_allowed);
+        let layout = view::layout(
+            &self.camera,
+            viewport,
+            &self.simulation,
+            globes_allowed,
+            (self.focus, self.selected),
+        );
         view::draw_under(
             &painter,
             viewport,
