@@ -135,6 +135,14 @@ Starting from Halley's January 2025 state, near its farthest point from the Sun,
 | JPL (Horizons, solution JPL#75) | JD 2474034.220 TDB, 28 July 2061 at 17:17 |
 | Difference | −0.012 days (17 minutes), within the test's one-hour sampling |
 
+![Halley's Comet at perihelion on 28 July 2061 in Worldline, its path diving in toward the Sun](../images/halley-2061-step-1b.6.png)
+
+To see it in the app (the window opens after about two minutes of simulating; `--zoom` counts Halley's 5 km radii, so 40 million puts the camera about 1.4 AU out):
+
+```bash
+cargo run --release -- --focus Halley --zoom 40000000 --advance 36.57 --paused
+```
+
 The roadmap's bar was "returns in July 2061", a month-wide target. Worldline matches JPL's prediction to within the hour, after 36 years and nearly 6 billion km of travel. That includes Halley's outgassing model, its pass by the giant planets, and the Sun's relativistic pull. The run skips the moons, which don't affect Halley, and takes about 35 seconds in a release build.
 
 ### Smaller checks (unit tests)

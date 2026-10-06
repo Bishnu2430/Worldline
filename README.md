@@ -12,6 +12,8 @@
 
 ![Saturn and its moons on 1 January 2025: each moon's current orbit, all in the plane of the nearly edge-on rings](docs/images/saturn-moons-step-1b.4.png)
 
+![Halley's Comet at perihelion on 28 July 2061, simulated from its 2025 position: its path dives in from the outer solar system past the asteroids' orbits](docs/images/halley-2061-step-1b.6.png)
+
 ## What v1 will do
 
 - Start from the real solar system (NASA JPL data) and a catalog of notable objects: Sagittarius A\*, TON 618, M87\* and the Hulse–Taylor binary pulsar.
