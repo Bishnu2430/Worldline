@@ -34,6 +34,7 @@
 
 use glam::DVec3;
 
+use crate::collision::{contact, merge};
 use crate::constants::C;
 use crate::gravity::{
     Gravity, Newtonian, NonGravitational, SynchronousFigure, TesseralField, ZonalField,
@@ -217,9 +218,36 @@ pub struct Hierarchy {
     pub top: System,
     /// Planets with moons.
     pub moon_systems: Vec<MoonSystem>,
+    /// Whether bodies that touch merge (see [`Collision`]).
+    pub collisions: bool,
     gravity: Box<dyn Gravity + Send + Sync>,
     integrator: Ias15,
     followers: Vec<Follower>,
+    /// Collisions since the last [`Self::take_collisions`].
+    happened: Vec<Collision>,
+}
+
+/// Two bodies that touched and merged: at the top level, the Sun, planets
+/// and anything added (the Sun always survives, otherwise the more massive
+/// body), or a massless follower (a comet, a small asteroid) that hit one
+/// and was absorbed. Collisions inside moon systems aren't detected yet.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Collision {
+    /// When they touched, as simulation time in s. (They merge at the end of
+    /// the step they touched in.)
+    pub time: f64,
+    /// The body that remains.
+    pub survivor: String,
+    /// The body that merged into it.
+    pub absorbed: String,
+    /// Their relative speed at the moment of closest approach, in m/s.
+    pub speed: f64,
+    /// If the absorbed body was a planet with moons, its moon system's index
+    /// (before it was dissolved).
+    pub dissolved_system: Option<usize>,
+    /// The moons that system's planet left behind, now orbiting freely at
+    /// the top level.
+    pub freed: Vec<String>,
 }
 
 /// A body too light to pull on anything, following the top level.
@@ -256,10 +284,17 @@ impl Hierarchy {
         Self {
             top,
             moon_systems,
+            collisions: true,
             gravity,
             integrator: Ias15::new(),
             followers: Vec::new(),
+            happened: Vec::new(),
         }
+    }
+
+    /// The collisions since the last call, oldest first.
+    pub fn take_collisions(&mut self) -> Vec<Collision> {
+        std::mem::take(&mut self.happened)
     }
 
     /// Adds bodies that follow the top level without pulling on it, given
@@ -396,20 +431,33 @@ impl Hierarchy {
             // steps without end.
             track.rebase(t0);
             let gms: Vec<f64> = self.top.bodies.iter().map(|b| b.gm).collect();
-            for follower in &mut self.followers {
+            let radii: Vec<f64> = self.top.bodies.iter().map(|b| b.radius).collect();
+            let mut hits = Vec::new();
+            for (f, follower) in self.followers.iter_mut().enumerate() {
                 let gravity = FollowerGravity {
                     track: &track,
                     gms: &gms,
                     forces: follower.forces,
                 };
                 follower.system.set_time(0.0);
-                advance(
-                    &mut follower.system,
-                    &gravity,
-                    &mut follower.integrator,
-                    t1 - t0,
-                );
+                if let Some(hit) =
+                    follow(follower, &gravity, &track, &radii, t1 - t0, self.collisions)
+                {
+                    hits.push((f, hit));
+                }
                 follower.system.set_time(t1);
+            }
+            // Massless, so absorbing one changes no momentum.
+            for (f, (k, speed, when)) in hits.into_iter().rev() {
+                let absorbed = self.followers.remove(f).system.bodies.remove(0);
+                self.happened.push(Collision {
+                    time: t0 + when,
+                    survivor: self.top.bodies[k].name.clone(),
+                    absorbed: absorbed.name,
+                    speed,
+                    dissolved_system: None,
+                    freed: Vec::new(),
+                });
             }
         }
 
@@ -486,7 +534,125 @@ impl Hierarchy {
                 group.system.set_time(t1);
             }
         }
+        if self.collisions {
+            self.collide(&before, t1 - t0);
+        }
         taken
+    }
+
+    /// Finds the top-level bodies that touched during the step just taken
+    /// (from their states at its start, `before`, and now) and merges the
+    /// first pair to touch; any others are found at the next step. Their
+    /// integrator shortens its steps as bodies close in, so the ends of a
+    /// step bracket the approach well.
+    fn collide(&mut self, before: &[(DVec3, DVec3)], h: f64) {
+        if h <= 0.0 {
+            return;
+        }
+        let now = |b: &Body| (b.position, b.velocity);
+        let relative = |a: (DVec3, DVec3), b: (DVec3, DVec3)| (a.0 - b.0, a.1 - b.1);
+        let n = self.top.bodies.len();
+        let mut first: Option<(f64, usize, usize, f64)> = None;
+        for i in 0..n {
+            for j in i + 1..n {
+                let (a, b) = (&self.top.bodies[i], &self.top.bodies[j]);
+                if let Some((at, speed)) = contact(
+                    relative(before[i], before[j]),
+                    relative(now(a), now(b)),
+                    h,
+                    a.radius + b.radius,
+                ) && first.is_none_or(|f| at < f.0)
+                {
+                    first = Some((at, i, j, speed));
+                }
+            }
+        }
+        if let Some((at, i, j, speed)) = first {
+            let time = self.top.time() - (1.0 - at) * h;
+            self.merge_top(i, j, speed, time);
+        }
+    }
+
+    /// Merges top-level bodies `i` and `j`, conserving momentum exactly.
+    /// The Sun survives any collision; otherwise the more massive body does.
+    /// A planet that is absorbed leaves its major moons behind as top-level
+    /// bodies (its small moons go with it); a planet that survives keeps
+    /// its moons.
+    fn merge_top(&mut self, i: usize, j: usize, speed: f64, time: f64) {
+        let (s, a) = if i == 0 || (j != 0 && self.top.bodies[i].gm >= self.top.bodies[j].gm) {
+            (i, j)
+        } else {
+            (j, i)
+        };
+        // An absorbed planet's moon system dissolves. Its bodies keep their
+        // exact states, re-centered on the system's own barycenter, and
+        // their GMs are scaled to the top level's figure for the system
+        // (the two JPL solutions differ by under 10⁻⁴), so the momentum the
+        // top level carried for the system is exactly what they carry.
+        let mut freed = Vec::new();
+        let dissolved_system = self.moon_systems.iter().position(|m| m.host == a);
+        if let Some(k) = dissolved_system {
+            let moons = self.moon_systems.remove(k);
+            let host = self.top.bodies[a].clone();
+            let total = moons.system.total_gm();
+            let scale = host.gm / total;
+            let center = moons.system.barycenter();
+            let drift = moons.system.barycenter_velocity();
+            for (n, body) in moons.system.bodies.iter().enumerate() {
+                let free = Body {
+                    gm: body.gm * scale,
+                    position: host.position + body.position - center,
+                    velocity: host.velocity + body.velocity - drift,
+                    ..body.clone()
+                };
+                if n == 0 {
+                    self.top.bodies[a] = free;
+                } else {
+                    freed.push(free.name.clone());
+                    self.top.bodies.push(free);
+                }
+            }
+        }
+        let absorbed = self.top.bodies[a].clone();
+        let survivor = self.top.bodies[s].clone();
+        let merged = merge(&survivor, &absorbed);
+        if let Some(moons) = self.moon_systems.iter_mut().find(|m| m.host == s) {
+            // The impact is on the planet itself: it takes the absorbed
+            // body's mass and momentum, and the moons keep their states.
+            let planet = &moons.system.bodies[0];
+            let at = Body {
+                position: survivor.position + planet.position,
+                velocity: survivor.velocity + planet.velocity,
+                ..planet.clone()
+            };
+            let hit = merge(&at, &absorbed);
+            for body in moons.system.bodies.iter_mut().skip(1) {
+                body.position += survivor.position - merged.position;
+                body.velocity += survivor.velocity - merged.velocity;
+            }
+            moons.system.bodies[0] = Body {
+                position: hit.position - merged.position,
+                velocity: hit.velocity - merged.velocity,
+                ..hit
+            };
+            moons.integrator = Ias15::new();
+            moons.clear_small_moons();
+            self.top.bodies[s] = Body {
+                radius: moons.system.bodies[0].radius,
+                ..merged
+            };
+        } else {
+            self.top.bodies[s] = merged;
+        }
+        self.remove_body(a);
+        self.happened.push(Collision {
+            time,
+            survivor: survivor.name,
+            absorbed: absorbed.name,
+            speed,
+            dissolved_system,
+            freed,
+        });
     }
 
     /// Advances everything by exactly `duration` seconds.
@@ -519,6 +685,57 @@ impl Hierarchy {
         let b = moons.small_moon(moon);
         (host.position + b.position, host.velocity + b.velocity)
     }
+}
+
+/// Advances a follower by `duration` on its local clock (which starts at
+/// zero), step by step. With `collisions` on, after each step it checks
+/// whether the follower touched a top-level body during it (from the
+/// bodies' recorded paths), and if so stops there: returns the body's index,
+/// the relative speed and the moment of contact on the local clock. Checking each of the follower's own steps, which
+/// shorten near a body, catches a comet diving into the Sun even when the
+/// top level's step is long.
+fn follow(
+    follower: &mut Follower,
+    gravity: &FollowerGravity,
+    track: &Track,
+    radii: &[f64],
+    duration: f64,
+    collisions: bool,
+) -> Option<(usize, f64, f64)> {
+    while follower.system.time() < duration {
+        let start_time = follower.system.time();
+        let body = &follower.system.bodies[0];
+        let start = (body.position, body.velocity);
+        let remaining = duration - start_time;
+        let taken = follower
+            .integrator
+            .step(&mut follower.system, gravity, remaining);
+        assert!(taken > 0.0, "a follower took an empty step");
+        if taken >= remaining {
+            follower.system.set_time(duration);
+        }
+        if !collisions {
+            continue;
+        }
+        let end_time = follower.system.time();
+        let body = &follower.system.bodies[0];
+        let end = (body.position, body.velocity);
+        let (a, b) = (track.locate(start_time), track.locate(end_time));
+        for (k, radius) in radii.iter().enumerate() {
+            if let Some((at, speed)) = contact(
+                (
+                    start.0 - track.position(a, k),
+                    start.1 - track.velocity(a, k),
+                ),
+                (end.0 - track.position(b, k), end.1 - track.velocity(b, k)),
+                end_time - start_time,
+                radius + body.radius,
+            ) {
+                return Some((k, speed, start_time + at * (end_time - start_time)));
+            }
+        }
+    }
+    None
 }
 
 /// Cubic Hermite interpolation between two states (position, velocity)

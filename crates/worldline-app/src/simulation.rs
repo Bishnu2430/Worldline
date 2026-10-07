@@ -9,10 +9,11 @@ use std::time::{Duration, Instant};
 use worldline_core::constants::DAY;
 use worldline_core::constants::GM_SUN;
 use worldline_core::gravity::Gravity;
-use worldline_core::hierarchy::{Hierarchy, MOON_SYSTEM_GRAVITY};
+use worldline_core::hierarchy::{Collision, Hierarchy, MOON_SYSTEM_GRAVITY};
 use worldline_core::integrator::{Ias15, Integrator};
 use worldline_core::magnetosphere::Dipole;
 use worldline_core::orbit::KeplerOrbit;
+use worldline_core::regime::Regime;
 use worldline_core::rotation::RotationModel;
 use worldline_core::solar_wind::{Heliosphere, ParkerSpiral};
 use worldline_core::{Body, DVec3};
@@ -115,6 +116,22 @@ enum Source {
     Follower(usize),
 }
 
+/// Which part of the simulation computes a body's motion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Computed {
+    /// The top level: relativistic N-body gravity with the Sun and planets.
+    TopLevel,
+    /// A major moon, in its planet's moon system.
+    MoonSystem,
+    /// A small moon followed in detail, along the major moons' paths.
+    SmallMoonInDetail,
+    /// A small moon placed by its mean orbit.
+    SmallMoonOnMeanOrbit,
+    /// A massless body following the top level; `forces` if it feels
+    /// non-gravitational forces too.
+    Follower { forces: bool },
+}
+
 /// Whether a body can be removed from the simulation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Removal {
@@ -176,6 +193,8 @@ pub struct Simulation {
     pub radiation_belts: Vec<RadiationBelt>,
     /// The solar wind's average flow pressure at 1 AU in 2025, in Pa.
     pub flow_pressure_at_1au: f64,
+    /// Collisions since the app last looked, oldest first.
+    pub events: Vec<Collision>,
     hierarchy: Hierarchy,
 }
 
@@ -233,6 +252,7 @@ impl Simulation {
             dipoles: Vec::new(),
             radiation_belts: worldline_data::radiation_belts(),
             flow_pressure_at_1au: worldline_data::mean_flow_pressure(),
+            events: Vec::new(),
             hierarchy,
         };
         simulation.reindex();
@@ -551,7 +571,103 @@ impl Simulation {
         if taken >= remaining {
             self.hierarchy.set_time(target);
         }
+        let collisions = self.hierarchy.take_collisions();
+        if !collisions.is_empty() {
+            self.after_collisions(&collisions);
+            self.events.extend(collisions);
+        }
         self.refresh();
+    }
+
+    /// Brings the list of bodies up to date after collisions: a planet
+    /// that was absorbed takes its small moons with it, and a planet that
+    /// absorbed something has its small moons placed again.
+    fn after_collisions(&mut self, collisions: &[Collision]) {
+        for collision in collisions {
+            if let Some(system) = collision.dissolved_system {
+                self.small.remove(system);
+                self.detailed = match self.detailed {
+                    Some(d) if d == system => None,
+                    Some(d) if d > system => Some(d - 1),
+                    other => other,
+                };
+            }
+            self.added.retain(|name| name != &collision.absorbed);
+        }
+        self.reindex();
+        if let Some(system) = self.detailed {
+            let moons = &self.hierarchy.moon_systems[system];
+            if moons.small_moon_count() != self.small[system].len() {
+                let planet = moons.host;
+                self.detailed = None;
+                self.focus_detail_on(planet);
+            }
+        }
+    }
+
+    /// Which part of the simulation computes body `index`'s motion.
+    pub fn computed(&self, index: usize) -> Computed {
+        match self.sources[index] {
+            Source::Top(_) | Source::Moon { body: 0, .. } => Computed::TopLevel,
+            Source::Moon { .. } => Computed::MoonSystem,
+            Source::Small { system, .. } if Some(system) == self.detailed => {
+                Computed::SmallMoonInDetail
+            }
+            Source::Small { .. } => Computed::SmallMoonOnMeanOrbit,
+            Source::Follower(_) => Computed::Follower {
+                forces: self.small_bodies[index].is_some_and(|s| s.1),
+            },
+        }
+    }
+
+    /// How strong gravity is at body `index` and how fast it moves,
+    /// relative to what pulls on it hardest: its planet, for a moon; for
+    /// anything else, the top-level body with the strongest pull.
+    pub fn regime(&self, index: usize) -> Option<Regime> {
+        let body = &self.bodies[index];
+        let attractor = match self.parents[index] {
+            Some(planet) => planet,
+            None => self
+                .hierarchy
+                .top
+                .bodies
+                .iter()
+                .enumerate()
+                .filter(|(_, b)| b.name != body.name && b.gm > 0.0)
+                .max_by(|(_, a), (_, b)| {
+                    let pull = |x: &Body| x.gm / (x.position - body.position).length_squared();
+                    pull(a).total_cmp(&pull(b))
+                })
+                .and_then(|(_, b)| self.index_of(&b.name))?,
+        };
+        Some(Regime::of(body, &self.bodies[attractor]))
+    }
+
+    /// For a moon: another massive body inside its planet's moon system
+    /// (closer to the planet than the system's farthest major moon), whose
+    /// collisions with the moons go undetected.
+    pub fn intruder(&self, index: usize) -> Option<&str> {
+        let planet = self.parents[index]?;
+        let system = self
+            .hierarchy
+            .moon_systems
+            .iter()
+            .find(|m| m.host == planet)?;
+        let reach = system
+            .system
+            .bodies
+            .iter()
+            .skip(1)
+            .map(|b| (b.position - system.system.bodies[0].position).length())
+            .fold(0.0, f64::max);
+        let center = &self.bodies[planet];
+        self.hierarchy
+            .top
+            .bodies
+            .iter()
+            .filter(|b| b.name != center.name && b.gm > 0.0)
+            .find(|b| (b.position - center.position).length() < reach)
+            .map(|b| b.name.as_str())
     }
 
     /// Copies positions and velocities out of the hierarchy and extends
@@ -796,6 +912,30 @@ mod tests {
         b.update(1.0, GENEROUS);
         assert_eq!(a.save(), b.save());
         assert!(Simulation::load("not a save", DAY).is_err());
+    }
+
+    #[test]
+    fn a_collision_merges_bodies_in_the_list() {
+        // An Earth-mass planet sent into Earth at 10 km/s from 20,000 km.
+        let mut sim = Simulation::solar_system(DAY);
+        let earth = sim.bodies[sim.index_of("Earth").unwrap()].clone();
+        let toward = DVec3::new(2e7, 0.0, 0.0);
+        let impactor = Body::new("New planet 1", earth.gm, earth.radius)
+            .at(earth.position + toward)
+            .moving(earth.velocity - toward.normalize() * 1e4);
+        sim.add_body(impactor);
+        let before = sim.bodies.len();
+        sim.update(1.0, GENEROUS);
+        let collision = sim.events.first().expect("they collided");
+        // Equal masses: the earlier body, Earth, survives.
+        assert_eq!(
+            (collision.survivor.as_str(), collision.absorbed.as_str()),
+            ("Earth", "New planet 1")
+        );
+        assert_eq!(sim.bodies.len(), before - 1);
+        let merged = &sim.bodies[sim.index_of("Earth").unwrap()];
+        assert_eq!(merged.gm, 2.0 * earth.gm);
+        assert!(!sim.is_added(sim.index_of("Earth").unwrap()));
     }
 
     #[test]
