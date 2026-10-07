@@ -3,6 +3,7 @@
 use std::f64::consts::FRAC_PI_2;
 use std::time::{Duration, Instant};
 
+use eframe::egui::collapsing_header::CollapsingState;
 use eframe::egui::{self, Align2, Color32, FontId, Rect, RichText, Sense, TextureId, pos2, vec2};
 use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
@@ -16,6 +17,7 @@ use crate::camera::Camera;
 use crate::details;
 use crate::gpu::{Globe, GpuGlobes};
 use crate::simulation::Simulation;
+use crate::theme;
 use crate::view::{self, OnScreen, ViewOptions, body_color};
 use worldline_data::SmallBodyKind;
 
@@ -37,6 +39,11 @@ const PHYSICS_BUDGET: Duration = Duration::from_millis(12);
 
 /// Earth's GM (JPL DE440), for showing masses in Earth masses.
 const GM_EARTH: f64 = 3.986_004_355_070_227e14;
+
+/// A label in an inspector grid: what the value on its right is.
+fn key(text: &str) -> RichText {
+    RichText::new(text).color(theme::MUTED)
+}
 
 /// A duration (s) for display: seconds; minutes and seconds; or hours and
 /// minutes.
@@ -95,6 +102,11 @@ pub struct WorldlineApp {
     flight: Option<Flight>,
     /// The GPU renderer for globes, created on the first frame.
     gpu: Option<GpuGlobes>,
+    /// What's typed in the body list's search box.
+    search: String,
+    /// Open the selected body's branch of the list and scroll to it, once
+    /// it has been picked somewhere other than the list.
+    reveal: bool,
 }
 
 impl WorldlineApp {
@@ -119,6 +131,8 @@ impl WorldlineApp {
             last_frame: Instant::now(),
             flight: None,
             gpu: None,
+            search: String::new(),
+            reveal: false,
         };
         app.simulation.paused = start.paused;
         app.simulation.advance_by(start.advance_years * JULIAN_YEAR);
@@ -161,6 +175,7 @@ impl WorldlineApp {
         self.simulation.focus_detail_on(index);
         self.focus = index;
         self.selected = index;
+        self.reveal = true;
     }
 
     /// Points the camera at the focused body, partway along a flight if one
@@ -221,53 +236,141 @@ impl WorldlineApp {
         });
     }
 
+    /// The side panel: the bodies in a scrolling tree at the top, and below
+    /// it, always in view, the selected body and the settings.
     fn inspector(&mut self, ui: &mut egui::Ui) {
-        egui::ScrollArea::vertical().show(ui, |ui| {
+        ui.add_space(6.0);
+        ui.horizontal(|ui| {
             ui.heading("Bodies");
             ui.label(
-                RichText::new("Click to select, double-click to follow.")
+                RichText::new(self.simulation.bodies.len().to_string())
                     .small()
-                    .weak(),
+                    .color(theme::MUTED),
             );
-            // Each planet with its moons listed beneath it.
-            let mut fly_to = None;
-            let simulation = &self.simulation;
-            let mut entry = |ui: &mut egui::Ui, i: usize| {
-                let name = &simulation.bodies[i].name;
-                let text = RichText::new(name).color(body_color(name));
-                let response = ui.selectable_label(i == self.selected, text);
-                if response.clicked() {
-                    self.selected = i;
-                }
-                if response.double_clicked() {
-                    fly_to = Some(i);
-                }
-            };
+        });
+        ui.add(
+            egui::TextEdit::singleline(&mut self.search)
+                .hint_text("Search by name")
+                .desired_width(f32::INFINITY),
+        );
+        ui.label(
+            RichText::new("Click to select · double-click to follow")
+                .small()
+                .color(theme::MUTED),
+        );
+        let list_height = (ui.available_height() * 0.42).clamp(140.0, 440.0);
+        egui::ScrollArea::vertical()
+            .id_salt("bodies")
+            .max_height(list_height)
+            .auto_shrink([false, true])
+            .show(ui, |ui| self.body_list(ui));
+        ui.separator();
+        egui::ScrollArea::vertical()
+            .id_salt("details")
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                self.selected_body(ui);
+                ui.add_space(8.0);
+                egui::CollapsingHeader::new("Physics")
+                    .id_salt("physics section")
+                    .show(ui, |ui| self.physics(ui));
+                egui::CollapsingHeader::new("Display")
+                    .id_salt("display section")
+                    .show(ui, |ui| self.display(ui));
+            });
+    }
+
+    /// The bodies as a tree: each planet folds open to its moons (the small
+    /// ones folded once more), then the small bodies by kind. While a search
+    /// is typed, a flat list of the matches instead.
+    fn body_list(&mut self, ui: &mut egui::Ui) {
+        let simulation = &self.simulation;
+        let (selected, reveal) = (self.selected, self.reveal);
+        let (mut clicked, mut fly_to, mut revealed) = (None, None, false);
+        let mut entry = |ui: &mut egui::Ui, i: usize| {
+            let name = &simulation.bodies[i].name;
+            let response =
+                ui.selectable_label(i == selected, RichText::new(name).color(body_color(name)));
+            if response.clicked() {
+                clicked = Some(i);
+            }
+            if response.double_clicked() {
+                fly_to = Some(i);
+            }
+            if reveal && i == selected {
+                response.scroll_to_me(Some(egui::Align::Center));
+                revealed = true;
+            }
+        };
+        let query = self.search.trim().to_lowercase();
+        if !query.is_empty() {
+            let matches: Vec<usize> = (0..simulation.bodies.len())
+                .filter(|&i| simulation.bodies[i].name.to_lowercase().contains(&query))
+                .collect();
+            if matches.is_empty() {
+                ui.label(RichText::new("No body by that name").color(theme::MUTED));
+            }
+            for i in matches.into_iter().take(200) {
+                entry(ui, i);
+            }
+        } else {
+            // The planet whose branch holds the selection.
+            let holder = simulation.parent(selected).unwrap_or(selected);
             for i in 0..simulation.bodies.len() {
                 if simulation.parent(i).is_some() || simulation.small_body(i).is_some() {
                     continue;
                 }
-                entry(ui, i);
                 let (small, major): (Vec<usize>, Vec<usize>) = (0..simulation.bodies.len())
                     .filter(|&m| simulation.parent(m) == Some(i))
                     .partition(|&m| simulation.is_small_moon(m));
-                if !major.is_empty() || !small.is_empty() {
-                    ui.indent(i, |ui| {
+                if major.is_empty() && small.is_empty() {
+                    ui.horizontal(|ui| {
+                        ui.add_space(ui.spacing().indent);
+                        entry(ui, i);
+                    });
+                    continue;
+                }
+                let id = ui.make_persistent_id(("planet", i));
+                let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, false);
+                if reveal && holder == i && selected != i {
+                    state.set_open(true);
+                }
+                let moons = major.len() + small.len();
+                state
+                    .show_header(ui, |ui| {
+                        entry(ui, i);
+                        ui.label(
+                            RichText::new(if moons == 1 {
+                                "1 moon".to_string()
+                            } else {
+                                format!("{moons} moons")
+                            })
+                            .small()
+                            .color(theme::MUTED),
+                        );
+                    })
+                    .body(|ui| {
                         for m in major {
                             entry(ui, m);
                         }
                         if !small.is_empty() {
-                            egui::CollapsingHeader::new(format!("{} small moons", small.len()))
-                                .id_salt(("small moons", i))
-                                .show(ui, |ui| {
-                                    for m in small {
-                                        entry(ui, m);
-                                    }
-                                });
+                            let mut fold = egui::CollapsingHeader::new(
+                                RichText::new(format!("{} small moons", small.len()))
+                                    .color(theme::MUTED),
+                            )
+                            .id_salt(("small moons", i));
+                            if reveal && small.contains(&selected) {
+                                fold = fold.open(Some(true));
+                            }
+                            fold.show(ui, |ui| {
+                                for m in small {
+                                    entry(ui, m);
+                                }
+                            });
                         }
                     });
-                }
             }
+            ui.add_space(4.0);
             // The dwarf planets, asteroids and comets, each kind in a fold.
             for (kind, label) in [
                 (SmallBodyKind::DwarfPlanet, "Dwarf planets"),
@@ -279,95 +382,97 @@ impl WorldlineApp {
                 let members: Vec<usize> = (0..simulation.bodies.len())
                     .filter(|&i| simulation.small_body(i).map(|s| s.0) == Some(kind))
                     .collect();
-                egui::CollapsingHeader::new(format!("{label} ({})", members.len()))
-                    .id_salt(label)
-                    .show(ui, |ui| {
-                        for i in members {
-                            entry(ui, i);
-                        }
-                    });
+                let mut fold =
+                    egui::CollapsingHeader::new(format!("{label}  ·  {}", members.len()))
+                        .id_salt(label);
+                if reveal && members.contains(&selected) {
+                    fold = fold.open(Some(true));
+                }
+                fold.show(ui, |ui| {
+                    for i in members {
+                        entry(ui, i);
+                    }
+                });
             }
-            if let Some(i) = fly_to {
-                self.focus_on(i);
+        }
+        // Keep trying until the selected entry has been laid out (its branch
+        // may still be opening).
+        if revealed || !query.is_empty() {
+            self.reveal = false;
+        }
+        if let Some(i) = clicked {
+            self.selected = i;
+        }
+        if let Some(i) = fly_to {
+            self.focus_on(i);
+        }
+    }
+
+    fn physics(&self, ui: &mut egui::Ui) {
+        egui::Grid::new("physics").num_columns(2).show(ui, |ui| {
+            for (what, value) in [
+                ("Gravity", self.simulation.gravity().name()),
+                ("Moons", self.simulation.moon_gravity_name()),
+                ("Integrator", self.simulation.integrator_name()),
+                (
+                    "Data",
+                    "NASA JPL Horizons (DE441 and satellite ephemerides)",
+                ),
+                ("Start", "2025-01-01 00:00 TDB"),
+                ("Rotation", "IAU models (NASA NAIF)"),
+                ("Surfaces", "Solar System Scope, CC BY 4.0"),
+            ] {
+                ui.label(key(what));
+                ui.label(value);
+                ui.end_row();
             }
-            ui.separator();
-            self.selected_body(ui);
-            ui.separator();
-
-            ui.heading("Physics");
-            egui::Grid::new("physics").num_columns(2).show(ui, |ui| {
-                ui.label("Gravity");
-                ui.label(self.simulation.gravity().name());
-                ui.end_row();
-                ui.label("Moons");
-                ui.label(self.simulation.moon_gravity_name());
-                ui.end_row();
-                ui.label("Integrator");
-                ui.label(self.simulation.integrator_name());
-                ui.end_row();
-                ui.label("Data");
-                ui.label("NASA JPL Horizons (DE441 and satellite ephemerides)");
-                ui.end_row();
-                ui.label("Start");
-                ui.label("2025-01-01 00:00 TDB");
-                ui.end_row();
-                ui.label("Rotation");
-                ui.label("IAU models (NASA NAIF)");
-                ui.end_row();
-                ui.label("Surfaces");
-                ui.label("Solar System Scope, CC BY 4.0");
-                ui.end_row();
-            });
-            ui.separator();
-
-            ui.heading("Display");
-            ui.checkbox(
-                &mut self.options.trails,
-                "Orbit trails (moons: current orbit)",
-            );
-            ui.checkbox(&mut self.options.grid, "Distance rings (ecliptic plane)");
-            ui.checkbox(&mut self.options.labels, "Labels");
-            ui.checkbox(
-                &mut self.options.spin_axes,
-                "Spin axes (dot marks the spin direction)",
-            );
-            ui.checkbox(&mut self.options.globes, "Textured globes up close");
-            let total: usize = self
-                .simulation
-                .belts
-                .iter()
-                .map(|b| b.positions.len())
-                .sum();
-            ui.checkbox(
-                &mut self.options.belts,
-                format!("Asteroid belt, Trojans and Kuiper belt ({total} real orbits)"),
-            );
-            ui.checkbox(&mut self.options.dust, "Zodiacal dust");
-            ui.checkbox(
-                &mut self.options.solar_wind,
-                "Solar wind's spiral field (with the Sun in focus)",
-            );
-            ui.checkbox(
-                &mut self.options.heliosphere,
-                "Heliosphere boundaries (seen from outside them)",
-            );
-            ui.add_space(4.0);
-            ui.label(
-                RichText::new(
-                    "Distances, sizes and positions are to scale. Bodies too small to \
-                     see are drawn as dots at least 3 points wide. Night sides get a \
-                     faint fill light so they don't vanish completely.\n\n\
-                     Belts: JPL's orbits (measured), on fixed ellipses around the \
-                     Sun (model, about 1/10,000 of their distance off after a year). \
-                     Dust: the COBE DIRBE model of Kelsall et al. 1998, drawn as the \
-                     sunlight it scatters on a log scale (visual), held at its \
-                     0.3 AU brightness farther in, where no probe has measured how \
-                     it brightens. Both show when zoomed out past 0.05 AU.",
-                )
-                .small()
-                .weak(),
-            );
         });
+    }
+
+    fn display(&mut self, ui: &mut egui::Ui) {
+        ui.checkbox(&mut self.options.trails, "Orbit trails")
+            .on_hover_text("Moons show their current orbit instead");
+        ui.checkbox(&mut self.options.grid, "Distance rings")
+            .on_hover_text("In the ecliptic plane, labeled in AU and light-time");
+        ui.checkbox(&mut self.options.labels, "Names")
+            .on_hover_text(
+                "The body you follow, the one selected, the one under the pointer, \
+             and the major moons of the planet in focus",
+            );
+        ui.checkbox(&mut self.options.spin_axes, "Spin axes")
+            .on_hover_text("A dot marks the end the spin points toward");
+        ui.checkbox(&mut self.options.globes, "Textured globes up close");
+        let total: usize = self
+            .simulation
+            .belts
+            .iter()
+            .map(|b| b.positions.len())
+            .sum();
+        ui.checkbox(&mut self.options.belts, "Asteroid and Kuiper belts")
+            .on_hover_text(format!(
+                "{total} real orbits from JPL (measured), on fixed ellipses around the \
+                 Sun (model: about 1/10,000 of their distance off after a year). Shown \
+                 when zoomed out past 0.05 AU."
+            ));
+        ui.checkbox(&mut self.options.dust, "Zodiacal dust")
+            .on_hover_text(
+                "The COBE DIRBE model of Kelsall et al. 1998, drawn as the sunlight it \
+             scatters on a log scale (visual); held at its 0.3 AU brightness farther \
+             in, where no probe has measured how it brightens",
+            );
+        ui.checkbox(&mut self.options.solar_wind, "Solar wind spiral")
+            .on_hover_text("Parker's spiral field, with the Sun in focus");
+        ui.checkbox(&mut self.options.heliosphere, "Heliosphere")
+            .on_hover_text("Its boundaries, seen from outside them");
+        ui.add_space(4.0);
+        ui.label(
+            RichText::new(
+                "Distances, sizes and positions are to scale. Bodies too small to \
+                 see are drawn as dots at least 3 points wide.",
+            )
+            .small()
+            .color(theme::MUTED),
+        );
     }
 
     fn selected_body(&mut self, ui: &mut egui::Ui) {
@@ -377,17 +482,17 @@ impl WorldlineApp {
         let parent = self.simulation.parent(self.selected);
         ui.heading(RichText::new(&body.name).color(body_color(&body.name)));
         egui::Grid::new("selected").num_columns(2).show(ui, |ui| {
-            ui.label("Mass");
+            ui.label(key("Mass"));
             if body.gm > 0.0 {
                 ui.label(format!("{:.4e} kg", body.mass()));
                 ui.end_row();
                 ui.label("");
                 ui.label(format!("{:.6} Earth masses", body.gm / GM_EARTH));
             } else {
-                ui.label("not measured");
+                ui.label(key("not measured"));
             }
             ui.end_row();
-            ui.label("Radius");
+            ui.label(key("Radius"));
             ui.label(if body.radius > 0.0 {
                 format!("{:.1} km", body.radius / 1e3)
             } else {
@@ -396,26 +501,26 @@ impl WorldlineApp {
             ui.end_row();
             if let Some(parent) = parent {
                 let planet = &bodies[parent];
-                ui.label(format!("Distance from {}", planet.name));
+                ui.label(key(&format!("Distance from {}", planet.name)));
                 ui.label(format!(
                     "{:.0} km",
                     (body.position - planet.position).length() / 1e3
                 ));
                 ui.end_row();
-                ui.label(format!("Speed relative to {}", planet.name));
+                ui.label(key(&format!("Speed relative to {}", planet.name)));
                 ui.label(format!(
                     "{:.3} km/s",
                     (body.velocity - planet.velocity).length() / 1e3
                 ));
                 ui.end_row();
             } else if self.selected != SUN {
-                ui.label("Distance from Sun");
+                ui.label(key("Distance from Sun"));
                 ui.label(format!(
                     "{:.4} AU",
                     (body.position - sun.position).length() / AU
                 ));
                 ui.end_row();
-                ui.label("Speed relative to Sun");
+                ui.label(key("Speed relative to Sun"));
                 ui.label(format!(
                     "{:.2} km/s",
                     (body.velocity - sun.velocity).length() / 1e3
@@ -426,14 +531,14 @@ impl WorldlineApp {
             if let Some(model) = self.simulation.rotation(self.selected) {
                 let jd = self.simulation.julian_date();
                 let hours = model.sidereal_period() / 3600.0;
-                ui.label("Day (sidereal)");
+                ui.label(key("Day (sidereal)"));
                 ui.label(if hours < 72.0 {
                     format!("{hours:.3} h")
                 } else {
                     format!("{:.2} days", hours / 24.0)
                 });
                 ui.end_row();
-                ui.label("Spin");
+                ui.label(key("Spin"));
                 ui.label(if model.spin_rate() > 0.0 {
                     "prograde"
                 } else {
@@ -501,10 +606,10 @@ impl WorldlineApp {
         let (sun, body) = (&bodies[SUN], &bodies[self.selected]);
         let wind = &self.simulation.wind;
         if self.selected == SUN {
-            ui.label("Luminosity");
+            ui.label(key("Luminosity"));
             ui.label(format!("{SOLAR_LUMINOSITY:.4e} W"));
             ui.end_row();
-            ui.label("Solar wind at Earth");
+            ui.label(key("Solar wind at Earth"));
             ui.label(format!(
                 "{:.0} km/s, {:.1} protons/cm³ (2025 average)",
                 wind.speed / 1e3,
@@ -515,7 +620,7 @@ impl WorldlineApp {
         }
         let offset = body.position - sun.position;
         let r = offset.length();
-        ui.label("Sunlight");
+        ui.label(key("Sunlight"));
         ui.label(format!(
             "{:.1} W/m² ({:.3}× at 1 AU)",
             irradiance(r),
@@ -524,12 +629,12 @@ impl WorldlineApp {
         ui.end_row();
         // From the Sun's surface, including the Shapiro delay.
         let travel = light_time(sun.gm, offset.normalize() * sun.radius, offset);
-        ui.label("Sunlight left the Sun");
+        ui.label(key("Sunlight left the Sun"));
         ui.label(format!("{} ago", duration(travel)));
         ui.end_row();
         let shell = &self.simulation.heliosphere;
         if r < shell.termination_shock * shell.shape(offset) {
-            ui.label("Solar wind");
+            ui.label(key("Solar wind"));
             ui.label(format!(
                 "{:.0} km/s, {:.3} protons/cm³",
                 wind.speed / 1e3,
@@ -541,14 +646,14 @@ impl WorldlineApp {
                     .cross(offset / r)
                     .length()
             });
-            ui.label("Its magnetic field");
+            ui.label(key("Its magnetic field"));
             ui.label(format!(
                 "{:.1}° from the radial (Parker spiral)",
                 wind.angle(r, sin_colatitude).to_degrees()
             ));
             ui.end_row();
         } else {
-            ui.label("Solar wind");
+            ui.label(key("Solar wind"));
             ui.label(if r < shell.heliopause * shell.shape(offset) {
                 "slowed in the heliosheath (past the termination shock)"
             } else {
@@ -579,12 +684,17 @@ impl WorldlineApp {
 
         let render_state = frame.wgpu_render_state();
         let globes_allowed = self.options.globes && render_state.is_some();
+        let attention = view::Attention {
+            focus: self.focus,
+            selected: self.selected,
+            pointer: response.hover_pos(),
+        };
         let layout = view::layout(
             &self.camera,
             viewport,
             &self.simulation,
             globes_allowed,
-            (self.focus, self.selected),
+            attention,
         );
         view::draw_under(
             &painter,
@@ -593,7 +703,7 @@ impl WorldlineApp {
             &self.simulation,
             self.options,
             &layout,
-            (self.focus, self.selected),
+            attention,
         );
         if let Some(state) = render_state
             && let Some(texture) =
@@ -609,14 +719,20 @@ impl WorldlineApp {
             &self.simulation,
             self.options,
             &layout,
-            self.selected,
+            attention,
         );
+        if let Some(pointer) = response.hover_pos()
+            && view::pick(&drawn, pointer).is_some()
+        {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
 
         if (response.clicked() || response.double_clicked())
             && let Some(pointer) = response.interact_pointer_pos()
             && let Some(i) = view::pick(&drawn, pointer)
         {
             self.selected = i;
+            self.reveal = true;
             if response.double_clicked() {
                 self.focus_on(i);
             }

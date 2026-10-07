@@ -46,6 +46,45 @@ pub struct DrawnBody {
     pub radius: f32,
 }
 
+/// What the viewer is attending to: the body the camera follows, the one
+/// selected, and where the pointer is over the view, if it is.
+#[derive(Debug, Clone, Copy)]
+pub struct Attention {
+    pub focus: usize,
+    pub selected: usize,
+    pub pointer: Option<Pos2>,
+}
+
+impl Attention {
+    /// The planet in focus: the followed planet, or the followed moon's.
+    fn planet(&self, simulation: &Simulation) -> usize {
+        simulation.parent(self.focus).unwrap_or(self.focus)
+    }
+
+    /// Whether body `index` gets its name shown. Zoomed out, names would
+    /// bury the view, so only these do: the body followed, the one
+    /// selected, the one under the pointer, any body near enough to be
+    /// drawn as a globe, and the major moons of the planet in focus (which
+    /// appear only once the view resolves their orbits).
+    fn names(
+        &self,
+        simulation: &Simulation,
+        index: usize,
+        globe: bool,
+        hovered: Option<usize>,
+    ) -> bool {
+        index == self.focus
+            || index == self.selected
+            || Some(index) == hovered
+            || globe
+            || (simulation.parent(index) == Some(self.planet(simulation))
+                && !simulation.is_small_moon(index))
+    }
+}
+
+/// How close (points) the pointer must come to a marker to name it.
+const HOVER_REACH: f32 = 10.0;
+
 /// Bodies smaller than this on screen are drawn as dots of this radius so
 /// they stay visible. At this size and above they become globes.
 const MIN_RADIUS: f32 = 3.0;
@@ -151,8 +190,9 @@ pub fn layout(
     viewport: Rect,
     simulation: &Simulation,
     globes_allowed: bool,
-    (focus, selected): (usize, usize),
+    attention: Attention,
 ) -> Vec<OnScreen> {
+    let (focus, selected) = (attention.focus, attention.selected);
     let bodies = &simulation.bodies;
     let mut visible: Vec<OnScreen> = bodies
         .iter()
@@ -196,8 +236,9 @@ pub fn draw_under(
     simulation: &Simulation,
     options: ViewOptions,
     layout: &[OnScreen],
-    (focus, selected): (usize, usize),
+    attention: Attention,
 ) {
+    let (focus, selected) = (attention.focus, attention.selected);
     let screen = |point: DVec3| screen(camera, viewport, point);
     if options.grid {
         let stroke = Stroke::new(1.0, Color32::from_rgba_unmultiplied(110, 130, 170, 45));
@@ -223,7 +264,13 @@ pub fn draw_under(
     }
 
     if options.heliosphere {
-        draw_heliosphere(painter, camera, viewport, simulation, options.labels);
+        draw_heliosphere(
+            painter,
+            camera,
+            viewport,
+            simulation,
+            options.labels.then_some(attention.pointer).flatten(),
+        );
     }
     if camera.distance >= BELT_MIN_VIEW {
         let sun = simulation.bodies[0].position;
@@ -322,7 +369,7 @@ fn draw_heliosphere(
     camera: &Camera,
     viewport: Rect,
     simulation: &Simulation,
-    labels: bool,
+    pointer: Option<Pos2>,
 ) {
     // The shape is drawn out to 120° from the nose; beyond, the tail is
     // unmeasured.
@@ -374,7 +421,8 @@ fn draw_heliosphere(
         };
         let color = Color32::from_rgb(250, 235, 160);
         painter.circle_filled(p.position, 3.0, color);
-        if labels {
+        // Named when the pointer is on it.
+        if pointer.is_some_and(|q| (q - p.position).length() < HOVER_REACH) {
             // Each Voyager crossed both boundaries in nearly the same
             // direction: one label above, one below.
             let (what, offset, align) = match crossing.boundary {
@@ -571,8 +619,9 @@ pub fn draw_over(
     simulation: &Simulation,
     options: ViewOptions,
     layout: &[OnScreen],
-    selected: usize,
+    attention: Attention,
 ) -> Vec<DrawnBody> {
+    let selected = attention.selected;
     let bodies = &simulation.bodies;
     let mut drawn = Vec::with_capacity(layout.len());
     for item in layout {
@@ -587,7 +636,11 @@ pub fn draw_over(
         }
         // Up close it's obvious what's selected, so large globes skip the ring.
         if item.index == selected && item.radius < SELECTION_RING_MAX_RADIUS {
-            painter.circle_stroke(center, item.radius + 4.0, Stroke::new(1.5, Color32::WHITE));
+            painter.circle_stroke(
+                center,
+                item.radius + 4.0,
+                Stroke::new(1.5, crate::theme::ACCENT),
+            );
         }
         if options.spin_axes
             && let Some(model) = simulation.rotation(item.index)
@@ -624,14 +677,29 @@ pub fn draw_over(
         });
     }
 
+    let hovered = attention.pointer.and_then(|p| pick(&drawn, p));
+    if let Some(h) = hovered.filter(|&h| h != selected)
+        && let Some(d) = drawn.iter().find(|d| d.index == h)
+    {
+        painter.circle_stroke(
+            d.center,
+            d.radius + 4.0,
+            Stroke::new(1.0, Color32::from_white_alpha(110)),
+        );
+    }
     if options.labels {
-        // The selected body is labeled first, then the most massive ones. A
-        // label is skipped if it would overlap one already placed, as with
-        // a planet's inner moons when zoomed out.
-        let mut order: Vec<&DrawnBody> = drawn.iter().collect();
+        // Only some bodies are named (see `Attention::names`): the one
+        // under the pointer first, then the selected one, then the most
+        // massive. A name is skipped if it would overlap one already placed.
+        let globes: Vec<usize> = layout.iter().filter(|s| s.globe).map(|s| s.index).collect();
+        let mut order: Vec<&DrawnBody> = drawn
+            .iter()
+            .filter(|d| attention.names(simulation, d.index, globes.contains(&d.index), hovered))
+            .collect();
+        let rank = |i: usize| (Some(i) == hovered, i == selected);
         order.sort_by(|a, b| {
-            (b.index == selected)
-                .cmp(&(a.index == selected))
+            rank(b.index)
+                .cmp(&rank(a.index))
                 .then(bodies[b.index].gm.total_cmp(&bodies[a.index].gm))
         });
         let color = Color32::from_gray(215);
@@ -786,6 +854,34 @@ mod tests {
             },
             radius,
             globe,
+        }
+    }
+
+    #[test]
+    fn names_go_only_to_bodies_attended_to() {
+        let sim = Simulation::solar_system(1.0);
+        let find = |name: &str| sim.bodies.iter().position(|b| b.name == name).unwrap();
+        let [sun, earth, mars, moon, jupiter, io, himalia] =
+            ["Sun", "Earth", "Mars", "Moon", "Jupiter", "Io", "Himalia"].map(find);
+        let names = |focus, selected, index, globe, hovered| {
+            let attention = Attention {
+                focus,
+                selected,
+                pointer: None,
+            };
+            attention.names(&sim, index, globe, hovered)
+        };
+        // Zoomed out on the Sun with Earth selected: just those two, plus
+        // whatever is under the pointer or close enough to be a globe.
+        assert!(names(sun, earth, sun, false, None) && names(sun, earth, earth, false, None));
+        assert!(!names(sun, earth, mars, false, None) && !names(sun, earth, moon, false, None));
+        assert!(names(sun, earth, mars, false, Some(mars)) && names(sun, earth, mars, true, None));
+        // Following Jupiter (or one of its moons): its major moons too, but
+        // not its small ones unless pointed at.
+        for focus in [jupiter, io] {
+            assert!(names(focus, focus, io, false, None));
+            assert!(!names(focus, focus, himalia, false, None));
+            assert!(names(focus, focus, himalia, false, Some(himalia)));
         }
     }
 
