@@ -45,6 +45,40 @@ The app is a window around the physics engine. It never does physics itself. It 
 - **Small bodies** are drawn as dots in a color for their kind: comets pale blue, interstellar visitors magenta, and the rest in shades of tan and gray-brown. The inspector says whether a body pulls on the planets or only follows them, and whether it feels outgassing or the Yarkovsky push. See [physics/small-bodies.md](physics/small-bodies.md). For a moon, the inspector gives its distance and speed relative to its planet, and its axial tilt relative to its orbit around the planet. The Physics panel names both gravity models: the one between the planets and the one inside moon systems.
 - **Dates.** The top bar shows the simulation time as a calendar date in TDB, JPL's time scale, using Meeus's Julian Date algorithm.
 
+## Sandbox tools
+
+![A Jupiter-mass planet (pink) dropped 1.5 AU from the Sun, five years on: the inner planets' orbits pulled out of shape](images/sandbox-step-1.6.png)
+
+**Select and inspect.** Click a body to select it; the inspector shows what is known about it. Double-click it to fly to it.
+
+**Add and drag-launch.** Pick a body from **Add a body** in the top bar: an Earth-mass planet, a Jupiter-mass planet or a Sun-mass star, each with the mass and size of the real one.
+- **Where it goes.** Press in the view where it should go, on the plane through the body in focus, parallel to the ecliptic.
+- **Click without dragging** to put it on a circular orbit around the body in focus, or around the Sun if the focus has no mass. The speed is √(G(M + m)/r) relative to that body, prograde in the ecliptic; for two bodies that orbit is exactly circular.
+- **Drag** to launch it faster or slower. One circular speed is added for every quarter of the camera's distance dragged.
+- **The preview.** While dragging, the app draws the orbit it would follow around that body if nothing else pulled, its speed, and whether it would escape.
+- **What it joins.** New bodies join the Sun and planets at the top of the hierarchy, with relativistic gravity: they pull on everything and everything pulls on them. The moon systems feel their tides, and the asteroids and comets that follow the top level feel their pull. The belts, the small moons on fixed orbits, the solar wind and the heliosphere don't respond to them; the inspector says so.
+- **When you're done,** press **Done** or Esc.
+- **From the command line:** `--add jupiter:1.5` drops a Jupiter-mass planet on a circular orbit 1.5 AU from the Sun before the window opens (also `earth:` and `sun:`).
+
+**Remove.** **Remove** in the inspector, or the Delete key, takes the selected body out.
+- **A planet with moons** goes with them (the button says how many).
+- **The Sun can't be removed:** everything is measured from it.
+- **Moons can't be removed on their own yet.**
+
+The camera keeps following its body; if that body was removed, it goes back to the Sun.
+
+**Save and load.** **Save** writes the whole state to `%APPDATA%\Worldline\saves`, named after the simulation's date. **Load** lists the saves, newest first.
+- **What a save holds:** the moment, and every body's position and velocity: the Sun and planets, each moon system and the followers. It also records which bodies were removed or added.
+- **What it doesn't need to hold:** gravity fields, rotation and the data behind each body come from the bundled data when it loads.
+- **It's exact.** Numbers are written in their shortest exact form, so a save loads back bit for bit.
+- **One limit:** small moons being computed in detail restart from their mean orbits.
+
+**The physics check** (`cargo test --release -p worldline-data --test validation_sandbox -- --nocapture`). A Jupiter-mass planet is dropped on a circular orbit 1.5 AU from the Sun, between Earth and Mars. The solar system is then run for ten years, with and without it:
+- **Energy and momentum are conserved:** 1.9 × 10⁻¹⁰ and 1.8 × 10⁻¹¹ relative change. Relativistic gravity only lets the Newtonian quantities wobble by about (v/c)² ≈ 4 × 10⁻⁸.
+- **The disturbance has the expected size.** After a year, Earth is 6.4 million km from where it would be (relative to the Sun). That is 2.3 times the simplest estimate, ½ (Gm/AU²) t².
+- **Mars's orbit shrinks** from 1.524 to 1.470 AU in ten years. **Venus's eccentricity rises** from 0.0067 to 0.0086.
+- **The circular launch is circular:** the new planet stays between 1.49994 and 1.50016 AU through its first orbit.
+
 ## Tests
 
 `cargo test -p worldline-app` covers:
@@ -53,4 +87,6 @@ The app is a window around the physics engine. It never does physics itself. It 
 - **Camera:** projection geometry, hiding points behind the camera, size falling off with distance, double-precision stability 30 AU out, and the zoom limits.
 - **Simulation loop:** one real second advances by exactly the chosen speed; pausing stops time; running out of budget is reported; trails reach back about one orbit and stay smooth across long steps; planets stand in for their systems' barycenters, with their moons listed under them; moons show only around the planet in focus; small moons are computed in detail only around the focus; every belt body lies between its orbit's perihelion and aphelion, and moves with time.
 - **Picking:** clicking selects the nearest body within reach.
+- **Sandbox:** added bodies join the simulation and run. Removing Jupiter takes its 115 moons with it while Saturn's keep their planet. The Sun and moons can't be removed. A save loads back to the same text, and two loads of one save run identically.
+- **Picking a point:** a point picked on a plane projects back to the same pixel.
 - **Names:** only the bodies attended to are named (followed, selected, pointed at, near enough to be a globe, or a major moon of the planet in focus).

@@ -1,6 +1,8 @@
 //! The live simulation behind the window: the solar system, its physics,
 //! the clock, and the orbit trails.
 
+mod save;
+
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
@@ -113,6 +115,17 @@ enum Source {
     Follower(usize),
 }
 
+/// Whether a body can be removed from the simulation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Removal {
+    /// Yes, along with this many moons.
+    Allowed { moons: usize },
+    /// Not the Sun: everything is measured from it.
+    Sun,
+    /// Not a moon on its own, yet.
+    Moon,
+}
+
 /// The solar system running live.
 pub struct Simulation {
     /// Every body: the Sun and planets (each planet with moons in place of
@@ -144,6 +157,8 @@ pub struct Simulation {
     /// For each body, what sort of small body it is, if it is one, and
     /// whether it has a non-gravitational force model.
     small_bodies: Vec<Option<(SmallBodyKind, bool)>>,
+    /// Names of the bodies added in the sandbox.
+    added: Vec<String>,
     /// The asteroid belt, Jupiter's Trojans and the Kuiper belt.
     pub belts: Vec<BeltCloud>,
     /// The simulation time the belts were last placed at.
@@ -172,15 +187,6 @@ impl Simulation {
     pub fn solar_system(speed: f64) -> Self {
         let epoch_jd_tdb = worldline_data::solar_system().epoch_jd_tdb;
         let hierarchy = worldline_data::full_solar_system();
-
-        let mut sources: Vec<Source> = (0..hierarchy.top.bodies.len()).map(Source::Top).collect();
-        for (system, moons) in hierarchy.moon_systems.iter().enumerate() {
-            sources[moons.host] = Source::Moon { system, body: 0 };
-        }
-        for (system, moons) in hierarchy.moon_systems.iter().enumerate() {
-            sources
-                .extend((1..moons.system.bodies.len()).map(|body| Source::Moon { system, body }));
-        }
         let all_small = worldline_data::small_moons();
         let small: Vec<Vec<SmallMoon>> = hierarchy
             .moon_systems
@@ -194,71 +200,20 @@ impl Simulation {
                     .collect()
             })
             .collect();
-        for (system, moons) in small.iter().enumerate() {
-            sources.extend((0..moons.len()).map(|index| Source::Small { system, index }));
-        }
-        sources.extend((0..hierarchy.follower_count()).map(Source::Follower));
-        let bodies: Vec<Body> = sources
-            .iter()
-            .map(|source| match *source {
-                Source::Top(k) => hierarchy.top.bodies[k].clone(),
-                Source::Moon { system, body } => {
-                    hierarchy.moon_systems[system].system.bodies[body].clone()
-                }
-                // Unknown masses and sizes are zero: no pull, drawn as a dot.
-                Source::Small { system, index } => {
-                    let moon = &small[system][index];
-                    Body::new(
-                        &moon.name,
-                        moon.gm.unwrap_or(0.0),
-                        moon.radius.unwrap_or(0.0),
-                    )
-                }
-                Source::Follower(i) => hierarchy.follower(i).clone(),
-            })
-            .collect();
-        let catalog = worldline_data::small_bodies();
-        let small_bodies = bodies
-            .iter()
-            .map(|b| {
-                catalog
-                    .iter()
-                    .find(|s| s.name == b.name)
-                    .map(|s| (s.kind, s.forces.is_some()))
-            })
-            .collect();
-        let index_of = |name: &str| bodies.iter().position(|b| b.name == name);
-        let parents = sources
-            .iter()
-            .zip(&bodies)
-            .map(|(source, body)| match *source {
-                Source::Moon { system, body } if body > 0 => {
-                    let host = hierarchy.moon_systems[system].host;
-                    Some(host)
-                }
-                Source::Small { system, .. } => Some(hierarchy.moon_systems[system].host),
-                // The Moon is simulated at the top level, beside Earth.
-                _ if body.name == "Moon" => index_of("Earth"),
-                _ => None,
-            })
-            .collect();
-
         let mut simulation = Self {
-            trails: vec![Trail::default(); bodies.len()],
-            rotations: bodies
-                .iter()
-                .map(|b| worldline_data::rotation_model(&b.name))
-                .collect(),
-            bodies,
+            bodies: Vec::new(),
+            trails: Vec::new(),
+            rotations: Vec::new(),
             epoch_jd_tdb,
             speed,
             paused: false,
             achieved: 1.0,
-            parents,
-            sources,
+            parents: Vec::new(),
+            sources: Vec::new(),
             small,
             detailed: None,
-            small_bodies,
+            small_bodies: Vec::new(),
+            added: Vec::new(),
             belts: worldline_data::belts()
                 .into_iter()
                 .map(|belt| BeltCloud {
@@ -280,20 +235,170 @@ impl Simulation {
             flow_pressure_at_1au: worldline_data::mean_flow_pressure(),
             hierarchy,
         };
+        simulation.reindex();
+        simulation.refresh();
+        simulation.refresh_small_moons();
+        simulation
+    }
+
+    /// Rebuilds the flat list of bodies from the hierarchy: the Sun and
+    /// planets (each planet with moons in place of its system's barycenter)
+    /// in order, then the major moons, the small moons and the followers.
+    /// Run whenever the set of bodies changes; trails are kept by name.
+    fn reindex(&mut self) {
+        let hierarchy = &self.hierarchy;
+        let mut sources: Vec<Source> = (0..hierarchy.top.bodies.len()).map(Source::Top).collect();
+        for (system, moons) in hierarchy.moon_systems.iter().enumerate() {
+            sources[moons.host] = Source::Moon { system, body: 0 };
+        }
+        for (system, moons) in hierarchy.moon_systems.iter().enumerate() {
+            sources
+                .extend((1..moons.system.bodies.len()).map(|body| Source::Moon { system, body }));
+        }
+        for (system, moons) in self.small.iter().enumerate() {
+            sources.extend((0..moons.len()).map(|index| Source::Small { system, index }));
+        }
+        sources.extend((0..hierarchy.follower_count()).map(Source::Follower));
+        let bodies: Vec<Body> = sources
+            .iter()
+            .map(|source| match *source {
+                Source::Top(k) => hierarchy.top.bodies[k].clone(),
+                Source::Moon { system, body } => {
+                    hierarchy.moon_systems[system].system.bodies[body].clone()
+                }
+                // Unknown masses and sizes are zero: no pull, drawn as a dot.
+                Source::Small { system, index } => {
+                    let moon = &self.small[system][index];
+                    Body::new(
+                        &moon.name,
+                        moon.gm.unwrap_or(0.0),
+                        moon.radius.unwrap_or(0.0),
+                    )
+                }
+                Source::Follower(i) => hierarchy.follower(i).clone(),
+            })
+            .collect();
+        let catalog = worldline_data::small_bodies();
         let fields = worldline_data::planetary_fields();
-        simulation.dipoles = simulation
-            .bodies
+        let index_of = |name: &str| bodies.iter().position(|b| b.name == name);
+        let parents = sources
+            .iter()
+            .zip(&bodies)
+            .map(|(source, body)| match *source {
+                Source::Moon { system, body } if body > 0 => {
+                    Some(hierarchy.moon_systems[system].host)
+                }
+                Source::Small { system, .. } => Some(hierarchy.moon_systems[system].host),
+                // The Moon is simulated at the top level, beside Earth.
+                _ if body.name == "Moon" => index_of("Earth"),
+                _ => None,
+            })
+            .collect();
+        let known = |b: &Body| !self.added.contains(&b.name);
+        self.small_bodies = bodies
+            .iter()
+            .map(|b| {
+                catalog
+                    .iter()
+                    .find(|s| known(b) && s.name == b.name)
+                    .map(|s| (s.kind, s.forces.is_some()))
+            })
+            .collect();
+        self.rotations = bodies
+            .iter()
+            .map(|b| {
+                known(b)
+                    .then(|| worldline_data::rotation_model(&b.name))
+                    .flatten()
+            })
+            .collect();
+        self.dipoles = bodies
             .iter()
             .map(|b| {
                 fields
                     .iter()
-                    .find(|f| f.planet == b.name)
+                    .find(|f| known(b) && f.planet == b.name)
                     .map(|f| (f.dipole, f.model.clone()))
             })
             .collect();
-        simulation.refresh();
-        simulation.refresh_small_moons();
-        simulation
+        let mut old: std::collections::HashMap<String, Trail> = self
+            .bodies
+            .iter()
+            .map(|b| b.name.clone())
+            .zip(std::mem::take(&mut self.trails))
+            .collect();
+        self.trails = bodies
+            .iter()
+            .map(|b| old.remove(&b.name).unwrap_or_default())
+            .collect();
+        self.parents = parents;
+        self.sources = sources;
+        self.bodies = bodies;
+    }
+
+    /// Adds a body to the simulation, given relative to the solar system's
+    /// barycenter: it joins the Sun and planets, pulling on them and pulled
+    /// by them with relativistic gravity, and the moons feel its tides.
+    /// Returns its place in the list.
+    pub fn add_body(&mut self, body: Body) -> usize {
+        let name = body.name.clone();
+        self.hierarchy.add_body(body);
+        self.added.push(name.clone());
+        self.reindex();
+        self.refresh();
+        self.refresh_small_moons();
+        self.index_of(&name).expect("the new body is listed")
+    }
+
+    /// Whether body `index` was added in the sandbox.
+    pub fn is_added(&self, index: usize) -> bool {
+        self.added.contains(&self.bodies[index].name)
+    }
+
+    /// The place in the list of the body named `name`, if it is there.
+    pub fn index_of(&self, name: &str) -> Option<usize> {
+        self.bodies.iter().position(|b| b.name == name)
+    }
+
+    /// Whether body `index` can be removed, and what goes with it.
+    pub fn removal(&self, index: usize) -> Removal {
+        match self.sources[index] {
+            Source::Top(0) => Removal::Sun,
+            Source::Top(_) | Source::Follower(_) => Removal::Allowed { moons: 0 },
+            Source::Moon { system, body: 0 } => Removal::Allowed {
+                moons: self.hierarchy.moon_systems[system].system.bodies.len() - 1
+                    + self.small[system].len(),
+            },
+            Source::Moon { .. } | Source::Small { .. } => Removal::Moon,
+        }
+    }
+
+    /// Removes body `index` (and a planet's moons with it), if allowed (see
+    /// [`Self::removal`]).
+    pub fn remove(&mut self, index: usize) {
+        if !matches!(self.removal(index), Removal::Allowed { .. }) {
+            return;
+        }
+        let name = self.bodies[index].name.clone();
+        match self.sources[index] {
+            Source::Top(k) => self.hierarchy.remove_body(k),
+            Source::Moon { system, .. } => {
+                let host = self.hierarchy.moon_systems[system].host;
+                self.hierarchy.remove_body(host);
+                self.small.remove(system);
+                self.detailed = match self.detailed {
+                    Some(d) if d == system => None,
+                    Some(d) if d > system => Some(d - 1),
+                    other => other,
+                };
+            }
+            Source::Follower(i) => self.hierarchy.remove_follower(i),
+            Source::Small { .. } => return,
+        }
+        self.added.retain(|n| n != &name);
+        self.reindex();
+        self.refresh();
+        self.refresh_small_moons();
     }
 
     /// Computes the small moons around body `index` in detail: those of
@@ -640,6 +745,57 @@ mod tests {
         let before = sim.belts[0].positions[0];
         sim.update(1.0, GENEROUS);
         assert_ne!(sim.belts[0].positions[0], before);
+    }
+
+    /// A Jupiter-mass planet 1.5 AU out, on a circular orbit.
+    fn intruder(sim: &Simulation) -> Body {
+        let jupiter = &sim.bodies[sim.index_of("Jupiter").unwrap()];
+        let r = 1.5 * worldline_core::constants::AU;
+        Body::new("New planet 1", jupiter.gm, jupiter.radius)
+            .at(DVec3::new(r, 0.0, 0.0))
+            .moving(DVec3::new(0.0, (GM_SUN / r).sqrt(), 0.0))
+    }
+
+    #[test]
+    fn bodies_can_be_added_and_removed() {
+        let mut sim = Simulation::solar_system(DAY);
+        let new = sim.add_body(intruder(&sim));
+        assert!(sim.is_added(new) && sim.rotation(new).is_none());
+        assert_eq!(sim.removal(0), Removal::Sun);
+        assert_eq!(sim.removal(sim.index_of("Io").unwrap()), Removal::Moon);
+        // Jupiter goes with its 4 major and 111 small moons.
+        let jupiter = sim.index_of("Jupiter").unwrap();
+        assert_eq!(sim.removal(jupiter), Removal::Allowed { moons: 115 });
+        let before = sim.bodies.len();
+        sim.remove(jupiter);
+        assert_eq!(sim.bodies.len(), before - 116);
+        assert!(sim.index_of("Io").is_none() && sim.index_of("Himalia").is_none());
+        // Saturn's moons still belong to Saturn, and everything still runs.
+        let saturn = sim.index_of("Saturn").unwrap();
+        assert_eq!(sim.parent(sim.index_of("Titan").unwrap()), Some(saturn));
+        sim.update(1.0, GENEROUS);
+        assert_eq!(sim.time(), DAY);
+    }
+
+    #[test]
+    fn a_save_loads_back_exactly_and_runs_the_same_every_time() {
+        let mut sim = Simulation::solar_system(10.0 * DAY);
+        sim.add_body(intruder(&sim));
+        sim.remove(sim.index_of("Mars").unwrap());
+        sim.focus_detail_on(sim.index_of("Saturn").unwrap());
+        sim.update(1.0, GENEROUS);
+        let text = sim.save();
+        // Every number loads back bit for bit.
+        let loaded = Simulation::load(&text, DAY).unwrap();
+        assert_eq!(loaded.save(), text);
+        assert!(loaded.index_of("New planet 1").is_some() && loaded.index_of("Mars").is_none());
+        // Two loads of the same save run identically.
+        let mut a = Simulation::load(&text, 10.0 * DAY).unwrap();
+        let mut b = Simulation::load(&text, 10.0 * DAY).unwrap();
+        a.update(1.0, GENEROUS);
+        b.update(1.0, GENEROUS);
+        assert_eq!(a.save(), b.save());
+        assert!(Simulation::load("not a save", DAY).is_err());
     }
 
     #[test]

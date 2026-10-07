@@ -64,6 +64,8 @@
 | Voyager heliosphere crossings, JPL positions vs. published distances | within 0.05 AU | ✅ passing, all four (94.0, 83.7, 121.6, 119.0 AU) |
 | Earth's magnetopause from pressure balance | about 10 Earth radii sunward | ✅ passing, 9.84 Earth radii in 2025's average wind |
 | Magnetopause, hour by hour through 2025, vs. Shue et al.'s fit to spacecraft crossings | within their 1.23 Earth radii scatter | ✅ passing, RMS difference 0.26 Earth radii |
+| A Jupiter-mass planet dropped at 1.5 AU: energy and momentum over 10 years | conserved to the (v/c)² ≈ 4 × 10⁻⁸ of relativity | ✅ passing, 1.9 × 10⁻¹⁰ and 1.8 × 10⁻¹¹ |
+| Save and load | lossless | ✅ passing, loads back bit for bit |
 | Light bending at the Sun's edge | 1.75″ | planned |
 | Hulse–Taylor binary pulsar orbital decay | −2.40 × 10⁻¹² s/s | planned |
 | Innermost stable orbit, photon sphere and shadow of a non-spinning black hole | 6, 3 and √27 GM/c² | planned |
@@ -97,6 +99,12 @@ To see Jupiter with its moons (`--zoom` puts the camera that many of the planet'
 cargo run --release -- --focus Jupiter --zoom 40
 ```
 
+To drop a Jupiter-mass planet between Earth and Mars and watch the orbits get disturbed (or use **Add a body** in the top bar, and drag to launch):
+
+```bash
+cargo run --release -- --add jupiter:1.5
+```
+
 To see Saturn's rings tilted toward the Sun in 2032 (`--advance` simulates that many years before starting):
 
 ```bash
@@ -112,7 +120,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · textures from Solar Syste
 - [Scope](docs/SCOPE.md): what v1 includes and excludes, and why
 - [Roadmap](docs/ROADMAP.md): milestones and steps
 - [Architecture](docs/ARCHITECTURE.md): how the engine picks physics models
-- [The desktop app](docs/app.md): frame loop, double-precision 3D view, camera and trails
+- [The desktop app](docs/app.md): frame loop, double-precision 3D view, camera, trails and the sandbox tools
 - [Rendering globes](docs/rendering.md): GPU globes, precision across 12 orders of magnitude, lighting, atmospheres
 - [Saturn's rings](docs/physics/saturn-rings.md): Cassini's measured profile, transparency, shadows
 - [Moons](docs/physics/moons.md): hierarchical integration, planets' gravity fields, and how each residual against JPL was tracked down

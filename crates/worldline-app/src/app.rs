@@ -17,9 +17,11 @@ use crate::calendar::DateTime;
 use crate::camera::Camera;
 use crate::details;
 use crate::gpu::{Globe, GpuGlobes};
+use crate::sandbox::{self, Launch, Preset};
+use crate::simulation::Removal;
 use crate::simulation::Simulation;
 use crate::theme;
-use crate::view::{self, OnScreen, ViewOptions, body_color};
+use crate::view::{self, OnScreen, ViewOptions};
 use worldline_data::SmallBodyKind;
 
 /// Simulation speeds the user can pick: simulated time per real second.
@@ -105,6 +107,13 @@ pub struct WorldlineApp {
     gpu: Option<GpuGlobes>,
     /// What's typed in the body list's search box.
     search: String,
+    /// The body a press in the view adds, if adding; otherwise a drag looks
+    /// around.
+    tool: Option<Preset>,
+    /// A body being placed, while its launch is dragged.
+    launch: Option<Launch>,
+    /// A message in the top bar, and when it appeared.
+    status: Option<(String, Instant)>,
     /// Open the selected body's branch of the list and scroll to it, once
     /// it has been picked somewhere other than the list.
     reveal: bool,
@@ -135,8 +144,14 @@ impl WorldlineApp {
             gpu: None,
             search: String::new(),
             reveal: false,
+            tool: None,
+            launch: None,
+            status: None,
         };
         app.simulation.paused = start.paused;
+        if let Some((kind, au)) = &start.add {
+            app.add_on_circle(kind, *au);
+        }
         app.simulation.advance_by(start.advance_years * JULIAN_YEAR);
         if let Some(name) = &start.focus {
             match app.simulation.bodies.iter().position(|b| &b.name == name) {
@@ -223,6 +238,8 @@ impl WorldlineApp {
                 self.reset();
             }
             ui.separator();
+            self.sandbox_controls(ui);
+            ui.separator();
             let date = DateTime::from_julian_date(self.simulation.julian_date());
             ui.label(RichText::new(format!("{date} TDB")).monospace().size(15.0));
             if !self.simulation.paused && self.simulation.achieved < 0.99 {
@@ -291,8 +308,10 @@ impl WorldlineApp {
         let (mut clicked, mut fly_to, mut revealed) = (None, None, false);
         let mut entry = |ui: &mut egui::Ui, i: usize| {
             let name = &simulation.bodies[i].name;
-            let response =
-                ui.selectable_label(i == selected, RichText::new(name).color(body_color(name)));
+            let response = ui.selectable_label(
+                i == selected,
+                RichText::new(name).color(view::color(simulation, i)),
+            );
             if response.clicked() {
                 clicked = Some(i);
             }
@@ -487,7 +506,7 @@ impl WorldlineApp {
         let body = &bodies[self.selected];
         let sun = &bodies[SUN];
         let parent = self.simulation.parent(self.selected);
-        ui.heading(RichText::new(&body.name).color(body_color(&body.name)));
+        ui.heading(RichText::new(&body.name).color(view::color(&self.simulation, self.selected)));
         egui::Grid::new("selected").num_columns(2).show(ui, |ui| {
             ui.label(key("Mass"));
             if body.gm > 0.0 {
@@ -574,7 +593,9 @@ impl WorldlineApp {
             }
         });
         ui.add_space(4.0);
-        let kind = if let Some((kind, outgassing)) = self.simulation.small_body(self.selected) {
+        let kind = if self.simulation.is_added(self.selected) {
+            details::BodyKind::Added
+        } else if let Some((kind, outgassing)) = self.simulation.small_body(self.selected) {
             details::BodyKind::SmallBody {
                 comet: matches!(kind, SmallBodyKind::Comet | SmallBodyKind::Interstellar),
                 outgassing,
@@ -599,10 +620,172 @@ impl WorldlineApp {
                 ui.label(RichText::new(detail.what).small());
             });
         }
-        if self.focus == self.selected {
-            ui.label(RichText::new("The camera is following this body.").weak());
-        } else if ui.button("Fly to it").clicked() {
-            self.focus_on(self.selected);
+        ui.horizontal(|ui| {
+            if self.focus == self.selected {
+                ui.label(RichText::new("The camera is following this body.").weak());
+            } else if ui.button("Fly to it").clicked() {
+                self.focus_on(self.selected);
+            }
+            let name = self.simulation.bodies[self.selected].name.clone();
+            match self.simulation.removal(self.selected) {
+                Removal::Allowed { moons } => {
+                    let label = match moons {
+                        0 => "Remove".to_string(),
+                        1 => "Remove with its moon".to_string(),
+                        n => format!("Remove with its {n} moons"),
+                    };
+                    if ui
+                        .button(label)
+                        .on_hover_text(format!("Take {name} out of the simulation (Delete key)"))
+                        .clicked()
+                    {
+                        self.remove_selected();
+                    }
+                }
+                Removal::Sun => {
+                    ui.add_enabled(false, egui::Button::new("Remove"))
+                        .on_disabled_hover_text("The Sun stays: everything is measured from it");
+                }
+                Removal::Moon => {
+                    ui.add_enabled(false, egui::Button::new("Remove"))
+                        .on_disabled_hover_text("Moons can't be removed on their own yet");
+                }
+            }
+        });
+    }
+
+    /// The top bar's sandbox tools: adding bodies, saving and loading.
+    fn sandbox_controls(&mut self, ui: &mut egui::Ui) {
+        egui::ComboBox::from_id_salt("add")
+            .selected_text(self.tool.map_or("Add a body", Preset::label))
+            .show_ui(ui, |ui| {
+                for preset in Preset::ALL {
+                    if ui
+                        .selectable_label(self.tool == Some(preset), preset.label())
+                        .clicked()
+                    {
+                        self.tool = Some(preset);
+                    }
+                }
+            });
+        if self.tool.is_some() && ui.button("Done").clicked() {
+            self.tool = None;
+            self.launch = None;
+        }
+        if ui.button("Save").clicked() {
+            let message = match sandbox::save(&self.simulation) {
+                Ok(path) => format!("Saved {}", path.display()),
+                Err(e) => format!("Couldn't save: {e}"),
+            };
+            self.status = Some((message, Instant::now()));
+        }
+        ui.menu_button("Load", |ui| {
+            let saves = sandbox::saves();
+            if saves.is_empty() {
+                ui.label(RichText::new("No saves yet").color(theme::MUTED));
+            }
+            for (name, path) in saves.into_iter().take(20) {
+                if ui.button(name).clicked() {
+                    self.load(&path);
+                    ui.close();
+                }
+            }
+        });
+        if let Some((message, since)) = &self.status {
+            if since.elapsed() < Duration::from_secs(6) {
+                ui.label(RichText::new(message).small().color(theme::MUTED));
+            } else {
+                self.status = None;
+            }
+        }
+    }
+
+    /// The names of the followed and selected bodies, to find them again
+    /// after the list changes.
+    fn attended_names(&self) -> (String, String) {
+        let bodies = &self.simulation.bodies;
+        (
+            bodies[self.focus].name.clone(),
+            bodies[self.selected].name.clone(),
+        )
+    }
+
+    /// Finds the followed and selected bodies again by name; the Sun if
+    /// they're gone.
+    fn reattend(&mut self, (focus, selected): (String, String)) {
+        self.focus = self.simulation.index_of(&focus).unwrap_or(SUN);
+        self.selected = self.simulation.index_of(&selected).unwrap_or(self.focus);
+        self.reveal = true;
+    }
+
+    /// Adds a body from the command line: `kind` ("earth", "jupiter" or
+    /// "sun") on a circular orbit `au` from the Sun, in the ecliptic, on
+    /// the far side of the Sun from where the x axis points.
+    fn add_on_circle(&mut self, kind: &str, au: f64) {
+        let preset = match kind {
+            "earth" => Preset::Earth,
+            "sun" => Preset::Sun,
+            _ => Preset::Jupiter,
+        };
+        let sun = self.simulation.bodies[SUN].position;
+        let position = sun - DVec3::X * au * AU;
+        self.place(Launch {
+            preset,
+            position,
+            around: SUN,
+            drag: position,
+        });
+    }
+
+    /// Adds the body being launched.
+    fn place(&mut self, launch: Launch) {
+        let names = self.attended_names();
+        let template = launch.preset.body(&self.simulation);
+        let velocity = launch.velocity(&self.simulation, self.camera.distance, template.gm);
+        let name = template.name.clone();
+        self.simulation
+            .add_body(template.at(launch.position).moving(velocity));
+        self.reattend(names);
+        self.selected = self.simulation.index_of(&name).unwrap_or(self.selected);
+        self.status = Some((format!("Added {name}"), Instant::now()));
+    }
+
+    /// Removes the selected body, if it can be.
+    fn remove_selected(&mut self) {
+        if !matches!(
+            self.simulation.removal(self.selected),
+            Removal::Allowed { .. }
+        ) {
+            return;
+        }
+        let (focus, removed) = self.attended_names();
+        self.simulation.remove(self.selected);
+        self.reattend((focus, removed.clone()));
+        self.status = Some((format!("Removed {removed}"), Instant::now()));
+    }
+
+    /// Replaces the simulation with a saved one.
+    fn load(&mut self, path: &std::path::Path) {
+        let loaded = std::fs::read_to_string(path)
+            .map_err(|e| e.to_string())
+            .and_then(|text| Simulation::load(&text, self.simulation.speed));
+        match loaded {
+            Ok(mut simulation) => {
+                let names = self.attended_names();
+                simulation.paused = self.simulation.paused;
+                self.simulation = simulation;
+                self.flight = None;
+                self.launch = None;
+                self.reattend(names);
+                self.status = Some((
+                    format!(
+                        "Loaded {}",
+                        path.file_stem().unwrap_or_default().to_string_lossy()
+                    ),
+                    Instant::now(),
+                ));
+            }
+            Err(e) => self.status = Some((format!("Couldn't load: {e}"), Instant::now())),
         }
     }
 
@@ -719,7 +902,7 @@ impl WorldlineApp {
         let viewport = response.rect;
         painter.rect_filled(viewport, 0.0, Color32::from_rgb(3, 5, 12));
 
-        if response.dragged() {
+        if response.dragged() && self.tool.is_none() {
             let delta = response.drag_delta();
             self.camera.orbit(delta.x, delta.y);
         }
@@ -778,7 +961,12 @@ impl WorldlineApp {
             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
         }
 
-        if (response.clicked() || response.double_clicked())
+        if let Some(preset) = self.tool {
+            self.adding(ui, &response, viewport, preset);
+            if let Some(launch) = &self.launch {
+                launch.draw(&painter, &self.camera, viewport, &self.simulation);
+            }
+        } else if (response.clicked() || response.double_clicked())
             && let Some(pointer) = response.interact_pointer_pos()
             && let Some(i) = view::pick(&drawn, pointer)
         {
@@ -788,14 +976,73 @@ impl WorldlineApp {
                 self.focus_on(i);
             }
         }
+        if response.hovered() && ui.input(|i| i.key_pressed(egui::Key::Delete)) {
+            self.remove_selected();
+        }
 
         painter.text(
             viewport.left_bottom() + vec2(10.0, -10.0),
             Align2::LEFT_BOTTOM,
-            "Drag to rotate · scroll to zoom · double-click a body to fly to it",
+            if self.tool.is_some() {
+                "Click to place in a circular orbit · drag to launch · Esc to stop adding"
+            } else {
+                "Drag to rotate · scroll to zoom · double-click a body to fly to it"
+            },
             FontId::proportional(12.0),
             Color32::from_gray(140),
         );
+    }
+
+    /// Placing a body: press where it goes (on the plane of the body in
+    /// focus, parallel to the ecliptic), drag to launch it, release to add
+    /// it. A click without a drag puts it in a circular orbit.
+    fn adding(&mut self, ui: &egui::Ui, response: &egui::Response, viewport: Rect, preset: Preset) {
+        if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            if self.launch.take().is_none() {
+                self.tool = None;
+            }
+            return;
+        }
+        let around = if self.simulation.bodies[self.focus].gm > 0.0 {
+            self.focus
+        } else {
+            SUN
+        };
+        let plane = self.camera.target.z;
+        let here = response
+            .interact_pointer_pos()
+            .or(response.hover_pos())
+            .and_then(|p| self.camera.point_on_plane(p, viewport, plane));
+        if response.drag_started()
+            && let Some(position) = here
+        {
+            self.launch = Some(Launch {
+                preset,
+                position,
+                around,
+                drag: position,
+            });
+        }
+        if response.dragged()
+            && let (Some(launch), Some(at)) = (&mut self.launch, here)
+        {
+            launch.drag = at;
+        }
+        if response.drag_stopped()
+            && let Some(launch) = self.launch.take()
+        {
+            self.place(launch);
+        }
+        if response.clicked()
+            && let Some(position) = here
+        {
+            self.place(Launch {
+                preset,
+                position,
+                around,
+                drag: position,
+            });
+        }
     }
 
     /// Draws the bodies that are big enough on screen as textured, lit,
@@ -843,13 +1090,13 @@ impl WorldlineApp {
                 });
                 Globe {
                     name: body.name.clone(),
-                    color: body_color(&body.name),
+                    color: view::color(&self.simulation, item.index),
                     center,
                     radii,
                     orientation,
                     sun_direction: (sun - body.position).normalize_or_zero().as_vec3(),
                     emissive: item.index == SUN,
-                    night_glow: if item.index == EARTH { 1.0 } else { 0.0 },
+                    night_glow: if body.name == "Earth" { 1.0 } else { 0.0 },
                     rings,
                     atmosphere,
                 }

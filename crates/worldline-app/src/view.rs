@@ -123,6 +123,16 @@ fn light_time_label(distance: f64) -> String {
     }
 }
 
+/// Display color for body `index`: by its name, or the sandbox's color if
+/// it was added there.
+pub fn color(simulation: &Simulation, index: usize) -> Color32 {
+    if simulation.is_added(index) {
+        crate::sandbox::SANDBOX_COLOR
+    } else {
+        body_color(&simulation.bodies[index].name)
+    }
+}
+
 /// Display color for a body.
 pub fn body_color(name: &str) -> Color32 {
     match name {
@@ -321,7 +331,7 @@ pub fn draw_under(
                 }
                 None => trail.points().chain([body.position]).map(screen).collect(),
             };
-            draw_trail(painter, &points, body_color(&body.name));
+            draw_trail(painter, &points, color(simulation, index));
         }
     }
 
@@ -728,7 +738,7 @@ pub fn draw_over(
             continue;
         }
         let body = &bodies[item.index];
-        let color = body_color(&body.name);
+        let color = color(simulation, item.index);
         let center = item.projection.position;
         if !item.globe {
             painter.circle_filled(center, item.radius, color);

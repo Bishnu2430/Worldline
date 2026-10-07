@@ -280,6 +280,55 @@ impl Hierarchy {
         }
     }
 
+    /// Adds a body to the top level, given in its frame: it pulls on
+    /// everything and everything pulls on it, with the top level's
+    /// gravity, and the moon systems feel its tides. Returns its index.
+    pub fn add_body(&mut self, body: Body) -> usize {
+        self.top.bodies.push(body);
+        // The integrator's memory of past steps no longer fits.
+        self.integrator = Ias15::new();
+        self.top.bodies.len() - 1
+    }
+
+    /// Removes top-level body `index`, and its moon system if it has one.
+    /// The Sun (body 0) can't be removed: the followers' relativistic term
+    /// and the solar wind are measured from it.
+    pub fn remove_body(&mut self, index: usize) {
+        assert!(index > 0, "the Sun can't be removed");
+        self.top.bodies.remove(index);
+        self.moon_systems.retain(|moons| moons.host != index);
+        for moons in &mut self.moon_systems {
+            if moons.host > index {
+                moons.host -= 1;
+            }
+        }
+        self.integrator = Ias15::new();
+    }
+
+    /// Removes follower `index`.
+    pub fn remove_follower(&mut self, index: usize) {
+        self.followers.remove(index);
+    }
+
+    /// Follower `index`, to change its state.
+    pub fn follower_mut(&mut self, index: usize) -> &mut Body {
+        &mut self.followers[index].system.bodies[0]
+    }
+
+    /// Restarts every integrator, after states were set from outside (as
+    /// when loading a save): their memory of past steps no longer applies.
+    /// Small moons being simulated in detail are dropped; set them again.
+    pub fn restart(&mut self) {
+        self.integrator = Ias15::new();
+        for moons in &mut self.moon_systems {
+            moons.integrator = Ias15::new();
+            moons.clear_small_moons();
+        }
+        for follower in &mut self.followers {
+            follower.integrator = Ias15::new();
+        }
+    }
+
     /// How many followers there are.
     pub fn follower_count(&self) -> usize {
         self.followers.len()

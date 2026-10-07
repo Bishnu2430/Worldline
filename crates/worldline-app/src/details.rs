@@ -76,6 +76,21 @@ const SUN: &[Detail] = &[
     ),
 ];
 
+const ADDED: &[Detail] = &[
+    detail(
+        "Added in the sandbox, with the mass and size of a solar-system body",
+        Kind::Model,
+    ),
+    detail(
+        "Its path: relativistic gravity with the Sun and planets, which it pulls on in turn",
+        Kind::Model,
+    ),
+    detail(
+        "The belts and small moons on fixed orbits don't feel it",
+        Kind::Visual,
+    ),
+];
+
 const EARTH: &[Detail] = &[
     detail(
         "Surface and city lights: maps from NASA data",
@@ -239,6 +254,8 @@ pub enum BodyKind {
     SmallMoonInDetail,
     /// A small moon placed by its mean orbit.
     SmallMoonOnMeanOrbit,
+    /// A body added in the sandbox.
+    Added,
     /// A dwarf planet, asteroid or comet.
     SmallBody {
         /// A comet (or interstellar visitor) rather than an asteroid.
@@ -255,6 +272,7 @@ pub fn details(name: &str, kind: BodyKind) -> Vec<Detail> {
     match kind {
         BodyKind::SmallMoonInDetail => return SMALL_MOON_IN_DETAIL.to_vec(),
         BodyKind::SmallMoonOnMeanOrbit => return SMALL_MOON_ON_MEAN_ORBIT.to_vec(),
+        BodyKind::Added => return ADDED.to_vec(),
         BodyKind::SmallBody {
             comet,
             outgassing,
