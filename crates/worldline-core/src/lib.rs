@@ -12,6 +12,7 @@ pub mod diagnostics;
 pub mod gravity;
 pub mod hierarchy;
 pub mod integrator;
+pub mod kepler;
 pub mod magnetosphere;
 pub mod mean_elements;
 pub mod orbit;
@@ -19,6 +20,7 @@ pub mod regime;
 pub mod rotation;
 pub mod solar_wind;
 pub mod sunlight;
+pub mod swarm;
 pub mod system;
 pub mod zodiacal;
 

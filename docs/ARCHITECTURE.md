@@ -71,7 +71,7 @@ It uses them to pick a model:
 |---|---|---|
 | Ordinary orbits | Newtonian plus first post-Newtonian (Einstein–Infeld–Hoffmann) N-body | Einstein, Infeld & Hoffmann 1938; used in JPL planetary ephemerides |
 | Asteroids and comets too light to pull on the planets | Newtonian pull of the Sun and planets, plus the Sun's 1PN (Schwarzschild) term and JPL's non-gravitational forces | IERS Conventions 2010; Marsden, Sekanina & Yeomans 1973 |
-| Belt asteroids and Kuiper belt objects (background) | Fixed two-body ellipses from JPL's osculating elements | Kepler's laws; JPL Small-Body Database |
+| Belt asteroids, Kuiper belt objects and freed small moons (the swarm) | Massless particles: exact two-body drifts around whatever dominates each, with kicks from every other body (generalized Wisdom–Holman), steps set by error estimates | Wisdom & Holman 1991; [physics/swarm.md](physics/swarm.md) |
 | Zodiacal dust | COBE DIRBE smooth-cloud density model | Kelsall et al. 1998 |
 | Bodies that touch | Perfectly inelastic merger: momentum conserved, volumes add (a black hole survives and its horizon grows with its mass); contact found along each step | [physics/collisions.md](physics/collisions.md) |
 | Black holes, neutron stars, white dwarfs (as point bodies) | Published masses and sizes; Kerr horizons; Buchdahl's limit tells a black hole from a star | [physics/compact-objects.md](physics/compact-objects.md); Buchdahl 1959 |

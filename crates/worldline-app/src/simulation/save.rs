@@ -3,19 +3,20 @@
 //! A save records the moment and every body's state: the top level
 //! (relative to the solar system's barycenter), each moon system (relative
 //! to its barycenter) and the followers, plus which bodies were added in the
-//! sandbox and the catalogue entry each came from. Everything else (gravity
-//! fields, rotation, the data behind each
-//! body) comes from the bundled data when it loads. Numbers are written in
-//! their shortest exact form, so they load back bit for bit.
+//! sandbox and the catalogue entry each came from, and the swarm: every
+//! belt body and freed small moon, brought up to the same moment first.
+//! Everything else (gravity fields, rotation, the data behind each body)
+//! comes from the bundled data when it loads. Numbers are written in their
+//! shortest exact form, so they load back bit for bit.
 
 use std::fmt::Write;
 
 use super::*;
 
-/// The first line of every save. Version 2 records each added body's
-/// catalogue entry; version 1 saves load too.
-const HEADER: &str = "worldline-save\t2";
-const HEADER_1: &str = "worldline-save\t1";
+/// The first line of every save. Version 3 records the swarm, version 2
+/// each added body's catalogue entry; older saves load too.
+const HEADER: &str = "worldline-save\t3";
+const OLDER: [&str; 2] = ["worldline-save\t1", "worldline-save\t2"];
 
 fn body_line(kind: &str, prefix: &str, b: &Body) -> String {
     let (p, v) = (b.position, b.velocity);
@@ -55,8 +56,10 @@ fn parse_body(fields: &[&str]) -> Result<Saved, String> {
 }
 
 impl Simulation {
-    /// The simulation's state as text.
-    pub fn save(&self) -> String {
+    /// The simulation's state as text. The swarm is first brought up to
+    /// the present.
+    pub fn save(&mut self) -> String {
+        self.hierarchy.sync_swarm();
         let mut out = String::new();
         let h = &self.hierarchy;
         let _ = writeln!(
@@ -87,6 +90,21 @@ impl Simulation {
             let planet = &h.moon_systems[system].system.bodies[0].name;
             let _ = writeln!(out, "detailed\t{planet}");
         }
+        for moon in &self.freed {
+            let _ = writeln!(
+                out,
+                "freed\t{}\t{}\t{}\t{}\t{}\t{}",
+                moon.id, moon.planet, moon.index, moon.name, moon.gm, moon.radius
+            );
+        }
+        for p in &h.swarm().particles {
+            let (r, v) = (p.position, p.velocity);
+            let _ = writeln!(
+                out,
+                "particle\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                p.id, r.x, r.y, r.z, v.x, v.y, v.z
+            );
+        }
         out
     }
 
@@ -95,13 +113,15 @@ impl Simulation {
         let mut lines = text
             .lines()
             .filter(|l| !l.starts_with('#') && !l.is_empty());
-        if !matches!(lines.next(), Some(HEADER | HEADER_1)) {
+        let header = lines.next();
+        if header != Some(HEADER) && !OLDER.iter().any(|o| header == Some(o)) {
             return Err("not a Worldline save (or from a newer version)".to_string());
         }
         let mut sim = Simulation::solar_system(speed);
         let (mut epoch, mut time, mut detailed) = (None, None, None);
         let (mut top, mut moons, mut followers, mut added) =
             (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        let (mut freed, mut particles) = (Vec::new(), Vec::new());
         for line in lines {
             let fields: Vec<&str> = line.split('\t').collect();
             let number = || {
@@ -124,6 +144,38 @@ impl Simulation {
                     added.push((fields[1].to_string(), fields[2].to_string()))
                 }
                 "detailed" if fields.len() == 2 => detailed = Some(fields[1].to_string()),
+                "freed" if fields.len() == 7 => {
+                    let n = |k: usize| {
+                        fields[k]
+                            .parse::<f64>()
+                            .map_err(|_| format!("bad line `{line}`"))
+                    };
+                    freed.push(FreedMoon {
+                        id: fields[1]
+                            .parse()
+                            .map_err(|_| format!("bad line `{line}`"))?,
+                        planet: fields[2].to_string(),
+                        index: fields[3]
+                            .parse()
+                            .map_err(|_| format!("bad line `{line}`"))?,
+                        name: fields[4].to_string(),
+                        gm: n(5)?,
+                        radius: n(6)?,
+                    });
+                }
+                "particle" if fields.len() == 8 => {
+                    let n: Vec<f64> = fields[2..]
+                        .iter()
+                        .map(|f| f.parse::<f64>().map_err(|_| format!("bad line `{line}`")))
+                        .collect::<Result<_, _>>()?;
+                    particles.push(Particle {
+                        position: DVec3::new(n[0], n[1], n[2]),
+                        velocity: DVec3::new(n[3], n[4], n[5]),
+                        id: fields[1]
+                            .parse()
+                            .map_err(|_| format!("bad line `{line}`"))?,
+                    });
+                }
                 _ => return Err(format!("unknown line `{line}`")),
             }
         }
@@ -135,6 +187,7 @@ impl Simulation {
         }
 
         let is_added = |name: &str| added.iter().any(|(n, _): &(String, String)| n == name);
+        let sim_start_sun = (sim.bodies[0].position, sim.bodies[0].velocity);
         let h = &mut sim.hierarchy;
         // If something absorbed the Sun, it took the Sun's place as body 0.
         if let Some(first) = top.first()
@@ -144,6 +197,15 @@ impl Simulation {
                 return Err(format!("unknown body `{}`", first.name));
             }
             h.top.bodies[0] = Body::new(&first.name, first.gm, first.radius);
+        }
+        // Moon systems torn apart: their planet is in the save, but no moons.
+        for k in (0..h.moon_systems.len()).rev() {
+            let planet = h.moon_systems[k].system.bodies[0].name.clone();
+            let host = h.top.bodies[h.moon_systems[k].host].name.clone();
+            if !moons.iter().any(|(m, _)| *m == planet) && top.iter().any(|s| s.name == host) {
+                h.dissolve_system(k);
+                sim.small.remove(k);
+            }
         }
         // Remove what the save doesn't have, last first so indices hold.
         for k in (1..h.top.bodies.len()).rev() {
@@ -196,6 +258,38 @@ impl Simulation {
         }
         h.set_time(time);
         h.restart();
+        // The swarm, as saved; saves from before it existed have the belts
+        // carried from the start along fixed ellipses around body 0.
+        let swarm = if particles.is_empty() {
+            let mut swarm = Swarm::new(time);
+            let sun = &h.top.bodies[0];
+            let start = sim_start_sun;
+            swarm.add(h.swarm().particles.iter().map(|p| {
+                let carried = drift(p.position - start.0, p.velocity - start.1, sun.gm, time);
+                Particle {
+                    position: sun.position + carried.position,
+                    velocity: sun.velocity + carried.velocity,
+                    id: p.id,
+                }
+            }));
+            swarm
+        } else {
+            let mut swarm = Swarm::new(time);
+            swarm.add(particles);
+            swarm
+        };
+        h.set_swarm(swarm);
+        for moon in &freed {
+            if let Some(moons) = h
+                .moon_systems
+                .iter_mut()
+                .find(|m| m.system.bodies[0].name == moon.planet)
+            {
+                moons.mark_small_moon_free(moon.index);
+            }
+        }
+        h.set_next_freed_id(freed.iter().map(|m| m.id + 1).max().unwrap_or(0));
+        sim.freed = freed;
         sim.added = added;
         sim.detailed = None;
         sim.trails.clear();

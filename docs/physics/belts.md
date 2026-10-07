@@ -1,6 +1,6 @@
 # The belts: the asteroid belt, Jupiter's Trojans and the Kuiper belt
 
-**Code:** `crates/worldline-core/src/orbit.rs` (`KeplerOrbit`), `crates/worldline-data/src/belts.rs`, `crates/worldline-app/src/simulation.rs` and `view.rs` (drawing)
+**Code:** `crates/worldline-data/src/belts.rs`, `crates/worldline-core/src/swarm.rs` (how they move, since step 2.1b), `crates/worldline-app/src/simulation.rs` and `view.rs` (drawing)
 **Data:** `crates/worldline-data/data/{asteroid-belt,jupiter-trojans,kuiper-belt}.csv` · **Fetch script:** `tools/fetch_belts.py`
 **Tests:** `crates/worldline-data/tests/validation_belts.rs`, plus unit tests
 
@@ -22,21 +22,16 @@ To see it: `cargo run --release -- --focus Sun --zoom 2500` (the camera 2,500 so
 
 **Overlap.** The 62 bodies simulated individually since step 1b.6 (Ceres, Vesta, Patroclus, Eris…) are left out, so nothing is drawn twice.
 
-## How they move: fixed ellipses
+## How they move: live particles
 
-The belts are massless test particles. They can't pull on anything, and 28,000 of them are far too many to integrate in real time. So each rides a fixed **Keplerian ellipse** around the Sun, from its JPL elements (`KeplerOrbit`):
-- **One equation per body.** Placing a body costs one solution of Kepler's equation, E − e sin E = M. Each orbit's orientation is computed once, up front.
-- **Cost.** All 28,331 take about 3.4 ms on one core. The app shares them among all cores and updates them once per frame.
-- **Frame.** Positions are relative to the Sun's simulated position.
+Since step 2.1b the belts are live: massless particles of the swarm, which feel the Sun, the planets, the heaviest asteroids and anything added in the sandbox. A black hole dropped near the belt scatters it. See [swarm.md](swarm.md), with the checks against JPL: a year on, they match JPL to 2.3 × 10⁻⁶ of their distance (median).
 
-This is "detail follows focus" (see [ARCHITECTURE.md](../ARCHITECTURE.md)). The belts are background; the 62 named small bodies get the full N-body treatment.
-
-**How approximate.** A fixed ellipse leaves out the planets' pull. Jupiter's is the strongest, about 1/1,000 of the Sun's (their mass ratio), so over less than an orbit a body should stray by less than that fraction of its distance. The test runs this two-body model against JPL for a year, on the 44 asteroids, dwarf planets and trans-Neptunian objects of step 1b.6:
+**Before step 2.1b: fixed ellipses.** Until then each body rode a fixed **Keplerian ellipse** around the Sun, from its JPL elements (`KeplerOrbit`). That costs one solution of Kepler's equation per body per frame, and leaves out the planets' pull. Jupiter's is the strongest, about 1/1,000 of the Sun's (their mass ratio), so over less than an orbit a body should stray by less than that fraction of its distance. The test runs this two-body model against JPL for a year, on the 44 asteroids, dwarf planets and trans-Neptunian objects of step 1b.6:
 - the median drift is **1.6 × 10⁻⁴** of the body's distance;
 - the worst is Davida at 8.2 × 10⁻⁴;
 - all stay under Jupiter's 9.55 × 10⁻⁴.
 
-At the belt's distance, the median is about 65,000 km after a year, a fraction of a pixel at the scales where belts are drawn. Over decades the drift grows, and the app labels belt positions as a model.
+At the belt's distance, the median is about 65,000 km after a year. The live swarm's is about 900 km.
 
 ## What the real orbits show
 
@@ -89,6 +84,6 @@ More Trojans lead Jupiter than trail it, an asymmetry surveys have long noted an
 
 ## Limits
 
-- **Fixed ellipses.** There are no planetary perturbations, so positions drift over years (see above). Resonant structure is in the catalog's elements, not produced by the drawing.
+- **Resonant structure** (the Kirkwood gaps, the Trojan clouds) is in the catalog's elements. The live swarm keeps it, but a few years of simulation can't carve it anew.
 - **A brightness-limited sample.** Smaller asteroids, which are the vast majority, aren't drawn. The Kuiper belt sample is whatever surveys have found and tracked well enough, which favors bodies that come closer to the Sun.
 - **No collisional families or shapes.** Every body is a point.

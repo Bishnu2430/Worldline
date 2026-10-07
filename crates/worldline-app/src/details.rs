@@ -92,8 +92,8 @@ const ADDED_PATH: Detail = detail(
 );
 
 const ADDED_UNFELT: Detail = detail(
-    "The belts and small moons on fixed orbits don't feel it",
-    Kind::Visual,
+    "Small moons on mean orbits feel it only once it could tear them away",
+    Kind::Model,
 );
 
 /// For a real object from the notable-objects catalog, added in the

@@ -39,7 +39,7 @@ Added 2026-10-05, before steps 1.6 and 1.7. Detail follows focus: see [SCOPE.md]
 | # | Step | How you verify it | Status |
 |---|---|---|---|
 | 2.1 | Black holes, neutron stars, white dwarfs, and the notable-objects catalog | Sagittarius A\*, TON 618, M87\* and PSR B1913+16 load with published masses | ✅ |
-| 2.1b | Everything feels everything: the asteroid and Kuiper belts and every small moon become live particles that feel any added body | A black hole dropped near the belt scatters it; with nothing added, the real belt still matches its Kepler orbits | ⬜ |
+| 2.1b | Everything feels everything: the asteroid and Kuiper belts and every small moon become live particles that feel any added body | A black hole flyby kicks the belt as the impulse approximation predicts; with nothing added, belt bodies match JPL to 1 part in 10,000 after a year | ✅ |
 | 2.1c | The galactic center: Sagittarius A\* with the stars that orbit it, placed 8.3 kpc away in its true direction | S2's 16-year orbit, and its relativistic precession of 12′ per orbit as GRAVITY measured | ⬜ |
 | 2.2 | Post-Newtonian binary dynamics with gravitational-wave energy loss | The Hulse–Taylor pulsar's orbital period shrinks at −2.40 × 10⁻¹² s/s | ⬜ |
 | 2.3 | Gravitational waveform plot and audible chirp | The chirp's frequency sweep matches the theoretical formula | ⬜ |

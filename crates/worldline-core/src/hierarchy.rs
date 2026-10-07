@@ -27,6 +27,11 @@
 //!    planets and massive asteroids, each with its own integrator, so a
 //!    comet grazing the Sun doesn't shrink everyone's steps.
 //!
+//! 5. **The swarm**: tens of thousands more massless bodies (the belts,
+//!    small moons torn from their planets) follow the same recorded paths
+//!    with a cheaper integrator of their own, in steps of up to 64 days
+//!    (see `swarm.rs`).
+//!
 //! The top level sees each system as a point mass at its barycenter, which
 //! is exact apart from tiny tidal coupling terms (relative size ~ (r/R)²
 //! times the moons' share of the mass). See `docs/physics/moons.md` and
@@ -40,6 +45,9 @@ use crate::gravity::{
     Gravity, Newtonian, NonGravitational, SynchronousFigure, TesseralField, ZonalField,
 };
 use crate::integrator::{Ias15, Integrator, advance};
+use crate::kepler::drift;
+use crate::mean_elements::MeanElements;
+use crate::swarm::{Bodies, CADENCE, Field, Particle, Swallowed, Swarm};
 use crate::{Body, System};
 
 /// Name of the gravity model inside moon systems, for display.
@@ -70,6 +78,12 @@ pub struct MoonSystem {
     /// Where each small moon is: (group, index within the group).
     slots: Vec<(usize, usize)>,
     integrator: Ias15,
+    /// The small moons' mean orbits, relative to the planet's center, in
+    /// their owner's order, for setting them free when they are torn away
+    /// while not simulated in detail. Set by the owner; empty if unknown.
+    pub small_mean_orbits: Vec<MeanElements>,
+    /// Which small moons are already free (swarm particles now).
+    small_free: Vec<bool>,
 }
 
 /// Small moons integrated together, following the major moons' paths.
@@ -100,7 +114,22 @@ impl MoonSystem {
             groups: Vec::new(),
             slots: Vec::new(),
             integrator: Ias15::new(),
+            small_mean_orbits: Vec::new(),
+            small_free: Vec::new(),
         }
+    }
+
+    /// Whether small moon `index` has been set free (see [`FreedMoon`]).
+    pub fn is_small_moon_free(&self, index: usize) -> bool {
+        self.small_free.get(index).copied().unwrap_or(false)
+    }
+
+    /// Marks small moon `index` as set free, as when loading a save.
+    pub fn mark_small_moon_free(&mut self, index: usize) {
+        if self.small_free.len() <= index {
+            self.small_free.resize(index + 1, false);
+        }
+        self.small_free[index] = true;
     }
 
     /// Adds the GM (m³/s²) of small moons that orbit inside the major moons
@@ -227,7 +256,47 @@ pub struct Hierarchy {
     happened: Vec<Collision>,
     /// Moon systems torn apart since the last [`Self::take_unbound`].
     unbound: Vec<Unbound>,
+    /// The massless swarm (see `swarm.rs`).
+    swarm: Swarm,
+    /// The top level's recorded paths, for the swarm.
+    field: Field,
+    /// Counts changes to the set of top-level bodies, so the swarm knows
+    /// which bodies its recorded paths are of.
+    generation: u64,
+    /// Swarm particles swallowed since the last [`Self::take_swallowed`].
+    swallowed: Vec<Swallowed>,
+    /// Whether to record the top level's paths even with no swarm.
+    recording: bool,
+    /// The top level's recorded state at the end of the last step, and the
+    /// generation and time then: the next step's start, if nothing changed.
+    last_recorded: Option<(u64, f64, Vec<[DVec3; 3]>)>,
+    /// The next swarm label for a freed small moon.
+    next_id: u32,
+    /// Small moons freed since the last [`Self::take_freed_moons`].
+    freed_moons: Vec<FreedMoon>,
 }
+
+/// A small moon set free: torn from its planet by another body's tides,
+/// alone or with its whole moon system (see [`Unbound`]), or left behind
+/// by a planet that was absorbed. It goes on as a swarm particle, under the
+/// label `id`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FreedMoon {
+    /// When, as simulation time in s.
+    pub time: f64,
+    /// Its planet, by name.
+    pub planet: String,
+    /// Its place in the planet's list of small moons.
+    pub index: usize,
+    /// Its label in the swarm.
+    pub id: u32,
+    /// The body whose tides freed it, or that absorbed its planet.
+    pub by: String,
+}
+
+/// Swarm labels the hierarchy gives the small moons it frees start here,
+/// leaving the ones below for its owner.
+pub const FREED_MOON_IDS: u32 = 1 << 31;
 
 /// A planet's moons set free: another body came so close that its tide on
 /// a moon (how differently it pulls on the moon and the planet) passed 1/12
@@ -235,8 +304,8 @@ pub struct Hierarchy {
 /// planet's Hill radius, beyond which no prograde moon stays bound for long
 /// (Domingos, Winter & Yokoyama 2006, *MNRAS* 373, 1227). A separate frame
 /// for the moons no longer works, so its major moons join the top level,
-/// where everything pulls on everything; the small moons following them
-/// are dropped.
+/// where everything pulls on everything, and its small moons go on as swarm
+/// particles (see [`FreedMoon`]).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Unbound {
     /// When, as simulation time in s.
@@ -314,7 +383,223 @@ impl Hierarchy {
             followers: Vec::new(),
             happened: Vec::new(),
             unbound: Vec::new(),
+            swarm: Swarm::new(0.0),
+            field: Field::default(),
+            generation: 0,
+            swallowed: Vec::new(),
+            recording: false,
+            last_recorded: None,
+            next_id: FREED_MOON_IDS,
+            freed_moons: Vec::new(),
         }
+    }
+
+    /// The small moons set free since the last call, oldest first.
+    pub fn take_freed_moons(&mut self) -> Vec<FreedMoon> {
+        std::mem::take(&mut self.freed_moons)
+    }
+
+    /// Sets the next label for freed small moons, as when loading a save.
+    pub fn set_next_freed_id(&mut self, id: u32) {
+        self.next_id = id.max(FREED_MOON_IDS);
+    }
+
+    /// Small moon `index` of moon system `k`, in the top level's frame:
+    /// as simulated, if its system is in detail; otherwise from its mean
+    /// orbit around the planet.
+    fn small_moon_state(&self, k: usize, index: usize) -> Option<(DVec3, DVec3)> {
+        let moons = &self.moon_systems[k];
+        let host = &self.top.bodies[moons.host];
+        if index < moons.small_moon_count() {
+            let b = moons.small_moon(index);
+            return Some((host.position + b.position, host.velocity + b.velocity));
+        }
+        let orbit = moons.small_mean_orbits.get(index)?;
+        let (r, v) = orbit.state_at(self.top.time());
+        let planet = &moons.system.bodies[0];
+        Some((
+            host.position + planet.position + r,
+            host.velocity + planet.velocity + v,
+        ))
+    }
+
+    /// Frees small moons `indices` of moon system `k` into the swarm,
+    /// reporting each.
+    fn free_small_moons(&mut self, k: usize, indices: &[usize], by: &str) {
+        let planet = self.moon_systems[k].system.bodies[0].name.clone();
+        let mut particles = Vec::new();
+        for &index in indices {
+            if self.moon_systems[k].is_small_moon_free(index) {
+                continue;
+            }
+            let Some((position, velocity)) = self.small_moon_state(k, index) else {
+                continue;
+            };
+            let id = self.next_id;
+            self.next_id += 1;
+            self.moon_systems[k].mark_small_moon_free(index);
+            particles.push(Particle {
+                position,
+                velocity,
+                id,
+            });
+            self.freed_moons.push(FreedMoon {
+                time: self.top.time(),
+                planet: planet.clone(),
+                index,
+                id,
+                by: by.to_string(),
+            });
+        }
+        if !particles.is_empty() {
+            self.add_particles(particles);
+        }
+    }
+
+    /// Dissolves moon system `k` as if `by` had torn it apart (see
+    /// [`Unbound`]), without reporting it: for loading a save made after
+    /// that happened. Returns the freed major moons' names.
+    pub fn dissolve_system(&mut self, k: usize) -> Vec<String> {
+        let freed = self.dissolve(k, "");
+        self.freed_moons.clear();
+        freed
+    }
+
+    /// Advances everything by `duration` seconds, recording the top
+    /// level's paths, and returns them: for carrying particles along them
+    /// (forward or back) outside the hierarchy.
+    pub fn record_paths(&mut self, duration: f64) -> Field {
+        self.recording = true;
+        self.advance(duration);
+        self.recording = false;
+        std::mem::take(&mut self.field)
+    }
+
+    /// The swarm, as of its own clock (up to [`CADENCE`] behind the top
+    /// level's; see [`Self::swarm_positions`]).
+    pub fn swarm(&self) -> &Swarm {
+        &self.swarm
+    }
+
+    /// Adds particles to the swarm, given in the top level's frame at the
+    /// current time. The swarm first catches up to now.
+    pub fn add_particles(&mut self, particles: impl IntoIterator<Item = Particle>) {
+        self.sync_swarm();
+        if self.swarm.is_empty() {
+            self.swarm.set_time(self.time());
+        }
+        self.swarm.add(particles);
+        let gms: Vec<f64> = self.top.bodies.iter().map(|b| b.gm).collect();
+        let states: Vec<(DVec3, DVec3)> = self
+            .top
+            .bodies
+            .iter()
+            .map(|b| (b.position, b.velocity))
+            .collect();
+        self.swarm.assign_centers(self.generation, &gms, &states);
+    }
+
+    /// Removes the swarm particles with these labels.
+    pub fn remove_particles(&mut self, ids: &[u32]) {
+        self.swarm.remove(ids);
+    }
+
+    /// Replaces the swarm, as when loading a save: its particles at its
+    /// clock, which must not be ahead of the top level's. Recorded paths
+    /// start afresh, so the swarm is set to the top level's time.
+    pub fn set_swarm(&mut self, swarm: Swarm) {
+        self.swarm = swarm;
+        self.field = Field::default();
+        self.add_particles([]);
+    }
+
+    /// Brings the swarm up to the top level's time.
+    pub fn sync_swarm(&mut self) {
+        let now = self.time();
+        let swallowed = self.swarm.advance(&mut self.field, now);
+        self.swallowed.extend(swallowed);
+    }
+
+    /// The swarm particles swallowed since the last call, oldest first.
+    pub fn take_swallowed(&mut self) -> Vec<Swallowed> {
+        std::mem::take(&mut self.swallowed)
+    }
+
+    /// Where the swarm's particles are now, for drawing: each carried from
+    /// the swarm's clock to the top level's along its two-body orbit around
+    /// its center. Within the swarm's step of at most 64 days, that leaves
+    /// out only the other bodies' pulls.
+    pub fn swarm_positions(&self, out: &mut Vec<DVec3>) {
+        out.clear();
+        let particles = &self.swarm.particles;
+        let dt = self.time() - self.swarm.time();
+        let raw = |out: &mut Vec<DVec3>| out.extend(particles.iter().map(|p| p.position));
+        let Some((generation, centers)) = self.swarm.centers() else {
+            return raw(out);
+        };
+        // The centers' states at the swarm's time, and where each center
+        // is among the bodies now (found by name if the bodies have changed
+        // since).
+        let bodies = &self.top.bodies;
+        let (then, now): (Vec<(DVec3, DVec3)>, Vec<Option<usize>>) = if dt <= 0.0 {
+            return raw(out);
+        } else {
+            let Some(then) = self.field.states_of(generation, self.swarm.time()) else {
+                return raw(out);
+            };
+            let now = if generation == self.generation {
+                (0..then.len()).map(Some).collect()
+            } else {
+                let Some(names) = self.field.names_of(generation) else {
+                    return raw(out);
+                };
+                names
+                    .iter()
+                    .map(|name| bodies.iter().position(|b| &b.name == name))
+                    .collect()
+            };
+            (then, now)
+        };
+        let place = |(p, &c): (&Particle, &u32)| {
+            let c = c as usize;
+            match (then.get(c), now.get(c).copied().flatten()) {
+                (Some(&(at, moving)), Some(k)) => {
+                    let center = &bodies[k];
+                    let carried = drift(p.position - at, p.velocity - moving, center.gm, dt);
+                    center.position + carried.position
+                }
+                _ => p.position,
+            }
+        };
+        let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
+        let chunk = particles.len().div_ceil(threads).max(512);
+        std::thread::scope(|scope| {
+            let handles: Vec<_> = particles
+                .chunks(chunk)
+                .zip(centers.chunks(chunk))
+                .map(|(ps, cs)| {
+                    scope.spawn(move || ps.iter().zip(cs).map(place).collect::<Vec<_>>())
+                })
+                .collect();
+            for handle in handles {
+                out.extend(handle.join().expect("a drawing thread finished"));
+            }
+        });
+    }
+
+    /// Every top-level body's position, velocity and acceleration, for the
+    /// swarm's recorded paths. Newtonian accelerations: they only shape the
+    /// interpolation between the recorded positions and velocities, where
+    /// relativity's 10⁻⁸ makes no difference.
+    fn field_states(&self) -> Vec<[DVec3; 3]> {
+        let mut accelerations = vec![DVec3::ZERO; self.top.bodies.len()];
+        Newtonian.accelerations(self.top.time(), &self.top.bodies, &mut accelerations);
+        self.top
+            .bodies
+            .iter()
+            .zip(accelerations)
+            .map(|(b, a)| [b.position, b.velocity, a])
+            .collect()
     }
 
     /// The collisions since the last call, oldest first.
@@ -352,6 +637,7 @@ impl Hierarchy {
         self.top.bodies.push(body);
         // The integrator's memory of past steps no longer fits.
         self.integrator = Ias15::new();
+        self.generation += 1;
         self.top.bodies.len() - 1
     }
 
@@ -368,6 +654,7 @@ impl Hierarchy {
             }
         }
         self.integrator = Ias15::new();
+        self.generation += 1;
     }
 
     /// Removes follower `index`.
@@ -437,6 +724,11 @@ impl Hierarchy {
         }
         self.free_torn_moons();
         let t0 = self.top.time();
+        let swarm_start =
+            (self.recording || !self.swarm.is_empty()).then(|| match self.last_recorded.take() {
+                Some((g, time, states)) if g == self.generation && time == t0 => states,
+                _ => self.field_states(),
+            });
         let before: Vec<(DVec3, DVec3)> = self
             .top
             .bodies
@@ -568,8 +860,26 @@ impl Hierarchy {
                 group.system.set_time(t1);
             }
         }
+        if let Some(start) = swarm_start {
+            let end = self.field_states();
+            self.last_recorded = Some((self.generation, t1, end.clone()));
+            let bodies = &self.top.bodies;
+            self.field.record(
+                self.generation,
+                || Bodies {
+                    names: bodies.iter().map(|b| b.name.clone()).collect(),
+                    gms: bodies.iter().map(|b| b.gm).collect(),
+                    radii: bodies.iter().map(|b| b.radius).collect(),
+                },
+                (t0, start),
+                (t1, end),
+            );
+        }
         if self.collisions {
             self.collide(&before, t1 - t0);
+        }
+        if !self.swarm.is_empty() && self.top.time() - self.swarm.time() >= CADENCE {
+            self.sync_swarm();
         }
         taken
     }
@@ -625,8 +935,9 @@ impl Hierarchy {
         // (the two JPL solutions differ by under 10⁻⁴), so the momentum the
         // top level carried for the system is exactly what they carry.
         let dissolved_system = self.moon_systems.iter().position(|m| m.host == a);
+        let by = self.top.bodies[s].name.clone();
         let freed = match dissolved_system {
-            Some(k) => self.dissolve(k),
+            Some(k) => self.dissolve(k, &by),
             None => Vec::new(),
         };
         let absorbed = self.top.bodies[a].clone();
@@ -688,8 +999,15 @@ impl Hierarchy {
     /// state, re-centered on the system's own barycenter, with GMs scaled
     /// to the top level's figure for the system (the two JPL solutions
     /// differ by under 10⁻⁴), so they carry exactly the momentum the host
-    /// did. Its small moons are dropped. Returns the freed moons' names.
-    fn dissolve(&mut self, k: usize) -> Vec<String> {
+    /// did. Its small moons go on as swarm particles, freed by `by`.
+    /// Returns the freed major moons' names.
+    fn dissolve(&mut self, k: usize, by: &str) -> Vec<String> {
+        let count = {
+            let moons = &self.moon_systems[k];
+            moons.small_moon_count().max(moons.small_mean_orbits.len())
+        };
+        let all: Vec<usize> = (0..count).collect();
+        self.free_small_moons(k, &all, by);
         let moons = self.moon_systems.remove(k);
         let host = self.top.bodies[moons.host].clone();
         let scale = host.gm / moons.system.total_gm();
@@ -711,6 +1029,7 @@ impl Hierarchy {
             }
         }
         self.integrator = Ias15::new();
+        self.generation += 1;
         freed
     }
 
@@ -789,7 +1108,7 @@ impl Hierarchy {
         });
         if let Some((k, by)) = torn {
             let planet = self.moon_systems[k].system.bodies[0].name.clone();
-            let freed = self.dissolve(k);
+            let freed = self.dissolve(k, &by);
             self.unbound.push(Unbound {
                 time: self.top.time(),
                 planet,
@@ -798,6 +1117,96 @@ impl Hierarchy {
                 freed,
             });
             // Any others, at the next step.
+            return;
+        }
+        self.free_torn_small_moons();
+    }
+
+    /// Frees any small moon another body has come close enough to tear
+    /// from its planet, by the same test as for the major moons (see
+    /// [`Unbound`]). The body the planet itself orbits doesn't count: the
+    /// small moons' mean orbits already include its pull (the Sun's tide on
+    /// Jupiter's farthest moons approaches the threshold, and they stay).
+    fn free_torn_small_moons(&mut self) {
+        let mut torn: Vec<(usize, Vec<usize>, String)> = Vec::new();
+        for (k, moons) in self.moon_systems.iter().enumerate() {
+            let count = moons.small_moon_count().max(moons.small_mean_orbits.len());
+            if count == 0 {
+                continue;
+            }
+            let host = &self.top.bodies[moons.host];
+            let planet = &moons.system.bodies[0];
+            let at_planet = host.position + planet.position;
+            // The body the planet orbits: the more massive one pulling on
+            // it hardest.
+            let primary = self
+                .top
+                .bodies
+                .iter()
+                .enumerate()
+                .filter(|(i, b)| *i != moons.host && b.gm > host.gm)
+                .max_by(|a, b| {
+                    let pull = |x: &Body| x.gm / (x.position - host.position).length_squared();
+                    pull(a.1).total_cmp(&pull(b.1))
+                })
+                .map(|(i, _)| i);
+            let perturbers: Vec<&Body> = self
+                .top
+                .bodies
+                .iter()
+                .enumerate()
+                .filter(|(i, b)| *i != moons.host && Some(*i) != primary && b.gm > 0.0)
+                .map(|(_, b)| b)
+                .collect();
+            // A body can only tear a moon if its tide could beat the
+            // planet's grip at the farthest moon's distance a: the tide
+            // (the difference of its pulls on moon and planet) is at most
+            // twice its pull at distance d − a.
+            let reach = moons
+                .small_mean_orbits
+                .iter()
+                .map(|o| o.a * (1.0 + o.e))
+                .fold(0.0, f64::max);
+            let grip = planet.gm / (reach * reach) / 12.0;
+            let perturbers: Vec<&Body> = perturbers
+                .into_iter()
+                .filter(|b| {
+                    let gap = (b.position - at_planet).length() - reach;
+                    gap <= 0.0 || 2.0 * b.gm / (gap * gap) > grip
+                })
+                .collect();
+            if perturbers.is_empty() || reach == 0.0 {
+                continue;
+            }
+            let mut indices = Vec::new();
+            let mut by = String::new();
+            for index in 0..count {
+                if moons.is_small_moon_free(index) {
+                    continue;
+                }
+                let Some((at_moon, _)) = self.small_moon_state(k, index) else {
+                    continue;
+                };
+                let a = (at_moon - at_planet).length();
+                let grip = planet.gm / (a * a) / 12.0;
+                for b in &perturbers {
+                    let pull = |x: DVec3| {
+                        let r = b.position - x;
+                        r * (b.gm / r.length().powi(3))
+                    };
+                    if (pull(at_moon) - pull(at_planet)).length() > grip {
+                        indices.push(index);
+                        by.clone_from(&b.name);
+                        break;
+                    }
+                }
+            }
+            if !indices.is_empty() {
+                torn.push((k, indices, by));
+            }
+        }
+        for (k, indices, by) in torn {
+            self.free_small_moons(k, &indices, &by);
         }
     }
 

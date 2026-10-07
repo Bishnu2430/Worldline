@@ -299,17 +299,18 @@ pub fn draw_under(
             options.labels.then_some(attention.pointer).flatten(),
         );
     }
-    if camera.distance >= BELT_MIN_VIEW && sun_here {
+    if camera.distance >= BELT_MIN_VIEW {
         let sun = simulation.bodies[0].position;
         // The Sun in focus: its wind's spiral field.
-        if options.solar_wind && focus == 0 {
+        if options.solar_wind && focus == 0 && sun_here {
             draw_solar_wind(painter, camera, viewport, simulation);
         }
-        if options.dust {
+        if options.dust && sun_here {
             draw_dust(painter, camera, viewport, sun);
         }
+        // Live particles: they stay, whatever happens to the Sun.
         if options.belts {
-            draw_belts(painter, camera, viewport, simulation, sun);
+            draw_belts(painter, camera, viewport, simulation);
         }
     }
 
@@ -580,19 +581,13 @@ fn belt_color(kind: BeltKind) -> Color32 {
 }
 
 /// Draws every belt body as a tiny square, all in one mesh.
-fn draw_belts(
-    painter: &Painter,
-    camera: &Camera,
-    viewport: Rect,
-    simulation: &Simulation,
-    sun: DVec3,
-) {
+fn draw_belts(painter: &Painter, camera: &Camera, viewport: Rect, simulation: &Simulation) {
     let mut mesh = Mesh::default();
     let size = vec2(BELT_MARKER, BELT_MARKER);
     for belt in &simulation.belts {
         let color = belt_color(belt.kind);
-        for &offset in &belt.positions {
-            if let Some(p) = screen(camera, viewport, sun + offset)
+        for &position in &belt.positions {
+            if let Some(p) = screen(camera, viewport, position)
                 && viewport.contains(p.position)
             {
                 mesh.add_colored_rect(Rect::from_center_size(p.position, size), color);

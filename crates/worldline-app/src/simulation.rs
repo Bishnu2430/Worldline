@@ -7,15 +7,15 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use worldline_core::constants::DAY;
-use worldline_core::constants::GM_SUN;
 use worldline_core::gravity::Gravity;
-use worldline_core::hierarchy::{Collision, Hierarchy, MOON_SYSTEM_GRAVITY};
+use worldline_core::hierarchy::{Collision, FREED_MOON_IDS, Hierarchy, MOON_SYSTEM_GRAVITY};
 use worldline_core::integrator::{Ias15, Integrator};
+use worldline_core::kepler::drift;
 use worldline_core::magnetosphere::Dipole;
-use worldline_core::orbit::KeplerOrbit;
 use worldline_core::regime::Regime;
 use worldline_core::rotation::RotationModel;
 use worldline_core::solar_wind::{Heliosphere, ParkerSpiral};
+use worldline_core::swarm::{Particle, Swarm};
 use worldline_core::{Body, DVec3};
 use worldline_data::{
     BeltKind, ObjectKind, RadiationBelt, SmallBodyKind, SmallMoon, VoyagerCrossing,
@@ -95,16 +95,29 @@ impl Trail {
 
 /// One belt of asteroids or Kuiper belt objects, placed for drawing.
 ///
-/// Its bodies are massless and far too many to integrate in real time, so
-/// each rides a fixed ellipse around the Sun from JPL's elements. Over a
-/// year they stray from their true paths by about a ten-thousandth of their
-/// distance (see `docs/physics/belts.md`).
+/// Its bodies are particles of the hierarchy's swarm: live, feeling every
+/// massive body, including any added (see `docs/physics/swarm.md`).
 pub struct BeltCloud {
     /// Which belt.
     pub kind: BeltKind,
-    orbits: Vec<KeplerOrbit>,
-    /// Each body's position relative to the Sun at the last update, in m.
+    /// Its bodies' swarm labels: from here up to the next belt's first.
+    first_id: u32,
+    /// Where its bodies are now (those not swallowed), in m.
     pub positions: Vec<DVec3>,
+}
+
+/// A small moon torn from its planet: a swarm particle now.
+#[derive(Debug, Clone, PartialEq)]
+struct FreedMoon {
+    /// Its swarm label.
+    id: u32,
+    name: String,
+    /// Its planet's name.
+    planet: String,
+    /// Its place in its planet's list of small moons.
+    index: usize,
+    gm: f64,
+    radius: f64,
 }
 
 /// Where a body in the flat list lives in the hierarchy.
@@ -118,6 +131,8 @@ enum Source {
     Small { system: usize, index: usize },
     /// A massless body following the top level (a comet, a small asteroid).
     Follower(usize),
+    /// A small moon set free: a swarm particle, by its label.
+    Particle(u32),
 }
 
 /// Which part of the simulation computes a body's motion.
@@ -134,6 +149,8 @@ pub enum Computed {
     /// A massless body following the top level; `forces` if it feels
     /// non-gravitational forces too.
     Follower { forces: bool },
+    /// A massless particle of the swarm.
+    Swarm,
 }
 
 /// Whether a body can be removed from the simulation.
@@ -185,6 +202,13 @@ pub struct Simulation {
     pub belts: Vec<BeltCloud>,
     /// The simulation time the belts were last placed at.
     belts_time: f64,
+    /// Small moons torn from their planets, in label order.
+    freed: Vec<FreedMoon>,
+    /// Where each swarm particle is now, in the swarm's order.
+    swarm_positions: Vec<DVec3>,
+    /// What happened to the swarm since the app last looked: sentences for
+    /// the top bar.
+    pub notices: Vec<String>,
     /// The solar wind: 2025's average wind at Earth, on Parker's spiral.
     pub wind: ParkerSpiral,
     /// The heliosphere's boundaries, through the Voyager crossings.
@@ -210,7 +234,9 @@ impl Simulation {
     /// following along.
     pub fn solar_system(speed: f64) -> Self {
         let epoch_jd_tdb = worldline_data::solar_system().epoch_jd_tdb;
-        let hierarchy = worldline_data::full_solar_system();
+        let mut hierarchy = worldline_data::full_solar_system();
+        // The belts, as live particles labeled 0, 1, 2, … belt by belt.
+        hierarchy.add_particles(worldline_data::belt_particles());
         let all_small = worldline_data::small_moons();
         let small: Vec<Vec<SmallMoon>> = hierarchy
             .moon_systems
@@ -240,17 +266,20 @@ impl Simulation {
             added: Vec::new(),
             belts: worldline_data::belts()
                 .into_iter()
-                .map(|belt| BeltCloud {
-                    kind: belt.kind,
-                    positions: vec![DVec3::ZERO; belt.orbits.len()],
-                    orbits: belt
-                        .orbits
-                        .iter()
-                        .map(|elements| KeplerOrbit::new(elements, GM_SUN))
-                        .collect(),
+                .scan(0, |first, belt| {
+                    let cloud = BeltCloud {
+                        kind: belt.kind,
+                        first_id: *first,
+                        positions: Vec::new(),
+                    };
+                    *first += belt.orbits.len() as u32;
+                    Some(cloud)
                 })
                 .collect(),
             belts_time: f64::NAN,
+            freed: Vec::new(),
+            swarm_positions: Vec::new(),
+            notices: Vec::new(),
             wind: worldline_data::parker_spiral(),
             heliosphere: worldline_data::heliosphere(),
             crossings: worldline_data::voyager_crossings(),
@@ -260,6 +289,15 @@ impl Simulation {
             events: Vec::new(),
             hierarchy,
         };
+        // Their mean orbits, for freeing them if they are torn away.
+        for (moons, small) in simulation
+            .hierarchy
+            .moon_systems
+            .iter_mut()
+            .zip(&simulation.small)
+        {
+            moons.small_mean_orbits = small.iter().map(|m| m.orbit.clone()).collect();
+        }
         simulation.reindex();
         simulation.refresh();
         simulation.refresh_small_moons();
@@ -281,9 +319,15 @@ impl Simulation {
                 .extend((1..moons.system.bodies.len()).map(|body| Source::Moon { system, body }));
         }
         for (system, moons) in self.small.iter().enumerate() {
-            sources.extend((0..moons.len()).map(|index| Source::Small { system, index }));
+            let free = |index: &usize| hierarchy.moon_systems[system].is_small_moon_free(*index);
+            sources.extend(
+                (0..moons.len())
+                    .filter(|index| !free(index))
+                    .map(|index| Source::Small { system, index }),
+            );
         }
         sources.extend((0..hierarchy.follower_count()).map(Source::Follower));
+        sources.extend(self.freed.iter().map(|m| Source::Particle(m.id)));
         let bodies: Vec<Body> = sources
             .iter()
             .map(|source| match *source {
@@ -301,6 +345,14 @@ impl Simulation {
                     )
                 }
                 Source::Follower(i) => hierarchy.follower(i).clone(),
+                Source::Particle(id) => {
+                    let moon = self
+                        .freed
+                        .iter()
+                        .find(|m| m.id == id)
+                        .expect("a freed moon");
+                    Body::new(&moon.name, moon.gm, moon.radius)
+                }
             })
             .collect();
         let catalog = worldline_data::small_bodies();
@@ -428,7 +480,9 @@ impl Simulation {
     pub fn removal(&self, index: usize) -> Removal {
         match self.sources[index] {
             Source::Top(0) => Removal::Sun,
-            Source::Top(_) | Source::Follower(_) => Removal::Allowed { moons: 0 },
+            Source::Top(_) | Source::Follower(_) | Source::Particle(_) => {
+                Removal::Allowed { moons: 0 }
+            }
             Source::Moon { system, body: 0 } => Removal::Allowed {
                 moons: self.hierarchy.moon_systems[system].system.bodies.len() - 1
                     + self.small[system].len(),
@@ -457,6 +511,10 @@ impl Simulation {
                 };
             }
             Source::Follower(i) => self.hierarchy.remove_follower(i),
+            Source::Particle(id) => {
+                self.hierarchy.remove_particles(&[id]);
+                self.freed.retain(|m| m.id != id);
+            }
             Source::Small { .. } => return,
         }
         self.added.retain(|(n, _)| n != &name);
@@ -615,9 +673,71 @@ impl Simulation {
         if taken >= remaining {
             self.hierarchy.set_time(target);
         }
+        // Small moons freed (before their systems' lists go): name them.
+        let freed = self.hierarchy.take_freed_moons();
+        if !freed.is_empty() {
+            for f in &freed {
+                let Some(moon) = self
+                    .small
+                    .iter()
+                    .flatten()
+                    .filter(|m| m.parent == f.planet)
+                    .nth(f.index)
+                else {
+                    continue;
+                };
+                self.freed.push(FreedMoon {
+                    id: f.id,
+                    name: moon.name.clone(),
+                    planet: f.planet.clone(),
+                    index: f.index,
+                    gm: moon.gm.unwrap_or(0.0),
+                    radius: moon.radius.unwrap_or(0.0),
+                });
+            }
+            let (first, by) = (&freed[0], &freed[0].by);
+            if !by.is_empty() {
+                self.notices.push(match freed.len() {
+                    1 => format!(
+                        "{by}'s tides pulled {} away from {}",
+                        self.freed[self.freed.len() - 1].name,
+                        first.planet
+                    ),
+                    n => format!(
+                        "{by}'s tides pulled {n} small moons away from {}",
+                        first.planet
+                    ),
+                });
+            }
+            self.reindex();
+        }
+        for swallowed in self.hierarchy.take_swallowed() {
+            let moons: Vec<String> = self
+                .freed
+                .iter()
+                .filter(|m| swallowed.ids.contains(&m.id))
+                .map(|m| m.name.clone())
+                .collect();
+            let others = swallowed.ids.len() - moons.len();
+            let mut what = Vec::new();
+            match others {
+                0 => {}
+                1 => what.push("a belt body".to_string()),
+                n => what.push(format!("{n} belt bodies")),
+            }
+            what.extend(moons);
+            self.notices
+                .push(format!("{} swallowed {}", swallowed.by, what.join(", ")));
+            self.freed.retain(|m| !swallowed.ids.contains(&m.id));
+            self.reindex();
+        }
         for unbound in self.hierarchy.take_unbound() {
-            // The freed moons are top-level bodies now; the small moons
-            // that followed them are gone.
+            self.notices.push(format!(
+                "{}'s tides tore {}'s major moons away",
+                unbound.by, unbound.planet
+            ));
+            // The freed moons are top-level bodies now, and its small moons
+            // swarm particles.
             self.small.remove(unbound.system);
             self.detailed = match self.detailed {
                 Some(d) if d == unbound.system => None,
@@ -669,6 +789,7 @@ impl Simulation {
                 Computed::SmallMoonInDetail
             }
             Source::Small { .. } => Computed::SmallMoonOnMeanOrbit,
+            Source::Particle(_) => Computed::Swarm,
             Source::Follower(_) => Computed::Follower {
                 forces: self.small_bodies[index].is_some_and(|s| s.1),
             },
@@ -735,7 +856,7 @@ impl Simulation {
                     (b.position, b.velocity)
                 }
                 Source::Moon { system, body } => self.hierarchy.absolute(system, body),
-                Source::Small { .. } => continue,
+                Source::Small { .. } | Source::Particle(_) => continue,
                 Source::Follower(i) => {
                     let b = self.hierarchy.follower(i);
                     (b.position, b.velocity)
@@ -759,28 +880,34 @@ impl Simulation {
     fn refresh_small_moons(&mut self) {
         let time = self.time();
         if time != self.belts_time {
-            // 28,000 Kepler's equations take about 3.4 ms on one core;
-            // they are independent, so they are shared among all cores.
-            let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
-            for belt in &mut self.belts {
-                let chunk = belt.positions.len().div_ceil(threads).max(1);
-                std::thread::scope(|scope| {
-                    for (positions, orbits) in belt
-                        .positions
-                        .chunks_mut(chunk)
-                        .zip(belt.orbits.chunks(chunk))
-                    {
-                        scope.spawn(move || {
-                            for (position, orbit) in positions.iter_mut().zip(orbits) {
-                                *position = orbit.position_at(time);
-                            }
-                        });
-                    }
-                });
+            // The swarm's particles, carried from its clock to now on their
+            // two-body orbits (shared among all cores), sorted out by label:
+            // the belts in their ranges, then the freed moons.
+            self.hierarchy.swarm_positions(&mut self.swarm_positions);
+            let particles = &self.hierarchy.swarm().particles;
+            let mut next = 0;
+            for k in 0..self.belts.len() {
+                let end = self.belts.get(k + 1).map_or(FREED_MOON_IDS, |b| b.first_id);
+                let start = next;
+                while next < particles.len() && particles[next].id < end {
+                    next += 1;
+                }
+                self.belts[k].positions.clear();
+                self.belts[k]
+                    .positions
+                    .extend_from_slice(&self.swarm_positions[start..next]);
             }
             self.belts_time = time;
         }
+        let particles = &self.hierarchy.swarm().particles;
         for (body, source) in self.bodies.iter_mut().zip(&self.sources) {
+            if let Source::Particle(id) = *source {
+                if let Ok(k) = particles.binary_search_by_key(&id, |p| p.id) {
+                    body.position = self.swarm_positions[k];
+                    body.velocity = particles[k].velocity;
+                }
+                continue;
+            }
             let Source::Small { system, index } = *source else {
                 continue;
             };
@@ -800,6 +927,7 @@ impl Simulation {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use worldline_core::constants::GM_SUN;
 
     const GENEROUS: Duration = Duration::from_secs(10);
 
@@ -898,24 +1026,25 @@ mod tests {
     }
 
     #[test]
-    fn belts_are_placed_where_their_orbits_say() {
-        // Every body lies between its orbit's perihelion a(1 − e) and
-        // aphelion a(1 + e) from the Sun, and a day later they have all
-        // moved on.
+    fn the_belts_are_live_particles() {
+        // Every belt body is there, as a swarm particle, and a day later
+        // they have all moved on. (How close they start to JPL's positions
+        // is checked in worldline-data's validation_belts.)
         let mut sim = Simulation::solar_system(DAY);
         let total: usize = sim.belts.iter().map(|b| b.positions.len()).sum();
         assert_eq!(total, 28_331);
-        for (cloud, data) in sim.belts.iter().zip(worldline_data::belts()) {
-            for (position, orbit) in cloud.positions.iter().zip(&data.orbits) {
-                let r = position.length();
-                let (q, big_q) = (orbit.a * (1.0 - orbit.e), orbit.a * (1.0 + orbit.e));
-                // Rounding: positions are good to about 10⁻¹⁵ of a.
-                assert!(q * (1.0 - 1e-12) <= r && r <= big_q * (1.0 + 1e-12));
-            }
-        }
-        let before = sim.belts[0].positions[0];
+        assert_eq!(sim.hierarchy.swarm().len(), 28_331);
+        assert!(
+            sim.belts
+                .iter()
+                .flat_map(|b| &b.positions)
+                .all(|p| p.is_finite())
+        );
+        let before: Vec<DVec3> = sim.belts.iter().map(|b| b.positions[0]).collect();
         sim.update(1.0, GENEROUS);
-        assert_ne!(sim.belts[0].positions[0], before);
+        for (belt, before) in sim.belts.iter().zip(before) {
+            assert_ne!(belt.positions[0], before);
+        }
     }
 
     /// A Jupiter-mass planet 1.5 AU out, on a circular orbit.
@@ -957,7 +1086,7 @@ mod tests {
         sim.update(1.0, GENEROUS);
         let text = sim.save();
         // Every number loads back bit for bit.
-        let loaded = Simulation::load(&text, DAY).unwrap();
+        let mut loaded = Simulation::load(&text, DAY).unwrap();
         assert_eq!(loaded.save(), text);
         assert!(loaded.index_of("New planet 1").is_some() && loaded.index_of("Mars").is_none());
         // Two loads of the same save run identically.
@@ -991,7 +1120,7 @@ mod tests {
         assert!(!sim.has_sun() && sim.light_source().is_none());
         assert!(sim.entry(0).is_some_and(|e| e.key == "object:Gaia BH1"));
         let text = sim.save();
-        let loaded = Simulation::load(&text, DAY).unwrap();
+        let mut loaded = Simulation::load(&text, DAY).unwrap();
         assert_eq!(loaded.save(), text);
         assert!(!loaded.has_sun());
     }
@@ -1024,8 +1153,9 @@ mod tests {
     fn trails_cover_about_one_orbit() {
         // After more than a year, Earth's trail should reach back about one
         // orbit: its oldest point lies close to where Earth is now.
+        // Run without a time budget, so a busy machine can't cut it short.
         let mut sim = Simulation::solar_system(worldline_core::constants::JULIAN_YEAR);
-        sim.update(1.2, GENEROUS);
+        sim.advance_by(1.2 * worldline_core::constants::JULIAN_YEAR);
         let earth = &sim.trails[3];
         let oldest = earth.points().next().unwrap();
         let now = sim.bodies[3].position;

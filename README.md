@@ -74,6 +74,8 @@
 | Sagittarius A\*'s size on the sky, from its mass and distance (stellar orbits) | 4.8 +1.4/−0.7 μas (Event Horizon Telescope image) | ✅ passing, 5.12 μas |
 | Hulse–Taylor pulsar's orbit turning, simulated | 4.226585°/yr measured | ✅ passing, 4.226561°/yr |
 | A black hole of 10 Suns falls into the Sun | survives as 11 Suns with a 32.5 km horizon, momentum kept | ✅ passing, to 4 × 10⁻¹⁷ |
+| The belts as live particles vs. NASA JPL, after a year (24 sample bodies) | within 1 part in 10,000 | ✅ passing, median 2.3 × 10⁻⁶ (fixed ellipses: 1.6 × 10⁻⁴) |
+| A black hole of 10 Suns streaks past the asteroid belt at 0.1c | kicks match the impulse approximation 2GM/(bV), within 1.3 × 10⁻³ | ✅ passing, within 9.1 × 10⁻⁴ |
 | Light bending at the Sun's edge | 1.75″ | planned |
 | Hulse–Taylor binary pulsar orbital decay | −2.40 × 10⁻¹² s/s | planned |
 | Innermost stable orbit, photon sphere and shadow of a non-spinning black hole | 6, 3 and √27 GM/c² | planned |
@@ -131,6 +133,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · textures from Solar Syste
 - [The desktop app](docs/app.md): frame loop, double-precision 3D view, camera, trails and the sandbox tools
 - [Collisions and the model indicator](docs/physics/collisions.md): merging with momentum kept, catching fast impacts, and which physics applies where
 - [Black holes, neutron stars and white dwarfs](docs/physics/compact-objects.md): the notable-objects catalog, event horizons, and what happens when they meet the solar system
+- [The swarm](docs/physics/swarm.md): the belts and freed small moons as live particles that feel every massive body
 - [Rendering globes](docs/rendering.md): GPU globes, precision across 12 orders of magnitude, lighting, atmospheres
 - [Saturn's rings](docs/physics/saturn-rings.md): Cassini's measured profile, transparency, shadows
 - [Moons](docs/physics/moons.md): hierarchical integration, planets' gravity fields, and how each residual against JPL was tracked down
