@@ -45,6 +45,10 @@ pub const GM_SUN: f64 = 1.327_124_4e20;
 /// Nominal solar radius, m. IAU 2015 Resolution B3.
 pub const SOLAR_RADIUS: f64 = 6.957e8;
 
+/// Nominal solar luminosity, W. IAU 2015 Resolution B3: 4π (1 AU)² times the
+/// nominal total solar irradiance, 1361 W/m², rounded to four digits.
+pub const SOLAR_LUMINOSITY: f64 = 3.828e26;
+
 /// Solar mass, kg, derived as GM☉ / G. Inherits G's 22 ppm uncertainty.
 pub const SOLAR_MASS: f64 = GM_SUN / G;
 

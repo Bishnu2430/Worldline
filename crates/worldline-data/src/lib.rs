@@ -5,6 +5,7 @@
 
 mod atmosphere;
 mod belts;
+mod heliosphere;
 mod kernel;
 mod moons;
 mod rings;
@@ -15,6 +16,10 @@ mod snapshot;
 
 pub use atmosphere::{Atmosphere, atmosphere};
 pub use belts::{Belt, BeltKind, belts};
+pub use heliosphere::{
+    Boundary, SolarWindHour, VoyagerCrossing, heliosphere, parker_spiral, solar_wind_2025,
+    voyager_crossings,
+};
 pub use moons::{
     MoonSystemData, moon_figure, moon_systems, parse_moons, ring_mass, solar_system_with_moons,
     tesseral_harmonics, zonal_harmonics,
