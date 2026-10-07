@@ -66,6 +66,9 @@
 | Magnetopause, hour by hour through 2025, vs. Shue et al.'s fit to spacecraft crossings | within their 1.23 Earth radii scatter | ✅ passing, RMS difference 0.26 Earth radii |
 | A Jupiter-mass planet dropped at 1.5 AU: energy and momentum over 10 years | conserved to the (v/c)² ≈ 4 × 10⁻⁸ of relativity | ✅ passing, 1.9 × 10⁻¹⁰ and 1.8 × 10⁻¹¹ |
 | Save and load | lossless | ✅ passing, loads back bit for bit |
+| Two bodies collide and merge (Newtonian gravity) | total momentum before = after | ✅ passing, to 1 × 10⁻¹⁶ (rounding) |
+| A comet falling into the Sun from 1 AU at 50 km/s | caught at the surface: 618.3 km/s after 24.6177 days (energy conservation, radial Kepler orbit) | ✅ passing, 618.3 km/s after 24.6177 days |
+| A Jupiter-mass body hits Mars (real solar system, relativistic gravity) | Mars absorbed, Phobos and Deimos freed, momentum kept | ✅ passing, momentum to 1.1 × 10⁻¹¹ |
 | Light bending at the Sun's edge | 1.75″ | planned |
 | Hulse–Taylor binary pulsar orbital decay | −2.40 × 10⁻¹² s/s | planned |
 | Innermost stable orbit, photon sphere and shadow of a non-spinning black hole | 6, 3 and √27 GM/c² | planned |
@@ -121,6 +124,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · textures from Solar Syste
 - [Roadmap](docs/ROADMAP.md): milestones and steps
 - [Architecture](docs/ARCHITECTURE.md): how the engine picks physics models
 - [The desktop app](docs/app.md): frame loop, double-precision 3D view, camera, trails and the sandbox tools
+- [Collisions and the model indicator](docs/physics/collisions.md): merging with momentum kept, catching fast impacts, and which physics applies where
 - [Rendering globes](docs/rendering.md): GPU globes, precision across 12 orders of magnitude, lighting, atmospheres
 - [Saturn's rings](docs/physics/saturn-rings.md): Cassini's measured profile, transparency, shadows
 - [Moons](docs/physics/moons.md): hierarchical integration, planets' gravity fields, and how each residual against JPL was tracked down

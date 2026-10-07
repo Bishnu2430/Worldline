@@ -73,6 +73,7 @@ It uses them to pick a model:
 | Asteroids and comets too light to pull on the planets | Newtonian pull of the Sun and planets, plus the Sun's 1PN (Schwarzschild) term and JPL's non-gravitational forces | IERS Conventions 2010; Marsden, Sekanina & Yeomans 1973 |
 | Belt asteroids and Kuiper belt objects (background) | Fixed two-body ellipses from JPL's osculating elements | Kepler's laws; JPL Small-Body Database |
 | Zodiacal dust | COBE DIRBE smooth-cloud density model | Kelsall et al. 1998 |
+| Bodies that touch | Perfectly inelastic merger: momentum conserved, volumes add; contact found along each step | [physics/collisions.md](physics/collisions.md) |
 | Sunlight and its travel time | Inverse-square law from the IAU luminosity; distance over c plus the Shapiro delay | IAU 2015 B3; Shapiro 1964 |
 | Solar wind | Parker spiral with the measured average wind at Earth | Parker 1958; NASA OMNI |
 | Heliosphere | Boundaries measured at the Voyager crossings; Rankine half-body shape between them (visual) | Stone et al. 2005–2019; Bzowski et al. 2015 |
@@ -90,3 +91,10 @@ It uses them to pick a model:
 | Time integration | IAS15 adaptive integrator, with the timescale step criterion | Rein & Spiegel 2015; Pham, Rein & Spiegel 2024 |
 
 The app always shows which model is active for the selected body, and warns when a scenario leaves that model's validity range.
+
+**First version (step 1.7).** The inspector names the model computing the selected body. It shows ε and v/c relative to what pulls on the body hardest, and grades them for the first post-Newtonian equations:
+- **Within range** while what they leave out (relative size ε², ε v²/c², v⁴/c⁴) is below IAS15's 10⁻⁹ tolerance.
+- **Approximate** while it stays under 1%.
+- **Beyond** past that.
+
+It also flags small moons on mean orbits, and massive bodies inside a moon system (where collisions with moons aren't detected yet). See [physics/collisions.md](physics/collisions.md).

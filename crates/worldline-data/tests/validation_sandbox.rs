@@ -152,3 +152,61 @@ fn a_planet_launched_at_circular_speed_stays_on_a_circle() {
     println!("over one orbit: {least:.5} to {most:.5} AU from the Sun");
     assert!((least / 1.5 - 1.0).abs() < 1e-3 && (most / 1.5 - 1.0).abs() < 1e-3);
 }
+
+#[test]
+fn an_intruder_that_hits_mars_merges_and_keeps_the_momentum() {
+    // A Jupiter-mass body 10⁶ km behind Mars on its orbit, closing at
+    // 10 km/s: it hits Mars, absorbs it (it is heavier), and Phobos and
+    // Deimos are left orbiting the Sun. Total momentum must hold to the
+    // same (v/c)² as without a collision.
+    let mut h = full_solar_system();
+    let mars = h
+        .top
+        .bodies
+        .iter()
+        .find(|b| b.name == "Mars")
+        .unwrap()
+        .clone();
+    let jupiter = h.top.bodies.iter().find(|b| b.name == "Jupiter").unwrap();
+    let along = mars.velocity.normalize();
+    h.add_body(
+        Body::new("Intruder", jupiter.gm, jupiter.radius)
+            .at(mars.position - along * 1e9)
+            .moving(mars.velocity + along * 1e4),
+    );
+    let before = linear_momentum(&h.top);
+    let scale: f64 = h
+        .top
+        .bodies
+        .iter()
+        .map(|b| (b.gm * b.velocity).length())
+        .sum::<f64>()
+        / G;
+    let mut collision = None;
+    let end = h.time() + 5.0 * 86_400.0;
+    while collision.is_none() && h.time() < end {
+        h.step(end - h.time());
+        collision = h.take_collisions().into_iter().next();
+    }
+    let collision = collision.expect("the intruder hits Mars within five days");
+    let drift = (linear_momentum(&h.top) - before).length() / scale;
+    println!(
+        "{} absorbed {} at {:.2} km/s after {:.1} h, freeing {:?}; momentum drift {drift:.1e}",
+        collision.survivor,
+        collision.absorbed,
+        collision.speed / 1e3,
+        collision.time / 3600.0,
+        collision.freed
+    );
+    assert_eq!(
+        (collision.survivor.as_str(), collision.absorbed.as_str()),
+        ("Intruder", "Mars")
+    );
+    assert_eq!(collision.freed, ["Phobos", "Deimos"]);
+    assert!(
+        h.moon_systems
+            .iter()
+            .all(|m| h.top.bodies[m.host].name != "Mars")
+    );
+    assert!(drift < 2.5 * (59e3 / C).powi(2));
+}

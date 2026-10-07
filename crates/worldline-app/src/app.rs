@@ -18,10 +18,11 @@ use crate::camera::Camera;
 use crate::details;
 use crate::gpu::{Globe, GpuGlobes};
 use crate::sandbox::{self, Launch, Preset};
-use crate::simulation::Removal;
 use crate::simulation::Simulation;
+use crate::simulation::{Computed, Removal};
 use crate::theme;
 use crate::view::{self, OnScreen, ViewOptions};
+use worldline_core::regime::Validity;
 use worldline_data::SmallBodyKind;
 
 /// Simulation speeds the user can pick: simulated time per real second.
@@ -152,7 +153,9 @@ impl WorldlineApp {
         if let Some((kind, au)) = &start.add {
             app.add_on_circle(kind, *au);
         }
+        let names = app.attended_names();
         app.simulation.advance_by(start.advance_years * JULIAN_YEAR);
+        app.after_events(names);
         if let Some(name) = &start.focus {
             match app.simulation.bodies.iter().position(|b| &b.name == name) {
                 Some(i) => app.fly_to(i, start.zoom_radii.unwrap_or(FOCUS_DISTANCE_RADII)),
@@ -441,6 +444,10 @@ impl WorldlineApp {
                 ),
                 ("Start", "2025-01-01 00:00 TDB"),
                 ("Rotation", "IAU models (NASA NAIF)"),
+                (
+                    "Collisions",
+                    "bodies that touch merge: momentum kept, volumes add",
+                ),
                 ("Surfaces", "Solar System Scope, CC BY 4.0"),
             ] {
                 ui.label(key(what));
@@ -507,6 +514,7 @@ impl WorldlineApp {
         let sun = &bodies[SUN];
         let parent = self.simulation.parent(self.selected);
         ui.heading(RichText::new(&body.name).color(view::color(&self.simulation, self.selected)));
+        self.model_indicator(ui);
         egui::Grid::new("selected").num_columns(2).show(ui, |ui| {
             ui.label(key("Mass"));
             if body.gm > 0.0 {
@@ -654,6 +662,78 @@ impl WorldlineApp {
         });
     }
 
+    /// Which model computes the selected body, how strong gravity is
+    /// where it is, and whether the model covers that: green within its
+    /// range, amber approximate, red beyond it.
+    fn model_indicator(&self, ui: &mut egui::Ui) {
+        let simulation = &self.simulation;
+        let index = self.selected;
+        let model = match simulation.computed(index) {
+            Computed::TopLevel => {
+                "Relativistic N-body gravity (Einstein–Infeld–Hoffmann) with the Sun and planets"
+            }
+            Computed::MoonSystem => {
+                "Its planet's moon system: Newtonian, the planet's field, tides"
+            }
+            Computed::SmallMoonInDetail => {
+                "Follows the major moons: Newtonian, the planet's field, tides"
+            }
+            Computed::SmallMoonOnMeanOrbit => "JPL's mean orbit, carried at its mean rates",
+            Computed::Follower { forces: false } => {
+                "Follows the Sun and planets: Newtonian, plus the Sun's relativistic term"
+            }
+            Computed::Follower { forces: true } => {
+                "Follows the Sun and planets: Newtonian, the Sun's relativistic term, outgassing"
+            }
+        };
+        let (green, amber, red) = (
+            Color32::from_rgb(110, 205, 140),
+            Color32::from_rgb(240, 180, 80),
+            Color32::from_rgb(240, 110, 100),
+        );
+        ui.add_space(4.0);
+        ui.label(RichText::new("Model").strong());
+        ui.label(RichText::new(model).small());
+        let mut notes: Vec<(Color32, String)> = Vec::new();
+        if let Some(regime) = simulation.regime(index) {
+            let (color, verdict) = match regime.post_newtonian() {
+                Validity::Within => (green, "within range"),
+                Validity::Approximate => (amber, "approximate: higher orders show"),
+                Validity::Beyond => (red, "beyond this model: gravity too strong"),
+            };
+            notes.push((
+                color,
+                format!(
+                    "Gravity GM/rc² = {:.1e}, speed v/c = {:.1e}: {verdict}",
+                    regime.epsilon, regime.beta
+                ),
+            ));
+        }
+        if simulation.computed(index) == Computed::SmallMoonOnMeanOrbit {
+            notes.push((
+                amber,
+                "Approximate position: fly to its planet to compute it in detail".into(),
+            ));
+        }
+        if let Some(intruder) = simulation.intruder(index) {
+            notes.push((
+                amber,
+                format!(
+                    "{intruder} is inside this moon system: its collisions with moons aren't detected yet"
+                ),
+            ));
+        }
+        for (color, text) in notes {
+            ui.horizontal_wrapped(|ui| {
+                // A painted dot: the interface font has no circle glyph.
+                let (dot, _) = ui.allocate_exact_size(vec2(8.0, 8.0), Sense::hover());
+                ui.painter().circle_filled(dot.center(), 3.5, color);
+                ui.label(RichText::new(text).small());
+            });
+        }
+        ui.add_space(4.0);
+    }
+
     /// The top bar's sandbox tools: adding bodies, saving and loading.
     fn sandbox_controls(&mut self, ui: &mut egui::Ui) {
         egui::ComboBox::from_id_salt("add")
@@ -708,6 +788,39 @@ impl WorldlineApp {
             bodies[self.focus].name.clone(),
             bodies[self.selected].name.clone(),
         )
+    }
+
+    /// After an update: reports any collisions, and if the followed or
+    /// selected body (`names`, from before the update) was absorbed, moves
+    /// on to the body that absorbed it.
+    fn after_events(&mut self, names: (String, String)) {
+        let events = std::mem::take(&mut self.simulation.events);
+        let Some(last) = events.last() else {
+            return;
+        };
+        let survivor = |name: String| {
+            events.iter().fold(name, |n, e| {
+                if n == e.absorbed {
+                    e.survivor.clone()
+                } else {
+                    n
+                }
+            })
+        };
+        self.reattend((survivor(names.0), survivor(names.1)));
+        let mut message = format!(
+            "{} hit {} at {:.1} km/s and merged",
+            last.absorbed,
+            last.survivor,
+            last.speed / 1e3
+        );
+        if !last.freed.is_empty() {
+            message += &format!(", freeing {}", last.freed.join(", "));
+        }
+        if events.len() > 1 {
+            message += &format!(" ({} collisions)", events.len());
+        }
+        self.status = Some((message, Instant::now()));
     }
 
     /// Finds the followed and selected bodies again by name; the Sun if
@@ -1137,7 +1250,9 @@ impl eframe::App for WorldlineApp {
         // Cap the step after a stall (e.g. dragging the window) at 0.1 s.
         let real_dt = now.duration_since(self.last_frame).as_secs_f64().min(0.1);
         self.last_frame = now;
+        let names = self.attended_names();
         self.simulation.update(real_dt, PHYSICS_BUDGET);
+        self.after_events(names);
         self.aim_camera();
 
         egui::Panel::top("controls").show(ui, |ui| self.controls(ui));

@@ -5,6 +5,7 @@
 //! All quantities are `f64` in SI units.
 
 pub mod body;
+pub mod collision;
 pub mod constants;
 pub mod diagnostics;
 pub mod gravity;
@@ -13,6 +14,7 @@ pub mod integrator;
 pub mod magnetosphere;
 pub mod mean_elements;
 pub mod orbit;
+pub mod regime;
 pub mod rotation;
 pub mod solar_wind;
 pub mod sunlight;
