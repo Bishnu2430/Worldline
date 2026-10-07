@@ -10,6 +10,7 @@ pub mod diagnostics;
 pub mod gravity;
 pub mod hierarchy;
 pub mod integrator;
+pub mod magnetosphere;
 pub mod mean_elements;
 pub mod orbit;
 pub mod rotation;

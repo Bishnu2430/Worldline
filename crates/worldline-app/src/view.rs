@@ -5,6 +5,7 @@
 use eframe::egui::{Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape, Stroke, vec2};
 use worldline_core::DVec3;
 use worldline_core::constants::{AU, C};
+use worldline_core::magnetosphere::{field_line_point, magnetopause_radius, shue_1998, standoff};
 use worldline_core::orbit::osculating_orbit;
 use worldline_core::solar_wind::ParkerSpiral;
 use worldline_core::zodiacal::ZodiacalCloud;
@@ -25,6 +26,7 @@ pub struct ViewOptions {
     pub dust: bool,
     pub solar_wind: bool,
     pub heliosphere: bool,
+    pub magnetospheres: bool,
 }
 
 /// A visible body and how it will be drawn.
@@ -263,6 +265,9 @@ pub fn draw_under(
         }
     }
 
+    if options.magnetospheres {
+        draw_magnetosphere(painter, camera, viewport, simulation, attention);
+    }
     if options.heliosphere {
         draw_heliosphere(
             painter,
@@ -357,6 +362,100 @@ fn draw_solar_wind(painter: &Painter, camera: &Camera, viewport: Rect, simulatio
             }
             previous = here;
             r += lag_step.min(0.05 * r);
+        }
+    }
+}
+
+/// Draws the magnetosphere of the planet in focus, if it has a global
+/// field: the magnetopause, its nose where the planet's field balances the
+/// solar wind's pressure and its flanks flaring as Shue et al. measured at
+/// Earth, pointed into the wind as the moving planet meets it; and, around
+/// Earth, its two radiation belts, traced along dipole field lines.
+fn draw_magnetosphere(
+    painter: &Painter,
+    camera: &Camera,
+    viewport: Rect,
+    simulation: &Simulation,
+    attention: Attention,
+) {
+    let planet = attention.planet(simulation);
+    let Some((dipole, _)) = &simulation.dipoles[planet] else {
+        return;
+    };
+    let bodies = &simulation.bodies;
+    let (sun, body) = (&bodies[0], &bodies[planet]);
+    let offset = body.position - sun.position;
+    let r = offset.length();
+    let pressure = simulation.flow_pressure_at_1au * (AU / r).powi(2);
+    let nose_distance = standoff(dipole, pressure);
+    // Too far out to see it, or so close it would fill the sky.
+    if camera.distance > 60.0 * nose_distance || camera.distance < 1.5 * body.radius {
+        return;
+    }
+    let (_, flaring) = shue_1998(pressure * 1e9, 0.0);
+    // The wind as the planet meets it: radially out from the Sun at its
+    // speed, less the planet's own orbital motion (aberration).
+    let wind = offset / r * simulation.wind.speed - (body.velocity - sun.velocity);
+    let nose = -wind.normalize();
+    let across = nose.any_orthonormal_vector();
+    let other = nose.cross(across);
+    let stroke = Stroke::new(1.0, Color32::from_rgba_unmultiplied(90, 205, 220, 70));
+    let point = |theta: f64, phi: f64| {
+        let direction = nose * theta.cos() + (across * phi.cos() + other * phi.sin()) * theta.sin();
+        body.position + direction * magnetopause_radius(nose_distance, flaring, theta)
+    };
+    for ring in 1..=5 {
+        let theta = (ring as f64 * 22.0).to_radians();
+        let circle: Vec<_> = (0..=72)
+            .map(|j| point(theta, j as f64 / 72.0 * std::f64::consts::TAU))
+            .map(|p| screen(camera, viewport, p))
+            .collect();
+        draw_path(painter, &circle, stroke);
+    }
+    for meridian in 0..12 {
+        let phi = meridian as f64 / 12.0 * std::f64::consts::TAU;
+        let line: Vec<_> = (0..=40)
+            .map(|j| point((j as f64 / 40.0 * 110.0).to_radians(), phi))
+            .map(|p| screen(camera, viewport, p))
+            .collect();
+        draw_path(painter, &line, stroke);
+    }
+    // Radiation belts: each drawn as its inner and outer field-line shells,
+    // around the magnetic axis as it points now.
+    let Some(model) = simulation.rotation(planet) else {
+        return;
+    };
+    let frame = model.orientation(simulation.julian_date()).body_to_ecliptic;
+    let axis = frame * dipole.moment_direction();
+    let (x, y) = (
+        axis.any_orthonormal_vector(),
+        axis.cross(axis.any_orthonormal_vector()),
+    );
+    for belt in simulation
+        .radiation_belts
+        .iter()
+        .filter(|b| b.planet == body.name)
+    {
+        let color = if belt.name == "inner" {
+            Color32::from_rgba_unmultiplied(245, 150, 90, 80)
+        } else {
+            Color32::from_rgba_unmultiplied(140, 175, 255, 80)
+        };
+        for l in [belt.l_range.0, belt.l_range.1] {
+            // The field line meets the surface where cos²λ = 1/L.
+            let reach = (1.0 / l).sqrt().acos();
+            for k in 0..24 {
+                let phi = k as f64 / 24.0 * std::f64::consts::TAU;
+                let line: Vec<_> = (0..=32)
+                    .map(|j| {
+                        let latitude = -reach + 2.0 * reach * j as f64 / 32.0;
+                        let local = field_line_point(dipole, l, latitude, phi);
+                        body.position + x * local.x + y * local.y + axis * local.z
+                    })
+                    .map(|p| screen(camera, viewport, p))
+                    .collect();
+                draw_path(painter, &line, Stroke::new(1.0, color));
+            }
         }
     }
 }

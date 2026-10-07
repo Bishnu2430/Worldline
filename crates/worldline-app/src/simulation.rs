@@ -9,11 +9,12 @@ use worldline_core::constants::GM_SUN;
 use worldline_core::gravity::Gravity;
 use worldline_core::hierarchy::{Hierarchy, MOON_SYSTEM_GRAVITY};
 use worldline_core::integrator::{Ias15, Integrator};
+use worldline_core::magnetosphere::Dipole;
 use worldline_core::orbit::KeplerOrbit;
 use worldline_core::rotation::RotationModel;
 use worldline_core::solar_wind::{Heliosphere, ParkerSpiral};
 use worldline_core::{Body, DVec3};
-use worldline_data::{BeltKind, SmallBodyKind, SmallMoon, VoyagerCrossing};
+use worldline_data::{BeltKind, RadiationBelt, SmallBodyKind, SmallMoon, VoyagerCrossing};
 
 /// The recent path of one body around the Sun: about one orbit's worth.
 /// Moons have none; they are shown with their current orbit (see
@@ -153,6 +154,13 @@ pub struct Simulation {
     pub heliosphere: Heliosphere,
     /// Where Voyager 1 and 2 crossed them.
     pub crossings: Vec<VoyagerCrossing>,
+    /// Each body's magnetic dipole and the model it comes from, for the
+    /// planets that have a global field.
+    pub dipoles: Vec<Option<(Dipole, String)>>,
+    /// Earth's radiation belts.
+    pub radiation_belts: Vec<RadiationBelt>,
+    /// The solar wind's average flow pressure at 1 AU in 2025, in Pa.
+    pub flow_pressure_at_1au: f64,
     hierarchy: Hierarchy,
 }
 
@@ -267,8 +275,22 @@ impl Simulation {
             wind: worldline_data::parker_spiral(),
             heliosphere: worldline_data::heliosphere(),
             crossings: worldline_data::voyager_crossings(),
+            dipoles: Vec::new(),
+            radiation_belts: worldline_data::radiation_belts(),
+            flow_pressure_at_1au: worldline_data::mean_flow_pressure(),
             hierarchy,
         };
+        let fields = worldline_data::planetary_fields();
+        simulation.dipoles = simulation
+            .bodies
+            .iter()
+            .map(|b| {
+                fields
+                    .iter()
+                    .find(|f| f.planet == b.name)
+                    .map(|f| (f.dipole, f.model.clone()))
+            })
+            .collect();
         simulation.refresh();
         simulation.refresh_small_moons();
         simulation

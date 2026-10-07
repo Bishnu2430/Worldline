@@ -32,7 +32,7 @@ Added 2026-10-05, before steps 1.6 and 1.7. Detail follows focus: see [SCOPE.md]
 | 1b.6 | Dwarf planets, major asteroids and comets | Adding the asteroids' mass shrinks Mars's error against JPL. Halley's Comet returns in July 2061. | ✅ |
 | 1b.7 | The asteroid belt, Jupiter's Trojans, the Kuiper belt and zodiacal dust, from real catalogs | Kirkwood gaps appear in the real asteroids' orbits. Trojans cluster 60° ahead of and behind Jupiter. | ✅ |
 | 1b.8 | The Sun in focus: solar wind (Parker spiral), heliosphere boundaries, sunlight and light travel time | 1361 W/m² of sunlight at Earth. Light takes 8.3 min to reach Earth. The spiral crosses 1 AU at about 45°. | ✅ |
-| 1b.9 | Planets in focus: magnetospheres and radiation belts | Earth's magnetopause sits about 10 Earth radii sunward, from pressure balance with the solar wind | ⬜ |
+| 1b.9 | Planets in focus: magnetospheres and radiation belts | Earth's magnetopause sits about 10 Earth radii sunward, from pressure balance with the solar wind | ✅ |
 
 ## M2: Compact objects and gravitational waves
 

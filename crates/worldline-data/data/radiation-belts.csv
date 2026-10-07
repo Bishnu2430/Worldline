@@ -1,0 +1,4 @@
+# Worldline: where Earth's radiation belts lie, in L (equatorial distance of a dipole field line, in Earth radii). Regenerate with: python tools/fetch_magnetic_fields.py
+planet,belt,l_from,l_to,source
+Earth,inner,1.1,2.5,"typical extent in the Van Allen Probes era, e.g. Earth Planet. Phys. 2023, doi:10.26464/epp2023009"
+Earth,outer,3,7,"typical extent in the Van Allen Probes era, e.g. Earth Planet. Phys. 2023, doi:10.26464/epp2023009"
