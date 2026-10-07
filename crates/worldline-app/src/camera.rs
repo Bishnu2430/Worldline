@@ -83,6 +83,21 @@ impl Camera {
         })
     }
 
+    /// The point under screen position `pointer` (in `viewport`) on the
+    /// horizontal plane at height `z` (m): where the line of sight through
+    /// it meets the plane. `None` if it never does (looking along or away
+    /// from the plane).
+    pub fn point_on_plane(&self, pointer: Pos2, viewport: Rect, z: f64) -> Option<DVec3> {
+        let (forward, right, up) = self.basis();
+        let focal = f64::from(viewport.height()) / 2.0 / (self.fov_y / 2.0).tan();
+        let center = viewport.center();
+        let direction = forward + right * (f64::from(pointer.x - center.x) / focal)
+            - up * (f64::from(pointer.y - center.y) / focal);
+        let eye = self.eye();
+        let along = (z - eye.z) / direction.z;
+        (along.is_finite() && along > 0.0).then(|| eye + direction * along)
+    }
+
     /// Rotates the camera around its target by a drag of (dx, dy) points.
     pub fn orbit(&mut self, dx: f32, dy: f32) {
         self.yaw -= f64::from(dx) * Self::DRAG_SENSITIVITY;
@@ -186,5 +201,32 @@ mod tests {
         assert_eq!(cam.distance, 5e9);
         cam.zoom(-1e6, 5e9);
         assert_eq!(cam.distance, Camera::MAX_DISTANCE);
+    }
+
+    #[test]
+    fn a_point_on_the_plane_projects_back_where_it_was_picked() {
+        let camera = Camera {
+            target: DVec3::new(1e11, -2e10, 3e9),
+            yaw: 0.7,
+            pitch: 0.5,
+            distance: 4e11,
+            fov_y: 0.8,
+        };
+        let viewport = Rect::from_min_size(Pos2::ZERO, vec2(1200.0, 800.0));
+        let pointer = Pos2::new(830.0, 210.0);
+        let point = camera.point_on_plane(pointer, viewport, 3e9).unwrap();
+        assert!((point.z - 3e9).abs() < 1e-3);
+        let back = camera.project(point, viewport).unwrap().position;
+        assert!((back - pointer).length() < 1e-3, "{back:?}");
+        // A camera level with the plane sees it edge-on: no point to pick.
+        let level = Camera {
+            pitch: 0.0,
+            ..camera
+        };
+        assert!(
+            level
+                .point_on_plane(Pos2::new(600.0, 100.0), viewport, 3e9)
+                .is_none()
+        );
     }
 }

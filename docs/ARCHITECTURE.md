@@ -33,6 +33,13 @@ Fast inner orbits shouldn't set the pace for everything. The solar system runs a
 
 This mirrors how JPL builds its ephemerides: planetary ephemerides for the barycenters, satellite ephemerides for the moons. See [physics/moons.md](physics/moons.md).
 
+**The sandbox changes the hierarchy at its top.**
+- **Adding.** An added body joins the top level. The moon systems' tides and the followers' paths are rebuilt from the top level at every step, so they include it at once.
+- **Removing.** A removed planet takes its moon system with it.
+- **Restarting.** The top level's integrator restarts after every change, since its memory of past steps no longer applies.
+- **The app's list.** The app rebuilds its flat list of bodies from the hierarchy after each change.
+- **Limits.** The hierarchy treats each planet's moons as a system disturbed by outside tides. An added body that dives deep into a moon system breaks that assumption, and the moons' motion there becomes approximate. Collisions arrive in step 1.7.
+
 **Small moons** (437 of them) are too light to pull on the major moons, so they don't take part in the major moons' integration. When their planet is in focus, they follow the major moons' recorded paths:
 - **Regular moons** share one integrator, so the ones with mass can pull on each other.
 - **Irregular moons** each get their own, at their own slow pace.

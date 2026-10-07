@@ -17,6 +17,7 @@ mod calendar;
 mod camera;
 mod details;
 mod gpu;
+mod sandbox;
 mod simulation;
 mod textures;
 mod theme;
@@ -35,6 +36,9 @@ pub struct StartOptions {
     pub paused: bool,
     /// Years to simulate past the snapshot before starting.
     pub advance_years: f64,
+    /// A body to add before starting: which kind ("earth", "jupiter" or
+    /// "sun") and how far from the Sun, in AU, on a circular orbit.
+    pub add: Option<(String, f64)>,
 }
 
 impl StartOptions {
@@ -52,6 +56,18 @@ impl StartOptions {
                 "--advance" => match args.next().and_then(|y| y.parse::<f64>().ok()) {
                     Some(years) if years >= 0.0 => options.advance_years = years,
                     _ => eprintln!("worldline: --advance needs a number of years, 0 or more"),
+                },
+                "--add" => match args.next().and_then(|a| {
+                    let (kind, au) = a.split_once(':')?;
+                    let au = au.parse::<f64>().ok().filter(|au| *au > 0.0)?;
+                    ["earth", "jupiter", "sun"]
+                        .contains(&kind)
+                        .then(|| (kind.to_string(), au))
+                }) {
+                    Some(add) => options.add = Some(add),
+                    None => eprintln!(
+                        "worldline: --add needs earth, jupiter or sun and a distance, as jupiter:1.5"
+                    ),
                 },
                 other => eprintln!("worldline: ignoring unknown argument `{other}`"),
             }
@@ -95,6 +111,8 @@ mod tests {
             "--paused",
             "--advance",
             "7.5",
+            "--add",
+            "jupiter:1.5",
         ]
         .map(String::from)
         .into_iter();
@@ -105,6 +123,7 @@ mod tests {
                 zoom_radii: Some(30.0),
                 paused: true,
                 advance_years: 7.5,
+                add: Some(("jupiter".into(), 1.5)),
             }
         );
         assert_eq!(
