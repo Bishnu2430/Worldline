@@ -85,6 +85,14 @@ const EARTH: &[Detail] = &[
     detail("Blue haze and limb glow: Rayleigh scattering", Kind::Model),
     detail("Shape: 0.34% flattened (IAU)", Kind::Measured),
     detail("Spin and tilt: IAU rotation model", Kind::Measured),
+    detail(
+        "Magnetopause: pressure balance of the IGRF dipole with the measured wind",
+        Kind::Model,
+    ),
+    detail(
+        "Radiation belts: measured extent, drawn along dipole field lines",
+        Kind::Visual,
+    ),
 ];
 
 const SATURN: &[Detail] = &[
@@ -103,6 +111,10 @@ const SATURN: &[Detail] = &[
     detail("Shadows: Saturn on its rings, rings on Saturn", Kind::Model),
     detail("Shape: 9.8% flattened (IAU)", Kind::Measured),
     detail("Spin and tilt: IAU rotation model", Kind::Measured),
+    detail(
+        "Magnetopause: the dipole alone gives about 19 radii; plasma from Enceladus inflates the real one to 22–27",
+        Kind::Model,
+    ),
 ];
 
 const JUPITER: &[Detail] = &[
@@ -116,6 +128,10 @@ const JUPITER: &[Detail] = &[
     ),
     detail("Shape: 6.5% flattened (IAU)", Kind::Measured),
     detail("Spin and tilt: IAU rotation model", Kind::Measured),
+    detail(
+        "Magnetopause: the dipole alone gives about 41 radii; plasma from Io inflates the real one to 63–92",
+        Kind::Model,
+    ),
 ];
 
 const VENUS: &[Detail] = &[

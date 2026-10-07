@@ -9,6 +9,7 @@ use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
 use worldline_core::DVec3;
 use worldline_core::constants::{AU, DAY, JULIAN_YEAR, SOLAR_LUMINOSITY};
+use worldline_core::magnetosphere::standoff;
 use worldline_core::sunlight::{irradiance, light_time};
 use worldline_render::{Atmosphere, Rings, View};
 
@@ -127,6 +128,7 @@ impl WorldlineApp {
                 dust: true,
                 solar_wind: true,
                 heliosphere: true,
+                magnetospheres: true,
             },
             last_frame: Instant::now(),
             flight: None,
@@ -464,6 +466,11 @@ impl WorldlineApp {
             .on_hover_text("Parker's spiral field, with the Sun in focus");
         ui.checkbox(&mut self.options.heliosphere, "Heliosphere")
             .on_hover_text("Its boundaries, seen from outside them");
+        ui.checkbox(&mut self.options.magnetospheres, "Magnetospheres")
+            .on_hover_text(
+                "Around the planet in focus: its magnetopause, from pressure balance with \
+             2025's average solar wind; Earth's radiation belts",
+            );
         ui.add_space(4.0);
         ui.label(
             RichText::new(
@@ -528,6 +535,7 @@ impl WorldlineApp {
                 ui.end_row();
             }
             self.sun_reach(ui);
+            self.magnetism(ui);
             if let Some(model) = self.simulation.rotation(self.selected) {
                 let jd = self.simulation.julian_date();
                 let hours = model.sidereal_period() / 3600.0;
@@ -659,6 +667,49 @@ impl WorldlineApp {
             } else {
                 "none: outside the heliopause, in interstellar space"
             });
+            ui.end_row();
+        }
+    }
+
+    /// Inspector rows for the selected planet's magnetic field and
+    /// magnetosphere.
+    fn magnetism(&self, ui: &mut egui::Ui) {
+        let bodies = &self.simulation.bodies;
+        let body = &bodies[self.selected];
+        if matches!(body.name.as_str(), "Venus" | "Mars") {
+            ui.label(key("Magnetic field"));
+            ui.label("no global field: the solar wind meets the upper atmosphere");
+            ui.end_row();
+            return;
+        }
+        let Some((dipole, model)) = &self.simulation.dipoles[self.selected] else {
+            return;
+        };
+        ui.label(key("Magnetic field"));
+        ui.label(format!(
+            "{:.0} nT at the equator, tilted {:.1}° ({model})",
+            dipole.equatorial_field() * 1e9,
+            dipole.tilt().to_degrees()
+        ));
+        ui.end_row();
+        let r = (body.position - bodies[SUN].position).length();
+        let pressure = self.simulation.flow_pressure_at_1au * (AU / r).powi(2);
+        ui.label(key("Magnetopause"));
+        ui.label(format!(
+            "{:.1} radii sunward (pressure balance)",
+            standoff(dipole, pressure) / dipole.radius
+        ));
+        ui.end_row();
+        let belts: Vec<String> = self
+            .simulation
+            .radiation_belts
+            .iter()
+            .filter(|b| b.planet == body.name)
+            .map(|b| format!("{} L {}–{}", b.name, b.l_range.0, b.l_range.1))
+            .collect();
+        if !belts.is_empty() {
+            ui.label(key("Radiation belts"));
+            ui.label(belts.join(", "));
             ui.end_row();
         }
     }

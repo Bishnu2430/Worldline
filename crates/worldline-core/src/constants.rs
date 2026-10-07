@@ -8,6 +8,10 @@ use std::f64::consts::PI;
 /// Speed of light in vacuum, m/s. Exact (SI 2019).
 pub const C: f64 = 299_792_458.0;
 
+/// Vacuum magnetic permeability μ₀, N/A². CODATA 2018 (measured since the
+/// SI's 2019 redefinition, no longer exactly 4π × 10⁻⁷).
+pub const MU_0: f64 = 1.256_637_062_12e-6;
+
 /// Newtonian constant of gravitation, m³ kg⁻¹ s⁻². CODATA 2018.
 ///
 /// Known to only about 5 significant figures (22 ppm). Gravitational

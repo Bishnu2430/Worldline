@@ -9,7 +9,10 @@ shifted to Earth's bow shock. For each hour:
 - the interplanetary magnetic field (nT) in GSE coordinates: x toward the
   Sun, y in the ecliptic opposite to Earth's motion, z to ecliptic north;
 - the bulk speed of the solar wind (km/s);
-- the proton density (per cm^3).
+- the proton density (per cm^3);
+- the flow (dynamic) pressure (nPa), as OMNI computes it from the density
+  and speed: (1.67e-6) Np Vp^2 (1 + 4 Na/Np) where the helium ratio was
+  measured, and 2e-6 Np Vp^2 (4% helium) where it wasn't.
 
 NASA's own OMNI servers (spdf.gsfc.nasa.gov) were unreachable when this was
 written, so the data come from the same OMNI dataset as served by the French
@@ -28,7 +31,7 @@ from fetch_moons import DATA, fetch, write
 
 HAPI = "https://amda.irap.omp.eu/service/hapi/data"
 DATASET = "omni-hour-all"
-PARAMETERS = "omni_imf,omni_sw_v,omni_sw_n"
+PARAMETERS = "omni_imf,omni_sw_v,omni_sw_n,omni_sw_ram"
 START, STOP = "2025-01-01T00:00:00Z", "2026-01-01T00:00:00Z"
 FILL = -1e31
 
@@ -41,7 +44,7 @@ def main():
         if not line.strip() or line.startswith("#"):
             continue
         fields = line.split(",")
-        if len(fields) != 6:
+        if len(fields) != 7:
             raise SystemExit(f"unexpected line: {line}")
         time, values = fields[0], fields[1:]
         if not time.startswith("2025"):
@@ -59,8 +62,8 @@ def main():
         f"# query: {HAPI}?{urllib.parse.unquote(urllib.parse.urlencode(query))}, fetched {date.today()}",
         "# frame: magnetic field in GSE (x toward the Sun, y in the ecliptic opposite Earth's motion,"
         " z to ecliptic north), at Earth's bow shock",
-        "# units: hour (UTC, start of the averaging hour); nT; km/s; protons per cm^3. Empty = missing",
-        "hour_utc,bx_gse_nt,by_gse_nt,bz_gse_nt,speed_km_s,density_cm3",
+        "# units: hour (UTC, start of the averaging hour); nT; km/s; protons per cm^3; nPa. Empty = missing",
+        "hour_utc,bx_gse_nt,by_gse_nt,bz_gse_nt,speed_km_s,density_cm3,flow_pressure_npa",
     ]
     write(DATA / "solar-wind-2025.csv", lines + rows)
     missing = sum(1 for r in rows if ",," in r or r.endswith(","))

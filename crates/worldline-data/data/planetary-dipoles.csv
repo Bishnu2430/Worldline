@@ -1,0 +1,9 @@
+# Worldline: the planets' internal magnetic dipoles. Regenerate with: python tools/fetch_magnetic_fields.py
+# Schmidt-normalized Gauss coefficients of degree 1 at the model's reference radius, in nT; longitudes in each model's body-fixed frame
+planet,model,reference_radius_km,g10_nt,g11_nt,h11_nt,north_offset_km,source
+Mercury,offset dipole,2440,-195,0,0,484,"Anderson et al. 2012, J. Geophys. Res. 117, E00L12 (moment 195 nT R_M^3 pointing south, 484 km north of center)"
+Earth,IGRF-14 at 2025.0,6371.2,-29350.0,-1410.3,4545.5,0,"IAGA Working Group V-MOD, IGRF-14, from https://www.ngdc.noaa.gov/IAGA/vmod/coeffs/igrf14coeffs.txt, fetched 2026-10-07"
+Jupiter,JRM09,71492,410244.7,-71498.3,21330.5,0,"Connerney et al. 2018, Geophys. Res. Lett. 45, 2590, doi:10.1002/2018GL077312"
+Saturn,Cassini Grand Finale (degree 9),60268,21139,0,0,0,"Cao et al. 2020, Icarus 344, 113541, Table 4 (axisymmetric to 0.007 degrees)"
+Uranus,Q3,25600,11893,11579,-15684,0,"Connerney, Acuna & Ness 1987, J. Geophys. Res. 92, 15329, doi:10.1029/JA092iA13p15329"
+Neptune,O8,24765,9732,3220,-9889,0,"Connerney, Acuna & Ness 1991, J. Geophys. Res. 96, 19023, doi:10.1029/91JA01165"

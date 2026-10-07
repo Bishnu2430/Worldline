@@ -23,6 +23,10 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 | Direction of the interstellar wind | IBEX: Bzowski et al. (2015), *ApJS* 220, 28 | Published scientific values |
 | Total solar irradiance (validation) | SORCE TIM: Kopp & Lean (2011), *Geophys. Res. Lett.* 38, L01706 | Published scientific values |
 | Solar luminosity | IAU 2015 Resolution B3 (nominal value) | Published values |
+| Earth's magnetic field | IGRF-14 (IAGA Working Group V-MOD), coefficients from NOAA NCEI | Public |
+| Other planets' magnetic dipoles | Mercury: Anderson et al. 2012; Jupiter: JRM09, Connerney et al. 2018; Saturn: Cao et al. 2020; Uranus: Q3, Connerney et al. 1987; Neptune: O8, Connerney et al. 1991 | Published scientific values |
+| Earth's magnetopause (validation) | Shue et al. 1998, *J. Geophys. Res.* 103, 17691 | Published scientific values |
+| Radiation belt extents | Van Allen Probes-era review, *Earth Planet. Phys.* 2023, doi:10.26464/epp2023009 | Published scientific values |
 | Rotation models (spin axes and rates), including 14 asteroids and comets | IAU WGCCRE (Archinal et al. 2018), via NASA NAIF `pck00011.tpc` | Public domain (U.S. government work) |
 | Radii and shapes | IAU WGCCRE (Archinal et al. 2018), via NASA NAIF `pck00011.tpc`; IAU 2015 Resolution B3 for the Sun | Public domain (U.S. government work) / published values |
 | Saturn's ring profile | Cassini Radio Science occultation Rev 7 (2005), NASA PDS Ring-Moon Systems Node, data set CO-SR-RSS-4/5-OCC-V2.0 | Public domain (U.S. government work) |

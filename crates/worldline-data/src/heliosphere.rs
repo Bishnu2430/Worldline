@@ -22,6 +22,9 @@ pub struct SolarWindHour {
     pub speed: Option<f64>,
     /// Protons per m³.
     pub density: Option<f64>,
+    /// The flow (dynamic) pressure ρv², in Pa, as OMNI computes it,
+    /// helium included.
+    pub flow_pressure: Option<f64>,
 }
 
 /// Every hour of 2025.
@@ -42,6 +45,7 @@ pub fn solar_wind_2025() -> Vec<SolarWindHour> {
                 field,
                 speed: value(4).map(|v| v * 1e3),
                 density: value(5).map(|n| n * 1e6),
+                flow_pressure: value(6).map(|p| p * 1e-9),
             }
         })
         .collect()
@@ -59,6 +63,16 @@ pub fn parker_spiral() -> ParkerSpiral {
         rotation_rate: sun.spin_rate().to_radians() / DAY,
         density_at_1au: mean(hours.iter().filter_map(|h| h.density).collect()),
     }
+}
+
+/// 2025's average flow pressure of the solar wind at Earth (Pa), helium
+/// included.
+pub fn mean_flow_pressure() -> f64 {
+    let pressures: Vec<f64> = solar_wind_2025()
+        .iter()
+        .filter_map(|h| h.flow_pressure)
+        .collect();
+    pressures.iter().sum::<f64>() / pressures.len() as f64
 }
 
 /// Which boundary a Voyager crossed.

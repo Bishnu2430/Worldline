@@ -69,6 +69,8 @@ It uses them to pick a model:
 | Sunlight and its travel time | Inverse-square law from the IAU luminosity; distance over c plus the Shapiro delay | IAU 2015 B3; Shapiro 1964 |
 | Solar wind | Parker spiral with the measured average wind at Earth | Parker 1958; NASA OMNI |
 | Heliosphere | Boundaries measured at the Voyager crossings; Rankine half-body shape between them (visual) | Stone et al. 2005–2019; Bzowski et al. 2015 |
+| Planetary magnetic fields | Measured dipoles (degree-1 Gauss coefficients) | IGRF-14; JRM09; Cao et al. 2020; Q3; O8; Anderson et al. 2012 |
+| Magnetopause | Pressure balance of the dipole with the measured solar wind (Chapman–Ferraro, f = 2.44, K = 0.88); Earth's measured flaring | Mead & Beard 1964; Spreiter et al. 1966; Shue et al. 1998 |
 | Moons, inside their planet's system | Newtonian N-body plus the planet's zonal and tesseral harmonics, locked moons' shapes, and outside tides | JPL satellite ephemeris models; Montenbruck & Gill 2000 |
 | Compact binaries | Post-Newtonian up to 3.5PN, including radiation reaction | Blanchet, *Living Reviews in Relativity* 2014; Peters 1964 |
 | Near a dominant black hole (q ≪ 1) | Kerr geodesics with radiation reaction | Kerr 1963; Bardeen, Press & Teukolsky 1972 |
