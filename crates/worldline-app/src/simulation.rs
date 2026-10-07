@@ -11,8 +11,9 @@ use worldline_core::hierarchy::{Hierarchy, MOON_SYSTEM_GRAVITY};
 use worldline_core::integrator::{Ias15, Integrator};
 use worldline_core::orbit::KeplerOrbit;
 use worldline_core::rotation::RotationModel;
+use worldline_core::solar_wind::{Heliosphere, ParkerSpiral};
 use worldline_core::{Body, DVec3};
-use worldline_data::{BeltKind, SmallBodyKind, SmallMoon};
+use worldline_data::{BeltKind, SmallBodyKind, SmallMoon, VoyagerCrossing};
 
 /// The recent path of one body around the Sun: about one orbit's worth.
 /// Moons have none; they are shown with their current orbit (see
@@ -146,6 +147,12 @@ pub struct Simulation {
     pub belts: Vec<BeltCloud>,
     /// The simulation time the belts were last placed at.
     belts_time: f64,
+    /// The solar wind: 2025's average wind at Earth, on Parker's spiral.
+    pub wind: ParkerSpiral,
+    /// The heliosphere's boundaries, through the Voyager crossings.
+    pub heliosphere: Heliosphere,
+    /// Where Voyager 1 and 2 crossed them.
+    pub crossings: Vec<VoyagerCrossing>,
     hierarchy: Hierarchy,
 }
 
@@ -257,6 +264,9 @@ impl Simulation {
                 })
                 .collect(),
             belts_time: f64::NAN,
+            wind: worldline_data::parker_spiral(),
+            heliosphere: worldline_data::heliosphere(),
+            crossings: worldline_data::voyager_crossings(),
             hierarchy,
         };
         simulation.refresh();

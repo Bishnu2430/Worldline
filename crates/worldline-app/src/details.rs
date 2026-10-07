@@ -54,6 +54,26 @@ const SUN: &[Detail] = &[
         Kind::Model,
     ),
     detail("Spin and tilt: IAU rotation model", Kind::Measured),
+    detail(
+        "Sunlight: IAU luminosity, within 0.4 W/m² of the 1360.8 measured at 1 AU",
+        Kind::Measured,
+    ),
+    detail(
+        "Light travel time: distance over c, plus gravity's (Shapiro) delay",
+        Kind::Model,
+    ),
+    detail(
+        "Solar wind's field: Parker spiral, with 2025's measured average wind",
+        Kind::Model,
+    ),
+    detail(
+        "Heliosphere: measured where Voyager 1 and 2 crossed its boundaries",
+        Kind::Measured,
+    ),
+    detail(
+        "Heliosphere's shape elsewhere: a symmetric flow model; the tail is unmeasured",
+        Kind::Visual,
+    ),
 ];
 
 const EARTH: &[Detail] = &[

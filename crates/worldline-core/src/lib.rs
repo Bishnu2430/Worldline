@@ -13,6 +13,8 @@ pub mod integrator;
 pub mod mean_elements;
 pub mod orbit;
 pub mod rotation;
+pub mod solar_wind;
+pub mod sunlight;
 pub mod system;
 pub mod zodiacal;
 

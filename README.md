@@ -2,7 +2,7 @@
 
 **A relativistic universe sandbox.** Drop black holes, neutron stars and planets into the real universe and watch general relativity play out. Every physics model is validated against theory and observation.
 
-> **Status:** pre-alpha. The engine runs the real solar system in a 3D window, with relativistic gravity, all 459 of its known moons, 62 dwarf planets, asteroids and comets, 28,331 belt asteroids and Kuiper belt objects, and the zodiacal dust. See the [roadmap](docs/ROADMAP.md).
+> **Status:** pre-alpha. The engine runs the real solar system in a 3D window, with relativistic gravity, all 459 of its known moons, 62 dwarf planets, asteroids and comets, 28,331 belt asteroids and Kuiper belt objects, the zodiacal dust, and the Sun's reach: its wind, its heliosphere and its light. See the [roadmap](docs/ROADMAP.md).
 
 ![Worldline running the real solar system with relativistic gravity, five months after 1 January 2025](docs/images/solar-system-step-1.5.png)
 
@@ -13,6 +13,8 @@
 ![Saturn and its moons on 1 January 2025: each moon's current orbit, all in the plane of the nearly edge-on rings](docs/images/saturn-moons-step-1b.4.png)
 
 ![The asteroid belt (tan) and Jupiter's two Trojan clouds (gold), 60° ahead of and behind Jupiter, from 28,331 real orbits, with the zodiacal dust glowing around the Sun](docs/images/belts-step-1b.7.png)
+
+![The Parker spiral: the solar wind's magnetic field winding out from the Sun through the inner solar system](docs/images/parker-spiral-step-1b.8.png)
 
 ![Halley's Comet at perihelion on 28 July 2061, simulated from its 2025 position: its path dives in from the outer solar system past the asteroids' orbits](docs/images/halley-2061-step-1b.6.png)
 
@@ -54,6 +56,10 @@
 | Jupiter's Trojans (4,509) | clustered 60° ahead of and behind Jupiter | ✅ passing, medians +62.0° and −61.9° |
 | Hildas and Plutinos crowd into 3:2 resonances (Jupiter's and Neptune's) | an excess beyond 5σ | ✅ passing, +138σ and +26σ |
 | Zodiacal dust model (COBE) vs. Helios | brightens toward the Sun as R^−(2.3 ± 0.1) | ✅ passing, R^−2.30 to R^−2.38 |
+| Sunlight at 1 AU vs. NASA SORCE | 1360.8 ± 0.5 W/m² | ✅ passing, 1361.17 W/m² (2025 average at the simulated Earth: 1361.3) |
+| Light travel time, Sun to Earth | 8.3 minutes | ✅ passing, 8.318 min averaged over 2025, plus 53 µs of Shapiro delay |
+| Parker spiral vs. a year of solar wind measured at Earth (NASA OMNI) | agreement within 3 standard errors | ✅ passing, measured 44.3°, predicted 41.9°, daily difference +2.0° ± 1.2° |
+| Voyager heliosphere crossings, JPL positions vs. published distances | within 0.05 AU | ✅ passing, all four (94.0, 83.7, 121.6, 119.0 AU) |
 | Light bending at the Sun's edge | 1.75″ | planned |
 | Hulse–Taylor binary pulsar orbital decay | −2.40 × 10⁻¹² s/s | planned |
 | Innermost stable orbit, photon sphere and shadow of a non-spinning black hole | 6, 3 and √27 GM/c² | planned |
@@ -111,6 +117,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · textures from Solar Syste
 - [Integrators](docs/physics/integrators.md): IAS15, and how a 2029 asteroid flyby changed how it picks its steps
 - [The belts](docs/physics/belts.md): 28,331 real orbits, and the gaps and clusters that resonances carve into them
 - [Zodiacal dust](docs/physics/zodiacal-dust.md): the COBE dust model, checked against the Helios probes
+- [The Sun's reach](docs/physics/sun-reach.md): sunlight, light travel time, the Parker spiral checked against a year of solar wind, and the Voyager-measured heliosphere
 
 ## License
 

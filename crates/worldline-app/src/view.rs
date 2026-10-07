@@ -4,8 +4,9 @@
 
 use eframe::egui::{Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape, Stroke, vec2};
 use worldline_core::DVec3;
-use worldline_core::constants::AU;
+use worldline_core::constants::{AU, C};
 use worldline_core::orbit::osculating_orbit;
+use worldline_core::solar_wind::ParkerSpiral;
 use worldline_core::zodiacal::ZodiacalCloud;
 use worldline_data::BeltKind;
 
@@ -22,6 +23,8 @@ pub struct ViewOptions {
     pub globes: bool,
     pub belts: bool,
     pub dust: bool,
+    pub solar_wind: bool,
+    pub heliosphere: bool,
 }
 
 /// A visible body and how it will be drawn.
@@ -67,7 +70,17 @@ const BELT_MIN_VIEW: f64 = 0.05 * AU;
 const BELT_MARKER: f32 = 1.6;
 
 /// Reference rings in the ecliptic plane, in AU.
-const RING_RADII_AU: [f64; 6] = [1.0, 2.0, 5.0, 10.0, 20.0, 50.0];
+const RING_RADII_AU: [f64; 8] = [1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0];
+
+/// How long light takes to cross `distance` (m), for a label.
+fn light_time_label(distance: f64) -> String {
+    let seconds = distance / C;
+    if seconds < 3600.0 {
+        format!("{:.1} light-minutes", seconds / 60.0)
+    } else {
+        format!("{:.1} light-hours", seconds / 3600.0)
+    }
+}
 
 /// Display color for a body.
 pub fn body_color(name: &str) -> Color32 {
@@ -183,7 +196,7 @@ pub fn draw_under(
     simulation: &Simulation,
     options: ViewOptions,
     layout: &[OnScreen],
-    selected: usize,
+    (focus, selected): (usize, usize),
 ) {
     let screen = |point: DVec3| screen(camera, viewport, point);
     if options.grid {
@@ -201,7 +214,7 @@ pub fn draw_under(
                 painter.text(
                     p.position + vec2(4.0, 0.0),
                     Align2::LEFT_CENTER,
-                    format!("{radius_au} AU"),
+                    format!("{radius_au} AU · {}", light_time_label(radius)),
                     FontId::proportional(11.0),
                     Color32::from_rgba_unmultiplied(140, 160, 200, 110),
                 );
@@ -209,8 +222,15 @@ pub fn draw_under(
         }
     }
 
+    if options.heliosphere {
+        draw_heliosphere(painter, camera, viewport, simulation, options.labels);
+    }
     if camera.distance >= BELT_MIN_VIEW {
         let sun = simulation.bodies[0].position;
+        // The Sun in focus: its wind's spiral field.
+        if options.solar_wind && focus == 0 {
+            draw_solar_wind(painter, camera, viewport, simulation);
+        }
         if options.dust {
             draw_dust(painter, camera, viewport, sun);
         }
@@ -256,6 +276,128 @@ pub fn draw_under(
     // The Sun's corona sits behind its disk.
     if let Some(sun) = layout.iter().find(|s| s.index == 0) {
         draw_corona(painter, sun.projection.position, sun.radius);
+    }
+}
+
+/// Draws the Parker spiral: field lines rooted every 30° of solar longitude
+/// on the source surface, in the Sun's equatorial plane, turning with the
+/// Sun. They fade out by 10 AU, where they have wound round about one and a half times.
+fn draw_solar_wind(painter: &Painter, camera: &Camera, viewport: Rect, simulation: &Simulation) {
+    const LINES: usize = 12;
+    const REACH: f64 = 10.0 * AU;
+    let Some(model) = simulation.rotation(0) else {
+        return;
+    };
+    let frame = model.orientation(simulation.julian_date()).body_to_ecliptic;
+    let sun = simulation.bodies[0].position;
+    let wind = &simulation.wind;
+    // A step of 2° of lag, but no more than 5% of the distance.
+    let lag_step = 2f64.to_radians() * wind.speed / wind.rotation_rate;
+    for k in 0..LINES {
+        let root = k as f64 * std::f64::consts::TAU / LINES as f64;
+        let mut r = ParkerSpiral::SOURCE_SURFACE;
+        let mut previous: Option<Pos2> = None;
+        while r <= REACH {
+            let longitude = root - wind.lag(r);
+            let local = DVec3::new(r * longitude.cos(), r * longitude.sin(), 0.0);
+            let here = screen(camera, viewport, sun + frame * local).map(|p| p.position);
+            if let (Some(a), Some(b)) = (previous, here) {
+                let alpha = (90.0 * (1.0 - r / REACH)) as u8;
+                painter.line_segment(
+                    [a, b],
+                    Stroke::new(1.0, Color32::from_rgba_unmultiplied(130, 180, 235, alpha)),
+                );
+            }
+            previous = here;
+            r += lag_step.min(0.05 * r);
+        }
+    }
+}
+
+/// Draws the termination shock and the heliopause as faint wireframes,
+/// with the Voyager crossings marked. Only from outside the termination
+/// shock: from inside, the shells would surround the camera.
+fn draw_heliosphere(
+    painter: &Painter,
+    camera: &Camera,
+    viewport: Rect,
+    simulation: &Simulation,
+    labels: bool,
+) {
+    // The shape is drawn out to 120° from the nose; beyond, the tail is
+    // unmeasured.
+    const OPEN: f64 = 120.0;
+    let shell = &simulation.heliosphere;
+    let sun = simulation.bodies[0].position;
+    let eye = camera.eye() - sun;
+    if eye.length() < shell.termination_shock * shell.shape(eye) {
+        return;
+    }
+    let across = shell.nose.any_orthonormal_vector();
+    let other = shell.nose.cross(across);
+    let point = |r0: f64, theta: f64, phi: f64| {
+        let direction =
+            shell.nose * theta.cos() + (across * phi.cos() + other * phi.sin()) * theta.sin();
+        sun + direction * r0 * shell.shape(direction)
+    };
+    for (r0, color) in [
+        (
+            shell.termination_shock,
+            Color32::from_rgba_unmultiplied(235, 160, 90, 60),
+        ),
+        (
+            shell.heliopause,
+            Color32::from_rgba_unmultiplied(170, 130, 235, 60),
+        ),
+    ] {
+        let stroke = Stroke::new(1.0, color);
+        for ring in 1..=6 {
+            let theta = (ring as f64 * OPEN / 6.0).to_radians();
+            let circle: Vec<_> = (0..=96)
+                .map(|j| point(r0, theta, j as f64 / 96.0 * std::f64::consts::TAU))
+                .map(|p| screen(camera, viewport, p))
+                .collect();
+            draw_path(painter, &circle, stroke);
+        }
+        for meridian in 0..16 {
+            let phi = meridian as f64 / 16.0 * std::f64::consts::TAU;
+            let line: Vec<_> = (0..=40)
+                .map(|j| point(r0, (j as f64 / 40.0 * OPEN).to_radians(), phi))
+                .map(|p| screen(camera, viewport, p))
+                .collect();
+            draw_path(painter, &line, stroke);
+        }
+    }
+    for crossing in &simulation.crossings {
+        let Some(p) = screen(camera, viewport, sun + crossing.position) else {
+            continue;
+        };
+        let color = Color32::from_rgb(250, 235, 160);
+        painter.circle_filled(p.position, 3.0, color);
+        if labels {
+            // Each Voyager crossed both boundaries in nearly the same
+            // direction: one label above, one below.
+            let (what, offset, align) = match crossing.boundary {
+                worldline_data::Boundary::TerminationShock => {
+                    ("termination shock", vec2(6.0, -2.0), Align2::LEFT_BOTTOM)
+                }
+                worldline_data::Boundary::Heliopause => {
+                    ("heliopause", vec2(6.0, 2.0), Align2::LEFT_TOP)
+                }
+            };
+            painter.text(
+                p.position + offset,
+                align,
+                format!(
+                    "{} crossed the {what}, {}, {:.1} AU",
+                    crossing.spacecraft,
+                    &crossing.date[..4],
+                    crossing.published_distance / AU
+                ),
+                FontId::proportional(11.0),
+                color,
+            );
+        }
     }
 }
 

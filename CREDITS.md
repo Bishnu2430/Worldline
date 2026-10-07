@@ -17,6 +17,12 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 | Orbits of the asteroid belt, Jupiter's Trojans and the Kuiper belt (28,331 bodies) | NASA JPL Small-Body Database Query API (ssd-api.jpl.nasa.gov/sbdb_query.api) | Public domain (U.S. government work) |
 | Zodiacal dust model | Kelsall et al. (1998), *ApJ* 508, 44, from COBE DIRBE; full-precision parameters as reproduced by ZodiPy (San et al. 2022, *A&A* 666, A107) | Published scientific values |
 | Zodiacal light brightening toward the Sun (validation) | Helios 1 and 2, Leinert et al. (1981), *A&A* 103, 177 | Published scientific values |
+| Hourly solar wind at Earth, 2025 | NASA OMNI (King & Papitashvili 2005, *J. Geophys. Res.* 110, A02104), served by CDPP/AMDA (IRAP, France) through HAPI | Public domain (U.S. government work); AMDA service |
+| Voyager 1 and 2 positions at their heliosphere crossings | NASA JPL Horizons | Public domain (U.S. government work) |
+| Dates and distances of the Voyager crossings | Stone et al. 2005 (*Science* 309, 2017), 2008 (*Nature* 454, 71), 2013 (*Science* 341, 150), 2019 (*Nature Astronomy* 3, 1013) | Published scientific values |
+| Direction of the interstellar wind | IBEX: Bzowski et al. (2015), *ApJS* 220, 28 | Published scientific values |
+| Total solar irradiance (validation) | SORCE TIM: Kopp & Lean (2011), *Geophys. Res. Lett.* 38, L01706 | Published scientific values |
+| Solar luminosity | IAU 2015 Resolution B3 (nominal value) | Published values |
 | Rotation models (spin axes and rates), including 14 asteroids and comets | IAU WGCCRE (Archinal et al. 2018), via NASA NAIF `pck00011.tpc` | Public domain (U.S. government work) |
 | Radii and shapes | IAU WGCCRE (Archinal et al. 2018), via NASA NAIF `pck00011.tpc`; IAU 2015 Resolution B3 for the Sun | Public domain (U.S. government work) / published values |
 | Saturn's ring profile | Cassini Radio Science occultation Rev 7 (2005), NASA PDS Ring-Moon Systems Node, data set CO-SR-RSS-4/5-OCC-V2.0 | Public domain (U.S. government work) |

@@ -7,7 +7,8 @@ use eframe::egui::{self, Align2, Color32, FontId, Rect, RichText, Sense, Texture
 use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
 use worldline_core::DVec3;
-use worldline_core::constants::{AU, DAY, JULIAN_YEAR};
+use worldline_core::constants::{AU, DAY, JULIAN_YEAR, SOLAR_LUMINOSITY};
+use worldline_core::sunlight::{irradiance, light_time};
 use worldline_render::{Atmosphere, Rings, View};
 
 use crate::calendar::DateTime;
@@ -36,6 +37,27 @@ const PHYSICS_BUDGET: Duration = Duration::from_millis(12);
 
 /// Earth's GM (JPL DE440), for showing masses in Earth masses.
 const GM_EARTH: f64 = 3.986_004_355_070_227e14;
+
+/// A duration (s) for display: seconds; minutes and seconds; or hours and
+/// minutes.
+fn duration(seconds: f64) -> String {
+    if seconds < 120.0 {
+        format!("{seconds:.1} s")
+    } else if seconds < 7200.0 {
+        format!(
+            "{:.0} min {:.1} s",
+            (seconds / 60.0).floor(),
+            seconds % 60.0
+        )
+    } else {
+        let minutes = (seconds / 60.0).round();
+        format!(
+            "{:.0} h {:.0} min",
+            (minutes / 60.0).floor(),
+            minutes % 60.0
+        )
+    }
+}
 
 const SUN: usize = 0;
 const EARTH: usize = 3;
@@ -91,6 +113,8 @@ impl WorldlineApp {
                 globes: true,
                 belts: true,
                 dust: true,
+                solar_wind: true,
+                heliosphere: true,
             },
             last_frame: Instant::now(),
             flight: None,
@@ -319,6 +343,14 @@ impl WorldlineApp {
                 format!("Asteroid belt, Trojans and Kuiper belt ({total} real orbits)"),
             );
             ui.checkbox(&mut self.options.dust, "Zodiacal dust");
+            ui.checkbox(
+                &mut self.options.solar_wind,
+                "Solar wind's spiral field (with the Sun in focus)",
+            );
+            ui.checkbox(
+                &mut self.options.heliosphere,
+                "Heliosphere boundaries (seen from outside them)",
+            );
             ui.add_space(4.0);
             ui.label(
                 RichText::new(
@@ -390,6 +422,7 @@ impl WorldlineApp {
                 ));
                 ui.end_row();
             }
+            self.sun_reach(ui);
             if let Some(model) = self.simulation.rotation(self.selected) {
                 let jd = self.simulation.julian_date();
                 let hours = model.sidereal_period() / 3600.0;
@@ -460,6 +493,71 @@ impl WorldlineApp {
         }
     }
 
+    /// Inspector rows for the Sun's reach: sunlight and its travel time,
+    /// and the solar wind, at the selected body; for the Sun itself, its
+    /// output.
+    fn sun_reach(&self, ui: &mut egui::Ui) {
+        let bodies = &self.simulation.bodies;
+        let (sun, body) = (&bodies[SUN], &bodies[self.selected]);
+        let wind = &self.simulation.wind;
+        if self.selected == SUN {
+            ui.label("Luminosity");
+            ui.label(format!("{SOLAR_LUMINOSITY:.4e} W"));
+            ui.end_row();
+            ui.label("Solar wind at Earth");
+            ui.label(format!(
+                "{:.0} km/s, {:.1} protons/cm³ (2025 average)",
+                wind.speed / 1e3,
+                wind.density_at_1au / 1e6
+            ));
+            ui.end_row();
+            return;
+        }
+        let offset = body.position - sun.position;
+        let r = offset.length();
+        ui.label("Sunlight");
+        ui.label(format!(
+            "{:.1} W/m² ({:.3}× at 1 AU)",
+            irradiance(r),
+            irradiance(r) / irradiance(AU)
+        ));
+        ui.end_row();
+        // From the Sun's surface, including the Shapiro delay.
+        let travel = light_time(sun.gm, offset.normalize() * sun.radius, offset);
+        ui.label("Sunlight left the Sun");
+        ui.label(format!("{} ago", duration(travel)));
+        ui.end_row();
+        let shell = &self.simulation.heliosphere;
+        if r < shell.termination_shock * shell.shape(offset) {
+            ui.label("Solar wind");
+            ui.label(format!(
+                "{:.0} km/s, {:.3} protons/cm³",
+                wind.speed / 1e3,
+                wind.density(r) / 1e6
+            ));
+            ui.end_row();
+            let sin_colatitude = self.simulation.rotation(SUN).map_or(1.0, |m| {
+                m.spin_axis(self.simulation.julian_date())
+                    .cross(offset / r)
+                    .length()
+            });
+            ui.label("Its magnetic field");
+            ui.label(format!(
+                "{:.1}° from the radial (Parker spiral)",
+                wind.angle(r, sin_colatitude).to_degrees()
+            ));
+            ui.end_row();
+        } else {
+            ui.label("Solar wind");
+            ui.label(if r < shell.heliopause * shell.shape(offset) {
+                "slowed in the heliosheath (past the termination shock)"
+            } else {
+                "none: outside the heliopause, in interstellar space"
+            });
+            ui.end_row();
+        }
+    }
+
     fn scene(&mut self, ui: &mut egui::Ui, frame: &eframe::Frame) {
         let (response, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
         let viewport = response.rect;
@@ -495,7 +593,7 @@ impl WorldlineApp {
             &self.simulation,
             self.options,
             &layout,
-            self.selected,
+            (self.focus, self.selected),
         );
         if let Some(state) = render_state
             && let Some(texture) =
@@ -655,5 +753,17 @@ fn initial_camera() -> Camera {
         pitch: 0.6,
         distance: 4.0 * AU,
         fov_y: 0.8,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn durations_read_naturally() {
+        assert_eq!(duration(52.7), "52.7 s");
+        assert_eq!(duration(496.68), "8 min 16.7 s");
+        assert_eq!(duration(4.0 * 3600.0 + 9.4 * 60.0), "4 h 9 min");
     }
 }
