@@ -15,6 +15,7 @@
 mod app;
 mod calendar;
 mod camera;
+mod catalogue;
 mod details;
 mod gpu;
 mod sandbox;
@@ -34,10 +35,13 @@ pub struct StartOptions {
     pub zoom_radii: Option<f64>,
     /// Start with time stopped.
     pub paused: bool,
+    /// Start with the catalogue window open.
+    pub catalogue: bool,
     /// Years to simulate past the snapshot before starting.
     pub advance_years: f64,
-    /// A body to add before starting: which kind ("earth", "jupiter" or
-    /// "sun") and how far from the Sun, in AU, on a circular orbit.
+    /// A body to add before starting: which ("earth", "jupiter", "sun" or
+    /// a catalogue entry's name, like "Sagittarius A*") and how far from
+    /// the Sun, in AU, on a circular orbit.
     pub add: Option<(String, f64)>,
 }
 
@@ -49,6 +53,7 @@ impl StartOptions {
             match arg.as_str() {
                 "--focus" => options.focus = args.next(),
                 "--paused" => options.paused = true,
+                "--catalogue" => options.catalogue = true,
                 "--zoom" => match args.next().and_then(|r| r.parse::<f64>().ok()) {
                     Some(radii) if radii > 1.0 => options.zoom_radii = Some(radii),
                     _ => eprintln!("worldline: --zoom needs a number of radii above 1"),
@@ -58,15 +63,13 @@ impl StartOptions {
                     _ => eprintln!("worldline: --advance needs a number of years, 0 or more"),
                 },
                 "--add" => match args.next().and_then(|a| {
-                    let (kind, au) = a.split_once(':')?;
+                    let (kind, au) = a.rsplit_once(':')?;
                     let au = au.parse::<f64>().ok().filter(|au| *au > 0.0)?;
-                    ["earth", "jupiter", "sun"]
-                        .contains(&kind)
-                        .then(|| (kind.to_string(), au))
+                    (!kind.is_empty()).then(|| (kind.to_string(), au))
                 }) {
                     Some(add) => options.add = Some(add),
                     None => eprintln!(
-                        "worldline: --add needs earth, jupiter or sun and a distance, as jupiter:1.5"
+                        "worldline: --add needs a body and a distance in AU, as jupiter:1.5 or \"Gaia BH1:3\""
                     ),
                 },
                 other => eprintln!("worldline: ignoring unknown argument `{other}`"),
@@ -112,7 +115,8 @@ mod tests {
             "--advance",
             "7.5",
             "--add",
-            "jupiter:1.5",
+            "Gaia BH1:2.5",
+            "--catalogue",
         ]
         .map(String::from)
         .into_iter();
@@ -123,7 +127,8 @@ mod tests {
                 zoom_radii: Some(30.0),
                 paused: true,
                 advance_years: 7.5,
-                add: Some(("jupiter".into(), 1.5)),
+                catalogue: true,
+                add: Some(("Gaia BH1".into(), 2.5)),
             }
         );
         assert_eq!(

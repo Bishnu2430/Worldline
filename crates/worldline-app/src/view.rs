@@ -4,6 +4,7 @@
 
 use eframe::egui::{Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape, Stroke, vec2};
 use worldline_core::DVec3;
+use worldline_core::compact::{is_black_hole, shadow_radius};
 use worldline_core::constants::{AU, C};
 use worldline_core::magnetosphere::{field_line_point, magnetopause_radius, shue_1998, standoff};
 use worldline_core::orbit::osculating_orbit;
@@ -123,11 +124,12 @@ fn light_time_label(distance: f64) -> String {
     }
 }
 
-/// Display color for body `index`: by its name, or the sandbox's color if
-/// it was added there.
+/// Display color for body `index`: by its name, or if it was added in the
+/// sandbox, by its kind (the sandbox's pink for copies of solar-system
+/// bodies).
 pub fn color(simulation: &Simulation, index: usize) -> Color32 {
     if simulation.is_added(index) {
-        crate::sandbox::SANDBOX_COLOR
+        crate::catalogue::kind_color(simulation.entry(index).and_then(|e| e.kind()))
     } else {
         body_color(&simulation.bodies[index].name)
     }
@@ -221,8 +223,16 @@ pub fn layout(
                     return None;
                 }
             }
-            let true_radius = (body.radius * projection.points_per_meter) as f32;
-            let min_radius = if index == 0 {
+            // A black hole shows as its shadow, the dark disk light can't
+            // escape from, √27 GM/c² across (2.6 times its horizon).
+            let hole = is_black_hole(body);
+            let size = if hole {
+                shadow_radius(body.gm)
+            } else {
+                body.radius
+            };
+            let true_radius = (size * projection.points_per_meter) as f32;
+            let min_radius = if index == 0 && simulation.has_sun() {
                 SUN_MIN_RADIUS
             } else {
                 MIN_RADIUS
@@ -231,7 +241,7 @@ pub fn layout(
                 index,
                 projection,
                 radius: true_radius.max(min_radius),
-                globe: globes_allowed && true_radius >= min_radius,
+                globe: globes_allowed && !hole && true_radius >= min_radius,
             })
         })
         .collect();
@@ -275,10 +285,12 @@ pub fn draw_under(
         }
     }
 
-    if options.magnetospheres {
+    // The Sun's reach: gone if something absorbed the Sun.
+    let sun_here = simulation.has_sun();
+    if options.magnetospheres && sun_here {
         draw_magnetosphere(painter, camera, viewport, simulation, attention);
     }
-    if options.heliosphere {
+    if options.heliosphere && sun_here {
         draw_heliosphere(
             painter,
             camera,
@@ -287,7 +299,7 @@ pub fn draw_under(
             options.labels.then_some(attention.pointer).flatten(),
         );
     }
-    if camera.distance >= BELT_MIN_VIEW {
+    if camera.distance >= BELT_MIN_VIEW && sun_here {
         let sun = simulation.bodies[0].position;
         // The Sun in focus: its wind's spiral field.
         if options.solar_wind && focus == 0 {
@@ -336,7 +348,7 @@ pub fn draw_under(
     }
 
     // The Sun's corona sits behind its disk.
-    if let Some(sun) = layout.iter().find(|s| s.index == 0) {
+    if let Some(sun) = layout.iter().find(|s| s.index == 0 && sun_here) {
         draw_corona(painter, sun.projection.position, sun.radius);
     }
 }
@@ -740,7 +752,9 @@ pub fn draw_over(
         let body = &bodies[item.index];
         let color = color(simulation, item.index);
         let center = item.projection.position;
-        if !item.globe {
+        if is_black_hole(body) {
+            draw_black_hole(painter, center, item.radius, color);
+        } else if !item.globe {
             painter.circle_filled(center, item.radius, color);
         }
         // Up close it's obvious what's selected, so large globes skip the ring.
@@ -829,6 +843,19 @@ pub fn draw_over(
         }
     }
     drawn
+}
+
+/// A black hole: a dark disk the size of its shadow, edged by a thin ring
+/// in `color` so it shows against the dark sky. A visual stand-in for the
+/// bright ring of bent light around a real shadow (step 3.1 traces it).
+fn draw_black_hole(painter: &Painter, center: Pos2, radius: f32, color: Color32) {
+    painter.circle_filled(center, radius, Color32::BLACK);
+    painter.circle_stroke(center, radius, Stroke::new(1.5, color));
+    painter.circle_stroke(
+        center,
+        radius + 2.0,
+        Stroke::new(2.0, color.gamma_multiply(0.25)),
+    );
 }
 
 /// Whether a dot sits behind a nearer globe's disk on screen.

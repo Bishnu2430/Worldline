@@ -2,7 +2,7 @@
 
 use worldline_core::constants::{AU, C, G, GM_SUN, JULIAN_YEAR};
 use worldline_core::diagnostics::{linear_momentum, newtonian_energy};
-use worldline_core::hierarchy::Hierarchy;
+use worldline_core::hierarchy::{Collision, Hierarchy};
 use worldline_core::mean_elements::MeanElements;
 use worldline_core::{Body, DMat3, DVec3};
 use worldline_data::full_solar_system;
@@ -156,8 +156,9 @@ fn a_planet_launched_at_circular_speed_stays_on_a_circle() {
 #[test]
 fn an_intruder_that_hits_mars_merges_and_keeps_the_momentum() {
     // A Jupiter-mass body 10⁶ km behind Mars on its orbit, closing at
-    // 10 km/s: it hits Mars, absorbs it (it is heavier), and Phobos and
-    // Deimos are left orbiting the Sun. Total momentum must hold to the
+    // 10 km/s. As it nears, its tide on Phobos and Deimos outgrows 1/12 of
+    // Mars's pull, and they are freed to orbit on their own; then it hits
+    // Mars and absorbs it (it is heavier). Total momentum must hold to the
     // same (v/c)² as without a collision.
     let mut h = full_solar_system();
     let mars = h
@@ -182,27 +183,43 @@ fn an_intruder_that_hits_mars_merges_and_keeps_the_momentum() {
         .map(|b| (b.gm * b.velocity).length())
         .sum::<f64>()
         / G;
-    let mut collision = None;
+    let mut collisions = Vec::new();
+    let mut unbound = Vec::new();
     let end = h.time() + 5.0 * 86_400.0;
-    while collision.is_none() && h.time() < end {
+    while !collisions.iter().any(|c: &Collision| c.absorbed == "Mars") && h.time() < end {
         h.step(end - h.time());
-        collision = h.take_collisions().into_iter().next();
+        unbound.extend(h.take_unbound());
+        collisions.extend(h.take_collisions());
     }
-    let collision = collision.expect("the intruder hits Mars within five days");
     let drift = (linear_momentum(&h.top) - before).length() / scale;
+    let freed = &unbound[0];
     println!(
-        "{} absorbed {} at {:.2} km/s after {:.1} h, freeing {:?}; momentum drift {drift:.1e}",
-        collision.survivor,
-        collision.absorbed,
-        collision.speed / 1e3,
-        collision.time / 3600.0,
-        collision.freed
+        "{}'s tides freed {:?} from {} after {:.1} h",
+        freed.by,
+        freed.freed,
+        freed.planet,
+        freed.time / 3600.0
     );
+    for c in &collisions {
+        println!(
+            "{} absorbed {} at {:.2} km/s after {:.1} h",
+            c.survivor,
+            c.absorbed,
+            c.speed / 1e3,
+            c.time / 3600.0
+        );
+    }
+    println!("momentum drift {drift:.1e}");
     assert_eq!(
-        (collision.survivor.as_str(), collision.absorbed.as_str()),
+        (freed.by.as_str(), freed.planet.as_str()),
         ("Intruder", "Mars")
     );
-    assert_eq!(collision.freed, ["Phobos", "Deimos"]);
+    assert_eq!(freed.freed, ["Phobos", "Deimos"]);
+    let mars = collisions
+        .iter()
+        .find(|c| c.absorbed == "Mars")
+        .expect("the intruder hits Mars within five days");
+    assert_eq!(mars.survivor, "Intruder");
     assert!(
         h.moon_systems
             .iter()

@@ -33,6 +33,7 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 | Saturn's ring features | NASA PDS Ring-Moon Systems Node, "Vital Statistics for Saturn's Rings" | Public domain (U.S. government work) |
 | Earth's Rayleigh scattering coefficients | Bruneton & Neyret (2008), *Computer Graphics Forum* 27(4) | Published scientific values |
 | Corona brightness model | Baumbach (1937), as given in *Allen's Astrophysical Quantities* | Published scientific values |
+| Notable objects: masses, sizes and distances | GRAVITY Collaboration 2022 (*A&A* 657, L12); Event Horizon Telescope Collaboration 2019 (*ApJL* 875, L1, L6) and 2022 (*ApJL* 930, L12); Shemmer et al. 2004 (*ApJ* 614, 547); Miller-Jones et al. 2021 (*Science* 371, 1046); Zhao et al. 2021 (*ApJ* 908, 117); El-Badry et al. 2023 (*MNRAS* 518, 1057); Gaia Collaboration 2024 (*A&A* 686, L2); LIGO/Virgo GWTC-1 (*Phys. Rev. X* 9, 031040) and Abbott et al. 2018 (*PRL* 121, 161101); Weisberg & Huang 2016 (*ApJ* 829, 55); Fonseca et al. 2021 (*ApJL* 915, L12); Riley et al. 2019, 2021 (*ApJL* 887, L21; 918, L27); Bond et al. 2017 (*ApJ* 840, 70); Joyce et al. 2018 (*MNRAS* 481, 2361); Kervella et al. 2003 (*A&A* 408, 681); Kervella, Thévenin & Lovis 2017 (*A&A* 598, L7) | Published scientific values |
 
 ## Imagery
 

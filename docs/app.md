@@ -51,14 +51,27 @@ The app is a window around the physics engine. It never does physics itself. It 
 
 **Select and inspect.** Click a body to select it; the inspector shows what is known about it. Double-click it to fly to it.
 
-**Add and drag-launch.** Pick a body from **Add a body** in the top bar: an Earth-mass planet, a Jupiter-mass planet or a Sun-mass star, each with the mass and size of the real one.
+![The catalogue open beside Sagittarius A*, dropped 3 AU from the Sun: a dark disk the size of its shadow](images/catalogue-step-2.1.png)
+
+**The catalogue.** **Add a body** in the top bar opens the catalogue: 25 entries in six groups, each with its mass and size. Hover over one to see where the real one is and where its values were published. The entries are:
+- **Planets:** copies of Earth, Neptune and Jupiter.
+- **Stars:** a Sun-mass copy, Proxima Centauri, Alpha Centauri A and B, and Sirius A.
+- **White dwarfs:** Sirius B.
+- **Neutron stars:** the Hulse–Taylor pulsar and its companion, two NICER pulsars, and GW170817's pair.
+- **Black holes:** from Gaia BH1 (9.6 Suns) up to Sagittarius A\*, M87\* and TON 618 (66 billion Suns).
+- **Binaries:** the Hulse–Taylor pair, together on its measured 7.75-hour orbit.
+
+See [physics/compact-objects.md](physics/compact-objects.md).
+
+**Add and drag-launch.** Drag an entry from the catalogue into the view, or pick it and then click or drag in the view. **Start: circling / at rest**, at the top of the catalogue, chooses whether it starts on a circular orbit around the body in focus or still relative to it, so that they fall together.
 - **Where it goes.** Press in the view where it should go, on the plane through the body in focus, parallel to the ecliptic.
 - **Click without dragging** to put it on a circular orbit around the body in focus, or around the Sun if the focus has no mass. The speed is √(G(M + m)/r) relative to that body, prograde in the ecliptic; for two bodies that orbit is exactly circular.
 - **Drag** to launch it faster or slower. One circular speed is added for every quarter of the camera's distance dragged.
 - **The preview.** While dragging, the app draws the orbit it would follow around that body if nothing else pulled, its speed, and whether it would escape.
 - **What it joins.** New bodies join the Sun and planets at the top of the hierarchy, with relativistic gravity: they pull on everything and everything pulls on them. The moon systems feel their tides, and the asteroids and comets that follow the top level feel their pull. The belts, the small moons on fixed orbits, the solar wind and the heliosphere don't respond to them; the inspector says so.
 - **When you're done,** press **Done** or Esc.
-- **From the command line:** `--add jupiter:1.5` drops a Jupiter-mass planet on a circular orbit 1.5 AU from the Sun before the window opens (also `earth:` and `sun:`).
+- **From the command line:** `--add jupiter:1.5` drops a Jupiter-mass planet on a circular orbit 1.5 AU from the Sun before the window opens (also `earth:`, `sun:`, or any catalogue name, like `"Gaia BH1:3"`). `--catalogue` opens the catalogue at startup.
+- **Near a black hole:** closer than 6 G(M + m)/c², where no circular orbit exists, a body starts at rest. Launches are capped at half the speed of light.
 
 **Remove.** **Remove** in the inspector, or the Delete key, takes the selected body out.
 - **A planet with moons** goes with them (the button says how many).
@@ -66,6 +79,10 @@ The app is a window around the physics engine. It never does physics itself. It 
 - **Moons can't be removed on their own yet.**
 
 The camera keeps following its body; if that body was removed, it goes back to the Sun.
+
+**Black holes** are drawn as their shadow, a dark disk √27 GM/c² across, with a thin ring so they show against the sky (a visual stand-in; the ray tracer is step 3.1). The inspector shows a catalogue object's published mass with its uncertainty, its radius or horizon and spin, how much gravity reddens light from its surface, where the real one is, and its source.
+
+**What feels an added body.** The Sun, planets, dwarf planets, the heaviest asteroids and the comets and asteroids followed one by one all feel it, and the major moons feel its tides. A distant body pulls the whole solar system almost equally, so it falls together; only tides pull it apart. The belts and the small moons of planets not in focus follow fixed orbits and don't feel it yet (step 2.1b). If something absorbs the Sun, sunlight, the solar wind and the heliosphere go with it.
 
 **Collisions.** Bodies that touch merge: momentum is kept and volumes add. The top bar reports it ("New planet 1 hit Earth at 11.2 km/s and merged"). If the body you were following or had selected was absorbed, the camera and inspector move to the survivor. A planet that is absorbed leaves its major moons orbiting the Sun. See [physics/collisions.md](physics/collisions.md).
 

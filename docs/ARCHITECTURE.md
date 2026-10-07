@@ -73,7 +73,9 @@ It uses them to pick a model:
 | Asteroids and comets too light to pull on the planets | Newtonian pull of the Sun and planets, plus the Sun's 1PN (Schwarzschild) term and JPL's non-gravitational forces | IERS Conventions 2010; Marsden, Sekanina & Yeomans 1973 |
 | Belt asteroids and Kuiper belt objects (background) | Fixed two-body ellipses from JPL's osculating elements | Kepler's laws; JPL Small-Body Database |
 | Zodiacal dust | COBE DIRBE smooth-cloud density model | Kelsall et al. 1998 |
-| Bodies that touch | Perfectly inelastic merger: momentum conserved, volumes add; contact found along each step | [physics/collisions.md](physics/collisions.md) |
+| Bodies that touch | Perfectly inelastic merger: momentum conserved, volumes add (a black hole survives and its horizon grows with its mass); contact found along each step | [physics/collisions.md](physics/collisions.md) |
+| Black holes, neutron stars, white dwarfs (as point bodies) | Published masses and sizes; Kerr horizons; Buchdahl's limit tells a black hole from a star | [physics/compact-objects.md](physics/compact-objects.md); Buchdahl 1959 |
+| A moon system meets an intruder | The moons join the top level once another body's tide on one passes 1/12 of the planet's pull (half the Hill radius, far away) | Domingos, Winter & Yokoyama 2006 |
 | Sunlight and its travel time | Inverse-square law from the IAU luminosity; distance over c plus the Shapiro delay | IAU 2015 B3; Shapiro 1964 |
 | Solar wind | Parker spiral with the measured average wind at Earth | Parker 1958; NASA OMNI |
 | Heliosphere | Boundaries measured at the Voyager crossings; Rankine half-body shape between them (visual) | Stone et al. 2005–2019; Bzowski et al. 2015 |

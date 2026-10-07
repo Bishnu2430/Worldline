@@ -4,6 +4,7 @@
 use glam::DVec3;
 
 use crate::Body;
+use crate::compact::is_black_hole;
 
 /// Two bodies merged as one, perfectly inelastically: the masses add, the
 /// merged body sits at their center of mass and moves with their combined
@@ -11,6 +12,12 @@ use crate::Body;
 /// of theirs (as if they had the same density). The kinetic energy of
 /// their relative motion, ½ μ v² with μ = m₁m₂/(m₁ + m₂), goes into heat.
 /// The merged body keeps the survivor's name.
+///
+/// If either is a black hole, the result is a black hole: nothing comes
+/// back out of a horizon. Its horizon grows in proportion to its mass, as
+/// it does at a fixed spin. (Two black holes merging radiate a few percent
+/// of their mass as gravitational waves, and the result spins; that comes
+/// with step 2.4.)
 pub fn merge(survivor: &Body, absorbed: &Body) -> Body {
     let gm = survivor.gm + absorbed.gm;
     let (position, velocity) = if gm > 0.0 {
@@ -21,12 +28,28 @@ pub fn merge(survivor: &Body, absorbed: &Body) -> Body {
     } else {
         (survivor.position, survivor.velocity)
     };
+    let hole = [survivor, absorbed].into_iter().find(|b| is_black_hole(b));
+    let radius = match hole {
+        Some(hole) => hole.radius * (gm / hole.gm),
+        None => (survivor.radius.powi(3) + absorbed.radius.powi(3)).cbrt(),
+    };
     Body {
         name: survivor.name.clone(),
         gm,
-        radius: (survivor.radius.powi(3) + absorbed.radius.powi(3)).cbrt(),
+        radius,
         position,
         velocity,
+    }
+}
+
+/// Of two bodies that touch, the one whose identity goes on: a black hole,
+/// whatever it hits; otherwise the more massive (the first, if equal).
+/// Returns true for the first.
+pub fn first_survives(first: &Body, second: &Body) -> bool {
+    match (is_black_hole(first), is_black_hole(second)) {
+        (true, false) => true,
+        (false, true) => false,
+        _ => first.gm >= second.gm,
     }
 }
 
@@ -157,6 +180,33 @@ mod tests {
         let mu = a.gm * b.gm / (a.gm + b.gm);
         let relative = 0.5 * mu * (a.velocity - b.velocity).length_squared();
         assert!((lost / relative - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn a_black_hole_swallows_even_a_heavier_star() {
+        use crate::compact::{horizon_radius, is_black_hole};
+        use crate::constants::{GM_SUN, SOLAR_RADIUS};
+        // A black hole of 10 Suns spinning at 0.9 hits a star of 20.
+        let hole = Body::new("Hole", 10.0 * GM_SUN, horizon_radius(10.0 * GM_SUN, 0.9))
+            .moving(DVec3::new(2.0e5, 0.0, 0.0));
+        let star = Body::new("Star", 20.0 * GM_SUN, 7.0 * SOLAR_RADIUS).at(DVec3::new(
+            7.0 * SOLAR_RADIUS,
+            0.0,
+            0.0,
+        ));
+        assert!(first_survives(&hole, &star) && !first_survives(&star, &hole));
+        let m = merge(&hole, &star);
+        assert_eq!(m.name, "Hole");
+        assert!(is_black_hole(&m));
+        // A hole of 30 Suns with the same spin.
+        let expected = horizon_radius(30.0 * GM_SUN, 0.9);
+        assert!((m.radius - expected).abs() < 1e-12 * expected);
+        let momentum = hole.velocity * hole.gm + star.velocity * star.gm;
+        assert!((m.velocity * m.gm - momentum).length() <= 1e-15 * momentum.length());
+        // Between two stars, the heavier survives; equal masses, the first.
+        let light = Body::new("Light", GM_SUN, SOLAR_RADIUS);
+        assert!(!first_survives(&light, &star));
+        assert!(first_survives(&light, &light.clone()));
     }
 
     #[test]

@@ -2,6 +2,7 @@
 //! each detail is: measured data, a physics model, or a visual aid.
 
 use eframe::egui::Color32;
+use worldline_data::ObjectKind;
 
 /// Where a detail comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,15 +82,59 @@ const ADDED: &[Detail] = &[
         "Added in the sandbox, with the mass and size of a solar-system body",
         Kind::Model,
     ),
-    detail(
-        "Its path: relativistic gravity with the Sun and planets, which it pulls on in turn",
-        Kind::Model,
-    ),
-    detail(
-        "The belts and small moons on fixed orbits don't feel it",
-        Kind::Visual,
-    ),
+    ADDED_PATH,
+    ADDED_UNFELT,
 ];
+
+const ADDED_PATH: Detail = detail(
+    "Its path: relativistic gravity with the Sun and planets, which it pulls on in turn",
+    Kind::Model,
+);
+
+const ADDED_UNFELT: Detail = detail(
+    "The belts and small moons on fixed orbits don't feel it",
+    Kind::Visual,
+);
+
+/// For a real object from the notable-objects catalog, added in the
+/// sandbox.
+fn catalog_details(kind: ObjectKind) -> Vec<Detail> {
+    let mut list = vec![
+        detail(
+            "Mass and size: a real object's published values (sources above)",
+            Kind::Measured,
+        ),
+        ADDED_PATH,
+    ];
+    list.extend(match kind {
+        ObjectKind::BlackHole => [
+            detail(
+                "Drawn as its shadow seen from afar, a dark disk √27 GM/c² across: how light bends around it comes in step 3.1",
+                Kind::Visual,
+            ),
+            detail(
+                "Inside the horizon, physics is unknown: whatever reaches it is absorbed",
+                Kind::Model,
+            ),
+        ],
+        ObjectKind::NeutronStar => [
+            detail("No surface map: a flat, glowing color", Kind::Visual),
+            detail(
+                "Its interior is known only through models of nuclear matter (step 2.7)",
+                Kind::Model,
+            ),
+        ],
+        ObjectKind::WhiteDwarf | ObjectKind::Star => [
+            detail("No surface map: a flat, glowing color", Kind::Visual),
+            detail(
+                "It shines, but the planets stay lit by the Sun, unless it takes the Sun's place",
+                Kind::Visual,
+            ),
+        ],
+    });
+    list.push(ADDED_UNFELT);
+    list
+}
 
 const EARTH: &[Detail] = &[
     detail(
@@ -254,8 +299,9 @@ pub enum BodyKind {
     SmallMoonInDetail,
     /// A small moon placed by its mean orbit.
     SmallMoonOnMeanOrbit,
-    /// A body added in the sandbox.
-    Added,
+    /// A body added in the sandbox: a copy of a solar-system body, or a
+    /// real object of the given kind from the catalog.
+    Added(Option<ObjectKind>),
     /// A dwarf planet, asteroid or comet.
     SmallBody {
         /// A comet (or interstellar visitor) rather than an asteroid.
@@ -272,7 +318,8 @@ pub fn details(name: &str, kind: BodyKind) -> Vec<Detail> {
     match kind {
         BodyKind::SmallMoonInDetail => return SMALL_MOON_IN_DETAIL.to_vec(),
         BodyKind::SmallMoonOnMeanOrbit => return SMALL_MOON_ON_MEAN_ORBIT.to_vec(),
-        BodyKind::Added => return ADDED.to_vec(),
+        BodyKind::Added(None) => return ADDED.to_vec(),
+        BodyKind::Added(Some(kind)) => return catalog_details(kind),
         BodyKind::SmallBody {
             comet,
             outgassing,

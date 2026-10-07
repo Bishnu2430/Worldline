@@ -1,96 +1,61 @@
-//! The sandbox tools: placing new bodies and launching them with a drag,
-//! and saving and loading. See `docs/app.md`.
+//! The sandbox tools: placing new bodies from the catalogue and launching
+//! them with a drag, and saving and loading. See `docs/app.md`.
 
 use std::path::PathBuf;
 
 use eframe::egui::{Align2, Color32, FontId, Painter, Rect, Stroke};
+use worldline_core::DVec3;
+use worldline_core::compact::is_black_hole;
+use worldline_core::constants::C;
 use worldline_core::orbit::osculating_orbit;
-use worldline_core::{Body, DVec3};
 
 use crate::calendar::DateTime;
 use crate::camera::Camera;
+use crate::catalogue::Entry;
 use crate::simulation::Simulation;
 
 /// The color of bodies added in the sandbox.
 pub const SANDBOX_COLOR: Color32 = Color32::from_rgb(255, 136, 196);
 
-/// A body to add, with the mass and size of one of the solar system's own.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Preset {
-    Earth,
-    Jupiter,
-    Sun,
-}
-
-impl Preset {
-    pub const ALL: [Preset; 3] = [Preset::Earth, Preset::Jupiter, Preset::Sun];
-
-    /// Its name in the menu.
-    pub fn label(self) -> &'static str {
-        match self {
-            Preset::Earth => "Earth-mass planet",
-            Preset::Jupiter => "Jupiter-mass planet",
-            Preset::Sun => "Sun-mass star",
-        }
-    }
-
-    /// The body it copies, as named in the 2025 snapshot.
-    fn model(self) -> &'static str {
-        match self {
-            Preset::Earth => "Earth",
-            Preset::Jupiter => "Jupiter",
-            Preset::Sun => "Sun",
-        }
-    }
-
-    /// A new body: the model's GM and radius from the snapshot (Jupiter's
-    /// GM includes its moons), under the first free name like "New planet
-    /// 2", at rest at the origin.
-    pub fn body(self, simulation: &Simulation) -> Body {
-        let snapshot = worldline_data::solar_system();
-        let model = snapshot
-            .bodies
-            .iter()
-            .find(|b| b.name == self.model())
-            .expect("the snapshot has the model");
-        let noun = if self == Preset::Sun {
-            "star"
-        } else {
-            "planet"
-        };
-        let name = (1..)
-            .map(|n| format!("New {noun} {n}"))
-            .find(|name| simulation.index_of(name).is_none())
-            .expect("a free name");
-        Body::new(name, model.gm, model.radius)
-    }
-}
-
-/// A body being placed: where, the body it will orbit if not dragged, and
-/// how far the drag has pulled.
+/// A body being placed: what, where, the body it will orbit if not
+/// dragged, and how far the drag has pulled.
 #[derive(Debug, Clone, Copy)]
 pub struct Launch {
-    pub preset: Preset,
+    pub entry: &'static Entry,
     pub position: DVec3,
     /// Index of the body it orbits by default.
     pub around: usize,
     /// Where the drag has reached, on the same plane as `position`.
     pub drag: DVec3,
+    /// Start at rest relative to `around` (it falls straight in), instead
+    /// of circling it.
+    pub at_rest: bool,
 }
 
 impl Launch {
     /// Its velocity. Placed without a drag, it circles `around`:
     /// prograde, in the ecliptic, at √(G(M + m)/r) relative to it, which
-    /// for two bodies is exactly circular. Dragging adds velocity along the
-    /// drag: one circular speed for every quarter of the camera's distance.
+    /// for two bodies is exactly circular; or, `at_rest`, it starts still
+    /// relative to it. Dragging adds velocity along the drag: one circular
+    /// speed for every quarter of the camera's distance.
     pub fn velocity(&self, simulation: &Simulation, camera_distance: f64, gm: f64) -> DVec3 {
         let center = &simulation.bodies[self.around];
         let r = self.position - center.position;
-        let speed = ((center.gm + gm) / r.length()).sqrt();
+        let mu = center.gm + gm;
+        // Closer than 6GM/c², the innermost stable orbit, no circular orbit
+        // exists: it starts at rest and falls in. Launches stay below half
+        // the speed of light, already far beyond what the gravity model
+        // covers.
+        let circular = if !self.at_rest && r.length() > 6.0 * mu / (C * C) {
+            (mu / r.length()).sqrt()
+        } else {
+            0.0
+        };
+        let scale = (mu / r.length()).sqrt().min(C / 6f64.sqrt());
         let along = DVec3::Z.cross(r).normalize_or_zero();
-        center.velocity
-            + along * speed
-            + (self.drag - self.position) * (speed / (0.25 * camera_distance))
+        let relative =
+            along * circular + (self.drag - self.position) * (scale / (0.25 * camera_distance));
+        center.velocity + relative.clamp_length_max(0.5 * C)
     }
 
     /// Draws the launch: the body's marker, the drag as an arrow, and the
@@ -103,7 +68,7 @@ impl Launch {
         simulation: &Simulation,
     ) {
         let screen = |p: DVec3| camera.project(p, viewport).map(|s| s.position);
-        let gm = self.preset.body(simulation).gm;
+        let gm = self.entry.gm();
         let center = &simulation.bodies[self.around];
         let velocity = self.velocity(simulation, camera.distance, gm);
         let (r, v) = (self.position - center.position, velocity - center.velocity);
@@ -127,6 +92,28 @@ impl Launch {
             painter.arrow(at, to - at, stroke);
         }
         painter.circle_filled(at, 5.0, SANDBOX_COLOR);
+        // A black hole's horizon (or a big star), drawn to scale where it
+        // will appear: whatever it overlaps falls in at once.
+        if let Some(body) = self.entry.bodies(simulation).first()
+            && let Some(p) = camera.project(self.position, viewport)
+        {
+            let radius = (body.radius * p.points_per_meter) as f32;
+            if radius > 6.0 {
+                let ring = if is_black_hole(body) {
+                    "horizon"
+                } else {
+                    "surface"
+                };
+                painter.circle_stroke(at, radius, Stroke::new(1.0, SANDBOX_COLOR));
+                painter.text(
+                    at + eframe::egui::vec2(0.0, radius + 4.0),
+                    Align2::CENTER_TOP,
+                    ring,
+                    FontId::proportional(11.0),
+                    SANDBOX_COLOR,
+                );
+            }
+        }
         let circular = (mu / r.length()).sqrt();
         let energy = 0.5 * v.length_squared() - mu / r.length();
         painter.text(
@@ -134,7 +121,7 @@ impl Launch {
             Align2::LEFT_BOTTOM,
             format!(
                 "{}: {:.1} km/s around {} (circular {:.1}){}",
-                self.preset.label(),
+                self.entry.label,
                 v.length() / 1e3,
                 center.name,
                 circular / 1e3,

@@ -34,7 +34,7 @@
 
 use glam::DVec3;
 
-use crate::collision::{contact, merge};
+use crate::collision::{contact, first_survives, merge};
 use crate::constants::C;
 use crate::gravity::{
     Gravity, Newtonian, NonGravitational, SynchronousFigure, TesseralField, ZonalField,
@@ -225,6 +225,30 @@ pub struct Hierarchy {
     followers: Vec<Follower>,
     /// Collisions since the last [`Self::take_collisions`].
     happened: Vec<Collision>,
+    /// Moon systems torn apart since the last [`Self::take_unbound`].
+    unbound: Vec<Unbound>,
+}
+
+/// A planet's moons set free: another body came so close that its tide on
+/// a moon (how differently it pulls on the moon and the planet) passed 1/12
+/// of the planet's own pull. For a distant body that happens at half the
+/// planet's Hill radius, beyond which no prograde moon stays bound for long
+/// (Domingos, Winter & Yokoyama 2006, *MNRAS* 373, 1227). A separate frame
+/// for the moons no longer works, so its major moons join the top level,
+/// where everything pulls on everything; the small moons following them
+/// are dropped.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Unbound {
+    /// When, as simulation time in s.
+    pub time: f64,
+    /// The planet whose moons were freed.
+    pub planet: String,
+    /// The body whose tides did it.
+    pub by: String,
+    /// The moon system's index (before it was dissolved).
+    pub system: usize,
+    /// The major moons, now at the top level.
+    pub freed: Vec<String>,
 }
 
 /// Two bodies that touched and merged: at the top level, the Sun, planets
@@ -289,12 +313,18 @@ impl Hierarchy {
             integrator: Ias15::new(),
             followers: Vec::new(),
             happened: Vec::new(),
+            unbound: Vec::new(),
         }
     }
 
     /// The collisions since the last call, oldest first.
     pub fn take_collisions(&mut self) -> Vec<Collision> {
         std::mem::take(&mut self.happened)
+    }
+
+    /// The moon systems torn apart since the last call, oldest first.
+    pub fn take_unbound(&mut self) -> Vec<Unbound> {
+        std::mem::take(&mut self.unbound)
     }
 
     /// Adds bodies that follow the top level without pulling on it, given
@@ -402,6 +432,10 @@ impl Hierarchy {
     /// Advances everything by one top-level step of at most `max_dt`
     /// seconds. Returns the length of the step.
     pub fn step(&mut self, max_dt: f64) -> f64 {
+        if self.collisions {
+            self.absorb_overlaps();
+        }
+        self.free_torn_moons();
         let t0 = self.top.time();
         let before: Vec<(DVec3, DVec3)> = self
             .top
@@ -574,12 +608,13 @@ impl Hierarchy {
     }
 
     /// Merges top-level bodies `i` and `j`, conserving momentum exactly.
-    /// The Sun survives any collision; otherwise the more massive body does.
-    /// A planet that is absorbed leaves its major moons behind as top-level
-    /// bodies (its small moons go with it); a planet that survives keeps
-    /// its moons.
+    /// A black hole survives any collision; otherwise the more massive body
+    /// does. A planet that is absorbed leaves its major moons behind as
+    /// top-level bodies (its small moons go with it); a planet that survives
+    /// keeps its moons. Whatever absorbs the Sun takes its place as body 0,
+    /// which the followers' relativistic term is measured from.
     fn merge_top(&mut self, i: usize, j: usize, speed: f64, time: f64) {
-        let (s, a) = if i == 0 || (j != 0 && self.top.bodies[i].gm >= self.top.bodies[j].gm) {
+        let (s, a) = if first_survives(&self.top.bodies[i], &self.top.bodies[j]) {
             (i, j)
         } else {
             (j, i)
@@ -589,30 +624,11 @@ impl Hierarchy {
         // their GMs are scaled to the top level's figure for the system
         // (the two JPL solutions differ by under 10⁻⁴), so the momentum the
         // top level carried for the system is exactly what they carry.
-        let mut freed = Vec::new();
         let dissolved_system = self.moon_systems.iter().position(|m| m.host == a);
-        if let Some(k) = dissolved_system {
-            let moons = self.moon_systems.remove(k);
-            let host = self.top.bodies[a].clone();
-            let total = moons.system.total_gm();
-            let scale = host.gm / total;
-            let center = moons.system.barycenter();
-            let drift = moons.system.barycenter_velocity();
-            for (n, body) in moons.system.bodies.iter().enumerate() {
-                let free = Body {
-                    gm: body.gm * scale,
-                    position: host.position + body.position - center,
-                    velocity: host.velocity + body.velocity - drift,
-                    ..body.clone()
-                };
-                if n == 0 {
-                    self.top.bodies[a] = free;
-                } else {
-                    freed.push(free.name.clone());
-                    self.top.bodies.push(free);
-                }
-            }
-        }
+        let freed = match dissolved_system {
+            Some(k) => self.dissolve(k),
+            None => Vec::new(),
+        };
         let absorbed = self.top.bodies[a].clone();
         let survivor = self.top.bodies[s].clone();
         let merged = merge(&survivor, &absorbed);
@@ -644,7 +660,19 @@ impl Hierarchy {
         } else {
             self.top.bodies[s] = merged;
         }
-        self.remove_body(a);
+        if a == 0 {
+            // The Sun was absorbed: the survivor moves into its place, with
+            // its moons if it has any.
+            self.top.bodies.swap(0, s);
+            for moons in &mut self.moon_systems {
+                if moons.host == s {
+                    moons.host = 0;
+                }
+            }
+            self.remove_body(s);
+        } else {
+            self.remove_body(a);
+        }
         self.happened.push(Collision {
             time,
             survivor: survivor.name,
@@ -653,6 +681,124 @@ impl Hierarchy {
             dissolved_system,
             freed,
         });
+    }
+
+    /// Dissolves moon system `k`: its planet takes the host's place at the
+    /// top level and its major moons join it there, each keeping its exact
+    /// state, re-centered on the system's own barycenter, with GMs scaled
+    /// to the top level's figure for the system (the two JPL solutions
+    /// differ by under 10⁻⁴), so they carry exactly the momentum the host
+    /// did. Its small moons are dropped. Returns the freed moons' names.
+    fn dissolve(&mut self, k: usize) -> Vec<String> {
+        let moons = self.moon_systems.remove(k);
+        let host = self.top.bodies[moons.host].clone();
+        let scale = host.gm / moons.system.total_gm();
+        let center = moons.system.barycenter();
+        let drift = moons.system.barycenter_velocity();
+        let mut freed = Vec::new();
+        for (n, body) in moons.system.bodies.iter().enumerate() {
+            let free = Body {
+                gm: body.gm * scale,
+                position: host.position + body.position - center,
+                velocity: host.velocity + body.velocity - drift,
+                ..body.clone()
+            };
+            if n == 0 {
+                self.top.bodies[moons.host] = free;
+            } else {
+                freed.push(free.name.clone());
+                self.top.bodies.push(free);
+            }
+        }
+        self.integrator = Ias15::new();
+        freed
+    }
+
+    /// Merges everything that already overlaps: top-level bodies closer
+    /// than the sum of their radii, and followers inside a top-level body.
+    /// Bodies don't arrive overlapping by moving (contact is found along
+    /// each step), but they can be placed so: a black hole dropped into
+    /// the solar system swallows at once everything inside its horizon.
+    fn absorb_overlaps(&mut self) {
+        let time = self.top.time();
+        while let Some((i, j)) = (0..self.top.bodies.len())
+            .flat_map(|i| (i + 1..self.top.bodies.len()).map(move |j| (i, j)))
+            .find(|&(i, j)| {
+                let (a, b) = (&self.top.bodies[i], &self.top.bodies[j]);
+                (a.position - b.position).length() <= a.radius + b.radius
+            })
+        {
+            let (a, b) = (&self.top.bodies[i], &self.top.bodies[j]);
+            let speed = (a.velocity - b.velocity).length();
+            self.merge_top(i, j, speed, time);
+        }
+        for f in (0..self.followers.len()).rev() {
+            let body = &self.followers[f].system.bodies[0];
+            let inside = self
+                .top
+                .bodies
+                .iter()
+                .find(|b| (b.position - body.position).length() <= b.radius + body.radius);
+            if let Some(host) = inside {
+                let collision = Collision {
+                    time,
+                    survivor: host.name.clone(),
+                    absorbed: body.name.clone(),
+                    speed: (host.velocity - body.velocity).length(),
+                    dissolved_system: None,
+                    freed: Vec::new(),
+                };
+                self.followers.remove(f);
+                self.happened.push(collision);
+            }
+        }
+    }
+
+    /// Frees the moons of any planet that another top-level body has come
+    /// close enough to tear them away (see [`Unbound`]). For each major
+    /// moon, it compares how differently the body pulls on the moon and on
+    /// the planet with the planet's own pull on the moon. Far away (d much
+    /// larger than the moon's orbit a), that ratio is 2 (M/m)(a/d)³, and it
+    /// reaches 1/12 exactly at half the planet's Hill radius,
+    /// a = ½ d (m/3M)^(1/3): the threshold used. Closer in, the exact
+    /// difference counts, so a small body passing inside the moons' orbits
+    /// frees them only if it truly outpulls the planet.
+    fn free_torn_moons(&mut self) {
+        let torn = self.moon_systems.iter().enumerate().find_map(|(k, moons)| {
+            let host = &self.top.bodies[moons.host];
+            let planet = &moons.system.bodies[0];
+            let at_planet = host.position + planet.position;
+            self.top
+                .bodies
+                .iter()
+                .enumerate()
+                .filter(|&(i, b)| i != moons.host && b.gm > 0.0)
+                .find(|(_, b)| {
+                    let pull = |x: DVec3| {
+                        let r = b.position - x;
+                        r * (b.gm / r.length().powi(3))
+                    };
+                    moons.system.bodies.iter().skip(1).any(|moon| {
+                        let at_moon = host.position + moon.position;
+                        let a = (at_moon - at_planet).length();
+                        let tide = (pull(at_moon) - pull(at_planet)).length();
+                        tide > planet.gm / (a * a) / 12.0
+                    })
+                })
+                .map(|(_, b)| (k, b.name.clone()))
+        });
+        if let Some((k, by)) = torn {
+            let planet = self.moon_systems[k].system.bodies[0].name.clone();
+            let freed = self.dissolve(k);
+            self.unbound.push(Unbound {
+                time: self.top.time(),
+                planet,
+                by,
+                system: k,
+                freed,
+            });
+            // Any others, at the next step.
+        }
     }
 
     /// Advances everything by exactly `duration` seconds.

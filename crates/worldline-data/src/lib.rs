@@ -9,6 +9,7 @@ mod heliosphere;
 mod kernel;
 mod magnetospheres;
 mod moons;
+mod notable;
 mod rings;
 mod rotation;
 mod small_bodies;
@@ -25,6 +26,10 @@ pub use magnetospheres::{PlanetaryField, RadiationBelt, planetary_fields, radiat
 pub use moons::{
     MoonSystemData, moon_figure, moon_systems, parse_moons, ring_mass, solar_system_with_moons,
     tesseral_harmonics, zonal_harmonics,
+};
+pub use notable::{
+    BinaryOrbit, Distance, Measured, NotableObject, ObjectKind, RadiusBasis, binary_orbits,
+    notable_object, notable_objects,
 };
 pub use rings::{RingFeature, RingProfile, saturn_ring_features, saturn_rings};
 pub use rotation::{rotation_model, triaxial_radii};

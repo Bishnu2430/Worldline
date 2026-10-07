@@ -8,22 +8,24 @@ use eframe::egui::{self, Align2, Color32, FontId, Rect, RichText, Sense, Texture
 use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
 use worldline_core::DVec3;
-use worldline_core::constants::{AU, DAY, JULIAN_YEAR, SOLAR_LUMINOSITY};
+use worldline_core::constants::{AU, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSITY};
 use worldline_core::magnetosphere::standoff;
 use worldline_core::sunlight::{irradiance, light_time};
 use worldline_render::{Atmosphere, Rings, View};
 
 use crate::calendar::DateTime;
 use crate::camera::Camera;
+use crate::catalogue::{self, Entry, Group, length, light_years, measured_suns, significant};
 use crate::details;
 use crate::gpu::{Globe, GpuGlobes};
-use crate::sandbox::{self, Launch, Preset};
+use crate::sandbox::{self, Launch};
 use crate::simulation::Simulation;
 use crate::simulation::{Computed, Removal};
 use crate::theme;
 use crate::view::{self, OnScreen, ViewOptions};
+use worldline_core::compact::{gravitational_redshift, is_black_hole, schwarzschild_radius};
 use worldline_core::regime::Validity;
-use worldline_data::SmallBodyKind;
+use worldline_data::{Distance, ObjectKind, RadiusBasis, SmallBodyKind};
 
 /// Simulation speeds the user can pick: simulated time per real second.
 const SPEEDS: [(&str, f64); 7] = [
@@ -42,7 +44,7 @@ const DEFAULT_SPEED: usize = 3;
 const PHYSICS_BUDGET: Duration = Duration::from_millis(12);
 
 /// Earth's GM (JPL DE440), for showing masses in Earth masses.
-const GM_EARTH: f64 = 3.986_004_355_070_227e14;
+pub const GM_EARTH: f64 = 3.986_004_355_070_227e14;
 
 /// A label in an inspector grid: what the value on its right is.
 fn key(text: &str) -> RichText {
@@ -108,9 +110,13 @@ pub struct WorldlineApp {
     gpu: Option<GpuGlobes>,
     /// What's typed in the body list's search box.
     search: String,
-    /// The body a press in the view adds, if adding; otherwise a drag looks
-    /// around.
-    tool: Option<Preset>,
+    /// The catalogue entry a press in the view adds, if adding; otherwise
+    /// a drag looks around.
+    tool: Option<&'static Entry>,
+    /// Whether the catalogue window is open.
+    catalogue_open: bool,
+    /// Whether added bodies start at rest instead of circling.
+    start_at_rest: bool,
     /// A body being placed, while its launch is dragged.
     launch: Option<Launch>,
     /// A message in the top bar, and when it appeared.
@@ -146,10 +152,13 @@ impl WorldlineApp {
             search: String::new(),
             reveal: false,
             tool: None,
+            catalogue_open: false,
+            start_at_rest: false,
             launch: None,
             status: None,
         };
         app.simulation.paused = start.paused;
+        app.catalogue_open = start.catalogue;
         if let Some((kind, au)) = &start.add {
             app.add_on_circle(kind, *au);
         }
@@ -521,18 +530,28 @@ impl WorldlineApp {
                 ui.label(format!("{:.4e} kg", body.mass()));
                 ui.end_row();
                 ui.label("");
-                ui.label(format!("{:.6} Earth masses", body.gm / GM_EARTH));
+                if body.gm >= 0.01 * GM_SUN {
+                    ui.label(measured_suns(body.gm / GM_SUN, None));
+                } else {
+                    ui.label(format!("{:.6} Earth masses", body.gm / GM_EARTH));
+                }
             } else {
                 ui.label(key("not measured"));
             }
             ui.end_row();
-            ui.label(key("Radius"));
-            ui.label(if body.radius > 0.0 {
-                format!("{:.1} km", body.radius / 1e3)
+            if is_black_hole(body) {
+                ui.label(key("Event horizon"));
+                ui.label(length(body.radius));
             } else {
-                "not measured".to_string()
-            });
+                ui.label(key("Radius"));
+                ui.label(if body.radius > 0.0 {
+                    format!("{:.1} km", body.radius / 1e3)
+                } else {
+                    "not measured".to_string()
+                });
+            }
             ui.end_row();
+            self.catalog_rows(ui);
             if let Some(parent) = parent {
                 let planet = &bodies[parent];
                 ui.label(key(&format!("Distance from {}", planet.name)));
@@ -548,13 +567,13 @@ impl WorldlineApp {
                 ));
                 ui.end_row();
             } else if self.selected != SUN {
-                ui.label(key("Distance from Sun"));
+                ui.label(key(&format!("Distance from {}", sun.name)));
                 ui.label(format!(
                     "{:.4} AU",
                     (body.position - sun.position).length() / AU
                 ));
                 ui.end_row();
-                ui.label(key("Speed relative to Sun"));
+                ui.label(key(&format!("Speed relative to {}", sun.name)));
                 ui.label(format!(
                     "{:.2} km/s",
                     (body.velocity - sun.velocity).length() / 1e3
@@ -600,9 +619,10 @@ impl WorldlineApp {
                 ui.end_row();
             }
         });
+        self.catalog_notes(ui);
         ui.add_space(4.0);
         let kind = if self.simulation.is_added(self.selected) {
-            details::BodyKind::Added
+            details::BodyKind::Added(self.simulation.entry(self.selected).and_then(Entry::kind))
         } else if let Some((kind, outgassing)) = self.simulation.small_body(self.selected) {
             details::BodyKind::SmallBody {
                 comet: matches!(kind, SmallBodyKind::Comet | SmallBodyKind::Interstellar),
@@ -662,6 +682,68 @@ impl WorldlineApp {
         });
     }
 
+    /// Inspector rows for a real object added from the catalog: its
+    /// published mass, size and spin.
+    fn catalog_rows(&self, ui: &mut egui::Ui) {
+        let Some(o) = self.simulation.entry(self.selected).and_then(Entry::object) else {
+            return;
+        };
+        ui.label(key("Published mass"));
+        ui.label(measured_suns(o.mass.value, o.mass.plus_minus));
+        ui.end_row();
+        // A black hole's horizon is shown above, from its mass now.
+        let basis = match o.radius_basis {
+            RadiusBasis::Horizon => None,
+            RadiusBasis::Measured => Some("measured"),
+            RadiusBasis::Estimated => Some("estimated"),
+            RadiusBasis::Assumed => Some("not measured: assumed"),
+        };
+        if let Some(basis) = basis {
+            ui.label(key("Published radius"));
+            ui.label(format!("{} ({basis})", length(o.radius.value)));
+            ui.end_row();
+        }
+        if o.kind == ObjectKind::BlackHole {
+            ui.label(key("Spin"));
+            ui.label(match o.spin {
+                Some((a, true)) => format!("{a}"),
+                Some((a, false)) => format!("at least {a}"),
+                None => "not measured: taken as none".to_string(),
+            });
+        } else {
+            // Light climbing out of its gravity loses energy.
+            ui.label(key("Surface light"));
+            ui.label(format!(
+                "redshifted {} km/s by gravity",
+                significant(gravitational_redshift(o.gm(), o.radius.value) / 1e3)
+            ));
+        }
+        ui.end_row();
+    }
+
+    /// Below the rows, for a catalog object: where the real one is, and
+    /// where its values were published.
+    fn catalog_notes(&self, ui: &mut egui::Ui) {
+        let Some(o) = self.simulation.entry(self.selected).and_then(Entry::object) else {
+            return;
+        };
+        let place = match o.distance {
+            Some(Distance::Meters(d)) => format!("{}, {} away.", o.location, light_years(d)),
+            Some(Distance::Redshift(z)) => format!("{}, at redshift {z}.", o.location),
+            None => format!("{}.", o.location),
+        };
+        ui.add_space(4.0);
+        ui.add(egui::Label::new(RichText::new(format!("The real one: {place}")).small()).wrap());
+        ui.add(
+            egui::Label::new(
+                RichText::new(format!("Source: {}", o.source))
+                    .small()
+                    .color(theme::MUTED),
+            )
+            .wrap(),
+        );
+    }
+
     /// Which model computes the selected body, how strong gravity is
     /// where it is, and whether the model covers that: green within its
     /// range, amber approximate, red beyond it.
@@ -670,7 +752,7 @@ impl WorldlineApp {
         let index = self.selected;
         let model = match simulation.computed(index) {
             Computed::TopLevel => {
-                "Relativistic N-body gravity (Einstein–Infeld–Hoffmann) with the Sun and planets"
+                "Relativistic N-body gravity (Einstein–Infeld–Hoffmann): it pulls on every massive body and they on it"
             }
             Computed::MoonSystem => {
                 "Its planet's moon system: Newtonian, the planet's field, tides"
@@ -715,6 +797,16 @@ impl WorldlineApp {
                 "Approximate position: fly to its planet to compute it in detail".into(),
             ));
         }
+        let body = &simulation.bodies[index];
+        if is_black_hole(body) {
+            notes.push((
+                amber,
+                format!(
+                    "Within a few horizon radii ({}) its gravity is beyond this model: exact black-hole motion comes in step 2.5",
+                    length(5.0 * schwarzschild_radius(body.gm))
+                ),
+            ));
+        }
         if let Some(intruder) = simulation.intruder(index) {
             notes.push((
                 amber,
@@ -736,18 +828,19 @@ impl WorldlineApp {
 
     /// The top bar's sandbox tools: adding bodies, saving and loading.
     fn sandbox_controls(&mut self, ui: &mut egui::Ui) {
-        egui::ComboBox::from_id_salt("add")
-            .selected_text(self.tool.map_or("Add a body", Preset::label))
-            .show_ui(ui, |ui| {
-                for preset in Preset::ALL {
-                    if ui
-                        .selectable_label(self.tool == Some(preset), preset.label())
-                        .clicked()
-                    {
-                        self.tool = Some(preset);
-                    }
-                }
-            });
+        let label = match self.tool {
+            Some(entry) => format!("Adding: {}", entry.label),
+            None => "Add a body".to_string(),
+        };
+        if ui
+            .selectable_label(self.catalogue_open, label)
+            .on_hover_text(
+                "Open the catalogue: planets, stars, white dwarfs, neutron stars, black holes",
+            )
+            .clicked()
+        {
+            self.catalogue_open = !self.catalogue_open;
+        }
         if self.tool.is_some() && ui.button("Done").clicked() {
             self.tool = None;
             self.launch = None;
@@ -831,36 +924,54 @@ impl WorldlineApp {
         self.reveal = true;
     }
 
-    /// Adds a body from the command line: `kind` ("earth", "jupiter" or
-    /// "sun") on a circular orbit `au` from the Sun, in the ecliptic, on
-    /// the far side of the Sun from where the x axis points.
+    /// Adds a body from the command line: `kind` ("earth", "jupiter",
+    /// "sun", or any catalogue entry's name, like "Sagittarius A*") on a
+    /// circular orbit `au` from the Sun, in the ecliptic, on the far side
+    /// of the Sun from where the x axis points.
     fn add_on_circle(&mut self, kind: &str, au: f64) {
-        let preset = match kind {
-            "earth" => Preset::Earth,
-            "sun" => Preset::Sun,
-            _ => Preset::Jupiter,
+        let key = match kind {
+            "earth" => "copy:Earth".to_string(),
+            "jupiter" => "copy:Jupiter".to_string(),
+            "sun" => "copy:Sun".to_string(),
+            name => catalogue::catalogue()
+                .iter()
+                .find(|e| e.label.eq_ignore_ascii_case(name))
+                .map_or_else(String::new, |e| e.key.clone()),
+        };
+        let Some(entry) = catalogue::entry(&key) else {
+            eprintln!("worldline: nothing called `{kind}` in the catalogue");
+            return;
         };
         let sun = self.simulation.bodies[SUN].position;
         let position = sun - DVec3::X * au * AU;
         self.place(Launch {
-            preset,
+            entry,
             position,
             around: SUN,
             drag: position,
+            at_rest: self.start_at_rest,
         });
     }
 
-    /// Adds the body being launched.
+    /// Adds what is being launched: its bodies around their center of
+    /// mass, which moves at the launch velocity.
     fn place(&mut self, launch: Launch) {
         let names = self.attended_names();
-        let template = launch.preset.body(&self.simulation);
-        let velocity = launch.velocity(&self.simulation, self.camera.distance, template.gm);
-        let name = template.name.clone();
-        self.simulation
-            .add_body(template.at(launch.position).moving(velocity));
+        let entry = launch.entry;
+        let velocity = launch.velocity(&self.simulation, self.camera.distance, entry.gm());
+        let bodies = entry.bodies(&self.simulation);
+        let added: Vec<String> = bodies.iter().map(|b| b.name.clone()).collect();
+        for body in bodies {
+            let (p, v) = (body.position, body.velocity);
+            self.simulation.add_body(
+                body.at(launch.position + p).moving(velocity + v),
+                &entry.key,
+            );
+        }
         self.reattend(names);
-        self.selected = self.simulation.index_of(&name).unwrap_or(self.selected);
-        self.status = Some((format!("Added {name}"), Instant::now()));
+        self.selected = self.simulation.index_of(&added[0]).unwrap_or(self.selected);
+        self.reveal = true;
+        self.status = Some((format!("Added {}", added.join(" and ")), Instant::now()));
     }
 
     /// Removes the selected body, if it can be.
@@ -906,6 +1017,9 @@ impl WorldlineApp {
     /// and the solar wind, at the selected body; for the Sun itself, its
     /// output.
     fn sun_reach(&self, ui: &mut egui::Ui) {
+        if !self.simulation.has_sun() {
+            return;
+        }
         let bodies = &self.simulation.bodies;
         let (sun, body) = (&bodies[SUN], &bodies[self.selected]);
         let wind = &self.simulation.wind;
@@ -988,14 +1102,16 @@ impl WorldlineApp {
             dipole.tilt().to_degrees()
         ));
         ui.end_row();
-        let r = (body.position - bodies[SUN].position).length();
-        let pressure = self.simulation.flow_pressure_at_1au * (AU / r).powi(2);
-        ui.label(key("Magnetopause"));
-        ui.label(format!(
-            "{:.1} radii sunward (pressure balance)",
-            standoff(dipole, pressure) / dipole.radius
-        ));
-        ui.end_row();
+        if self.simulation.has_sun() {
+            let r = (body.position - bodies[SUN].position).length();
+            let pressure = self.simulation.flow_pressure_at_1au * (AU / r).powi(2);
+            ui.label(key("Magnetopause"));
+            ui.label(format!(
+                "{:.1} radii sunward (pressure balance)",
+                standoff(dipole, pressure) / dipole.radius
+            ));
+            ui.end_row();
+        }
         let belts: Vec<String> = self
             .simulation
             .radiation_belts
@@ -1074,8 +1190,9 @@ impl WorldlineApp {
             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
         }
 
-        if let Some(preset) = self.tool {
-            self.adding(ui, &response, viewport, preset);
+        self.dropping(&response, &painter, viewport);
+        if let Some(entry) = self.tool {
+            self.adding(ui, &response, viewport, entry);
             if let Some(launch) = &self.launch {
                 launch.draw(&painter, &self.camera, viewport, &self.simulation);
             }
@@ -1109,18 +1226,20 @@ impl WorldlineApp {
     /// Placing a body: press where it goes (on the plane of the body in
     /// focus, parallel to the ecliptic), drag to launch it, release to add
     /// it. A click without a drag puts it in a circular orbit.
-    fn adding(&mut self, ui: &egui::Ui, response: &egui::Response, viewport: Rect, preset: Preset) {
+    fn adding(
+        &mut self,
+        ui: &egui::Ui,
+        response: &egui::Response,
+        viewport: Rect,
+        entry: &'static Entry,
+    ) {
         if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
             if self.launch.take().is_none() {
                 self.tool = None;
             }
             return;
         }
-        let around = if self.simulation.bodies[self.focus].gm > 0.0 {
-            self.focus
-        } else {
-            SUN
-        };
+        let around = self.launch_center();
         let plane = self.camera.target.z;
         let here = response
             .interact_pointer_pos()
@@ -1130,10 +1249,11 @@ impl WorldlineApp {
             && let Some(position) = here
         {
             self.launch = Some(Launch {
-                preset,
+                entry,
                 position,
                 around,
                 drag: position,
+                at_rest: self.start_at_rest,
             });
         }
         if response.dragged()
@@ -1150,12 +1270,136 @@ impl WorldlineApp {
             && let Some(position) = here
         {
             self.place(Launch {
-                preset,
+                entry,
                 position,
                 around,
                 drag: position,
+                at_rest: self.start_at_rest,
             });
         }
+    }
+
+    /// What a body orbits when placed without a drag: the body in focus,
+    /// if it has mass, or else body 0 (the Sun, or what took its place).
+    fn launch_center(&self) -> usize {
+        if self.simulation.bodies[self.focus].gm > 0.0 {
+            self.focus
+        } else {
+            SUN
+        }
+    }
+
+    /// Drag and drop from the catalogue: while an entry is held over the
+    /// view, shows where it would go and the orbit it would follow; when
+    /// it is let go, adds it there on a circular orbit.
+    fn dropping(&mut self, response: &egui::Response, painter: &egui::Painter, viewport: Rect) {
+        let plane = self.camera.target.z;
+        let position = response
+            .ctx
+            .pointer_hover_pos()
+            .and_then(|p| self.camera.point_on_plane(p, viewport, plane));
+        let Some(position) = position else {
+            return;
+        };
+        let launch = |entry: &'static Entry| Launch {
+            entry,
+            position,
+            around: self.launch_center(),
+            drag: position,
+            at_rest: self.start_at_rest,
+        };
+        if let Some(entry) = response.dnd_hover_payload::<&'static Entry>() {
+            launch(*entry).draw(painter, &self.camera, viewport, &self.simulation);
+        }
+        if let Some(entry) = response.dnd_release_payload::<&'static Entry>() {
+            let launch = launch(*entry);
+            self.place(launch);
+        }
+    }
+
+    /// The catalogue window: everything that can be added, by kind. Drag
+    /// an entry into the view, or click it and then click in the view.
+    fn catalogue_window(&mut self, ctx: &egui::Context) {
+        let mut open = self.catalogue_open;
+        egui::Window::new("Add a body")
+            .open(&mut open)
+            .default_pos(pos2(16.0, 64.0))
+            .default_width(300.0)
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.label(
+                    RichText::new(
+                        "Drag one into the view, or pick it and click there. \
+                         Drag in the view to launch it.",
+                    )
+                    .small()
+                    .color(theme::MUTED),
+                );
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Start").small().color(theme::MUTED));
+                    ui.selectable_value(&mut self.start_at_rest, false, "circling")
+                        .on_hover_text("On a circular orbit around the body in focus");
+                    ui.selectable_value(&mut self.start_at_rest, true, "at rest")
+                        .on_hover_text("Still, relative to the body in focus: they fall together");
+                });
+                ui.add_space(4.0);
+                egui::ScrollArea::vertical()
+                    .max_height(460.0)
+                    .show(ui, |ui| {
+                        for group in Group::ALL {
+                            egui::CollapsingHeader::new(RichText::new(group.label()).strong())
+                                .default_open(true)
+                                .show(ui, |ui| {
+                                    for entry in
+                                        catalogue::catalogue().iter().filter(|e| e.group == group)
+                                    {
+                                        self.catalogue_entry(ui, entry);
+                                    }
+                                });
+                        }
+                    });
+            });
+        self.catalogue_open = open;
+    }
+
+    /// One catalogue entry: its name and a line on its mass and size. It
+    /// can be dragged into the view, or clicked to pick it.
+    fn catalogue_entry(&mut self, ui: &mut egui::Ui, entry: &'static Entry) {
+        let picked = self.tool.is_some_and(|t| std::ptr::eq(t, entry));
+        let id = egui::Id::new(("catalogue", &entry.key));
+        let inner = ui.dnd_drag_source(id, entry, |ui| {
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    let (dot, _) = ui.allocate_exact_size(vec2(8.0, 8.0), Sense::hover());
+                    ui.painter().circle_filled(
+                        dot.center(),
+                        3.5,
+                        catalogue::kind_color(entry.kind()),
+                    );
+                    let name = RichText::new(&entry.label);
+                    ui.label(if picked {
+                        name.color(theme::ACCENT)
+                    } else {
+                        name
+                    });
+                });
+                ui.label(RichText::new(&entry.summary).small().color(theme::MUTED));
+            });
+        });
+        let response = inner.response.on_hover_ui(|ui| {
+            ui.set_max_width(320.0);
+            if let Some(o) = entry.object() {
+                ui.label(RichText::new(&o.location).strong());
+                ui.label(RichText::new(&o.source).small());
+            } else {
+                ui.label(&entry.summary);
+            }
+        });
+        if response.clicked() {
+            self.tool = if picked { None } else { Some(entry) };
+            self.launch = None;
+        }
+        ui.add_space(2.0);
     }
 
     /// Draws the bodies that are big enough on screen as textured, lit,
@@ -1170,7 +1414,7 @@ impl WorldlineApp {
         let eye = self.camera.eye();
         let jd = self.simulation.julian_date();
         let bodies = &self.simulation.bodies;
-        let sun = bodies[SUN].position;
+        let light = self.simulation.light_source();
         let globes: Vec<Globe> = layout
             .iter()
             .filter(|item| item.globe)
@@ -1207,8 +1451,11 @@ impl WorldlineApp {
                     center,
                     radii,
                     orientation,
-                    sun_direction: (sun - body.position).normalize_or_zero().as_vec3(),
-                    emissive: item.index == SUN,
+                    // No light at all if a black hole took the Sun's place.
+                    sun_direction: light.map_or(glam::Vec3::ZERO, |l| {
+                        (l - body.position).normalize_or_zero().as_vec3()
+                    }),
+                    emissive: self.simulation.shines(item.index),
                     night_glow: if body.name == "Earth" { 1.0 } else { 0.0 },
                     rings,
                     atmosphere,
@@ -1260,6 +1507,7 @@ impl eframe::App for WorldlineApp {
             .default_size(290.0)
             .show(ui, |ui| self.inspector(ui));
         egui::CentralPanel::no_frame().show(ui, |ui| self.scene(ui, frame));
+        self.catalogue_window(ui.ctx());
 
         if !self.simulation.paused || self.flight.is_some() {
             ui.ctx().request_repaint();
