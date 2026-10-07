@@ -15,6 +15,7 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 | Positions, velocities and non-gravitational force models of the dwarf planets, asteroids, comets and interstellar objects | NASA JPL Horizons, each body's JPL small-body orbit solution (Bennu: Farnocchia et al. 2021, solution JPL#118) | Public domain (U.S. government work) |
 | Masses of Ceres, the heaviest asteroids, Eros, Didymos, Eris, Haumea, Quaoar and Orcus | JPL DE440 (Park et al. 2021), via NASA NAIF `gm_de440.tpc` | Public domain (U.S. government work) |
 | Orbits of the asteroid belt, Jupiter's Trojans and the Kuiper belt (28,331 bodies) | NASA JPL Small-Body Database Query API (ssd-api.jpl.nasa.gov/sbdb_query.api) | Public domain (U.S. government work) |
+| Positions and velocities of 24 belt bodies, 2025 and 2026 (validation) | NASA JPL Horizons, each body's JPL small-body orbit solution | Public domain (U.S. government work) |
 | Zodiacal dust model | Kelsall et al. (1998), *ApJ* 508, 44, from COBE DIRBE; full-precision parameters as reproduced by ZodiPy (San et al. 2022, *A&A* 666, A107) | Published scientific values |
 | Zodiacal light brightening toward the Sun (validation) | Helios 1 and 2, Leinert et al. (1981), *A&A* 103, 177 | Published scientific values |
 | Hourly solar wind at Earth, 2025 | NASA OMNI (King & Papitashvili 2005, *J. Geophys. Res.* 110, A02104), served by CDPP/AMDA (IRAP, France) through HAPI | Public domain (U.S. government work); AMDA service |

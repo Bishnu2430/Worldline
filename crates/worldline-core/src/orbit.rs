@@ -158,6 +158,19 @@ impl KeplerOrbit {
         let (sin, cos) = solve_kepler(mean_anomaly, self.e).sin_cos();
         self.p * (cos - self.e) + self.q * sin
     }
+
+    /// Position (m) and velocity (m/s) relative to the center at
+    /// simulation time `time` (s). The eccentric anomaly E advances at
+    /// dE/dt = n / (1 − e cos E).
+    pub fn state_at(&self, time: f64) -> (DVec3, DVec3) {
+        let mean_anomaly = (self.mean_anomaly + self.mean_motion * time).rem_euclid(TAU);
+        let (sin, cos) = solve_kepler(mean_anomaly, self.e).sin_cos();
+        let rate = self.mean_motion / (1.0 - self.e * cos);
+        (
+            self.p * (cos - self.e) + self.q * sin,
+            (self.q * cos - self.p * sin) * rate,
+        )
+    }
 }
 
 #[cfg(test)]

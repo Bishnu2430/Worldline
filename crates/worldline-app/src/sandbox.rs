@@ -144,7 +144,7 @@ pub fn saves_dir() -> PathBuf {
 }
 
 /// Saves the simulation, named after its date, and returns the file.
-pub fn save(simulation: &Simulation) -> Result<PathBuf, String> {
+pub fn save(simulation: &mut Simulation) -> Result<PathBuf, String> {
     let dir = saves_dir();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let date = DateTime::from_julian_date(simulation.julian_date())

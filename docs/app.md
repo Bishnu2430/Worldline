@@ -82,11 +82,19 @@ The camera keeps following its body; if that body was removed, it goes back to t
 
 **Black holes** are drawn as their shadow, a dark disk √27 GM/c² across, with a thin ring so they show against the sky (a visual stand-in; the ray tracer is step 3.1). The inspector shows a catalogue object's published mass with its uncertainty, its radius or horizon and spin, how much gravity reddens light from its surface, where the real one is, and its source.
 
-**What feels an added body.** The Sun, planets, dwarf planets, the heaviest asteroids and the comets and asteroids followed one by one all feel it, and the major moons feel its tides. A distant body pulls the whole solar system almost equally, so it falls together; only tides pull it apart. The belts and the small moons of planets not in focus follow fixed orbits and don't feel it yet (step 2.1b). If something absorbs the Sun, sunlight, the solar wind and the heliosphere go with it.
+**What feels an added body.** Everything:
+- **The big bodies:** the Sun, planets, dwarf planets, the heaviest asteroids, and the comets and asteroids followed one by one.
+- **The major moons,** through its tides.
+- **The belts' 28,331 bodies,** live particles since step 2.1b (see [physics/swarm.md](physics/swarm.md)).
+- **Small moons,** once it could tear them away: freed small moons keep their names and appear in the body list.
+
+A distant body pulls the whole solar system almost equally, so it falls together; only tides pull it apart. The top bar reports what is swallowed and what is torn away ("Gaia BH3 swallowed 412 belt bodies"). If something absorbs the Sun, sunlight, the solar wind and the heliosphere go with it, but the belts stay.
 
 **Collisions.** Bodies that touch merge: momentum is kept and volumes add. The top bar reports it ("New planet 1 hit Earth at 11.2 km/s and merged"). If the body you were following or had selected was absorbed, the camera and inspector move to the survivor. A planet that is absorbed leaves its major moons orbiting the Sun. See [physics/collisions.md](physics/collisions.md).
 
 **The model indicator.** At the top of the inspector, under the body's name, a **Model** section says which model computes it. It also gives how strong gravity is there (ε = GM/rc²) and how fast it moves (v/c), relative to what pulls on it hardest. A colored dot grades whether the model covers that: green within range, amber approximate, red beyond it. Amber notes flag approximate positions, and massive bodies inside a moon system.
+
+**Saves** include every belt body and freed moon (about 4 MB). Saves from before step 2.1b load with the belts carried along fixed ellipses from the start.
 
 **Save and load.** **Save** writes the whole state to `%APPDATA%\Worldline\saves`, named after the simulation's date. **Load** lists the saves, newest first.
 - **What a save holds:** the moment, and every body's position and velocity: the Sun and planets, each moon system and the followers. It also records which bodies were removed or added.

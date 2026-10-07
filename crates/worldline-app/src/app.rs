@@ -764,6 +764,9 @@ impl WorldlineApp {
             Computed::Follower { forces: false } => {
                 "Follows the Sun and planets: Newtonian, plus the Sun's relativistic term"
             }
+            Computed::Swarm => {
+                "A swarm particle: carried on its orbit around what holds it, nudged by every other body (Wisdom–Holman)"
+            }
             Computed::Follower { forces: true } => {
                 "Follows the Sun and planets: Newtonian, the Sun's relativistic term, outgassing"
             }
@@ -846,7 +849,7 @@ impl WorldlineApp {
             self.launch = None;
         }
         if ui.button("Save").clicked() {
-            let message = match sandbox::save(&self.simulation) {
+            let message = match sandbox::save(&mut self.simulation) {
                 Ok(path) => format!("Saved {}", path.display()),
                 Err(e) => format!("Couldn't save: {e}"),
             };
@@ -883,14 +886,16 @@ impl WorldlineApp {
         )
     }
 
-    /// After an update: reports any collisions, and if the followed or
-    /// selected body (`names`, from before the update) was absorbed, moves
-    /// on to the body that absorbed it.
+    /// After an update: reports any collisions and what happened to the
+    /// swarm (bodies swallowed, moons torn away), and finds the followed
+    /// and selected bodies (`names`, from before the update) again, moving
+    /// on to whatever absorbed them.
     fn after_events(&mut self, names: (String, String)) {
         let events = std::mem::take(&mut self.simulation.events);
-        let Some(last) = events.last() else {
+        let notices = std::mem::take(&mut self.simulation.notices);
+        if events.is_empty() && notices.is_empty() {
             return;
-        };
+        }
         let survivor = |name: String| {
             events.iter().fold(name, |n, e| {
                 if n == e.absorbed {
@@ -901,19 +906,24 @@ impl WorldlineApp {
             })
         };
         self.reattend((survivor(names.0), survivor(names.1)));
-        let mut message = format!(
-            "{} hit {} at {:.1} km/s and merged",
-            last.absorbed,
-            last.survivor,
-            last.speed / 1e3
-        );
-        if !last.freed.is_empty() {
-            message += &format!(", freeing {}", last.freed.join(", "));
+        let mut parts = Vec::new();
+        if let Some(last) = events.last() {
+            let mut message = format!(
+                "{} hit {} at {:.1} km/s and merged",
+                last.absorbed,
+                last.survivor,
+                last.speed / 1e3
+            );
+            if !last.freed.is_empty() {
+                message += &format!(", freeing {}", last.freed.join(", "));
+            }
+            if events.len() > 1 {
+                message += &format!(" ({} collisions)", events.len());
+            }
+            parts.push(message);
         }
-        if events.len() > 1 {
-            message += &format!(" ({} collisions)", events.len());
-        }
-        self.status = Some((message, Instant::now()));
+        parts.extend(notices.last().cloned());
+        self.status = Some((parts.join("; "), Instant::now()));
     }
 
     /// Finds the followed and selected bodies again by name; the Sun if

@@ -18,7 +18,7 @@ Two bodies that touch merge, **perfectly inelastically**:
 
 **Planets with moons.** A planet with moons is, at the top of the hierarchy, its system's center of mass:
 - **When it survives,** the impact is on the planet itself. It takes the impactor's mass and momentum, while its moons keep their exact positions and velocities and go on orbiting. The top-level body takes on the combined momentum directly, so the conservation is exact.
-- **When it is absorbed,** its major moons are left behind as independent bodies orbiting the Sun. Usually they are already free by then: an impactor big enough to absorb the planet tears them away first (below). They are re-centered on their system's own center of mass, and their masses scaled to the planetary ephemeris's total for the system (JPL's two solutions differ by under 10⁻⁴). So the momentum they carry is exactly what the system carried. Its small moons go with it.
+- **When it is absorbed,** its major moons are left behind as independent bodies orbiting the Sun. Usually they are already free by then: an impactor big enough to absorb the planet tears them away first (below). They are re-centered on their system's own center of mass, and their masses scaled to the planetary ephemeris's total for the system (JPL's two solutions differ by under 10⁻⁴). So the momentum they carry is exactly what the system carried. Its small moons go on as live particles of the swarm (see [swarm.md](swarm.md)).
 
 **Comets and small asteroids** (the massless followers) that hit the Sun or a planet are absorbed; being massless, they change no momentum.
 

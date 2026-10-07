@@ -17,7 +17,7 @@ mod small_moons;
 mod snapshot;
 
 pub use atmosphere::{Atmosphere, atmosphere};
-pub use belts::{Belt, BeltKind, belts};
+pub use belts::{Belt, BeltKind, BeltSample, belt_particles, belt_samples, belts};
 pub use heliosphere::{
     Boundary, SolarWindHour, VoyagerCrossing, heliosphere, mean_flow_pressure, parker_spiral,
     solar_wind_2025, voyager_crossings,

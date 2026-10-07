@@ -6,8 +6,10 @@ use std::f64::consts::TAU;
 
 use worldline_core::DMat3;
 use worldline_core::constants::{AU, DAY, GM_SUN};
+use worldline_core::kepler::drift;
 use worldline_core::mean_elements::MeanElements;
 use worldline_core::orbit::{Elements, KeplerOrbit};
+use worldline_core::swarm::Particle;
 use worldline_data::{BeltKind, SmallBodyKind, Snapshot, belts, small_bodies, solar_system};
 
 /// Sidereal orbital periods in days, from NASA's planetary fact sheets.
@@ -209,4 +211,115 @@ fn two_body_orbits_drift_less_than_jupiters_share_of_gravity() {
         worst.1
     );
     assert!(worst.0 < gm_ratio, "{} drifted {:.1e}", worst.1, worst.0);
+}
+
+#[test]
+fn the_live_belts_follow_jpl_where_fixed_ellipses_drift() {
+    // The belts as live particles feel the planets' pull. Two dozen of
+    // their bodies, spread through each belt, started from JPL's states on
+    // 2025-01-01 and run for a Julian year with the real solar system,
+    // compared with where JPL puts them then; and the same bodies on fixed
+    // two-body ellipses around the Sun, as the belts were drawn before.
+    let start = solar_system();
+    let end = Snapshot::parse(include_str!("../data/solar-system-2026-01-01T06.csv"))
+        .expect("valid reference");
+    let (sun_start, sun_end) = (&start.bodies[0], &end.bodies[0]);
+    let year = (end.epoch_jd_tdb - start.epoch_jd_tdb) * DAY;
+    let samples = worldline_data::belt_samples();
+    let mut h = worldline_data::full_solar_system();
+    h.add_particles(samples.iter().enumerate().map(|(k, s)| Particle {
+        position: s.start.0,
+        velocity: s.start.1,
+        id: k as u32,
+    }));
+    h.advance(year);
+    h.sync_swarm();
+    let (mut live, mut fixed) = (Vec::new(), Vec::new());
+    for (k, sample) in samples.iter().enumerate() {
+        let particle = h
+            .swarm()
+            .particles
+            .iter()
+            .find(|p| p.id == k as u32)
+            .unwrap();
+        let actual = sample.one_year_on.0;
+        let distance = (actual - sun_end.position).length();
+        let ellipse = drift(
+            sample.start.0 - sun_start.position,
+            sample.start.1 - sun_start.velocity,
+            GM_SUN,
+            year,
+        );
+        let live_error = (particle.position - actual).length() / distance;
+        let fixed_error = (sun_end.position + ellipse.position - actual).length() / distance;
+        println!(
+            "{:<12} {:?}: live {:.1e}, fixed ellipse {:.1e} of its distance ({:.0} km and {:.0} km)",
+            sample.designation,
+            sample.kind,
+            live_error,
+            fixed_error,
+            live_error * distance / 1e3,
+            fixed_error * distance / 1e3
+        );
+        live.push(live_error);
+        fixed.push(fixed_error);
+    }
+    live.sort_by(f64::total_cmp);
+    fixed.sort_by(f64::total_cmp);
+    println!(
+        "median: live {:.1e}, fixed {:.1e}; worst: live {:.1e}, fixed {:.1e}",
+        live[live.len() / 2],
+        fixed[fixed.len() / 2],
+        live[live.len() - 1],
+        fixed[fixed.len() - 1]
+    ); // The standard for comparisons with JPL since step 1.3: 1 part in
+    // 10,000 after a year. The fixed ellipses don't meet it.
+    assert!(live[live.len() - 1] < 1e-4);
+    assert!(fixed[fixed.len() / 2] > 1e-4);
+}
+
+#[test]
+fn the_belts_start_where_jpl_puts_them() {
+    // JPL gives the belts' orbits at 2026-06-09; the swarm starts them at
+    // the 2025-01-01 snapshot by running them back along the planets'
+    // recorded paths. Checked against JPL's own states at the snapshot for
+    // the two dozen sample bodies, and against carrying them back on fixed
+    // ellipses instead.
+    let clock = std::time::Instant::now();
+    let particles = worldline_data::belt_particles();
+    let took = clock.elapsed();
+    let belts = belts();
+    let start = solar_system();
+    let sun = &start.bodies[0];
+    let mut offset = 0;
+    let mut index = std::collections::HashMap::new();
+    for belt in &belts {
+        for (k, designation) in belt.designations.iter().enumerate() {
+            index.insert(designation.clone(), (offset + k, belt.orbits[k]));
+        }
+        offset += belt.orbits.len();
+    }
+    let (mut run_back, mut ellipses) = (Vec::new(), Vec::new());
+    for sample in worldline_data::belt_samples() {
+        let (k, elements) = index[&sample.designation];
+        let particle = particles[k];
+        assert_eq!(particle.id, k as u32);
+        let actual = sample.start.0;
+        let distance = (actual - sun.position).length();
+        let ellipse = sun.position + KeplerOrbit::new(&elements, GM_SUN).position_at(0.0);
+        run_back.push((particle.position - actual).length() / distance);
+        ellipses.push((ellipse - actual).length() / distance);
+    }
+    run_back.sort_by(f64::total_cmp);
+    ellipses.sort_by(f64::total_cmp);
+    println!(
+        "{} bodies placed in {:.2} s; samples off JPL at the snapshot: run back, median {:.1e} and worst {:.1e} of their distance; on fixed ellipses, {:.1e} and {:.1e}",
+        particles.len(),
+        took.as_secs_f64(),
+        run_back[run_back.len() / 2],
+        run_back[run_back.len() - 1],
+        ellipses[ellipses.len() / 2],
+        ellipses[ellipses.len() - 1]
+    ); // As for the year's run: within 1 part in 10,000 of JPL.
+    assert!(run_back[run_back.len() - 1] < 1e-4);
 }

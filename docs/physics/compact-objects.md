@@ -58,7 +58,7 @@ Two simplifications are labeled. The merger is instant: in reality, a black hole
 
 **Dropped inside a horizon.** A body placed so that it already overlaps another merges with it at once, before the next step. A black hole dropped into the solar system swallows everything inside its horizon immediately: TON 618 dropped 5 AU from the Sun leaves nothing else within 1,304 AU.
 
-**Moons torn from their planet.** A planet's major moons are computed in the planet's own frame, feeling everything else's tides. When another body comes so close that its tide on a moon passes 1/12 of the planet's pull, the moons are freed: they join the top level, where everything pulls on everything, and collisions with them are detected. For a distant body that threshold sits at half the planet's Hill radius, beyond which no prograde moon stays bound for long (Domingos, Winter & Yokoyama 2006). In the real solar system the largest such ratio is 1 × 10⁻⁴ (the Sun on Saturn's Iapetus), so nothing changes there. The small moons following the freed ones are dropped, for now.
+**Moons torn from their planet.** A planet's major moons are computed in the planet's own frame, feeling everything else's tides. When another body comes so close that its tide on a moon passes 1/12 of the planet's pull, the moons are freed: they join the top level, where everything pulls on everything, and collisions with them are detected. For a distant body that threshold sits at half the planet's Hill radius, beyond which no prograde moon stays bound for long (Domingos, Winter & Yokoyama 2006). In the real solar system the largest such ratio is 1 × 10⁻⁴ (the Sun on Saturn's Iapetus), so nothing changes there. The planet's small moons are freed too, as live particles that keep their names (see [swarm.md](swarm.md)).
 
 **Launching near a black hole.** No circular orbit exists closer than 6 G(M + m)/c², the innermost stable circular orbit, so a body placed closer starts at rest and falls in. Launch speeds are capped at half the speed of light, already far beyond what first-order relativistic gravity covers. The model indicator turns red there.
 
@@ -82,6 +82,6 @@ Two simplifications are labeled. The merger is instant: in reality, a black hole
 ## Not handled yet
 
 - **Motion close to a black hole** needs exact general relativity (step 2.5). The first post-Newtonian equations used everywhere else lose accuracy within a few horizon radii, and the model indicator says so.
-- **The belts and the small moons of planets not in focus** follow fixed orbits around the Sun or their planet, so they don't feel an added black hole. Making them live particles is the next step.
+- **Small moons of a planet not in focus** ride their mean orbits until an added body could tear them away; then they are freed as live particles (see [swarm.md](swarm.md)). The belts have been live since step 2.1b.
 - **Neutron star and white dwarf interiors**, collapse and mergers: steps 2.6 and 2.7.
-- **Where the real objects are:** the galactic center, with Sagittarius A\* and the stars orbiting it, comes after the live belts.
+- **Where the real objects are:** the galactic center, with Sagittarius A\* and the stars orbiting it, is step 2.1c.
