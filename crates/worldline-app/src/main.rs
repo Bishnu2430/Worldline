@@ -19,6 +19,7 @@ mod details;
 mod gpu;
 mod simulation;
 mod textures;
+mod theme;
 mod view;
 
 use eframe::egui;
@@ -74,6 +75,7 @@ fn main() -> eframe::Result {
         options,
         Box::new(|creation| {
             creation.egui_ctx.set_theme(egui::ThemePreference::Dark);
+            theme::apply(&creation.egui_ctx);
             Ok(Box::new(app::WorldlineApp::new(&start)))
         }),
     )
