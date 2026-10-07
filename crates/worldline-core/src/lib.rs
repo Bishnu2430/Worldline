@@ -6,6 +6,7 @@
 
 pub mod body;
 pub mod collision;
+pub mod compact;
 pub mod constants;
 pub mod diagnostics;
 pub mod gravity;

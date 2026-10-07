@@ -87,6 +87,11 @@ Focusing also zooms the camera in close. Computation follows the same rule, but 
 - **The Sun's reach:** solar wind, heliosphere boundaries, sunlight and light travel time.
 - **Around the planets:** magnetospheres and radiation belts.
 
+## Added to v1: the galactic center and live small bodies (decided 2026-10-07)
+
+- **Everything feels everything.** The belts' 28,000 asteroids and Kuiper belt objects, and every small moon, become live particles that feel any body added in the sandbox, not fixed orbits. Massless, they still pull on nothing.
+- **The galactic center.** Sagittarius A\* with the real stars orbiting it (S2 and others, from GRAVITY's orbits), placed 8.3 kpc from the solar system in its true direction, so you can zoom out from one to the other. The full Milky Way (its stars from Gaia, dark matter, the Sun's orbit around the center) stays in v2.
+
 ## v2: committed, starts once v1 is established
 
 All of these will be built. They are ordered after v1 because they depend on its engine, not because they are optional.

@@ -3,7 +3,8 @@
 //! A save records the moment and every body's state: the top level
 //! (relative to the solar system's barycenter), each moon system (relative
 //! to its barycenter) and the followers, plus which bodies were added in the
-//! sandbox. Everything else (gravity fields, rotation, the data behind each
+//! sandbox and the catalogue entry each came from. Everything else (gravity
+//! fields, rotation, the data behind each
 //! body) comes from the bundled data when it loads. Numbers are written in
 //! their shortest exact form, so they load back bit for bit.
 
@@ -11,8 +12,10 @@ use std::fmt::Write;
 
 use super::*;
 
-/// The first line of every save.
-const HEADER: &str = "worldline-save\t1";
+/// The first line of every save. Version 2 records each added body's
+/// catalogue entry; version 1 saves load too.
+const HEADER: &str = "worldline-save\t2";
+const HEADER_1: &str = "worldline-save\t1";
 
 fn body_line(kind: &str, prefix: &str, b: &Body) -> String {
     let (p, v) = (b.position, b.velocity);
@@ -77,8 +80,8 @@ impl Simulation {
         for i in 0..h.follower_count() {
             let _ = writeln!(out, "{}", body_line("follower", "", h.follower(i)));
         }
-        for name in &self.added {
-            let _ = writeln!(out, "added\t{name}");
+        for (name, entry) in &self.added {
+            let _ = writeln!(out, "added\t{name}\t{entry}");
         }
         if let Some(system) = self.detailed {
             let planet = &h.moon_systems[system].system.bodies[0].name;
@@ -92,7 +95,7 @@ impl Simulation {
         let mut lines = text
             .lines()
             .filter(|l| !l.starts_with('#') && !l.is_empty());
-        if lines.next() != Some(HEADER) {
+        if !matches!(lines.next(), Some(HEADER | HEADER_1)) {
             return Err("not a Worldline save (or from a newer version)".to_string());
         }
         let mut sim = Simulation::solar_system(speed);
@@ -115,7 +118,11 @@ impl Simulation {
                     moons.push((fields[1].to_string(), parse_body(&fields[2..])?))
                 }
                 "follower" => followers.push(parse_body(&fields[1..])?),
-                "added" if fields.len() == 2 => added.push(fields[1].to_string()),
+                // Version 1 didn't record where added bodies came from.
+                "added" if fields.len() == 2 => added.push((fields[1].to_string(), String::new())),
+                "added" if fields.len() == 3 => {
+                    added.push((fields[1].to_string(), fields[2].to_string()))
+                }
                 "detailed" if fields.len() == 2 => detailed = Some(fields[1].to_string()),
                 _ => return Err(format!("unknown line `{line}`")),
             }
@@ -127,8 +134,18 @@ impl Simulation {
             return Err(format!("the save starts at JD {epoch}, not this snapshot"));
         }
 
-        // Remove what the save doesn't have, last first so indices hold.
+        let is_added = |name: &str| added.iter().any(|(n, _): &(String, String)| n == name);
         let h = &mut sim.hierarchy;
+        // If something absorbed the Sun, it took the Sun's place as body 0.
+        if let Some(first) = top.first()
+            && first.name != "Sun"
+        {
+            if !is_added(&first.name) {
+                return Err(format!("unknown body `{}`", first.name));
+            }
+            h.top.bodies[0] = Body::new(&first.name, first.gm, first.radius);
+        }
+        // Remove what the save doesn't have, last first so indices hold.
         for k in (1..h.top.bodies.len()).rev() {
             if !top.iter().any(|s| s.name == h.top.bodies[k].name) {
                 if let Some(system) = h.moon_systems.iter().position(|m| m.host == k) {
@@ -145,7 +162,7 @@ impl Simulation {
         // Add the sandbox's bodies, then set every state.
         for saved in &top {
             if !h.top.bodies.iter().any(|b| b.name == saved.name) {
-                if !added.contains(&saved.name) {
+                if !is_added(&saved.name) {
                     return Err(format!("unknown body `{}`", saved.name));
                 }
                 h.add_body(Body::new(&saved.name, saved.gm, saved.radius));

@@ -17,7 +17,11 @@ use worldline_core::regime::Regime;
 use worldline_core::rotation::RotationModel;
 use worldline_core::solar_wind::{Heliosphere, ParkerSpiral};
 use worldline_core::{Body, DVec3};
-use worldline_data::{BeltKind, RadiationBelt, SmallBodyKind, SmallMoon, VoyagerCrossing};
+use worldline_data::{
+    BeltKind, ObjectKind, RadiationBelt, SmallBodyKind, SmallMoon, VoyagerCrossing,
+};
+
+use crate::catalogue::{self, Entry};
 
 /// The recent path of one body around the Sun: about one orbit's worth.
 /// Moons have none; they are shown with their current orbit (see
@@ -174,8 +178,9 @@ pub struct Simulation {
     /// For each body, what sort of small body it is, if it is one, and
     /// whether it has a non-gravitational force model.
     small_bodies: Vec<Option<(SmallBodyKind, bool)>>,
-    /// Names of the bodies added in the sandbox.
-    added: Vec<String>,
+    /// The bodies added in the sandbox: each one's name and the key of the
+    /// catalogue entry it came from.
+    added: Vec<(String, String)>,
     /// The asteroid belt, Jupiter's Trojans and the Kuiper belt.
     pub belts: Vec<BeltCloud>,
     /// The simulation time the belts were last placed at.
@@ -314,7 +319,7 @@ impl Simulation {
                 _ => None,
             })
             .collect();
-        let known = |b: &Body| !self.added.contains(&b.name);
+        let known = |b: &Body| !self.added.iter().any(|(name, _)| name == &b.name);
         self.small_bodies = bodies
             .iter()
             .map(|b| {
@@ -360,10 +365,10 @@ impl Simulation {
     /// barycenter: it joins the Sun and planets, pulling on them and pulled
     /// by them with relativistic gravity, and the moons feel its tides.
     /// Returns its place in the list.
-    pub fn add_body(&mut self, body: Body) -> usize {
+    pub fn add_body(&mut self, body: Body, entry: &str) -> usize {
         let name = body.name.clone();
         self.hierarchy.add_body(body);
-        self.added.push(name.clone());
+        self.added.push((name.clone(), entry.to_string()));
         self.reindex();
         self.refresh();
         self.refresh_small_moons();
@@ -372,7 +377,46 @@ impl Simulation {
 
     /// Whether body `index` was added in the sandbox.
     pub fn is_added(&self, index: usize) -> bool {
-        self.added.contains(&self.bodies[index].name)
+        self.added
+            .iter()
+            .any(|(name, _)| name == &self.bodies[index].name)
+    }
+
+    /// The catalogue entry body `index` was added from, if it was added.
+    pub fn entry(&self, index: usize) -> Option<&'static Entry> {
+        let name = &self.bodies[index].name;
+        self.added
+            .iter()
+            .find(|(n, _)| n == name)
+            .and_then(|(_, key)| catalogue::entry(key))
+    }
+
+    /// Whether the Sun is still there: something that hits it can absorb
+    /// it (a black hole, or a heavier star) and take its place as body 0.
+    /// Without it there is no sunlight, solar wind or heliosphere.
+    pub fn has_sun(&self) -> bool {
+        self.bodies[0].name == "Sun" && !self.is_added(0)
+    }
+
+    /// Whether body `index` gives off its own light: the Sun, and stars,
+    /// white dwarfs and neutron stars added from the catalogue.
+    pub fn shines(&self, index: usize) -> bool {
+        if index == 0 && self.has_sun() {
+            return true;
+        }
+        self.entry(index).is_some_and(|e| {
+            e.key == "copy:Sun"
+                || matches!(
+                    e.kind(),
+                    Some(ObjectKind::Star | ObjectKind::WhiteDwarf | ObjectKind::NeutronStar)
+                )
+        })
+    }
+
+    /// Where the planets' light comes from: body 0, if it shines (the Sun,
+    /// or a star that took its place). None if a black hole took it.
+    pub fn light_source(&self) -> Option<DVec3> {
+        self.shines(0).then(|| self.bodies[0].position)
     }
 
     /// The place in the list of the body named `name`, if it is there.
@@ -415,7 +459,7 @@ impl Simulation {
             Source::Follower(i) => self.hierarchy.remove_follower(i),
             Source::Small { .. } => return,
         }
-        self.added.retain(|n| n != &name);
+        self.added.retain(|(n, _)| n != &name);
         self.reindex();
         self.refresh();
         self.refresh_small_moons();
@@ -571,6 +615,17 @@ impl Simulation {
         if taken >= remaining {
             self.hierarchy.set_time(target);
         }
+        for unbound in self.hierarchy.take_unbound() {
+            // The freed moons are top-level bodies now; the small moons
+            // that followed them are gone.
+            self.small.remove(unbound.system);
+            self.detailed = match self.detailed {
+                Some(d) if d == unbound.system => None,
+                Some(d) if d > unbound.system => Some(d - 1),
+                other => other,
+            };
+            self.reindex();
+        }
         let collisions = self.hierarchy.take_collisions();
         if !collisions.is_empty() {
             self.after_collisions(&collisions);
@@ -592,7 +647,7 @@ impl Simulation {
                     other => other,
                 };
             }
-            self.added.retain(|name| name != &collision.absorbed);
+            self.added.retain(|(name, _)| name != &collision.absorbed);
         }
         self.reindex();
         if let Some(system) = self.detailed {
@@ -875,7 +930,7 @@ mod tests {
     #[test]
     fn bodies_can_be_added_and_removed() {
         let mut sim = Simulation::solar_system(DAY);
-        let new = sim.add_body(intruder(&sim));
+        let new = sim.add_body(intruder(&sim), "copy:Jupiter");
         assert!(sim.is_added(new) && sim.rotation(new).is_none());
         assert_eq!(sim.removal(0), Removal::Sun);
         assert_eq!(sim.removal(sim.index_of("Io").unwrap()), Removal::Moon);
@@ -896,7 +951,7 @@ mod tests {
     #[test]
     fn a_save_loads_back_exactly_and_runs_the_same_every_time() {
         let mut sim = Simulation::solar_system(10.0 * DAY);
-        sim.add_body(intruder(&sim));
+        sim.add_body(intruder(&sim), "copy:Jupiter");
         sim.remove(sim.index_of("Mars").unwrap());
         sim.focus_detail_on(sim.index_of("Saturn").unwrap());
         sim.update(1.0, GENEROUS);
@@ -915,6 +970,33 @@ mod tests {
     }
 
     #[test]
+    fn a_black_hole_can_take_the_suns_place_and_a_save_keeps_it() {
+        // Gaia BH1, let go 0.05 AU from the Sun: it falls in within hours,
+        // absorbs the Sun and becomes body 0. The Sun's light, wind and
+        // heliosphere go with it, and a save loads back exactly.
+        let mut sim = Simulation::solar_system(DAY);
+        let entry = catalogue::entry("object:Gaia BH1").expect("listed");
+        let hole = entry.bodies(&sim).remove(0);
+        let sun = sim.bodies[0].clone();
+        let at = sun.position + DVec3::new(0.0, 0.05 * worldline_core::constants::AU, 0.0);
+        sim.add_body(hole.at(at).moving(sun.velocity), &entry.key);
+        assert!(sim.has_sun() && sim.light_source().is_some());
+        sim.update(1.0, GENEROUS);
+        let collision = sim.events.first().expect("it fell in");
+        assert_eq!(
+            (collision.survivor.as_str(), collision.absorbed.as_str()),
+            ("Gaia BH1", "Sun")
+        );
+        assert_eq!(sim.bodies[0].name, "Gaia BH1");
+        assert!(!sim.has_sun() && sim.light_source().is_none());
+        assert!(sim.entry(0).is_some_and(|e| e.key == "object:Gaia BH1"));
+        let text = sim.save();
+        let loaded = Simulation::load(&text, DAY).unwrap();
+        assert_eq!(loaded.save(), text);
+        assert!(!loaded.has_sun());
+    }
+
+    #[test]
     fn a_collision_merges_bodies_in_the_list() {
         // An Earth-mass planet sent into Earth at 10 km/s from 20,000 km.
         let mut sim = Simulation::solar_system(DAY);
@@ -923,7 +1005,7 @@ mod tests {
         let impactor = Body::new("New planet 1", earth.gm, earth.radius)
             .at(earth.position + toward)
             .moving(earth.velocity - toward.normalize() * 1e4);
-        sim.add_body(impactor);
+        sim.add_body(impactor, "copy:Earth");
         let before = sim.bodies.len();
         sim.update(1.0, GENEROUS);
         let collision = sim.events.first().expect("they collided");

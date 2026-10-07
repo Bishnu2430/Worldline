@@ -12,11 +12,13 @@ Two bodies that touch merge, **perfectly inelastically**:
 - **Size:** its volume is the sum of theirs, as if both had the same density (the real result depends on what they're made of; this is labeled as an assumption).
 - **Energy:** the kinetic energy of their relative motion, ½ μ v² with μ = m₁m₂/(m₁ + m₂), becomes heat. A unit test checks that the energy lost is exactly that.
 
-**Who survives:** the Sun always survives; otherwise the more massive body keeps its name, and of equal masses, the one that came first.
+**Who survives:** a black hole, whatever it hits (see [compact-objects.md](compact-objects.md)); otherwise the more massive body keeps its name, and of equal masses, the one that came first. Whatever absorbs the Sun takes its place as body 0.
+
+**Bodies placed overlapping** merge at once, before the next step: a black hole dropped into the solar system swallows everything inside its horizon.
 
 **Planets with moons.** A planet with moons is, at the top of the hierarchy, its system's center of mass:
 - **When it survives,** the impact is on the planet itself. It takes the impactor's mass and momentum, while its moons keep their exact positions and velocities and go on orbiting. The top-level body takes on the combined momentum directly, so the conservation is exact.
-- **When it is absorbed,** its major moons are left behind as independent bodies orbiting the Sun. They are re-centered on their system's own center of mass, and their masses scaled to the planetary ephemeris's total for the system (JPL's two solutions differ by under 10⁻⁴). So the momentum they carry is exactly what the system carried. Its small moons go with it.
+- **When it is absorbed,** its major moons are left behind as independent bodies orbiting the Sun. Usually they are already free by then: an impactor big enough to absorb the planet tears them away first (below). They are re-centered on their system's own center of mass, and their masses scaled to the planetary ephemeris's total for the system (JPL's two solutions differ by under 10⁻⁴). So the momentum they carry is exactly what the system carried. Its small moons go with it.
 
 **Comets and small asteroids** (the massless followers) that hit the Sun or a planet are absorbed; being massless, they change no momentum.
 
@@ -36,21 +38,24 @@ With Newtonian gravity, total momentum is conserved exactly, so before and after
 | Collision | Momentum before vs. after | Other checks |
 |---|---|---|
 | Two Earth-like planets, one catching up at 10 km/s | 1.1 × 10⁻¹⁶ of its scale | they meet at 15.6 km/s (sped up by their pull); mass adds; radius (7³ + 6³)^(1/3) |
-| A heavy impactor absorbs a planet with a moon | 1.2 × 10⁻¹⁸ | the moon is freed |
-| A light impactor hits a planet with a moon | 0 | the planet keeps its moon, still 4.0 × 10⁵ km out |
+| A heavy impactor absorbs a planet with a moon | 1.2 × 10⁻¹⁹ | its tides free the moon first |
+| A light impactor (10⁻⁵ of the planet's mass) hits a planet with a moon | 1.7 × 10⁻¹⁶ | the planet keeps its moon, still 4.0 × 10⁵ km out |
+| A black hole of 10 Suns falls into the Sun from 0.1 AU | 4 × 10⁻¹⁷ | it survives as a black hole of 11 Suns, horizon 32.49 km, in the Sun's place |
 
 **A comet falling into the Sun.** A comet falling straight at the Sun from 1 AU at 50 km/s is absorbed at the surface, not passed through:
 - **Speed:** it hits at 618.3 km/s, where energy conservation, v² = v₀² + 2GM(1/R − 1/r₀), gives 618.3 km/s.
 - **Time:** it hits after 24.6177 days, and the radial Kepler orbit, t = √(a³/GM)(sinh η − η), gives 24.6177 days.
 
 **With the real solar system and relativistic gravity:** a Jupiter-mass body sent into Mars from 10⁶ km behind at 10 km/s.
-- **The impact:** it hits after 14.7 hours at 57.49 km/s, where √(v₀² + 2GM(1/r − 1/r₀)) = 57.47 km/s.
-- **The outcome:** it absorbs Mars and leaves Phobos and Deimos orbiting the Sun.
+- **The moons:** its tides free Phobos and Deimos 1.2 hours in; it hits Phobos at 58.29 km/s after 14.6 hours.
+- **The impact:** it hits Mars after 14.7 hours at 57.49 km/s, where √(v₀² + 2GM(1/r − 1/r₀)) = 57.47 km/s, and absorbs it. Deimos is left orbiting the Sun.
 - **Momentum:** total momentum changes by 1.1 × 10⁻¹¹, within the (v/c)² ≈ 4 × 10⁻⁸ by which relativistic gravity lets the Newtonian momentum wobble anyway.
+
+**Moons torn away first.** When another body's tide on a planet's moon passes 1/12 of the planet's pull, the moons are freed to the top level, where their collisions are detected like any other (see [compact-objects.md](compact-objects.md)). A Jupiter-mass body sent into Mars frees Phobos and Deimos 13 hours before it arrives, hits Phobos, then Mars.
 
 ## Not handled yet
 
-- **Collisions inside moon systems** (a moon hitting its planet or another moon) aren't detected. When a massive body is inside a moon system, the indicator says so.
+- **Collisions inside moon systems** (a moon hitting its planet or another moon, with nothing else near) aren't detected. When a massive body is inside a moon system without tearing its moons away, the indicator says so.
 - **Fragmentation, cratering and rebounds:** every touch is a merger. Debris from giant impacts needs the fluid simulation of milestone 4.
 - **The merged body's spin:** it keeps the survivor's rotation model. The impact's angular momentum isn't added to its spin yet.
 

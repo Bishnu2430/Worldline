@@ -5,6 +5,7 @@
 //! before and after a collision up to rounding, about 10⁻¹⁶ per step; over
 //! the few hundred steps of these runs, 10⁻¹² leaves ample room.
 
+use worldline_core::compact::{is_black_hole, schwarzschild_radius};
 use worldline_core::constants::{AU, GM_SUN, SOLAR_RADIUS};
 use worldline_core::gravity::Newtonian;
 use worldline_core::hierarchy::{Hierarchy, MoonSystem};
@@ -163,19 +164,27 @@ fn planet_with_moon_and_impactor(gm: f64) -> Hierarchy {
 
 #[test]
 fn a_planet_absorbed_leaves_its_moon_behind() {
+    // An impactor ten times the planet's mass. As it closes in, its tide
+    // on the moon passes 1/12 of the planet's pull, and the moon is freed
+    // to orbit on its own (see `Unbound`); then the impactor absorbs the
+    // planet. The moon survives.
     let mut h = planet_with_moon_and_impactor(4e15);
     let (before, scale) = momentum(&h);
     let collision = until_collision(&mut h, 10.0 * 86_400.0);
     let (after, _) = momentum(&h);
+    let unbound = h.take_unbound();
     println!(
-        "{} absorbed {}, freeing {:?}; momentum change {:.1e}",
+        "{}'s moons {:?} freed by {}; then {} absorbed {}; momentum change {:.1e}",
+        unbound[0].planet,
+        unbound[0].freed,
+        unbound[0].by,
         collision.survivor,
         collision.absorbed,
-        collision.freed,
         (after - before).length() / scale
     );
+    assert_eq!(unbound[0].freed, ["Moon"]);
+    assert_eq!(unbound[0].by, "Impactor");
     assert_eq!(collision.survivor, "Impactor");
-    assert_eq!(collision.freed, ["Moon"]);
     assert!(h.moon_systems.is_empty());
     assert!(h.top.bodies.iter().any(|b| b.name == "Moon"));
     assert!((after - before).length() <= 1e-12 * scale);
@@ -183,11 +192,15 @@ fn a_planet_absorbed_leaves_its_moon_behind() {
 
 #[test]
 fn a_planet_that_survives_keeps_its_moon() {
-    let mut h = planet_with_moon_and_impactor(4e13);
+    // An impactor of a hundred-thousandth of the planet's mass: even at
+    // contact its tide on the moon is under 1% of the planet's pull, so the
+    // moon system stays whole and the planet absorbs it.
+    let mut h = planet_with_moon_and_impactor(4e9);
     let (before, scale) = momentum(&h);
     let collision = until_collision(&mut h, 10.0 * 86_400.0);
     let (after, _) = momentum(&h);
     assert_eq!(collision.survivor, "Planet");
+    assert!(h.take_unbound().is_empty());
     assert_eq!(h.moon_systems.len(), 1);
     let moons = &h.moon_systems[0].system;
     let distance = (moons.bodies[1].position - moons.bodies[0].position).length();
@@ -199,4 +212,65 @@ fn a_planet_that_survives_keeps_its_moon() {
     // The moon still circles the planet, about 4 × 10⁵ km out.
     assert!((distance / 4e8 - 1.0).abs() < 0.1);
     assert!((after - before).length() <= 1e-12 * scale);
+}
+
+#[test]
+fn a_black_hole_that_hits_the_sun_takes_its_place() {
+    // A black hole of 10 Suns let go 0.1 AU from the Sun, with a planet and
+    // its moon 1 AU out. A black hole survives any collision: the merged
+    // body is a black hole of 11 Suns, its horizon 2GM/c² = 32.5 km, and it
+    // takes the Sun's place as body 0. Passing the planet 1 AU away, the
+    // hole's tide on the moon is 0.13 of the planet's pull, past 1/12: the
+    // moon is freed before the hole reaches the Sun.
+    let mut h = planet_with_moon_and_impactor(0.0);
+    let gm = 10.0 * GM_SUN;
+    h.top.bodies[2] =
+        Body::new("Hole", gm, schwarzschild_radius(gm)).at(DVec3::new(0.0, 0.1 * AU, 0.0));
+    h.add_followers(vec![(
+        Body::new("Comet", 0.0, 5e3).at(DVec3::new(0.0, -3.0 * AU, 0.0)),
+        None,
+    )]);
+    let (before, _) = momentum(&h);
+    let collision = until_collision(&mut h, 10.0 * 86_400.0);
+    let (after, _) = momentum(&h);
+    // The bodies start at rest, so the scale is the momentum each carries
+    // into the impact: GM v of the Sun at its share of the relative speed,
+    // 10/11 of it.
+    let scale = GM_SUN * collision.speed * 10.0 / 11.0;
+    let hole = &h.top.bodies[0];
+    println!(
+        "{} absorbed the {} at {:.0} km/s after {:.1} h; now {:.1} Suns with a {:.2} km horizon; momentum change {:.1e}",
+        collision.survivor,
+        collision.absorbed,
+        collision.speed / 1e3,
+        collision.time / 3600.0,
+        hole.gm / GM_SUN,
+        hole.radius / 1e3,
+        (after - before).length() / scale
+    );
+    assert_eq!(
+        (collision.survivor.as_str(), collision.absorbed.as_str()),
+        ("Hole", "Sun")
+    );
+    assert_eq!(hole.name, "Hole");
+    assert!(is_black_hole(hole));
+    let expected = schwarzschild_radius(11.0 * GM_SUN);
+    assert!((hole.radius - expected).abs() < 1e-12 * expected);
+    assert_eq!(
+        h.top
+            .bodies
+            .iter()
+            .map(|b| b.name.as_str())
+            .collect::<Vec<_>>(),
+        ["Hole", "Planet", "Moon"]
+    );
+    let unbound = h.take_unbound();
+    assert_eq!(
+        (unbound[0].by.as_str(), unbound[0].planet.as_str()),
+        ("Hole", "Planet")
+    );
+    assert!((after - before).length() <= 1e-12 * scale);
+    // Everything goes on: the comet now falls toward the hole.
+    h.advance(86_400.0);
+    assert_eq!(h.follower_count(), 1);
 }
