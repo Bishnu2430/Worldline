@@ -133,6 +133,30 @@ enum Source {
     Follower(usize),
     /// A small moon set free: a swarm particle, by its label.
     Particle(u32),
+    /// A body of the galactic center.
+    Galactic(Far),
+}
+
+/// Where a galactic-center body lives in that region's hierarchy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Far {
+    /// A top-level body: Sagittarius A* (0), or one added near it.
+    Top(usize),
+    /// A star following it.
+    Follower(usize),
+}
+
+/// A region far from the solar system, simulated on its own: the galactic
+/// center. The two regions don't pull on each other: 8,277 pc apart, each
+/// one's tide on the other is below 10⁻²⁰ m/s². The region holds still
+/// relative to the solar system: the galaxy's mass, which carries the Sun
+/// around it every 230 million years, isn't simulated (v2).
+pub struct Region {
+    /// Where its origin (Sagittarius A*) is, in the solar system's frame.
+    pub origin: DVec3,
+    hierarchy: Hierarchy,
+    /// Each star's spectral type ('e' early, 'l' late), in follower order.
+    spectral_types: Vec<Option<char>>,
 }
 
 /// Which part of the simulation computes a body's motion.
@@ -151,6 +175,8 @@ pub enum Computed {
     Follower { forces: bool },
     /// A massless particle of the swarm.
     Swarm,
+    /// A star following Sagittarius A*.
+    GalacticStar,
 }
 
 /// Whether a body can be removed from the simulation.
@@ -162,6 +188,8 @@ pub enum Removal {
     Sun,
     /// Not a moon on its own, yet.
     Moon,
+    /// Not Sagittarius A*: its region is measured from it.
+    GalacticCenter,
 }
 
 /// The solar system running live.
@@ -224,6 +252,8 @@ pub struct Simulation {
     pub flow_pressure_at_1au: f64,
     /// Collisions since the app last looked, oldest first.
     pub events: Vec<Collision>,
+    /// The galactic center.
+    pub galaxy: Option<Region>,
     hierarchy: Hierarchy,
 }
 
@@ -280,6 +310,17 @@ impl Simulation {
             freed: Vec::new(),
             swarm_positions: Vec::new(),
             notices: Vec::new(),
+            galaxy: {
+                let gc = worldline_data::galactic_center();
+                Some(Region {
+                    origin: gc.origin,
+                    hierarchy: gc.hierarchy,
+                    spectral_types: worldline_data::s_stars()
+                        .iter()
+                        .map(|s| s.spectral_type)
+                        .collect(),
+                })
+            },
             wind: worldline_data::parker_spiral(),
             heliosphere: worldline_data::heliosphere(),
             crossings: worldline_data::voyager_crossings(),
@@ -328,6 +369,13 @@ impl Simulation {
         }
         sources.extend((0..hierarchy.follower_count()).map(Source::Follower));
         sources.extend(self.freed.iter().map(|m| Source::Particle(m.id)));
+        if let Some(g) = &self.galaxy {
+            sources
+                .extend((0..g.hierarchy.top.bodies.len()).map(|k| Source::Galactic(Far::Top(k))));
+            sources.extend(
+                (0..g.hierarchy.follower_count()).map(|i| Source::Galactic(Far::Follower(i))),
+            );
+        }
         let bodies: Vec<Body> = sources
             .iter()
             .map(|source| match *source {
@@ -353,8 +401,18 @@ impl Simulation {
                         .expect("a freed moon");
                     Body::new(&moon.name, moon.gm, moon.radius)
                 }
+                Source::Galactic(far) => {
+                    let g = self.galaxy.as_ref().expect("the galactic center");
+                    match far {
+                        Far::Top(k) => g.hierarchy.top.bodies[k].clone(),
+                        Far::Follower(i) => g.hierarchy.follower(i).clone(),
+                    }
+                }
             })
             .collect();
+        let galactic_center = sources
+            .iter()
+            .position(|s| matches!(s, Source::Galactic(Far::Top(0))));
         let catalog = worldline_data::small_bodies();
         let fields = worldline_data::planetary_fields();
         let index_of = |name: &str| bodies.iter().position(|b| b.name == name);
@@ -366,6 +424,7 @@ impl Simulation {
                     Some(hierarchy.moon_systems[system].host)
                 }
                 Source::Small { system, .. } => Some(hierarchy.moon_systems[system].host),
+                Source::Galactic(Far::Follower(_)) => galactic_center,
                 // The Moon is simulated at the top level, beside Earth.
                 _ if body.name == "Moon" => index_of("Earth"),
                 _ => None,
@@ -425,6 +484,73 @@ impl Simulation {
         self.refresh();
         self.refresh_small_moons();
         self.index_of(&name).expect("the new body is listed")
+    }
+
+    /// Adds a body to the sandbox in the region of body `near`: the
+    /// galactic center if `near` is there, else the solar system. Given in
+    /// the solar system's frame; returns its index in the list.
+    pub fn add_body_near(&mut self, body: Body, entry: &str, near: usize) -> usize {
+        let Source::Galactic(_) = self.sources[near] else {
+            return self.add_body(body, entry);
+        };
+        let name = body.name.clone();
+        let g = self.galaxy.as_mut().expect("the galactic center");
+        let local = Body {
+            position: body.position - g.origin,
+            ..body
+        };
+        g.hierarchy.add_body(local);
+        self.added.push((name.clone(), entry.to_string()));
+        self.reindex();
+        self.refresh();
+        self.index_of(&name).expect("the new body is listed")
+    }
+
+    /// The body body `index`'s region is measured from: Sagittarius A* in
+    /// the galactic center, the Sun (or what took its place) elsewhere.
+    pub fn region_center(&self, index: usize) -> usize {
+        match self.sources[index] {
+            Source::Galactic(_) => self
+                .sources
+                .iter()
+                .position(|s| matches!(s, Source::Galactic(Far::Top(0))))
+                .unwrap_or(0),
+            _ => 0,
+        }
+    }
+
+    /// For Sagittarius A* in the galactic center: how far to stand back to
+    /// see the stars around it, twice the median of their distances.
+    pub fn cluster_reach(&self, index: usize) -> Option<f64> {
+        let Source::Galactic(Far::Top(0)) = self.sources[index] else {
+            return None;
+        };
+        let center = self.bodies[index].position;
+        let mut distances: Vec<f64> = (0..self.bodies.len())
+            .filter(|&i| self.parents[i] == Some(index))
+            .map(|i| (self.bodies[i].position - center).length())
+            .collect();
+        distances.sort_by(f64::total_cmp);
+        distances.get(distances.len() / 2).map(|d| 2.0 * d)
+    }
+
+    /// Whether body `index` is in the galactic center.
+    pub fn is_galactic(&self, index: usize) -> bool {
+        matches!(self.sources[index], Source::Galactic(_))
+    }
+
+    /// For a star of the galactic center: its spectral type ('e' early,
+    /// 'l' late), if known.
+    pub fn spectral_type(&self, index: usize) -> Option<char> {
+        let Source::Galactic(Far::Follower(i)) = self.sources[index] else {
+            return None;
+        };
+        self.galaxy
+            .as_ref()?
+            .spectral_types
+            .get(i)
+            .copied()
+            .flatten()
     }
 
     /// Whether body `index` was added in the sandbox.
@@ -488,6 +614,8 @@ impl Simulation {
                     + self.small[system].len(),
             },
             Source::Moon { .. } | Source::Small { .. } => Removal::Moon,
+            Source::Galactic(Far::Top(0)) => Removal::GalacticCenter,
+            Source::Galactic(_) => Removal::Allowed { moons: 0 },
         }
     }
 
@@ -514,6 +642,16 @@ impl Simulation {
             Source::Particle(id) => {
                 self.hierarchy.remove_particles(&[id]);
                 self.freed.retain(|m| m.id != id);
+            }
+            Source::Galactic(far) => {
+                let g = self.galaxy.as_mut().expect("the galactic center");
+                match far {
+                    Far::Top(k) => g.hierarchy.remove_body(k),
+                    Far::Follower(i) => {
+                        g.hierarchy.remove_follower(i);
+                        g.spectral_types.remove(i);
+                    }
+                }
             }
             Source::Small { .. } => return,
         }
@@ -640,6 +778,7 @@ impl Simulation {
         while self.time() < target {
             self.step_toward(target);
         }
+        self.catch_up_galaxy();
         self.refresh_small_moons();
     }
 
@@ -662,6 +801,7 @@ impl Simulation {
             self.step_toward(target);
         }
         self.achieved = (self.time() - start) / requested;
+        self.catch_up_galaxy();
         self.refresh_small_moons();
     }
 
@@ -673,6 +813,7 @@ impl Simulation {
         if taken >= remaining {
             self.hierarchy.set_time(target);
         }
+
         // Small moons freed (before their systems' lists go): name them.
         let freed = self.hierarchy.take_freed_moons();
         if !freed.is_empty() {
@@ -754,6 +895,31 @@ impl Simulation {
         self.refresh();
     }
 
+    /// Brings the galactic center up to the solar system's time, in its own
+    /// steps: once per update is enough, since nothing in either region
+    /// feels the other.
+    fn catch_up_galaxy(&mut self) {
+        let Some(g) = &mut self.galaxy else {
+            return;
+        };
+        let now = self.hierarchy.time();
+        while g.hierarchy.time() < now {
+            let left = now - g.hierarchy.time();
+            if g.hierarchy.step(left) >= left {
+                g.hierarchy.set_time(now);
+            }
+        }
+        let collisions = g.hierarchy.take_collisions();
+        if !collisions.is_empty() {
+            for c in &collisions {
+                self.added.retain(|(name, _)| name != &c.absorbed);
+            }
+            self.events.extend(collisions);
+            self.reindex();
+        }
+        self.refresh();
+    }
+
     /// Brings the list of bodies up to date after collisions: a planet
     /// that was absorbed takes its small moons with it, and a planet that
     /// absorbed something has its small moons placed again.
@@ -790,6 +956,8 @@ impl Simulation {
             }
             Source::Small { .. } => Computed::SmallMoonOnMeanOrbit,
             Source::Particle(_) => Computed::Swarm,
+            Source::Galactic(Far::Top(_)) => Computed::TopLevel,
+            Source::Galactic(Far::Follower(_)) => Computed::GalacticStar,
             Source::Follower(_) => Computed::Follower {
                 forces: self.small_bodies[index].is_some_and(|s| s.1),
             },
@@ -801,11 +969,13 @@ impl Simulation {
     /// anything else, the top-level body with the strongest pull.
     pub fn regime(&self, index: usize) -> Option<Regime> {
         let body = &self.bodies[index];
+        let top = match (self.sources[index], &self.galaxy) {
+            (Source::Galactic(_), Some(g)) => &g.hierarchy.top,
+            _ => &self.hierarchy.top,
+        };
         let attractor = match self.parents[index] {
             Some(planet) => planet,
-            None => self
-                .hierarchy
-                .top
+            None => top
                 .bodies
                 .iter()
                 .enumerate()
@@ -857,6 +1027,14 @@ impl Simulation {
                 }
                 Source::Moon { system, body } => self.hierarchy.absolute(system, body),
                 Source::Small { .. } | Source::Particle(_) => continue,
+                Source::Galactic(far) => {
+                    let g = self.galaxy.as_ref().expect("the galactic center");
+                    let b = match far {
+                        Far::Top(k) => &g.hierarchy.top.bodies[k],
+                        Far::Follower(i) => g.hierarchy.follower(i),
+                    };
+                    (g.origin + b.position, b.velocity)
+                }
                 Source::Follower(i) => {
                     let b = self.hierarchy.follower(i);
                     (b.position, b.velocity)
@@ -1123,6 +1301,34 @@ mod tests {
         let mut loaded = Simulation::load(&text, DAY).unwrap();
         assert_eq!(loaded.save(), text);
         assert!(!loaded.has_sun());
+    }
+
+    #[test]
+    fn the_galactic_center_runs_alongside_and_takes_what_is_dropped_there() {
+        // Sagittarius A* sits 8,277 pc away with its 39 stars, which keep
+        // time with the solar system. A planet dropped 1,000 AU from it
+        // joins its region and falls toward it, not toward the Sun.
+        let mut sim = Simulation::solar_system(DAY);
+        let sgr = sim.index_of("Sagittarius A*").expect("the galactic center");
+        assert!(sim.is_galactic(sgr));
+        let distance = (sim.bodies[sgr].position - sim.bodies[0].position).length();
+        assert!((distance / worldline_core::constants::PARSEC - 8277.0).abs() < 1.0);
+        let stars = (0..sim.bodies.len())
+            .filter(|&i| sim.parent(i) == Some(sgr))
+            .count();
+        assert_eq!(stars, 39);
+        let s2 = sim.index_of("S2").unwrap();
+        let before = sim.bodies[s2].position;
+        let at =
+            sim.bodies[sgr].position + DVec3::new(1000.0 * worldline_core::constants::AU, 0.0, 0.0);
+        let planet = Body::new("New planet 1", 4e14, 6.4e6).at(at);
+        let new = sim.add_body_near(planet, "copy:Earth", sgr);
+        assert!(sim.is_galactic(new));
+        sim.update(30.0, GENEROUS);
+        assert_ne!(sim.bodies[s2].position, before);
+        let new = sim.index_of("New planet 1").unwrap();
+        let toward = (sim.bodies[sgr].position - sim.bodies[new].position).normalize();
+        assert!(sim.bodies[new].velocity.normalize().dot(toward) > 0.99);
     }
 
     #[test]

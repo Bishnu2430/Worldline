@@ -92,6 +92,9 @@ struct Flight {
     from_distance: f64,
     to_distance: f64,
     start: Instant,
+    /// How long it lasts, in s: longer when it crosses far more space than
+    /// it starts or ends seeing.
+    seconds: f64,
 }
 
 pub struct WorldlineApp {
@@ -187,17 +190,29 @@ impl WorldlineApp {
     }
 
     /// Makes the camera follow a body, settling `radii` of its radii away.
+    /// Sagittarius A* is framed with the stars around it: its horizon is
+    /// tiny next to their orbits.
     fn fly_to(&mut self, index: usize, radii: f64) {
         let radius = self.simulation.bodies[index].radius;
+        let to_distance = if let Some(reach) = self.simulation.cluster_reach(index) {
+            reach
+        } else if radius > 0.0 {
+            radii * radius
+        } else {
+            UNKNOWN_SIZE_DISTANCE
+        };
+        let across = (self.simulation.bodies[index].position - self.camera.target).length();
+        let far = across > 10.0 * self.camera.distance.max(to_distance);
         self.flight = Some(Flight {
             from_target: self.camera.target,
             from_distance: self.camera.distance,
-            to_distance: if radius > 0.0 {
-                radii * radius
-            } else {
-                UNKNOWN_SIZE_DISTANCE
-            },
+            to_distance,
             start: Instant::now(),
+            seconds: if far {
+                2.5 * FLIGHT_SECONDS
+            } else {
+                FLIGHT_SECONDS
+            },
         });
         // Detail follows focus: the small moons around this body are
         // now computed in full.
@@ -215,12 +230,17 @@ impl WorldlineApp {
             self.camera.target = target;
             return;
         };
-        let t = (flight.start.elapsed().as_secs_f64() / FLIGHT_SECONDS).min(1.0);
+        let t = (flight.start.elapsed().as_secs_f64() / flight.seconds).min(1.0);
         let eased = t * t * (3.0 - 2.0 * t);
         self.camera.target = flight.from_target.lerp(target, eased);
         // Zoom evenly in scale, so going from 4 AU to 25,000 km looks smooth.
+        // Across far more space than either end shows (the solar system to
+        // the galactic center), climb out to see both, then come back in.
         let (from, to) = (flight.from_distance.ln(), flight.to_distance.ln());
-        self.camera.distance = (from + (to - from) * eased).exp();
+        let across = (target - flight.from_target).length() * 1.5;
+        let lift = (across.ln() - from.max(to)).max(0.0);
+        self.camera.distance =
+            (from + (to - from) * eased + 4.0 * eased * (1.0 - eased) * lift).exp();
         if t >= 1.0 {
             self.flight = None;
         }
@@ -369,14 +389,19 @@ impl WorldlineApp {
                     state.set_open(true);
                 }
                 let moons = major.len() + small.len();
+                let noun = if simulation.is_galactic(i) {
+                    "star"
+                } else {
+                    "moon"
+                };
                 state
                     .show_header(ui, |ui| {
                         entry(ui, i);
                         ui.label(
                             RichText::new(if moons == 1 {
-                                "1 moon".to_string()
+                                format!("1 {noun}")
                             } else {
-                                format!("{moons} moons")
+                                format!("{moons} {noun}s")
                             })
                             .small()
                             .color(theme::MUTED),
@@ -554,17 +579,24 @@ impl WorldlineApp {
             self.catalog_rows(ui);
             if let Some(parent) = parent {
                 let planet = &bodies[parent];
+                let d = (body.position - planet.position).length();
                 ui.label(key(&format!("Distance from {}", planet.name)));
-                ui.label(format!(
-                    "{:.0} km",
-                    (body.position - planet.position).length() / 1e3
-                ));
+                ui.label(if d > 1e10 {
+                    format!("{:.1} AU", d / AU)
+                } else {
+                    format!("{:.0} km", d / 1e3)
+                });
                 ui.end_row();
                 ui.label(key(&format!("Speed relative to {}", planet.name)));
                 ui.label(format!(
                     "{:.3} km/s",
                     (body.velocity - planet.velocity).length() / 1e3
                 ));
+                ui.end_row();
+            } else if self.simulation.is_galactic(self.selected) {
+                // Too far for AU: in light-years and parsecs.
+                ui.label(key(&format!("Distance from {}", sun.name)));
+                ui.label(light_years((body.position - sun.position).length()));
                 ui.end_row();
             } else if self.selected != SUN {
                 ui.label(key(&format!("Distance from {}", sun.name)));
@@ -580,8 +612,10 @@ impl WorldlineApp {
                 ));
                 ui.end_row();
             }
-            self.sun_reach(ui);
-            self.magnetism(ui);
+            if !self.simulation.is_galactic(self.selected) {
+                self.sun_reach(ui);
+                self.magnetism(ui);
+            }
             if let Some(model) = self.simulation.rotation(self.selected) {
                 let jd = self.simulation.julian_date();
                 let hours = model.sidereal_period() / 3600.0;
@@ -621,7 +655,13 @@ impl WorldlineApp {
         });
         self.catalog_notes(ui);
         ui.add_space(4.0);
-        let kind = if self.simulation.is_added(self.selected) {
+        let kind = if self.simulation.is_galactic(self.selected)
+            && !self.simulation.is_added(self.selected)
+        {
+            details::BodyKind::Galactic {
+                star: self.simulation.parent(self.selected).is_some(),
+            }
+        } else if self.simulation.is_added(self.selected) {
             details::BodyKind::Added(self.simulation.entry(self.selected).and_then(Entry::kind))
         } else if let Some((kind, outgassing)) = self.simulation.small_body(self.selected) {
             details::BodyKind::SmallBody {
@@ -677,6 +717,12 @@ impl WorldlineApp {
                 Removal::Moon => {
                     ui.add_enabled(false, egui::Button::new("Remove"))
                         .on_disabled_hover_text("Moons can't be removed on their own yet");
+                }
+                Removal::GalacticCenter => {
+                    ui.add_enabled(false, egui::Button::new("Remove"))
+                        .on_disabled_hover_text(
+                            "Sagittarius A* stays: its region is measured from it",
+                        );
                 }
             }
         });
@@ -763,6 +809,9 @@ impl WorldlineApp {
             Computed::SmallMoonOnMeanOrbit => "JPL's mean orbit, carried at its mean rates",
             Computed::Follower { forces: false } => {
                 "Follows the Sun and planets: Newtonian, plus the Sun's relativistic term"
+            }
+            Computed::GalacticStar => {
+                "Follows Sagittarius A*: its Newtonian pull plus its first relativistic (Schwarzschild) term"
             }
             Computed::Swarm => {
                 "A swarm particle: carried on its orbit around what holds it, nudged by every other body (Wisdom–Holman)"
@@ -973,9 +1022,10 @@ impl WorldlineApp {
         let added: Vec<String> = bodies.iter().map(|b| b.name.clone()).collect();
         for body in bodies {
             let (p, v) = (body.position, body.velocity);
-            self.simulation.add_body(
+            self.simulation.add_body_near(
                 body.at(launch.position + p).moving(velocity + v),
                 &entry.key,
+                launch.around,
             );
         }
         self.reattend(names);
@@ -1295,7 +1345,7 @@ impl WorldlineApp {
         if self.simulation.bodies[self.focus].gm > 0.0 {
             self.focus
         } else {
-            SUN
+            self.simulation.region_center(self.focus)
         }
     }
 

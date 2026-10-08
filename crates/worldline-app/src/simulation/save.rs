@@ -83,6 +83,19 @@ impl Simulation {
         for i in 0..h.follower_count() {
             let _ = writeln!(out, "{}", body_line("follower", "", h.follower(i)));
         }
+        // The galactic center, relative to Sagittarius A*'s place.
+        if let Some(g) = &self.galaxy {
+            for b in &g.hierarchy.top.bodies {
+                let _ = writeln!(out, "{}", body_line("gtop", "", b));
+            }
+            for i in 0..g.hierarchy.follower_count() {
+                let _ = writeln!(
+                    out,
+                    "{}",
+                    body_line("gfollower", "", g.hierarchy.follower(i))
+                );
+            }
+        }
         for (name, entry) in &self.added {
             let _ = writeln!(out, "added\t{name}\t{entry}");
         }
@@ -122,6 +135,7 @@ impl Simulation {
         let (mut top, mut moons, mut followers, mut added) =
             (Vec::new(), Vec::new(), Vec::new(), Vec::new());
         let (mut freed, mut particles) = (Vec::new(), Vec::new());
+        let (mut gtop, mut gfollowers) = (Vec::new(), Vec::new());
         for line in lines {
             let fields: Vec<&str> = line.split('\t').collect();
             let number = || {
@@ -138,6 +152,8 @@ impl Simulation {
                     moons.push((fields[1].to_string(), parse_body(&fields[2..])?))
                 }
                 "follower" => followers.push(parse_body(&fields[1..])?),
+                "gtop" => gtop.push(parse_body(&fields[1..])?),
+                "gfollower" => gfollowers.push(parse_body(&fields[1..])?),
                 // Version 1 didn't record where added bodies came from.
                 "added" if fields.len() == 2 => added.push((fields[1].to_string(), String::new())),
                 "added" if fields.len() == 3 => {
@@ -258,6 +274,51 @@ impl Simulation {
         }
         h.set_time(time);
         h.restart();
+        // The galactic center, if the save has it (saves from before step
+        // 2.1c start it afresh, at the save's time).
+        if let Some(g) = &mut sim.galaxy {
+            let gh = &mut g.hierarchy;
+            if !gtop.is_empty() {
+                for k in (1..gh.top.bodies.len()).rev() {
+                    if !gtop.iter().any(|s| s.name == gh.top.bodies[k].name) {
+                        gh.remove_body(k);
+                    }
+                }
+                for i in (0..gh.follower_count()).rev() {
+                    if !gfollowers.iter().any(|s| s.name == gh.follower(i).name) {
+                        gh.remove_follower(i);
+                        g.spectral_types.remove(i);
+                    }
+                }
+                for saved in &gtop {
+                    if !gh.top.bodies.iter().any(|b| b.name == saved.name) {
+                        gh.add_body(Body::new(&saved.name, saved.gm, saved.radius));
+                    }
+                }
+                for saved in &gtop {
+                    let body = gh
+                        .top
+                        .bodies
+                        .iter_mut()
+                        .find(|b| b.name == saved.name)
+                        .ok_or_else(|| format!("unknown body `{}`", saved.name))?;
+                    (body.gm, body.radius) = (saved.gm, saved.radius);
+                    (body.position, body.velocity) = (saved.position, saved.velocity);
+                }
+                for saved in &gfollowers {
+                    let index = (0..gh.follower_count())
+                        .find(|&i| gh.follower(i).name == saved.name)
+                        .ok_or_else(|| format!("unknown star `{}`", saved.name))?;
+                    let body = gh.follower_mut(index);
+                    (body.position, body.velocity) = (saved.position, saved.velocity);
+                }
+            } else {
+                // Carried to the save's time with its own gravity.
+                gh.advance(time);
+            }
+            gh.set_time(time);
+            gh.restart();
+        }
         // The swarm, as saved; saves from before it existed have the belts
         // carried from the start along fixed ellipses around body 0.
         let swarm = if particles.is_empty() {

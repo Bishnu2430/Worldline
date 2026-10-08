@@ -45,6 +45,17 @@ The app is a window around the physics engine. It never does physics itself. It 
 - **Small bodies** are drawn as dots in a color for their kind: comets pale blue, interstellar visitors magenta, and the rest in shades of tan and gray-brown. The inspector says whether a body pulls on the planets or only follows them, and whether it feels outgassing or the Yarkovsky push. See [physics/small-bodies.md](physics/small-bodies.md). For a moon, the inspector gives its distance and speed relative to its planet, and its axial tilt relative to its orbit around the planet. The Physics panel names both gravity models: the one between the planets and the one inside moon systems.
 - **Dates.** The top bar shows the simulation time as a calendar date in TDB, JPL's time scale, using Meeus's Julian Date algorithm.
 
+## The galactic center
+
+![Sagittarius A* and the stars that orbit it](images/galactic-center-step-2.1c.png)
+
+Sagittarius A\*, the Milky Way's central black hole, is in the body list with its 39 stars, at its real place: 8,277 pc away, in its true direction on the sky. Double-click it to fly there; the camera climbs out from the solar system and comes back in, framing the stars. The camera can zoom out to about 300 kpc, far enough to see both at once.
+- **Its stars** are colored by type: young, hot ones blue-white, cool giants orange. They show, with their orbits, around Sagittarius A\* in focus, like a planet's moons.
+- **The inspector** gives its distance in light-years and parsecs, and labels what's measured and what isn't simulated. The galaxy between (its stars, gas and dark matter) and the Sun's 230-million-year orbit around the center come in v2.
+- **Dropped bodies:** anything dropped near it, from the catalogue, joins its region and feels it.
+
+See [physics/galactic-center.md](physics/galactic-center.md).
+
 ## Sandbox tools
 
 ![A Jupiter-mass planet (pink) dropped 1.5 AU from the Sun, five years on: the inner planets' orbits pulled out of shape](images/sandbox-step-1.6.png)

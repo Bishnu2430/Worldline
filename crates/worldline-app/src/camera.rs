@@ -38,7 +38,9 @@ pub struct Camera {
 
 impl Camera {
     /// Farthest the camera can pull back: about 6,700 AU.
-    pub const MAX_DISTANCE: f64 = 1e15;
+    /// About 300 kpc: room to see the solar system and the galactic
+    /// center, 8.3 kpc away, together.
+    pub const MAX_DISTANCE: f64 = 1e22;
     /// Radians of rotation per point dragged.
     const DRAG_SENSITIVITY: f64 = 0.005;
     /// Zoom factor per point scrolled, as an exponent.
