@@ -7,6 +7,11 @@ the entries for the bodies Worldline simulates: pole directions, spin and
 triaxial radii. Writes them as a valid SPICE text kernel at
 crates/worldline-data/data/pck00011-subset.tpc.
 
+Also copies Pluto's and Charon's orientation from the New Horizons team's
+kernel nh_pcnh_010.tpc (NASA PDS), which corrects a 1.45 degree error in
+pck00011's prime meridians for the two, into nh_pcnh_010-subset.tpc. Like
+SPICE, Worldline loads it after pck00011, so its values take precedence.
+
 Run from anywhere:  python tools/fetch_rotation.py
 Uses only the Python standard library.
 """
@@ -17,7 +22,11 @@ from datetime import date
 from pathlib import Path
 
 KERNEL = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc"
-OUT = Path(__file__).resolve().parent.parent / "crates" / "worldline-data" / "data" / "pck00011-subset.tpc"
+DATA = Path(__file__).resolve().parent.parent / "crates" / "worldline-data" / "data"
+OUT = DATA / "pck00011-subset.tpc"
+NH_KERNEL = "https://naif.jpl.nasa.gov/pub/naif/pds/data/nh-j_p_ss-spice-6-v1.0/nhsp_1000/data/pck/nh_pcnh_010.tpc"
+NH_OUT = DATA / "nh_pcnh_010-subset.tpc"
+NH_WANTED = re.compile(r"^BODY(999|901)_(POLE_RA|POLE_DEC|PM)$")
 
 # The Sun, Mercury, Venus, Earth and the Moon, every planet, dwarf planet
 # and moon of the Mars-to-Pluto systems that the kernel describes (NAIF ids
@@ -75,6 +84,30 @@ Units:   pole RA and Dec in degrees with time in Julian centuries (TDB)
     with open(OUT, "w", encoding="utf-8", newline="\n") as file:
         file.write(f"{header}\n\\begindata\n\n{body}\n\n\\begintext\n")
     print(f"Wrote {len(kept)} entries to {OUT}")
+
+    with urllib.request.urlopen(NH_KERNEL, timeout=60) as response:
+        text = response.read().decode()
+    kept = [source for name, source in data_statements(text) if NH_WANTED.match(name)]
+    assert len(kept) == 6
+    header = f"""Pluto's and Charon's orientation from the New Horizons team. Regenerate with: python tools/fetch_rotation.py
+
+Source:  New Horizons SPICE kernel nh_pcnh_010.tpc (NASA Planetary Data
+         System, data set NH-J/P/SS-SPICE-6-V1.0), fetched {date.today()}
+         {NH_KERNEL}
+Why:     the IAU defines Pluto's prime meridian as the mean sub-Charon
+         meridian and Charon's as the mean sub-Pluto meridian. pck00011's
+         values, unchanged since at least 1994, miss that by 1.45 degrees
+         (as of the 2015 flyby). These are fitted to the PLU055 ephemeris
+         and keep each body's meridian on the other to under 0.02 degrees
+         from 1950 to 2050, according to the kernel's own notes.
+Use:     load after pck00011-subset.tpc; these entries replace its.
+Content: the entries below are copied character for character from the
+         kernel's data blocks. Units as in pck00011-subset.tpc.
+"""
+    body = "\n\n".join(kept)
+    with open(NH_OUT, "w", encoding="utf-8", newline="\n") as file:
+        file.write(f"{header}\n\\begindata\n\n{body}\n\n\\begintext\n")
+    print(f"Wrote {len(kept)} entries to {NH_OUT}")
 
 
 if __name__ == "__main__":

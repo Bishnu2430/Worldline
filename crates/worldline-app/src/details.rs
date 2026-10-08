@@ -243,13 +243,12 @@ const VENUS: &[Detail] = &[
     ),
 ];
 
-const PLUTO: &[Detail] = &[
-    detail("No global map bundled yet: flat color", Kind::Visual),
-    detail("Spin and tilt: IAU rotation model", Kind::Measured),
-];
+const PLUTO: &[Detail] = &[detail(
+    "Spin and tilt: the New Horizons team's model, keeping longitude 0° toward Charon as the IAU defines it (NAIF's standard values miss by 1.45°)",
+    Kind::Measured,
+)];
 
 const MARS_MOONS: &[Detail] = &[
-    detail("No global map bundled yet: flat color", Kind::Visual),
     detail(
         "Orbit: Mars's lumpy gravity (the Tharsis bulge) and oblateness, the Sun's tide",
         Kind::Model,
@@ -262,7 +261,6 @@ const MARS_MOONS: &[Detail] = &[
 ];
 
 const GALILEAN_MOONS: &[Detail] = &[
-    detail("No global map bundled yet: flat color", Kind::Visual),
     detail(
         "Orbit: Jupiter's oblateness, the other moons (Laplace resonance), the Sun's tide",
         Kind::Model,
@@ -275,7 +273,6 @@ const GALILEAN_MOONS: &[Detail] = &[
 ];
 
 const HYPERION: &[Detail] = &[
-    detail("No global map bundled yet: flat color", Kind::Visual),
     detail(
         "Orbit: Saturn's oblateness and rings' mass, Titan's pull, the Sun's tide",
         Kind::Model,
@@ -287,12 +284,22 @@ const HYPERION: &[Detail] = &[
 ];
 
 const MOON: &[Detail] = &[
-    detail("No global map bundled yet: flat color", Kind::Visual),
     detail(
         "Orbit: its planet's oblateness, the other moons, the Sun's tide",
         Kind::Model,
     ),
     detail("Spin and tilt: IAU rotation model", Kind::Measured),
+];
+
+const CHARON: &[Detail] = &[
+    detail(
+        "Orbit: its planet's oblateness, the other moons, the Sun's tide",
+        Kind::Model,
+    ),
+    detail(
+        "Spin and tilt: the New Horizons team's model, keeping longitude 0° toward Pluto as the IAU defines it (NAIF's standard values miss by 1.45°)",
+        Kind::Measured,
+    ),
 ];
 
 const SMALL_MOON_IN_DETAIL: &[Detail] = &[
@@ -320,6 +327,9 @@ const SMALL_MOON_ON_MEAN_ORBIT: &[Detail] = &[
         Kind::Model,
     ),
 ];
+
+/// For a body whose map isn't bundled.
+const NO_MAP: Detail = detail("No global map bundled yet: flat color", Kind::Visual);
 
 const OTHER: &[Detail] = &[
     detail("Surface map from NASA data", Kind::Measured),
@@ -368,30 +378,47 @@ pub fn details(name: &str, kind: BodyKind) -> Vec<Detail> {
             outgassing,
             massive,
         } => {
-            return small_body_details(comet, outgassing, massive);
+            return small_body_details(name, comet, outgassing, massive);
         }
         BodyKind::Other | BodyKind::Moon => {}
     }
     let moon = kind == BodyKind::Moon;
-    match name {
-        "Sun" => SUN,
-        "Earth" => EARTH,
-        "Saturn" => SATURN,
-        "Jupiter" => JUPITER,
-        "Venus" => VENUS,
+    // These lists leave out the map, which depends on the body.
+    let without_map = match name {
         "Pluto" => PLUTO,
         "Phobos" | "Deimos" => MARS_MOONS,
         "Io" | "Europa" | "Ganymede" | "Callisto" => GALILEAN_MOONS,
         "Hyperion" => HYPERION,
-        // Earth's Moon has a map; the others don't yet.
+        "Charon" => CHARON,
+        // Earth's Moon's map is in OTHER's list.
         _ if moon && name != "Moon" => MOON,
-        _ => OTHER,
-    }
-    .to_vec()
+        _ => {
+            return match name {
+                "Sun" => SUN,
+                "Earth" => EARTH,
+                "Saturn" => SATURN,
+                "Jupiter" => JUPITER,
+                "Venus" => VENUS,
+                _ => OTHER,
+            }
+            .to_vec();
+        }
+    };
+    let mut list = vec![map_detail(name, NO_MAP)];
+    list.extend_from_slice(without_map);
+    list
 }
 
-fn small_body_details(comet: bool, outgassing: bool, massive: bool) -> Vec<Detail> {
-    let mut list = vec![detail("No map: flat color, or a dot", Kind::Visual)];
+/// The body's spacecraft map, if it has one, else `fallback`.
+fn map_detail(name: &str, fallback: Detail) -> Detail {
+    crate::textures::spacecraft_map(name).map_or(fallback, |what| detail(what, Kind::Measured))
+}
+
+fn small_body_details(name: &str, comet: bool, outgassing: bool, massive: bool) -> Vec<Detail> {
+    let mut list = vec![map_detail(
+        name,
+        detail("No map: flat color, or a dot", Kind::Visual),
+    )];
     list.push(if massive {
         detail(
             "Orbit: relativistic gravity among the Sun, planets and heaviest asteroids; heavy enough to pull on the planets (JPL DE440's mass)",

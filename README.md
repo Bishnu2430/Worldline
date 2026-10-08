@@ -73,6 +73,8 @@
 | Sirius B's gravitational redshift, from its mass and radius | 80.65 ± 0.77 km/s (Hubble) | ✅ passing, 80.70 ± 1.41 km/s |
 | Sagittarius A\*'s size on the sky, from its mass and distance (stellar orbits) | 4.8 +1.4/−0.7 μas (Event Horizon Telescope image) | ✅ passing, 5.12 μas |
 | Hulse–Taylor pulsar's orbit turning, simulated | 4.226585°/yr measured | ✅ passing, 4.226561°/yr |
+| Spacecraft maps of 12 moons, Pluto and Ceres are placed right: IAU Gazetteer landmarks | Sputnik Planitia, Cerealia Facula, Xanadu and Roncevaux Terra bright, Loki Patera dark, unlike a map turned halfway round | ✅ passing, e.g. Sputnik Planitia 158.8 against a 98.8 map average (114.0 turned) |
+| Pluto and Charon face each other at longitude 0° (rotation models plus JPL positions) | within one map pixel, 0.176° | ✅ passing, 0.023° (NAIF's pck00011 values: 1.5°, so the New Horizons team's are used) |
 | A black hole of 10 Suns falls into the Sun | survives as 11 Suns with a 32.5 km horizon, momentum kept | ✅ passing, to 4 × 10⁻¹⁷ |
 | The belts as live particles vs. NASA JPL, after a year (24 sample bodies) | within 1 part in 10,000 | ✅ passing, median 2.3 × 10⁻⁶ (fixed ellipses: 1.6 × 10⁻⁴) |
 | A black hole of 10 Suns streaks past the asteroid belt at 0.1c | kicks match the impulse approximation 2GM/(bV), within 1.3 × 10⁻³ | ✅ passing, within 9.1 × 10⁻⁴ |
@@ -125,7 +127,7 @@ cargo run --release -- --focus Saturn --advance 7.3
 
 ## Built with
 
-Rust · wgpu · egui · data from NASA JPL and NAIF · textures from Solar System Scope (CC BY 4.0). See [CREDITS.md](CREDITS.md).
+Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Solar System Scope (CC BY 4.0) · moon, Pluto and Ceres maps from USGS and NASA PDS spacecraft mosaics. See [CREDITS.md](CREDITS.md).
 
 ## Docs
 

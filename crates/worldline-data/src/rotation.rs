@@ -7,12 +7,21 @@ use worldline_core::rotation::{PeriodicTerm, RotationModel};
 
 use crate::kernel;
 
-/// The bundled kernel, parsed once.
+/// The bundled kernels, parsed once: NAIF's pck00011, then the New
+/// Horizons team's Pluto and Charon orientation, whose entries replace
+/// pck00011's (as loading it second does in SPICE). The IAU defines each
+/// one's prime meridian as the one facing the other; pck00011's miss that
+/// by 1.45°.
 fn kernel() -> &'static HashMap<String, Vec<f64>> {
     static KERNEL: OnceLock<HashMap<String, Vec<f64>>> = OnceLock::new();
     KERNEL.get_or_init(|| {
-        kernel::parse(include_str!("../data/pck00011-subset.tpc"))
-            .expect("bundled rotation kernel is valid")
+        let mut values = kernel::parse(include_str!("../data/pck00011-subset.tpc"))
+            .expect("bundled rotation kernel is valid");
+        values.extend(
+            kernel::parse(include_str!("../data/nh_pcnh_010-subset.tpc"))
+                .expect("bundled New Horizons kernel is valid"),
+        );
+        values
     })
 }
 
@@ -70,7 +79,8 @@ fn naif_body_id(name: &str) -> Option<u32> {
 }
 
 /// The IAU rotation model for a body in the solar-system snapshot, from
-/// NASA NAIF's pck00011 kernel. `None` for bodies without one.
+/// NASA NAIF's pck00011 kernel (Pluto's and Charon's from the New Horizons
+/// team's). `None` for bodies without one.
 pub fn rotation_model(name: &str) -> Option<RotationModel> {
     let id = naif_body_id(name)?;
     let values = kernel();
@@ -172,6 +182,15 @@ mod tests {
         // Mars uses quadratic angles.
         let mars = rotation_model("Mars").unwrap();
         assert!(mars.terms.iter().all(|t| t.angle.len() == 3));
+        // Pluto and Charon use the New Horizons team's values, which replace
+        // pck00011's 302.695 + 56.3625225 d and 122.695 + 56.3625225 d.
+        assert_eq!(
+            rotation_model("Pluto").unwrap().prime_meridian,
+            [304.135, 56.362_527_6, 0.0]
+        );
+        let charon = rotation_model("Charon").unwrap();
+        assert_eq!(charon.prime_meridian, [124.135, 56.362_527_6, 0.0]);
+        assert_eq!(charon.pole_dec, [-6.255, 0.0, 0.0]);
     }
 
     #[test]
