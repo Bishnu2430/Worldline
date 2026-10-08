@@ -17,7 +17,8 @@ pub use figure::SynchronousFigure;
 pub use newtonian::Newtonian;
 pub use nongravitational::NonGravitational;
 pub use post_newtonian::{
-    PairTerms, PostNewtonian, RelativeAcceleration, pair_terms, relative_acceleration,
+    PairTerms, PostNewtonian, RelativeAcceleration, pair_terms, reaction_converges,
+    relative_acceleration,
 };
 pub use tesseral::{TesseralField, TesseralTerm};
 pub use zonal::ZonalField;

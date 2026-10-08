@@ -74,7 +74,8 @@
 | Sagittarius A\*'s size on the sky, from its mass and distance (stellar orbits) | 4.8 +1.4/−0.7 μas (Event Horizon Telescope image) | ✅ passing, 5.12 μas |
 | Hulse–Taylor pulsar's orbit turning, simulated | 4.226585°/yr measured | ✅ passing, 4.226561°/yr |
 | Hulse–Taylor pulsar's orbit shrinking from gravitational waves, simulated over 1000 orbits | −2.40 × 10⁻¹² s/s; general relativity's prediction −2.40263 × 10⁻¹² (Weisberg & Huang 2016), within mass rounding | ✅ passing, −2.40221 × 10⁻¹² (1.1σ from the measured −2.398 ± 0.004) |
-| A pair's energy loss vs. Einstein's quadrupole formula | equal up to the next post-Newtonian order | ✅ passing, 0.66% at GM/rc² = 0.003 (2.2 GM/rc²) |
+| A pair's energy loss vs. Einstein's quadrupole formula and its first correction | equal up to second post-Newtonian order | ✅ passing, 6.0 × 10⁻⁵ at GM/rc² = 0.003 (6.7 (GM/rc²)²) |
+| Two neutron stars' chirp, 20 to 40 Hz (3,927 wave cycles) | the sweep df/dt = (96/5) π^(8/3) (G𝓜/c³)^(5/3) f^(11/3), to its next order; with its first correction, to the one after | ✅ passing, 3.2 GM/rc² off the formula (2.8% at 20 Hz); 0.24% off with its correction (30 (GM/rc²)²) |
 | Spacecraft maps of 12 moons, Pluto and Ceres are placed right: IAU Gazetteer landmarks | Sputnik Planitia, Cerealia Facula, Xanadu and Roncevaux Terra bright, Loki Patera dark, unlike a map turned halfway round | ✅ passing, e.g. Sputnik Planitia 158.8 against a 98.8 map average (114.0 turned) |
 | Pluto and Charon face each other at longitude 0° (rotation models plus JPL positions) | within one map pixel, 0.176° | ✅ passing, 0.023° (NAIF's pck00011 values: 1.5°, so the New Horizons team's are used) |
 | A black hole of 10 Suns falls into the Sun | survives as 11 Suns with a 32.5 km horizon, momentum kept | ✅ passing, to 4 × 10⁻¹⁷ |
@@ -83,7 +84,6 @@
 | The star S2 around Sagittarius A\*: its orbit's relativistic turning | GRAVITY measured 0.997 ± 0.144 times general relativity's 12.2′ per orbit | ✅ passing, 12.26′ per orbit (1.005 times) |
 | Sagittarius A\*'s direction in galactic coordinates | SIMBAD's l = 359.944236°, b = −0.046160°, within 0.0001° | ✅ passing, within 0.00002° |
 | Light bending at the Sun's edge | 1.75″ | planned |
-| Hulse–Taylor binary pulsar orbital decay | −2.40 × 10⁻¹² s/s | planned |
 | Innermost stable orbit, photon sphere and shadow of a non-spinning black hole | 6, 3 and √27 GM/c² | planned |
 | GW150914 final black hole | about 62 M☉, spin about 0.67 | planned |
 | Chandrasekhar limit (ideal carbon-oxygen white dwarf) | 1.46 M☉ | planned |
@@ -127,6 +127,12 @@ To see Saturn's rings tilted toward the Sun in 2032 (`--advance` simulates that 
 cargo run --release -- --focus Saturn --advance 7.3
 ```
 
+To see and hear the gravitational-wave chirp of GW170817's neutron stars, dropped 30 AU from the Sun (`--waves` opens the waves window; press **Play**):
+
+```bash
+cargo run --release -- --add "GW170817 pair:30" --focus "GW170817 heavier star" --paused --waves
+```
+
 ## Built with
 
 Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Solar System Scope (CC BY 4.0) · moon, Pluto and Ceres maps from USGS and NASA PDS spacecraft mosaics. See [CREDITS.md](CREDITS.md).
@@ -139,7 +145,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 - [The desktop app](docs/app.md): frame loop, double-precision 3D view, camera, trails and the sandbox tools
 - [Collisions and the model indicator](docs/physics/collisions.md): merging with momentum kept, catching fast impacts, and which physics applies where
 - [Black holes, neutron stars and white dwarfs](docs/physics/compact-objects.md): the notable-objects catalog, event horizons, and what happens when they meet the solar system
-- [Compact binaries and gravitational waves](docs/physics/post-newtonian.md): second-order relativity and radiation reaction for close pairs; the Hulse–Taylor orbit shrinking as measured
+- [Compact binaries and gravitational waves](docs/physics/post-newtonian.md): second-order relativity and radiation reaction for close pairs; the Hulse–Taylor orbit shrinking as measured; the chirp, seen and heard
 - [The swarm](docs/physics/swarm.md): the belts and freed small moons as live particles that feel every massive body
 - [The galactic center](docs/physics/galactic-center.md): Sagittarius A\* at its real place, and the stars that orbit it
 - [Rendering globes](docs/rendering.md): GPU globes, precision across 12 orders of magnitude, lighting, atmospheres

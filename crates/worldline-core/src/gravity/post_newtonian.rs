@@ -14,16 +14,23 @@ pub struct PairTerms {
     /// Radiation reaction (2.5PN): the pull that drains the pair's energy
     /// into gravitational waves, of relative size (GM/rc²)^(5/2).
     pub reaction: DVec3,
+    /// The radiation reaction's first correction (3.5PN), GM/rc² of it,
+    /// which makes the energy drain match the waves' power to that order.
+    pub reaction_correction: DVec3,
 }
 
-/// The 2PN and 2.5PN parts of body 1's acceleration due to body 2, from
-/// their gravitational parameters `gm1`, `gm2` (m³/s²), positions `y1`,
-/// `y2` and velocities `v1`, `v2`, in harmonic coordinates, in any frame.
+/// The 2PN, 2.5PN and 3.5PN parts of body 1's acceleration due to body 2,
+/// from their gravitational parameters `gm1`, `gm2` (m³/s²), positions
+/// `y1`, `y2` and velocities `v1`, `v2`, in harmonic coordinates, in any
+/// frame.
 ///
-/// The c⁻⁴ and c⁻⁵ terms of the two-body equations of motion: Blanchet
+/// The c⁻⁴, c⁻⁵ and c⁻⁷ terms of the two-body equations of motion: Blanchet
 /// (2024), *Living Rev. Relativ.* 27, 4, section "The 3.5PN acceleration
 /// and 3PN energy" (accelerations already reduced to positions and
-/// velocities). Body 2's come from swapping the labels.
+/// velocities); the c⁻⁷ terms in this form from Nissanke & Blanchet (2005),
+/// *Class. Quantum Grav.* 22, 1007. Both print four of the G⁴m⁴ terms over
+/// r⁶; their units, and the center-of-mass equations, require r⁵, as the
+/// others have. Body 2's come from swapping the labels.
 pub fn pair_terms(gm1: f64, gm2: f64, y1: DVec3, y2: DVec3, v1: DVec3, v2: DVec3) -> PairTerms {
     let d = y1 - y2;
     let r = d.length();
@@ -74,14 +81,99 @@ pub fn pair_terms(gm1: f64, gm2: f64, y1: DVec3, y2: DVec3, v1: DVec3, v2: DVec3
     let along_v = 8.0 / 5.0 * m112 / r4 - 32.0 / 5.0 * m122 / r4 - 4.0 / 5.0 * m12 / r3 * v12s;
     let reaction = (n * along_n + v12 * along_v) / C.powi(5);
 
-    PairTerms { second, reaction }
+    // 3.5PN.
+    let r5 = r4 * r;
+    let (m1112, m1122, m1222) = (m112 * gm1, m112 * gm2, m122 * gm2);
+    let along_n = m1112 / r5 * (3992.0 / 105.0 * nv1 - 4328.0 / 105.0 * nv2)
+        + m1122 / r5 * (-13576.0 / 105.0 * nv1 + 2872.0 / 21.0 * nv2)
+        - 3172.0 / 21.0 * m1222 / r5 * nv12
+        + m112 / r4
+            * (48.0 * nv1.powi(3) - 696.0 / 5.0 * nv1 * nv1 * nv2 + 744.0 / 5.0 * nv1 * nv2 * nv2
+                - 288.0 / 5.0 * nv2.powi(3)
+                - 4888.0 / 105.0 * nv1 * v1s
+                + 5056.0 / 105.0 * nv2 * v1s
+                + 2056.0 / 21.0 * nv1 * v1v2
+                - 2224.0 / 21.0 * nv2 * v1v2
+                - 1028.0 / 21.0 * nv1 * v2s
+                + 5812.0 / 105.0 * nv2 * v2s)
+        + m122 / r4
+            * (-582.0 / 5.0 * nv1.powi(3) + 1746.0 / 5.0 * nv1 * nv1 * nv2
+                - 1954.0 / 5.0 * nv1 * nv2 * nv2
+                + 158.0 * nv2.powi(3)
+                + 3568.0 / 105.0 * nv12 * v1s
+                - 2864.0 / 35.0 * nv1 * v1v2
+                + 10048.0 / 105.0 * nv2 * v1v2
+                + 1432.0 / 35.0 * nv1 * v2s
+                - 5752.0 / 105.0 * nv2 * v2s)
+        + m12 / r3
+            * (-56.0 * nv12.powi(5) + 60.0 * nv1.powi(3) * v12s - 180.0 * nv1 * nv1 * nv2 * v12s
+                + 174.0 * nv1 * nv2 * nv2 * v12s
+                - 54.0 * nv2.powi(3) * v12s
+                - 246.0 / 35.0 * nv12 * v1s * v1s
+                + 1068.0 / 35.0 * nv1 * v1s * v1v2
+                - 984.0 / 35.0 * nv2 * v1s * v1v2
+                - 1068.0 / 35.0 * nv1 * v1v2 * v1v2
+                + 180.0 / 7.0 * nv2 * v1v2 * v1v2
+                - 534.0 / 35.0 * nv1 * v1s * v2s
+                + 90.0 / 7.0 * nv2 * v1s * v2s
+                + 984.0 / 35.0 * nv1 * v1v2 * v2s
+                - 732.0 / 35.0 * nv2 * v1v2 * v2s
+                - 204.0 / 35.0 * nv1 * v2s * v2s
+                + 24.0 / 7.0 * nv2 * v2s * v2s);
+    let along_v = -184.0 / 21.0 * m1112 / r5
+        + 6224.0 / 105.0 * m1122 / r5
+        + 6388.0 / 105.0 * m1222 / r5
+        + m112 / r4
+            * (52.0 / 15.0 * nv1 * nv1
+                - 56.0 / 15.0 * nv1 * nv2
+                - 44.0 / 15.0 * nv2 * nv2
+                - 132.0 / 35.0 * v1s
+                + 152.0 / 35.0 * v1v2
+                - 48.0 / 35.0 * v2s)
+        + m122 / r4
+            * (454.0 / 15.0 * nv1 * nv1 - 372.0 / 5.0 * nv1 * nv2 + 854.0 / 15.0 * nv2 * nv2
+                - 152.0 / 21.0 * v1s
+                + 2864.0 / 105.0 * v1v2
+                - 1768.0 / 105.0 * v2s)
+        + m12 / r3
+            * (60.0 * nv12.powi(4) - 348.0 / 5.0 * nv1 * nv1 * v12s
+                + 684.0 / 5.0 * nv1 * nv2 * v12s
+                - 66.0 * nv2 * nv2 * v12s
+                + 334.0 / 35.0 * v1s * v1s
+                - 1336.0 / 35.0 * v1s * v1v2
+                + 1308.0 / 35.0 * v1v2 * v1v2
+                + 654.0 / 35.0 * v1s * v2s
+                - 1252.0 / 35.0 * v1v2 * v2s
+                + 292.0 / 35.0 * v2s * v2s);
+    let reaction_correction = (n * along_n + v12 * along_v) / C.powi(7);
+
+    PairTerms {
+        second,
+        reaction,
+        reaction_correction,
+    }
+}
+
+/// Whether a pair's radiation reaction is still converging: its first
+/// correction (3.5PN) smaller than its leading term (2.5PN), in the pair's
+/// relative acceleration. For a circular orbit the correction is about −9
+/// GM/rc² times the leading term, so it overtakes it near GM/rc² ≈ 0.11, a
+/// few orbits before a merger. Past that the post-Newtonian series has
+/// given out: run on, it can pump the orbit eccentric or fling the pair
+/// apart instead of merging it.
+pub fn reaction_converges(a: &Body, b: &Body) -> bool {
+    let on_a = pair_terms(a.gm, b.gm, a.position, b.position, a.velocity, b.velocity);
+    let on_b = pair_terms(b.gm, a.gm, b.position, a.position, b.velocity, a.velocity);
+    let leading = on_a.reaction - on_b.reaction;
+    let correction = on_a.reaction_correction - on_b.reaction_correction;
+    correction.length() < leading.length()
 }
 
 /// Relativistic N-body gravity for close pairs, such as two neutron stars:
 /// the Einstein–Infeld–Hoffmann equations (first post-Newtonian order) for
-/// every body, plus each pair's second-order (2PN) and radiation-reaction
-/// (2.5PN) terms, through which a binary loses energy to gravitational
-/// waves and spirals in.
+/// every body, plus each pair's second-order (2PN) terms and its radiation
+/// reaction (2.5PN, with its first correction at 3.5PN), through which a
+/// binary loses energy to gravitational waves and spirals in.
 ///
 /// The pairwise terms are exact for two bodies. With more, the 2PN terms
 /// that couple three bodies are left out; they matter only when a third
@@ -111,7 +203,7 @@ impl Gravity for PostNewtonian {
         if self.conservative {
             "Einstein–Infeld–Hoffmann (1PN) with 2PN between pairs"
         } else {
-            "Einstein–Infeld–Hoffmann (1PN) with 2PN and gravitational-wave losses (2.5PN) between pairs"
+            "Einstein–Infeld–Hoffmann (1PN) with 2PN and gravitational-wave losses (2.5PN and 3.5PN) between pairs"
         }
     }
 
@@ -145,8 +237,8 @@ impl Gravity for PostNewtonian {
                 out[i] += on_i.second;
                 out[j] += on_j.second;
                 if !self.conservative {
-                    out[i] += on_i.reaction;
-                    out[j] += on_j.reaction;
+                    out[i] += on_i.reaction + on_i.reaction_correction;
+                    out[j] += on_j.reaction + on_j.reaction_correction;
                 }
             }
         }
@@ -165,24 +257,26 @@ pub struct RelativeAcceleration {
     pub second: DVec3,
     /// Radiation reaction (2.5PN).
     pub reaction: DVec3,
+    /// Its first correction (3.5PN).
+    pub reaction_correction: DVec3,
 }
 
 impl RelativeAcceleration {
     /// All of them together.
     pub fn total(&self) -> DVec3 {
-        self.newtonian + self.first + self.second + self.reaction
+        self.newtonian + self.first + self.second + self.reaction + self.reaction_correction
     }
 }
 
 /// The relative acceleration of two bodies in their center-of-mass frame,
-/// harmonic coordinates, through 2.5PN, from their total gravitational
+/// harmonic coordinates, through 3.5PN (leaving out 3PN), from their total gravitational
 /// parameter `gm` (m³/s²), symmetric mass ratio `nu` = m₁m₂/(m₁+m₂)², and
 /// separation `x` = y₁ − y₂ and relative velocity `v`:
 ///
 /// a = −(Gm/r²) [(1 + 𝒜) n + ℬ v]
 ///
 /// with the coefficients 𝒜 and ℬ of Blanchet (2024), section "Equations of
-/// motion in the frame of the center of mass" (its 1PN, 2PN and 2.5PN parts; the
+/// motion in the frame of the center of mass" (its 1PN, 2PN, 2.5PN and 3.5PN parts; the
 /// 2PN ones also in Kidder 1995, *Phys. Rev. D* 52, 821). An independent
 /// form of the same physics as [`pair_terms`], for checks.
 pub fn relative_acceleration(gm: f64, nu: f64, x: DVec3, v: DVec3) -> RelativeAcceleration {
@@ -209,12 +303,30 @@ pub fn relative_acceleration(gm: f64, nu: f64, x: DVec3, v: DVec3) -> RelativeAc
             + u * (2.0 * rdot + 20.5 * rdot * nu + 4.0 * rdot * nu * nu);
     let a25 = 8.0 * u * nu / 5.0 * rdot * (-17.0 / 3.0 * u - 3.0 * v2);
     let b25 = 8.0 * u * nu / 5.0 * (3.0 * u + v2);
+    let a35 = u
+        * nu
+        * rdot
+        * (u * u * (3956.0 / 35.0 + 184.0 / 5.0 * nu)
+            + u * v2 * (692.0 / 35.0 - 724.0 / 15.0 * nu)
+            + v2 * v2 * (366.0 / 35.0 + 12.0 * nu)
+            + u * rd2 * (294.0 / 5.0 + 376.0 / 5.0 * nu)
+            - v2 * rd2 * (114.0 + 12.0 * nu)
+            + 112.0 * rd4);
+    let b35 = u
+        * nu
+        * (u * u * (-1060.0 / 21.0 - 104.0 / 5.0 * nu)
+            + u * v2 * (164.0 / 21.0 + 148.0 / 5.0 * nu)
+            + v2 * v2 * (-626.0 / 35.0 - 12.0 / 5.0 * nu)
+            + u * rd2 * (-82.0 / 3.0 - 848.0 / 15.0 * nu)
+            + v2 * rd2 * (678.0 / 5.0 + 12.0 / 5.0 * nu)
+            - 120.0 * rd4);
 
     RelativeAcceleration {
         newtonian: scale * n,
         first: scale * (a1 * n + b1 * v) / c2,
         second: scale * (a2 * n + b2 * v) / c4,
         reaction: scale * (a25 * n + b25 * v) / c5,
+        reaction_correction: scale * (a35 * n + b35 * v) / C.powi(7),
     }
 }
 
@@ -223,23 +335,29 @@ mod tests {
     use super::*;
     use crate::System;
     use crate::constants::GM_SUN;
-    use crate::gravitational_waves::quadrupole_power;
+    use crate::gravitational_waves::{quadrupole_power, quadrupole_power_correction};
     use crate::integrator::{Ias15, advance};
     use crate::orbit::{kepler_period, periapsis_state};
 
-    /// Two bodies in their center-of-mass frame, to first post-Newtonian
-    /// order, with separation `x` and relative velocity `v`: the positions
-    /// y₁ = X₂ x, y₂ = −X₁ x (where they sit doesn't change any force), and
-    /// velocities from differentiating Blanchet (2024)'s CM relation,
-    /// y₁ = [X₂ + ν Δ (v²/2 − Gm/2r)/c²] x and likewise y₂.
+    /// Two bodies in their center-of-mass frame, with separation `x` and
+    /// relative velocity `v`: the positions y₁ = X₂ x, y₂ = −X₁ x (where
+    /// they sit doesn't change any force), and velocities from
+    /// differentiating Blanchet (2024)'s CM relation, y₁ = [X₂ + νΔ𝒫] x +
+    /// νΔ𝒬 v and likewise y₂, with its 1PN 𝒫 = (v²/2 − Gm/2r)/c² and its
+    /// 2.5PN 𝒬 = (4Gm v²/5 − 8G²m²/5r)/c⁵ (whose time derivative vanishes at
+    /// this order, leaving 𝒬 a).
     fn center_of_mass_pair(gm1: f64, gm2: f64, x: DVec3, v: DVec3) -> [Body; 2] {
         let gm = gm1 + gm2;
         let (x1, x2) = (gm1 / gm, gm2 / gm);
         let (nu, delta) = (x1 * x2, x1 - x2);
         let r = x.length();
-        let rdot = x.dot(v) / r;
-        let shift = nu * delta / (C * C)
-            * ((0.5 * v.length_squared() - 0.5 * gm / r) * v - 0.5 * gm * rdot / r * (x / r));
+        let n = x / r;
+        let rdot = n.dot(v);
+        let v2 = v.length_squared();
+        let first = ((0.5 * v2 - 0.5 * gm / r) * v - 0.5 * gm * rdot / r * n) / (C * C);
+        let q = (0.8 * gm * v2 - 1.6 * gm * gm / r) / C.powi(5);
+        let reaction = -q * gm / (r * r) * n;
+        let shift = nu * delta * (first + reaction);
         [
             Body::new("one", gm1, 1.0).at(x * x2).moving(v * x2 + shift),
             Body::new("two", gm2, 1.0)
@@ -260,6 +378,24 @@ mod tests {
     }
 
     #[test]
+    fn the_reaction_stops_converging_a_few_orbits_before_a_merger() {
+        // Two neutron stars on circular orbits: the 3.5PN correction is
+        // about −9 GM/rc² times the leading reaction, overtaking it near
+        // GM/rc² = 0.11.
+        let (gm1, gm2) = (1.4 * GM_SUN, 1.3 * GM_SUN);
+        let gm = gm1 + gm2;
+        let at = |strength: f64| {
+            let r = gm / (strength * C * C);
+            let v = DVec3::new(0.0, (gm / r).sqrt(), 0.0);
+            center_of_mass_pair(gm1, gm2, DVec3::new(r, 0.0, 0.0), v)
+        };
+        for (strength, converges) in [(0.01, true), (0.08, true), (0.14, false)] {
+            let [a, b] = at(strength);
+            assert_eq!(reaction_converges(&a, &b), converges, "{strength}");
+        }
+    }
+
+    #[test]
     fn two_bodies_follow_the_center_of_mass_equations() {
         // The general-frame equations (EIH plus the pair terms), applied to
         // two bodies in their center-of-mass frame, must give the
@@ -267,9 +403,13 @@ mod tests {
         // of third order (GM/rc²)³: from the center of mass's own 2PN
         // shift, which neither side keeps. A mistake in any 2PN term would
         // show at second order instead, (GM/rc²)². The test passes below the
-        // geometric midpoint, (GM/rc²)^(5/2). For the radiation reaction a
-        // mistake shows at order 5/2 and what's left is of order 7/2; the
-        // midpoint is 3.
+        // geometric midpoint, (GM/rc²)^(5/2).
+        //
+        // The radiation reaction is compared on its own: it is the part of
+        // the acceleration that flips sign when every velocity flips, while
+        // the conservative parts stay. What differs is then GM/rc² of the
+        // 3.5PN part; a mistake in it would make it differ by about itself.
+        // The test passes below √(GM/rc²) of it.
         let strength: f64 = 1e-3;
         for (gm1, gm2) in [
             (3.0 * GM_SUN, GM_SUN),
@@ -286,35 +426,28 @@ mod tests {
             let newton = expected.newtonian.length();
             let mismatch = (out[0] - out[1] - expected.total()).length() / newton;
 
-            let general = pair_terms(
-                gm1,
-                gm2,
-                bodies[0].position,
-                bodies[1].position,
-                bodies[0].velocity,
-                bodies[1].velocity,
-            )
-            .reaction
-                - pair_terms(
-                    gm2,
-                    gm1,
-                    bodies[1].position,
-                    bodies[0].position,
-                    bodies[1].velocity,
-                    bodies[0].velocity,
-                )
-                .reaction;
-            let reaction_mismatch = (general - expected.reaction).length() / newton;
+            let reversed = center_of_mass_pair(gm1, gm2, x, -v);
+            let mut back = [DVec3::ZERO; 2];
+            PostNewtonian::default().accelerations(0.0, &reversed, &mut back);
+            let odd = 0.5 * ((out[0] - out[1]) - (back[0] - back[1]));
+            let expected_odd = expected.reaction + expected.reaction_correction;
+            let correction = expected.reaction_correction.length();
+            let reaction_mismatch = (odd - expected_odd).length() / correction;
             println!(
-                "m₂/m₁ = {:.0e}: mismatch {mismatch:.1e} (2PN part {:.1e}, bound {:.1e}); reaction mismatch {reaction_mismatch:.1e} (reaction {:.1e}, bound {:.1e})",
+                "m₂/m₁ = {:.0e}: mismatch {mismatch:.1e} of Newton's pull (2PN part {:.1e}, bound {:.1e}); radiation reaction (2.5PN {:.1e}, 3.5PN {:.1e} of Newton's pull) mismatch {reaction_mismatch:.1e} of the 3.5PN part (bound {:.1e})",
                 gm2 / gm1,
                 expected.second.length() / newton,
                 strength.powf(2.5),
                 expected.reaction.length() / newton,
-                strength.powi(3)
+                correction / newton,
+                strength.sqrt()
             );
             assert!(mismatch < strength.powf(2.5));
-            assert!(reaction_mismatch < strength.powi(3));
+            // Measurable only well above double-precision rounding: for a
+            // near test particle the 3.5PN part is 10⁻¹⁶ of the pull.
+            if correction / newton > 1e4 * f64::EPSILON {
+                assert!(reaction_mismatch < strength.sqrt());
+            }
         }
     }
 
@@ -410,47 +543,74 @@ mod tests {
     }
 
     #[test]
-    fn radiation_carries_off_the_quadrupole_power() {
+    fn radiation_carries_off_the_waves_power() {
         // With the radiation reaction, the energy (with its Schott term)
-        // falls exactly as fast as Einstein's quadrupole formula says the
-        // waves carry it off, up to the next order: GM/rc² of it (measured
-        // 2.5, 2.2 and 1.9 times GM/rc² at 10⁻², 3 × 10⁻³ and 10⁻³). A
-        // wrong reaction term would miss by a sizable fraction. The test
-        // allows √(GM/rc²) of the radiated energy, between the two.
-        let strength: f64 = 3e-3;
-        let (mut system, period) = eccentric_binary(strength);
-        let gravity = PostNewtonian::default();
-        let power = |s: &System| {
-            let (b1, b2) = (&s.bodies[0], &s.bodies[1]);
-            let x = b1.position - b2.position;
-            let v = b1.velocity - b2.velocity;
-            quadrupole_power(b1.gm, b2.gm, x.length(), v.length(), x.dot(v) / x.length())
-        };
-        let start = energy(&system.bodies, true);
-        let mut ias = Ias15::new();
-        let steps = 20 * 256;
-        let dt = 20.0 * period / steps as f64;
-        // Simpson's rule over the samples; the energy is E·G and the power
-        // is in W, so radiated·G is compared.
-        let mut radiated = 0.0;
-        let mut previous = power(&system);
-        for _ in 0..steps {
-            advance(&mut system, &gravity, &mut ias, dt / 2.0);
-            let middle = power(&system);
-            advance(&mut system, &gravity, &mut ias, dt / 2.0);
-            let after = power(&system);
-            radiated += dt / 6.0 * (previous + 4.0 * middle + after);
-            previous = after;
+        // falls as fast as the waves carry it off. Against Einstein's
+        // quadrupole formula alone it misses by the formula's own next
+        // order, GM/rc² of it. Against the formula with its first
+        // correction (Wagoner & Will 1976), it must miss GM/rc² times less,
+        // if the 3.5PN reaction terms are right; a mistake in them would
+        // leave it missing about as much. The test passes below the
+        // midpoint, √(GM/rc²) times the first miss (the orbit's own
+        // coefficients cancel in the comparison).
+        //
+        // The energy has further Schott terms, at 3.5PN, that swing back and
+        // forth around the orbit. Stopping at a periastron, where the run
+        // started, lets them cancel; stopping elsewhere leaves a swing that
+        // doesn't shrink with GM/rc².
+        for strength in [1e-2f64, 3e-3] {
+            let (mut system, period) = eccentric_binary(strength);
+            let gravity = PostNewtonian::default();
+            let relative = |s: &System| {
+                let (b1, b2) = (&s.bodies[0], &s.bodies[1]);
+                (b1.position - b2.position, b1.velocity - b2.velocity)
+            };
+            let power = |s: &System| {
+                let (x, v) = relative(s);
+                let (r, rdot) = (x.length(), x.dot(v) / x.length());
+                let (gm1, gm2) = (s.bodies[0].gm, s.bodies[1].gm);
+                DVec3::new(
+                    quadrupole_power(gm1, gm2, r, v.length(), rdot),
+                    quadrupole_power_correction(gm1, gm2, r, v.length(), rdot),
+                    0.0,
+                )
+            };
+            let start = energy(&system.bodies, true);
+            let mut ias = Ias15::new();
+            let dt = period / 256.0;
+            // Simpson's rule over the samples; the energy is E·G and the
+            // power is in W, so radiated·G is compared.
+            let mut radiated = DVec3::ZERO;
+            let mut previous = power(&system);
+            let mut passages = 0;
+            while passages < 20 {
+                let (x, v) = relative(&system);
+                let approaching = x.dot(v) < 0.0;
+                advance(&mut system, &gravity, &mut ias, dt / 2.0);
+                let middle = power(&system);
+                advance(&mut system, &gravity, &mut ias, dt / 2.0);
+                let after = power(&system);
+                radiated += dt / 6.0 * (previous + 4.0 * middle + after);
+                previous = after;
+                let (x, v) = relative(&system);
+                if approaching && x.dot(v) >= 0.0 {
+                    passages += 1;
+                }
+            }
+            let radiated = radiated * crate::constants::G;
+            let lost = start - energy(&system.bodies, true);
+            let leading = radiated.x;
+            let corrected = radiated.x + radiated.y;
+            let miss = (lost / leading - 1.0).abs();
+            let corrected_miss = (lost / corrected - 1.0).abs();
+            println!(
+                "GM/rc² = {strength:.0e}, over 20 orbits: lost {:.4e} of the energy; quadrupole formula {:.4e} (off by {miss:.1e}), with its correction {:.4e} (off by {corrected_miss:.1e}, bound {:.1e})",
+                lost / start.abs(),
+                leading / start.abs(),
+                corrected / start.abs(),
+                strength.sqrt() * miss
+            );
+            assert!(corrected_miss < strength.sqrt() * miss);
         }
-        let radiated = radiated * crate::constants::G;
-        let lost = start - energy(&system.bodies, true);
-        let miss = (lost / radiated - 1.0).abs();
-        println!(
-            "over 20 orbits the pair lost {:.4e} of its energy; the quadrupole formula says {:.4e}: off by {miss:.1e} of it (bound {:.1e})",
-            lost / start.abs(),
-            radiated / start.abs(),
-            strength.sqrt()
-        );
-        assert!(miss < strength.sqrt());
     }
 }

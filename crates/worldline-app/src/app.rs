@@ -1,6 +1,6 @@
 //! The Worldline window: the 3D view plus its control panels.
 
-use std::f64::consts::FRAC_PI_2;
+use std::f64::consts::{FRAC_PI_2, PI};
 use std::time::{Duration, Instant};
 
 use eframe::egui::collapsing_header::CollapsingState;
@@ -8,7 +8,7 @@ use eframe::egui::{self, Align2, Color32, FontId, Rect, RichText, Sense, Texture
 use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
 use worldline_core::DVec3;
-use worldline_core::constants::{AU, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSITY};
+use worldline_core::constants::{AU, C, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSITY};
 use worldline_core::magnetosphere::standoff;
 use worldline_core::sunlight::{irradiance, light_time};
 use worldline_render::{Atmosphere, Rings, View};
@@ -23,6 +23,7 @@ use crate::simulation::Simulation;
 use crate::simulation::{Computed, Removal};
 use crate::theme;
 use crate::view::{self, OnScreen, ViewOptions};
+use crate::waves;
 use worldline_core::compact::{gravitational_redshift, is_black_hole, schwarzschild_radius};
 use worldline_core::regime::Validity;
 use worldline_data::{Distance, ObjectKind, RadiusBasis, SmallBodyKind};
@@ -70,6 +71,71 @@ fn duration(seconds: f64) -> String {
             minutes % 60.0
         )
     }
+}
+
+/// Draws a recording's h₊ against time, one column of the plot per
+/// stretch of samples (its highest and lowest), so fast waves stay visible.
+fn waveform_plot(ui: &mut egui::Ui, recording: &waves::Recording) {
+    let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 200.0), Sense::hover());
+    let background = ui.visuals().extreme_bg_color;
+    let painter = ui.painter_at(rect);
+    painter.rect_filled(rect, 4.0, background);
+    let n = recording.times.len();
+    let span = recording.times[n - 1].max(f64::MIN_POSITIVE);
+    let peak = recording
+        .plus
+        .iter()
+        .fold(0.0f64, |m, h| m.max(h.abs()))
+        .max(f64::MIN_POSITIVE);
+    let middle = rect.center().y;
+    let half = 0.45 * rect.height();
+    painter.hline(
+        rect.x_range(),
+        middle,
+        (1.0, theme::MUTED.gamma_multiply(0.4)),
+    );
+    let columns = rect.width().max(1.0) as usize;
+    let mut k = 0;
+    for column in 0..columns {
+        let until = span * (column + 1) as f64 / columns as f64;
+        let (mut low, mut high) = (f64::INFINITY, f64::NEG_INFINITY);
+        while k < n && recording.times[k] <= until {
+            low = low.min(recording.plus[k]);
+            high = high.max(recording.plus[k]);
+            k += 1;
+        }
+        if low > high {
+            continue;
+        }
+        let x = rect.left() + column as f32 + 0.5;
+        let y = |h: f64| middle - (h / peak) as f32 * half;
+        painter.line_segment(
+            [pos2(x, y(high)), pos2(x, y(low).max(y(high) + 1.0))],
+            (1.0, theme::ACCENT),
+        );
+    }
+    let font = FontId::proportional(11.0);
+    painter.text(
+        rect.left_top() + vec2(6.0, 4.0),
+        Align2::LEFT_TOP,
+        format!("h+ peaks at {peak:.2e}"),
+        font.clone(),
+        theme::MUTED,
+    );
+    painter.text(
+        rect.left_bottom() + vec2(6.0, -4.0),
+        Align2::LEFT_BOTTOM,
+        "now",
+        font.clone(),
+        theme::MUTED,
+    );
+    painter.text(
+        rect.right_bottom() + vec2(-6.0, -4.0),
+        Align2::RIGHT_BOTTOM,
+        format!("{} later", long_time(span)),
+        font,
+        theme::MUTED,
+    );
 }
 
 /// A short time, from nanoseconds to seconds: "76 µs".
@@ -153,6 +219,18 @@ pub struct WorldlineApp {
     /// Open the selected body's branch of the list and scroll to it, once
     /// it has been picked somewhere other than the list.
     reveal: bool,
+    /// The gravitational-wave window's recording, while it is open.
+    waves: Option<WaveView>,
+    /// The sound output, once something has played.
+    audio: Option<(rodio::OutputStream, rodio::Sink)>,
+}
+
+/// A pair's recorded gravitational waves, shown in their window.
+struct WaveView {
+    /// "A and B".
+    names: String,
+    recording: waves::Recording,
+    sound: waves::Sound,
 }
 
 impl WorldlineApp {
@@ -185,6 +263,8 @@ impl WorldlineApp {
             start_at_rest: false,
             launch: None,
             status: None,
+            waves: None,
+            audio: None,
         };
         app.simulation.paused = start.paused;
         app.catalogue_open = start.catalogue;
@@ -198,6 +278,13 @@ impl WorldlineApp {
             match app.simulation.bodies.iter().position(|b| &b.name == name) {
                 Some(i) => app.fly_to(i, start.zoom_radii.unwrap_or(FOCUS_DISTANCE_RADII)),
                 None => eprintln!("worldline: no body named `{name}` to focus on"),
+            }
+        }
+        if start.waves {
+            if app.simulation.gravitational_waves(app.selected).is_some() {
+                app.open_waves();
+            } else {
+                eprintln!("worldline: --waves needs --focus on one body of a pair that will merge");
             }
         }
         app
@@ -714,6 +801,16 @@ impl WorldlineApp {
                 ui.label(RichText::new(detail.what).small());
             });
         }
+        if self.simulation.gravitational_waves(self.selected).is_some()
+            && ui
+                .button("See and hear its gravitational waves")
+                .on_hover_text(
+                    "The waves an observer on Earth would record from this pair, from a copy of it run ahead",
+                )
+                .clicked()
+        {
+            self.open_waves();
+        }
         ui.horizontal(|ui| {
             if self.focus == self.selected {
                 ui.label(RichText::new("The camera is following this body.").weak());
@@ -824,7 +921,7 @@ impl WorldlineApp {
         let index = self.selected;
         let model = match simulation.computed(index) {
             Computed::TopLevel => {
-                "Relativistic N-body gravity (Einstein–Infeld–Hoffmann), with each pair's second-order (2PN) terms and gravitational-wave losses (2.5PN): it pulls on every massive body and they on it"
+                "Relativistic N-body gravity (Einstein–Infeld–Hoffmann), with each pair's second-order (2PN) terms and gravitational-wave losses (2.5PN and 3.5PN): it pulls on every massive body and they on it"
             }
             Computed::MoonSystem => {
                 "Its planet's moon system: Newtonian, the planet's field, tides"
@@ -882,15 +979,21 @@ impl WorldlineApp {
                 "Approximate position: fly to its planet to compute it in detail".into(),
             ));
         }
-        if let Some((shrink, merging)) = simulation.gravitational_waves(index) {
+        if let Some(waves) = simulation.gravitational_waves(index) {
             notes.push((
                 green,
                 format!(
                     "Gravitational waves: its orbit's period shrinks {} a year, and the pair merges in {} (Peters & Mathews, at leading order)",
-                    short_time(-shrink * JULIAN_YEAR),
-                    long_time(merging)
+                    short_time(-waves.shrink * JULIAN_YEAR),
+                    long_time(waves.merging)
                 ),
             ));
+            if !waves.converging {
+                notes.push((
+                    red,
+                    "Its last orbits: the post-Newtonian radiation reaction no longer converges here, so the motion is beyond this model; mergers come in step 2.4".into(),
+                ));
+            }
         }
         let body = &simulation.bodies[index];
         if is_black_hole(body) {
@@ -1422,6 +1525,183 @@ impl WorldlineApp {
 
     /// The catalogue window: everything that can be added, by kind. Drag
     /// an entry into the view, or click it and then click in the view.
+    /// Records the waves an observer on Earth would get from the selected
+    /// body's pair, and opens their window.
+    fn open_waves(&mut self) {
+        let index = self.selected;
+        let Some(pair) = self.simulation.gravitational_waves(index) else {
+            return;
+        };
+        let (a, b) = (
+            self.simulation.bodies[index].clone(),
+            self.simulation.bodies[pair.partner].clone(),
+        );
+        let earth = self
+            .simulation
+            .index_of("Earth")
+            .map_or(DVec3::ZERO, |i| self.simulation.bodies[i].position);
+        let recording = waves::record(&a, &b, earth, waves::MAX_ORBITS);
+        let sound = waves::sound(&recording);
+        self.stop_sound();
+        self.waves = Some(WaveView {
+            names: format!("{} and {}", a.name, b.name),
+            recording,
+            sound,
+        });
+    }
+
+    fn stop_sound(&mut self) {
+        if let Some((_, sink)) = &self.audio {
+            sink.stop();
+        }
+    }
+
+    /// Plays the recorded waves' sound.
+    fn play_sound(&mut self) {
+        let Some(view) = &self.waves else {
+            return;
+        };
+        if self.audio.is_none() {
+            match rodio::OutputStream::try_default() {
+                Ok((stream, handle)) => match rodio::Sink::try_new(&handle) {
+                    Ok(sink) => self.audio = Some((stream, sink)),
+                    Err(e) => self.status = Some((format!("No sound: {e}"), Instant::now())),
+                },
+                Err(e) => self.status = Some((format!("No sound: {e}"), Instant::now())),
+            }
+        }
+        if let Some((_, sink)) = &self.audio {
+            sink.stop();
+            sink.append(rodio::buffer::SamplesBuffer::new(
+                1,
+                waves::RATE,
+                view.sound.samples.clone(),
+            ));
+            sink.play();
+        }
+    }
+
+    /// The window with a pair's gravitational waves: the strain at Earth
+    /// over time, what it shows, and its sound.
+    fn waves_window(&mut self, ctx: &egui::Context) {
+        let Some(view) = &self.waves else {
+            return;
+        };
+        let mut open = true;
+        let mut play = false;
+        let mut stop = false;
+        let mut save = false;
+        egui::Window::new(format!("Gravitational waves from {}", view.names))
+            .id(egui::Id::new("gravitational waves"))
+            .open(&mut open)
+            .default_pos(pos2(340.0, 90.0))
+            .default_width(660.0)
+            .show(ctx, |ui| {
+                let r = &view.recording;
+                let n = r.times.len();
+                let span = r.times[n - 1];
+                let (f0, f1) = (r.frequency[0], r.frequency[n - 1]);
+                ui.label(
+                    RichText::new(format!(
+                        "The strain h+ (the \"plus\" polarization) an observer on Earth would record, {} away: the leading-order (quadrupole) waveform, from a copy of the pair run ahead with Worldline's gravity.",
+                        length(r.distance)
+                    ))
+                    .small(),
+                );
+                ui.label(
+                    RichText::new(format!(
+                        "{} of signal, {} Hz to {} Hz.",
+                        long_time(span),
+                        significant(f0),
+                        significant(f1)
+                    ))
+                    .small(),
+                );
+                // The tail, +4π x^(3/2) in the sweep, with x^(3/2) = πGmf/c³,
+                // in percent.
+                let tail = 400.0 * PI * PI * r.gm * f0 / C.powi(3);
+                let tail = if tail >= 0.1 {
+                    format!("{tail:.1}%")
+                } else {
+                    format!("{tail:.1e}%")
+                };
+                ui.label(
+                    RichText::new(format!(
+                        "Approximate: the sweep leaves out the tail (the waves scattering off the curved spacetime around the pair), which makes general relativity's {tail} faster at {} Hz, and more at higher frequencies.",
+                        significant(f0)
+                    ))
+                    .small()
+                    .color(theme::MUTED),
+                );
+                let rough = waves::rough_above(r.gm, r.nu);
+                if rough <= f1 {
+                    let from = if rough <= f0 {
+                        "From the start".to_string()
+                    } else {
+                        format!("Above {} Hz", significant(rough))
+                    };
+                    ui.label(
+                        RichText::new(format!(
+                            "{from}, the tail outgrows the last correction kept (the first post-Newtonian one), so the sweep is only rough there: general relativity's is faster."
+                        ))
+                        .small()
+                        .color(Color32::from_rgb(240, 180, 80)),
+                    );
+                }
+                if r.reached_end {
+                    ui.label(
+                        RichText::new(
+                            "It ends where the post-Newtonian description gives out, a few orbits before the merger (step 2.4).",
+                        )
+                        .small()
+                        .color(theme::MUTED),
+                    );
+                }
+                waveform_plot(ui, r);
+                ui.horizontal(|ui| {
+                    play = ui.button("▶ Play").clicked();
+                    stop = ui.button("■ Stop").clicked();
+                    save = ui.button("Save as WAV").clicked();
+                    let how = if view.sound.speedup == 1.0 {
+                        "in real time, as the strain itself would sound".to_string()
+                    } else {
+                        format!(
+                            "{} times faster than real time, so its highest frequency sounds at 400 Hz",
+                            significant(view.sound.speedup)
+                        )
+                    };
+                    ui.label(
+                        RichText::new(format!(
+                            "{:.1} s of sound, {how}",
+                            view.sound.samples.len() as f64 / f64::from(waves::RATE)
+                        ))
+                        .small()
+                        .color(theme::MUTED),
+                    );
+                });
+            });
+        if play {
+            self.play_sound();
+        }
+        if stop {
+            self.stop_sound();
+        }
+        if save && let Some(view) = &self.waves {
+            let path = std::env::current_dir()
+                .unwrap_or_default()
+                .join("worldline-gravitational-waves.wav");
+            let message = match std::fs::write(&path, waves::wav(&view.sound)) {
+                Ok(()) => format!("Saved {}", path.display()),
+                Err(e) => format!("Couldn't save {}: {e}", path.display()),
+            };
+            self.status = Some((message, Instant::now()));
+        }
+        if !open {
+            self.stop_sound();
+            self.waves = None;
+        }
+    }
+
     fn catalogue_window(&mut self, ctx: &egui::Context) {
         let mut open = self.catalogue_open;
         egui::Window::new("Add a body")
@@ -1611,6 +1891,7 @@ impl eframe::App for WorldlineApp {
             .show(ui, |ui| self.inspector(ui));
         egui::CentralPanel::no_frame().show(ui, |ui| self.scene(ui, frame));
         self.catalogue_window(ui.ctx());
+        self.waves_window(ui.ctx());
 
         if !self.simulation.paused || self.flight.is_some() {
             ui.ctx().request_repaint();

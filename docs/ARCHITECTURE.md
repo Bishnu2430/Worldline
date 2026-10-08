@@ -87,7 +87,8 @@ It uses them to pick a model:
 | Planetary magnetic fields | Measured dipoles (degree-1 Gauss coefficients) | IGRF-14; JRM09; Cao et al. 2020; Q3; O8; Anderson et al. 2012 |
 | Magnetopause | Pressure balance of the dipole with the measured solar wind (Chapman–Ferraro, f = 2.44, K = 0.88); Earth's measured flaring | Mead & Beard 1964; Spreiter et al. 1966; Shue et al. 1998 |
 | Moons, inside their planet's system | Newtonian N-body plus the planet's zonal and tesseral harmonics, locked moons' shapes, and outside tides | JPL satellite ephemeris models; Montenbruck & Gill 2000 |
-| Compact binaries | EIH for every body, plus each pair's second-order (2PN) and radiation-reaction (2.5PN) terms, in harmonic coordinates. 3PN and 3.5PN come with step 2.3. | Blanchet, *Living Reviews in Relativity* 2024; Kupi, Amaro-Seoane & Spurzem 2006; Mikkola & Merritt 2008; Peters & Mathews 1963; [physics/post-newtonian.md](physics/post-newtonian.md) |
+| Compact binaries | EIH for every body, plus each pair's second-order (2PN) and radiation-reaction (2.5PN and 3.5PN) terms, in harmonic coordinates; 3PN left out. A pair whose radiation reaction stops converging (GM/rc² ≈ 0.11) merges | Blanchet, *Living Reviews in Relativity* 2024; Nissanke & Blanchet 2005; Kupi, Amaro-Seoane & Spurzem 2006; Mikkola & Merritt 2008; Peters & Mathews 1963; [physics/post-newtonian.md](physics/post-newtonian.md) |
+| Gravitational waves an observer records | Quadrupole waveform from the simulated pair, run ahead on its own | Einstein 1918; Blanchet 2024; [physics/post-newtonian.md](physics/post-newtonian.md) |
 | Near a dominant black hole (q ≪ 1) | Kerr geodesics with radiation reaction | Kerr 1963; Bardeen, Press & Teukolsky 1972 |
 | Merger | Fits to numerical relativity: final mass, spin, kick, ringdown | Jiménez-Forteza et al. 2017; Campanelli et al. 2007; Berti, Cardoso & Will 2006 |
 | Tides matter (r ≲ a few r_t) | SPH with self-gravity | Monaghan 2005; Price 2012 |

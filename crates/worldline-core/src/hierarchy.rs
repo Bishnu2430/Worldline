@@ -43,6 +43,7 @@ use crate::collision::{contact, first_survives, merge};
 use crate::constants::C;
 use crate::gravity::{
     Gravity, Newtonian, NonGravitational, SynchronousFigure, TesseralField, ZonalField,
+    reaction_converges,
 };
 use crate::integrator::{Ias15, Integrator, advance};
 use crate::kepler::drift;
@@ -1038,13 +1039,16 @@ impl Hierarchy {
     /// Bodies don't arrive overlapping by moving (contact is found along
     /// each step), but they can be placed so: a black hole dropped into
     /// the solar system swallows at once everything inside its horizon.
+    /// Merges top-level bodies that touch, or that have spiraled in past
+    /// where post-Newtonian gravity holds (see [`spiraled_in`]), and
+    /// followers that touch a top-level body.
     fn absorb_overlaps(&mut self) {
         let time = self.top.time();
         while let Some((i, j)) = (0..self.top.bodies.len())
             .flat_map(|i| (i + 1..self.top.bodies.len()).map(move |j| (i, j)))
             .find(|&(i, j)| {
                 let (a, b) = (&self.top.bodies[i], &self.top.bodies[j]);
-                (a.position - b.position).length() <= a.radius + b.radius
+                (a.position - b.position).length() <= a.radius + b.radius || spiraled_in(a, b)
             })
         {
             let (a, b) = (&self.top.bodies[i], &self.top.bodies[j]);
@@ -1582,12 +1586,78 @@ impl Gravity for MoonSystemGravity<'_> {
     }
 }
 
+/// Whether a bound pair has spiraled in past where post-Newtonian gravity
+/// holds: its radiation reaction no longer converges (see
+/// [`reaction_converges`]), a few orbits before the two would touch. Run on,
+/// the truncated equations would pump the orbit eccentric or fling the pair
+/// apart; instead the pair merges then, as touching bodies do. (What really
+/// happens in those last orbits, and the merger, needs numerical
+/// relativity: step 2.4.) Only strong fields are checked: the reaction can't
+/// stop converging below GM/rc² of about 0.1.
+fn spiraled_in(a: &Body, b: &Body) -> bool {
+    let gm = a.gm + b.gm;
+    let r = (a.position - b.position).length();
+    let bound = 0.5 * (a.velocity - b.velocity).length_squared() < gm / r;
+    gm > 0.0 && gm / (r * C * C) > 0.01 && bound && !reaction_converges(a, b)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::DMat3;
     use crate::constants::{AU, DAY, GM_SUN};
+    use crate::gravity::{PostNewtonian, relative_acceleration};
     use crate::orbit::{kepler_period, periapsis_state};
+
+    #[test]
+    fn a_tight_pair_spirals_in_and_merges_instead_of_flying_apart() {
+        // Two neutron stars on a circular orbit whose wave is at about
+        // 270 Hz (GM/rc² = 0.05) spiral in within a fraction of a second.
+        // Near GM/rc² = 0.1 their radiation reaction stops converging and
+        // they merge into one body, momentum kept, instead of being flung
+        // apart by the truncated equations. (The merge keeps momentum, as
+        // every merge does; see the collision tests.)
+        let (gm1, gm2) = (1.4 * GM_SUN, 1.3 * GM_SUN);
+        let gm = gm1 + gm2;
+        let r = gm / (0.05 * C * C);
+        // The circular speed of the relativistic equations (a Newtonian
+        // circle would be eccentric this close).
+        let nu = gm1 * gm2 / (gm * gm);
+        let x = DVec3::new(r, 0.0, 0.0);
+        let mut speed = (gm / r).sqrt();
+        for _ in 0..20 {
+            let a = relative_acceleration(gm, nu, x, DVec3::new(0.0, speed, 0.0));
+            speed = (r * -(a.newtonian + a.first + a.second).x).sqrt();
+        }
+        let v = DVec3::new(0.0, speed, 0.0);
+        let top = System::new(vec![
+            Body::new("one", gm1, 1.2e4)
+                .at(x * gm2 / gm)
+                .moving(v * gm2 / gm),
+            Body::new("two", gm2, 1.2e4)
+                .at(-x * gm1 / gm)
+                .moving(-v * gm1 / gm),
+        ]);
+        let mut h = Hierarchy::new(top, Box::new(PostNewtonian::default()), Vec::new());
+        let mut farthest: f64 = 0.0;
+        while h.top.bodies.len() == 2 && h.time() < 1.0 {
+            h.step(1e-4);
+            if let [one, two] = &h.top.bodies[..] {
+                farthest = farthest.max((one.position - two.position).length());
+            }
+        }
+        let collisions = h.take_collisions();
+        println!(
+            "merged after {:.3} s; the pair never got farther apart than {:.0} km (started {:.0} km)",
+            h.time(),
+            farthest / 1e3,
+            r / 1e3
+        );
+        assert_eq!(h.top.bodies.len(), 1);
+        assert_eq!(collisions.len(), 1);
+        assert!(farthest < 1.2 * r);
+        assert_eq!(h.top.bodies[0].gm, gm);
+    }
 
     /// A Sun, plus a "planetary system" barycenter 5 AU out holding a planet
     /// and one moon.

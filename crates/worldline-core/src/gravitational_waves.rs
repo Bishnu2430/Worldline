@@ -1,6 +1,7 @@
 //! Gravitational waves from a binary at leading (quadrupole) order: the
-//! power it radiates, how fast its orbit shrinks, and how long its two
-//! bodies have before they merge.
+//! power it radiates (and that power's first correction), how fast its
+//! orbit shrinks, how long its two bodies have before they merge, and the
+//! strain an observer records.
 //!
 //! Valid while the bodies move slowly and gravity between them is weak
 //! (the same conditions as the post-Newtonian equations); corrections are
@@ -8,7 +9,67 @@
 
 use std::f64::consts::PI;
 
+use glam::DVec3;
+
+use crate::Body;
 use crate::constants::{C, G};
+
+/// The two polarizations of a gravitational wave's strain at an observer,
+/// dimensionless.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Strain {
+    /// h₊: stretches space along the first basis direction while squeezing
+    /// it along the second.
+    pub plus: f64,
+    /// h×: the same, turned 45°.
+    pub cross: f64,
+}
+
+/// The strain that `bodies` send to an observer `distance` (m) away in the
+/// unit direction `toward` (from the bodies to the observer), at leading
+/// (quadrupole) order: h_ij = (2G / c⁴R) d²I_ij/dt² projected across the
+/// line of sight, with I_ij = Σ m x_i x_j about the center of mass and the
+/// bodies' Newtonian accelerations (Einstein 1918; Blanchet 2024, section
+/// "The quadrupole moment formalism").
+///
+/// The polarization basis: p = ẑ × N (normalized; x̂ if N is along ẑ) and
+/// q = N × p, with ẑ the simulation's north (the ecliptic pole), so
+/// h₊ = (h_pp − h_qq)/2 and h× = h_pq.
+pub fn strain(bodies: &[Body], toward: DVec3, distance: f64) -> Strain {
+    let total: f64 = bodies.iter().map(|b| b.gm).sum();
+    let center: DVec3 = bodies.iter().map(|b| b.position * b.gm).sum::<DVec3>() / total;
+    let drift: DVec3 = bodies.iter().map(|b| b.velocity * b.gm).sum::<DVec3>() / total;
+    let n = toward.normalize();
+    let p = DVec3::Z.cross(n).try_normalize().unwrap_or(DVec3::X);
+    let q = n.cross(p);
+    // d²I/dt² projected: Σ Gm (2 (v·e)(v·f) + (x·e)(a·f) + (a·e)(x·f)),
+    // with Gm in place of m since h carries G.
+    let second = |e: DVec3, f: DVec3| {
+        bodies
+            .iter()
+            .enumerate()
+            .map(|(i, b)| {
+                let x = b.position - center;
+                let v = b.velocity - drift;
+                let a: DVec3 = bodies
+                    .iter()
+                    .enumerate()
+                    .filter(|(j, _)| *j != i)
+                    .map(|(_, o)| {
+                        let d = o.position - b.position;
+                        d * (o.gm / d.length().powi(3))
+                    })
+                    .sum();
+                b.gm * (2.0 * v.dot(e) * v.dot(f) + x.dot(e) * a.dot(f) + a.dot(e) * x.dot(f))
+            })
+            .sum::<f64>()
+    };
+    let scale = 2.0 / (C.powi(4) * distance);
+    Strain {
+        plus: scale * 0.5 * (second(p, p) - second(q, q)),
+        cross: scale * second(p, q),
+    }
+}
 
 /// The power a pair of bodies radiates in gravitational waves at this
 /// instant, in W: Einstein's quadrupole formula for two point masses,
@@ -18,6 +79,25 @@ use crate::constants::{C, G};
 pub fn quadrupole_power(gm1: f64, gm2: f64, r: f64, v: f64, rdot: f64) -> f64 {
     8.0 / 15.0 * gm1 * gm1 * gm2 * gm2 * (12.0 * v * v - 11.0 * rdot * rdot)
         / (G * C.powi(5) * r.powi(4))
+}
+
+/// The first correction to [`quadrupole_power`], GM/rc² of it, in W (to
+/// add to it): Wagoner & Will (1976), as given by Kidder (1995), section
+/// "Energy Loss", in harmonic coordinates, with ν = m₁m₂/(m₁+m₂)²:
+///
+/// (2/105) G³ m₁² m₂² / (c⁷ r⁴) { (785 − 852ν) v⁴ − 160 (17 − ν) (Gm/r) v²
+///   + 8 (367 − 15ν) (Gm/r) ṙ² − 2 (1487 − 1392ν) v² ṙ²
+///   + 3 (687 − 620ν) ṙ⁴ + 16 (1 − 4ν) (Gm/r)² }.
+pub fn quadrupole_power_correction(gm1: f64, gm2: f64, r: f64, v: f64, rdot: f64) -> f64 {
+    let gm = gm1 + gm2;
+    let nu = gm1 * gm2 / (gm * gm);
+    let (u, v2, rd2) = (gm / r, v * v, rdot * rdot);
+    2.0 / 105.0 * gm1 * gm1 * gm2 * gm2 / (G * C.powi(7) * r.powi(4))
+        * ((785.0 - 852.0 * nu) * v2 * v2 - 160.0 * (17.0 - nu) * u * v2
+            + 8.0 * (367.0 - 15.0 * nu) * u * rd2
+            - 2.0 * (1487.0 - 1392.0 * nu) * v2 * rd2
+            + 3.0 * (687.0 - 620.0 * nu) * rd2 * rd2
+            + 16.0 * (1.0 - 4.0 * nu) * u * u)
 }
 
 /// How the orbit's period `period` (s) of a bound pair with eccentricity
@@ -117,8 +197,62 @@ pub fn merger_time(gm1: f64, gm2: f64, period: f64, e: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::{GM_SUN, JULIAN_YEAR};
-    use crate::orbit::kepler_period;
+    use crate::constants::{GM_SUN, JULIAN_YEAR, PARSEC};
+    use crate::orbit::{kepler_period, two_body_system};
+
+    #[test]
+    fn a_circular_pair_seen_face_on_and_edge_on() {
+        // A circular pair in the x–y plane. Face-on (from +z), both
+        // polarizations swing with the same amplitude 4G²m₁m₂/(c⁴Rr), a
+        // quarter of a cycle apart, at twice the orbital frequency. Edge-on
+        // (from +x), h₊ has half that amplitude and h× vanishes: the factors
+        // (1 + cos²ι)/2 and cos ι of the textbook waveform.
+        let (gm1, gm2) = (1.4 * GM_SUN, 1.3 * GM_SUN);
+        let r = 1e6;
+        let distance = 40e6 * PARSEC;
+        let mut system = two_body_system(
+            Body::new("one", gm1, 1.0),
+            Body::new("two", gm2, 1.0),
+            r,
+            0.0,
+        );
+        let amplitude = 4.0 * gm1 * gm2 / (C.powi(4) * distance * r);
+        let period = kepler_period(r, gm1 + gm2);
+        let mut face = Vec::new();
+        let mut edge = Vec::new();
+        let omega = std::f64::consts::TAU / period;
+        // Turn the pair through one orbit by hand (positions only matter).
+        let start = system.bodies.clone();
+        for k in 0..64 {
+            let angle = omega * period * k as f64 / 64.0;
+            let turn = glam::DMat3::from_rotation_z(angle);
+            for (b, s) in system.bodies.iter_mut().zip(&start) {
+                b.position = turn * s.position;
+                b.velocity = turn * s.velocity;
+            }
+            face.push(strain(&system.bodies, DVec3::Z, distance));
+            edge.push(strain(&system.bodies, DVec3::X, distance));
+        }
+        let peak = |values: &[f64]| values.iter().fold(0.0f64, |m, v| m.max(v.abs()));
+        let plus: Vec<f64> = face.iter().map(|s| s.plus).collect();
+        let cross: Vec<f64> = face.iter().map(|s| s.cross).collect();
+        let edge_plus: Vec<f64> = edge.iter().map(|s| s.plus).collect();
+        let edge_cross: Vec<f64> = edge.iter().map(|s| s.cross).collect();
+        assert!((peak(&plus) / amplitude - 1.0).abs() < 1e-12);
+        assert!((peak(&cross) / amplitude - 1.0).abs() < 1e-12);
+        // Face-on the wave is circularly polarized: h₊² + h×² is constant.
+        for s in &face {
+            assert!(((s.plus.hypot(s.cross)) / amplitude - 1.0).abs() < 1e-12);
+        }
+        assert!((peak(&edge_plus) / (0.5 * amplitude) - 1.0).abs() < 1e-12);
+        assert!(peak(&edge_cross) < 1e-12 * amplitude);
+        // Twice the orbital frequency: h₊ changes sign 4 times an orbit.
+        let flips = plus
+            .windows(2)
+            .filter(|w| (w[0] < 0.0) != (w[1] < 0.0))
+            .count();
+        assert_eq!(flips, 4);
+    }
 
     #[test]
     fn a_circular_pair_merges_as_the_closed_form_says() {
