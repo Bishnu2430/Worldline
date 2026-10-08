@@ -1,0 +1,4 @@
+# Worldline: the position of Sagittarius A* on the sky. Regenerate with: python tools/write_galactic_center.py
+# ICRF3, J2000, at the 2015.0 proper-motion epoch, from VLBI radio astrometry
+ra_h,ra_m,ra_s,dec_deg,dec_arcmin,dec_arcsec,source
+17,45,40.034047,-29,00,28.21601,"Gordon, de Witt & Jacobs 2023, AJ, doi:10.3847/1538-3881/aca65b (RA uncertainty 0.000018 s, Dec 0.00044 arcsec)"

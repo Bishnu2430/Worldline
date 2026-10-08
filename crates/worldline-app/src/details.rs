@@ -77,6 +77,44 @@ const SUN: &[Detail] = &[
     ),
 ];
 
+const GALACTIC_CENTER: &[Detail] = &[
+    detail(
+        "Mass and distance: from the orbits of the stars around it (GRAVITY 2022)",
+        Kind::Measured,
+    ),
+    detail(
+        "Where it is on the sky: radio interferometry (Gordon et al. 2023)",
+        Kind::Measured,
+    ),
+    detail(
+        "Held still relative to the solar system: the galaxy's mass, which carries the Sun around it every 230 million years, isn't simulated (v2)",
+        Kind::Model,
+    ),
+    detail(
+        "The Milky Way's other stars, gas and dark matter between are not shown (v2)",
+        Kind::Visual,
+    ),
+    detail(
+        "Drawn as its shadow seen from afar, a dark disk √27 GM/c² across: how light bends around it comes in step 3.1",
+        Kind::Visual,
+    ),
+];
+
+const S_STAR: &[Detail] = &[
+    detail(
+        "Orbit: published elements (GRAVITY 2022 for S2, S29, S38 and S55; Gillessen et al. 2017 for the rest)",
+        Kind::Measured,
+    ),
+    detail(
+        "Its path: Sagittarius A*'s Newtonian pull plus its first relativistic term, which turns S2's orbit 12′ each time round",
+        Kind::Model,
+    ),
+    detail(
+        "A dot colored by type: young, hot stars blue-white, cool giants orange; its own mass is too small to matter here",
+        Kind::Visual,
+    ),
+];
+
 const ADDED: &[Detail] = &[
     detail(
         "Added in the sandbox, with the mass and size of a solar-system body",
@@ -302,6 +340,9 @@ pub enum BodyKind {
     /// A body added in the sandbox: a copy of a solar-system body, or a
     /// real object of the given kind from the catalog.
     Added(Option<ObjectKind>),
+    /// Sagittarius A* in the galactic center, or (`star`) a star orbiting
+    /// it.
+    Galactic { star: bool },
     /// A dwarf planet, asteroid or comet.
     SmallBody {
         /// A comet (or interstellar visitor) rather than an asteroid.
@@ -319,6 +360,8 @@ pub fn details(name: &str, kind: BodyKind) -> Vec<Detail> {
         BodyKind::SmallMoonInDetail => return SMALL_MOON_IN_DETAIL.to_vec(),
         BodyKind::SmallMoonOnMeanOrbit => return SMALL_MOON_ON_MEAN_ORBIT.to_vec(),
         BodyKind::Added(None) => return ADDED.to_vec(),
+        BodyKind::Galactic { star: false } => return GALACTIC_CENTER.to_vec(),
+        BodyKind::Galactic { star: true } => return S_STAR.to_vec(),
         BodyKind::Added(Some(kind)) => return catalog_details(kind),
         BodyKind::SmallBody {
             comet,

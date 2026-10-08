@@ -128,6 +128,16 @@ fn light_time_label(distance: f64) -> String {
 /// sandbox, by its kind (the sandbox's pink for copies of solar-system
 /// bodies).
 pub fn color(simulation: &Simulation, index: usize) -> Color32 {
+    if simulation.is_galactic(index) && !simulation.is_added(index) {
+        // Sagittarius A* in its black hole's ring color; its stars by type:
+        // young, hot ones blue-white, cool giants orange.
+        return match (simulation.parent(index), simulation.spectral_type(index)) {
+            (None, _) => crate::catalogue::kind_color(Some(worldline_data::ObjectKind::BlackHole)),
+            (_, Some('e')) => Color32::from_rgb(190, 214, 255),
+            (_, Some('l')) => Color32::from_rgb(255, 190, 130),
+            _ => Color32::from_gray(225),
+        };
+    }
     if simulation.is_added(index) {
         crate::catalogue::kind_color(simulation.entry(index).and_then(|e| e.kind()))
     } else {

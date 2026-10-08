@@ -25,6 +25,10 @@ Each crate is added when its milestone starts, not before. The 3D view is drawn 
 
 Everything uses SI units in `f64`. Bodies store their gravitational parameter GM instead of mass, because GM is measured about 100,000 times more precisely than G (see [newtonian-gravity.md](physics/newtonian-gravity.md)). Each gravitationally bound system is simulated in its own local frame, centered near its barycenter, to keep precision. The renderer draws everything relative to the camera, so the GPU's single precision never limits accuracy.
 
+## Regions
+
+The galactic center is simulated as a region of its own, 8,277 pc from the solar system, on the same clock. At that distance each one's tide on the other is below 10⁻²⁰ m/s², so neither feels the other. A region holds its bodies around a local origin; the app adds the origin when drawing. Bodies dropped near the galactic center join its region. See [physics/galactic-center.md](physics/galactic-center.md).
+
 ## Hierarchical integration
 
 Fast inner orbits shouldn't set the pace for everything. The solar system runs as a hierarchy (`worldline-core/src/hierarchy.rs`):
@@ -76,6 +80,7 @@ It uses them to pick a model:
 | Bodies that touch | Perfectly inelastic merger: momentum conserved, volumes add (a black hole survives and its horizon grows with its mass); contact found along each step | [physics/collisions.md](physics/collisions.md) |
 | Black holes, neutron stars, white dwarfs (as point bodies) | Published masses and sizes; Kerr horizons; Buchdahl's limit tells a black hole from a star | [physics/compact-objects.md](physics/compact-objects.md); Buchdahl 1959 |
 | A moon system meets an intruder | The moons join the top level once another body's tide on one passes 1/12 of the planet's pull (half the Hill radius, far away) | Domingos, Winter & Yokoyama 2006 |
+| Stars around Sagittarius A\* | Its Newtonian pull plus its first relativistic (Schwarzschild) term, from published orbits | GRAVITY Collaboration 2022; Gillessen et al. 2017; [physics/galactic-center.md](physics/galactic-center.md) |
 | Sunlight and its travel time | Inverse-square law from the IAU luminosity; distance over c plus the Shapiro delay | IAU 2015 B3; Shapiro 1964 |
 | Solar wind | Parker spiral with the measured average wind at Earth | Parker 1958; NASA OMNI |
 | Heliosphere | Boundaries measured at the Voyager crossings; Rankine half-body shape between them (visual) | Stone et al. 2005–2019; Bzowski et al. 2015 |

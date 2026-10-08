@@ -16,6 +16,9 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 | Masses of Ceres, the heaviest asteroids, Eros, Didymos, Eris, Haumea, Quaoar and Orcus | JPL DE440 (Park et al. 2021), via NASA NAIF `gm_de440.tpc` | Public domain (U.S. government work) |
 | Orbits of the asteroid belt, Jupiter's Trojans and the Kuiper belt (28,331 bodies) | NASA JPL Small-Body Database Query API (ssd-api.jpl.nasa.gov/sbdb_query.api) | Public domain (U.S. government work) |
 | Positions and velocities of 24 belt bodies, 2025 and 2026 (validation) | NASA JPL Horizons, each body's JPL small-body orbit solution | Public domain (U.S. government work) |
+| Orbits of the stars around Sagittarius A\* | GRAVITY Collaboration 2022 (*A&A* 657, L12, Table B.1) for S2, S29, S38 and S55; Gillessen et al. 2017 (*ApJ* 837, 30, Table 3) for 35 more | Published scientific values |
+| Position of Sagittarius A\* on the sky | Gordon, de Witt & Jacobs 2023 (*AJ*, doi:10.3847/1538-3881/aca65b), ICRF3 | Published scientific values |
+| Sagittarius A\*'s galactic coordinates (validation) | SIMBAD (CDS, Strasbourg) | Published values |
 | Zodiacal dust model | Kelsall et al. (1998), *ApJ* 508, 44, from COBE DIRBE; full-precision parameters as reproduced by ZodiPy (San et al. 2022, *A&A* 666, A107) | Published scientific values |
 | Zodiacal light brightening toward the Sun (validation) | Helios 1 and 2, Leinert et al. (1981), *A&A* 103, 177 | Published scientific values |
 | Hourly solar wind at Earth, 2025 | NASA OMNI (King & Papitashvili 2005, *J. Geophys. Res.* 110, A02104), served by CDPP/AMDA (IRAP, France) through HAPI | Public domain (U.S. government work); AMDA service |
