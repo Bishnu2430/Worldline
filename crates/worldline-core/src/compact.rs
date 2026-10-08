@@ -30,6 +30,14 @@ pub fn horizon_radius(gm: f64, spin: f64) -> f64 {
     gravitational_radius(gm) * (1.0 + (1.0 - spin * spin).sqrt())
 }
 
+/// The spin a black hole must have for its horizon to be `radius` (m):
+/// the inverse of [`horizon_radius`]. A horizon of 2GM/c² or more means
+/// no spin.
+pub fn horizon_spin(gm: f64, radius: f64) -> f64 {
+    let s = (radius / gravitational_radius(gm) - 1.0).clamp(0.0, 1.0);
+    (1.0 - s * s).sqrt()
+}
+
 /// The radius of a non-spinning black hole's shadow, √27 GM/c², in m: how
 /// big the dark disk looks from far away, because light passing closer
 /// than this falls in (Synge 1966). Spin changes it by at most a few
@@ -63,6 +71,9 @@ mod tests {
         assert!((schwarzschild_radius(gm) - 2953.25).abs() < 0.01);
         assert_eq!(horizon_radius(gm, 0.0), schwarzschild_radius(gm));
         assert_eq!(horizon_radius(gm, 1.0), gravitational_radius(gm));
+        for spin in [0.0, 0.3, 0.69, 0.99, 1.0] {
+            assert!((horizon_spin(gm, horizon_radius(gm, spin)) - spin).abs() < 1e-7);
+        }
         // Halfway in spin is not halfway in size: 1 + √0.75.
         let half = horizon_radius(gm, 0.5) / gravitational_radius(gm);
         assert!((half - 1.866_025_403_784_438_6).abs() < 1e-15);

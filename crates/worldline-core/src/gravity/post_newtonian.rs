@@ -169,6 +169,99 @@ pub fn reaction_converges(a: &Body, b: &Body) -> bool {
     correction.length() < leading.length()
 }
 
+/// Where two bodies sit relative to their center of mass beyond Newton,
+/// and how fast that offset changes: body 1 is at X₂ x + δ and body 2 at
+/// −X₁ x + δ from the center, with δ = ν Δ (𝒫 x + 𝒬 v), where x and v are
+/// the relative position and velocity (body 1 minus body 2), X₁ = m₁/m,
+/// X₂ = m₂/m and Δ = X₁ − X₂. Blanchet (2024), *Living Rev. Relativ.* 27,
+/// 4, section "Equations of motion in the frame of the center of mass":
+/// 𝒫 and 𝒬 through 2.5PN (𝒬's 2.5PN part is the radiation reaction's
+/// share), as far as Worldline's conservative equations of motion go.
+/// Returns (δ, dδ/dt), the rate from the relative acceleration through
+/// 2PN. Equal masses have none.
+fn center_offset(gm1: f64, gm2: f64, x: DVec3, v: DVec3) -> (DVec3, DVec3) {
+    let gm = gm1 + gm2;
+    let (x1, x2) = (gm1 / gm, gm2 / gm);
+    let (nu, delta) = (x1 * x2, x1 - x2);
+    let r = x.length();
+    let n = x / r;
+    let rdot = n.dot(v);
+    let v2 = v.length_squared();
+    let a = relative_acceleration(gm, nu, x, v);
+    let a = a.newtonian + a.first + a.second;
+    let va = v.dot(a);
+    let rddot = (v2 - rdot * rdot) / r + n.dot(a);
+    let u = gm / r;
+    let du = -gm * rdot / (r * r);
+    let (c2, c4) = (C * C, C.powi(4));
+    // 𝒫 and its rate of change.
+    let p1 = 0.5 * v2 - 0.5 * u;
+    let dp1 = va - 0.5 * du;
+    let inner = -rdot * rdot / 8.0 + 0.75 * nu * rdot * rdot + 19.0 / 8.0 * v2 + 1.5 * nu * v2;
+    let dinner = (-0.25 + 1.5 * nu) * rdot * rddot + (19.0 / 4.0 + 3.0 * nu) * va;
+    let p2 = (3.0 / 8.0 - 1.5 * nu) * v2 * v2 + u * inner + u * u * (1.75 - 0.5 * nu);
+    let dp2 =
+        (1.5 - 6.0 * nu) * v2 * va + du * inner + u * dinner + 2.0 * u * du * (1.75 - 0.5 * nu);
+    let p = p1 / c2 + p2 / c4;
+    let dp = dp1 / c2 + dp2 / c4;
+    // 𝒬 = −(7/4) G m ṙ/c⁴ + (4/5) G m (v² − 2Gm/r)/c⁵ and its rate of
+    // change.
+    let q = -1.75 * gm * rdot / c4 + 0.8 * gm * (v2 - 2.0 * u) / C.powi(5);
+    let dq = -1.75 * gm * rddot / c4 + 0.8 * gm * (2.0 * va - 2.0 * du) / C.powi(5);
+    let k = nu * delta;
+    (k * (p * x + q * v), k * (dp * x + p * v + dq * v + q * a))
+}
+
+/// Where two bodies' center of mass is and how fast it moves, to second
+/// post-Newtonian order: the inverse of the relation in
+/// [`center_offset`]. The plain mass-weighted center differs from it by
+/// ν Δ 𝒫 v, which close to a merger is tens of km/s (for GW150914's holes,
+/// at GM/rc² = 0.1). Valid while the center itself moves much slower than
+/// light.
+pub fn center_of_mass(a: &Body, b: &Body) -> (DVec3, DVec3) {
+    let gm = a.gm + b.gm;
+    let xb = b.gm / gm;
+    let (x, v) = (a.position - b.position, a.velocity - b.velocity);
+    let (offset, rate) = center_offset(a.gm, b.gm, x, v);
+    (a.position - x * xb - offset, a.velocity - v * xb - rate)
+}
+
+/// Two bodies set on the circular orbit whose gravitational wave is at
+/// `wave_frequency` (Hz, twice the orbit's frequency), in the x–y plane
+/// around their center of mass at the origin, `a` on the +x side, turning
+/// counterclockwise seen from +z. The speed is the circular speed of the
+/// relativistic equations, v² = r |a·n| (a Newtonian circle would be
+/// visibly eccentric this close), and the size is found with it: Kepler's
+/// law first, then rescaled as r ∝ ω^(−2/3) until the angular speed is the
+/// wanted one (relativity slows an orbit of a given size by about
+/// (3 − ν)/2 GM/rc²). The pair already falls inward at the leading-order
+/// rate, ṙ = −(64/5) G³m³ν/(r³c⁵), so the orbit stays circular as it
+/// shrinks, and the bodies are placed about their center of mass to second
+/// post-Newtonian order (see [`center_of_mass`]), so it stays put.
+pub fn circular_pair(a: Body, b: Body, wave_frequency: f64) -> (Body, Body) {
+    let gm = a.gm + b.gm;
+    let (xa, xb) = (a.gm / gm, b.gm / gm);
+    let nu = xa * xb;
+    let omega = std::f64::consts::PI * wave_frequency;
+    let mut r = (gm / (omega * omega)).cbrt();
+    let mut speed = (gm / r).sqrt();
+    for _ in 0..40 {
+        let x = DVec3::new(r, 0.0, 0.0);
+        let acceleration = relative_acceleration(gm, nu, x, DVec3::new(0.0, speed, 0.0));
+        let inward = -(acceleration.newtonian + acceleration.first + acceleration.second).x;
+        speed = (r * inward).sqrt();
+        r *= (speed / (r * omega)).powf(2.0 / 3.0);
+    }
+    let x = DVec3::new(r, 0.0, 0.0);
+    let rdot = -64.0 / 5.0 * gm.powi(3) * nu / (r.powi(3) * C.powi(5));
+    let v = DVec3::new(rdot, speed, 0.0);
+    let (offset, rate) = center_offset(a.gm, b.gm, x, v);
+    (
+        a.at(x * xb + offset).moving(v * xb + rate),
+        b.at(-x * xa + offset).moving(-v * xa + rate),
+    )
+}
+
 /// Relativistic N-body gravity for close pairs, such as two neutron stars:
 /// the Einstein–Infeld–Hoffmann equations (first post-Newtonian order) for
 /// every body, plus each pair's second-order (2PN) terms and its radiation
@@ -375,6 +468,50 @@ mod tests {
         let speed = (gm / r).sqrt();
         let v = DVec3::new(-0.3, 0.9, 0.1).normalize() * (1.1 * speed);
         (x, v)
+    }
+
+    #[test]
+    fn the_center_of_mass_stays_put_to_third_order() {
+        // Two holes of 30 and 10 Suns on circular orbits, set up about
+        // their center of mass to second order, run for 5 orbits at two
+        // field strengths x = GM/rc². The plain mass-weighted center swings
+        // at second order, ν Δ x² v (it leaves out ν Δ 𝒫 v, and 𝒫 ~ x² on a
+        // circle), so its swing grows as x^2.5 (v grows as √x). The
+        // second-order center may only move at third order, as x^3.5; a
+        // mistake in its 2PN terms would leave x^2.5. The test takes the
+        // midpoint: the swing must grow faster than x³.
+        let (gm1, gm2) = (30.0 * GM_SUN, 10.0 * GM_SUN);
+        let gm = gm1 + gm2;
+        let largest = |x: f64| {
+            let r = gm / (x * C * C);
+            let wave = (gm / r.powi(3)).sqrt() / std::f64::consts::PI;
+            let (a, b) = circular_pair(Body::new("a", gm1, 1.0), Body::new("b", gm2, 1.0), wave);
+            let mut system = System::new(vec![a, b]);
+            let mut ias = Ias15::new();
+            let (mut plain, mut second): (f64, f64) = (0.0, 0.0);
+            for _ in 0..5 * 64 {
+                advance(
+                    &mut system,
+                    &PostNewtonian::default(),
+                    &mut ias,
+                    1.0 / (wave * 32.0),
+                );
+                let (p, q) = (&system.bodies[0], &system.bodies[1]);
+                plain = plain.max(((p.velocity * p.gm + q.velocity * q.gm) / gm).length());
+                second = second.max(center_of_mass(p, q).1.length());
+            }
+            (plain, second)
+        };
+        let (weak, strong) = (0.003, 0.01);
+        let ((plain_weak, second_weak), (plain_strong, second_strong)) =
+            (largest(weak), largest(strong));
+        let power = |w: f64, s: f64| (s / w).ln() / (strong / weak).ln();
+        println!(
+            "center of mass swings: mass-weighted {plain_weak:.2} → {plain_strong:.1} m/s (as x^{:.2}); second-order {second_weak:.3} → {second_strong:.2} m/s (as x^{:.2})",
+            power(plain_weak, plain_strong),
+            power(second_weak, second_strong)
+        );
+        assert!(power(second_weak, second_strong) > 3.0);
     }
 
     #[test]

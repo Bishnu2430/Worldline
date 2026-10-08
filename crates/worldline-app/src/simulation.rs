@@ -13,6 +13,7 @@ use worldline_core::hierarchy::{Collision, FREED_MOON_IDS, Hierarchy, MOON_SYSTE
 use worldline_core::integrator::{Ias15, Integrator};
 use worldline_core::kepler::drift;
 use worldline_core::magnetosphere::Dipole;
+use worldline_core::merger::Merger;
 use worldline_core::regime::Regime;
 use worldline_core::rotation::RotationModel;
 use worldline_core::solar_wind::{Heliosphere, ParkerSpiral};
@@ -241,6 +242,9 @@ pub struct Simulation {
     /// The bodies added in the sandbox: each one's name and the key of the
     /// catalogue entry it came from.
     added: Vec<(String, String)>,
+    /// Black holes formed when two spiraled together: each one's name and
+    /// how the merger went.
+    merged: Vec<(String, Merger)>,
     /// The asteroid belt, Jupiter's Trojans and the Kuiper belt.
     pub belts: Vec<BeltCloud>,
     /// The simulation time the belts were last placed at.
@@ -309,6 +313,7 @@ impl Simulation {
             detailed: None,
             small_bodies: Vec::new(),
             added: Vec::new(),
+            merged: Vec::new(),
             belts: worldline_data::belts()
                 .into_iter()
                 .scan(0, |first, belt| {
@@ -568,6 +573,22 @@ impl Simulation {
             .flatten()
     }
 
+    /// Keeps the record of how a black hole formed, if `collision` was two
+    /// black holes merging; an absorbed body's record goes with it.
+    fn record_merger(&mut self, collision: &Collision) {
+        self.merged.retain(|(name, _)| name != &collision.absorbed);
+        if let Some(merger) = collision.merger {
+            self.merged.retain(|(name, _)| name != &collision.survivor);
+            self.merged.push((collision.survivor.clone(), merger));
+        }
+    }
+
+    /// How body `index` formed, if two black holes merged into it.
+    pub fn merger(&self, index: usize) -> Option<&Merger> {
+        let name = &self.bodies[index].name;
+        self.merged.iter().find(|(n, _)| n == name).map(|(_, m)| m)
+    }
+
     /// Whether body `index` was added in the sandbox.
     pub fn is_added(&self, index: usize) -> bool {
         self.added
@@ -671,6 +692,7 @@ impl Simulation {
             Source::Small { .. } => return,
         }
         self.added.retain(|(n, _)| n != &name);
+        self.merged.retain(|(n, _)| n != &name);
         self.reindex();
         self.refresh();
         self.refresh_small_moons();
@@ -928,6 +950,7 @@ impl Simulation {
         if !collisions.is_empty() {
             for c in &collisions {
                 self.added.retain(|(name, _)| name != &c.absorbed);
+                self.record_merger(c);
             }
             self.events.extend(collisions);
             self.reindex();
@@ -949,6 +972,7 @@ impl Simulation {
                 };
             }
             self.added.retain(|(name, _)| name != &collision.absorbed);
+            self.record_merger(collision);
         }
         self.reindex();
         if let Some(system) = self.detailed {
@@ -1368,6 +1392,40 @@ mod tests {
         b.update(1.0, GENEROUS);
         assert_eq!(a.save(), b.save());
         assert!(Simulation::load("not a save", DAY).is_err());
+    }
+
+    #[test]
+    fn black_holes_that_spiral_in_merge_and_a_save_keeps_how() {
+        // GW150914's holes, 30 AU above the Sun, on their circular orbit at
+        // a 45 Hz wave: past where their radiation reaction converges, so
+        // they merge at the next step, as numerical relativity's fits say.
+        let mut sim = Simulation::solar_system(1.0);
+        let find = |name: &str| worldline_data::notable_object(name).expect("in the catalog");
+        let (a, b) = worldline_core::gravity::circular_pair(
+            find("GW150914 heavier hole").body(),
+            find("GW150914 lighter hole").body(),
+            45.0,
+        );
+        let above = DVec3::new(0.0, 0.0, 30.0 * worldline_core::constants::AU);
+        for body in [a, b] {
+            let at = body.position + above;
+            sim.add_body(body.at(at), "inspiral:GW150914");
+        }
+        sim.advance_by(1e-3);
+        let merged = std::mem::take(&mut sim.events);
+        assert_eq!(merged.len(), 1);
+        let hole = sim
+            .index_of("GW150914 heavier hole")
+            .expect("the final hole");
+        assert!(sim.index_of("GW150914 lighter hole").is_none());
+        let merger = *sim.merger(hole).expect("a merger's hole");
+        assert_eq!(merged[0].merger, Some(merger));
+        let mass = sim.bodies[hole].gm / GM_SUN;
+        assert!((mass - 63.03).abs() < 0.01, "{mass}");
+        let text = sim.save();
+        let loaded = Simulation::load(&text, DAY).unwrap();
+        let again = loaded.index_of("GW150914 heavier hole").unwrap();
+        assert_eq!(loaded.merger(again), Some(&merger));
     }
 
     #[test]

@@ -7,10 +7,11 @@ use eframe::egui::collapsing_header::CollapsingState;
 use eframe::egui::{self, Align2, Color32, FontId, Rect, RichText, Sense, TextureId, pos2, vec2};
 use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
-use worldline_core::DVec3;
 use worldline_core::constants::{AU, C, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSITY};
 use worldline_core::magnetosphere::standoff;
+use worldline_core::merger::ringdown;
 use worldline_core::sunlight::{irradiance, light_time};
+use worldline_core::{Body, DVec3};
 use worldline_render::{Atmosphere, Rings, View};
 
 use crate::calendar::DateTime;
@@ -24,7 +25,9 @@ use crate::simulation::{Computed, Removal};
 use crate::theme;
 use crate::view::{self, OnScreen, ViewOptions};
 use crate::waves;
-use worldline_core::compact::{gravitational_redshift, is_black_hole, schwarzschild_radius};
+use worldline_core::compact::{
+    gravitational_redshift, horizon_spin, is_black_hole, schwarzschild_radius,
+};
 use worldline_core::regime::Validity;
 use worldline_data::{Distance, ObjectKind, RadiusBasis, SmallBodyKind};
 
@@ -94,6 +97,17 @@ fn waveform_plot(ui: &mut egui::Ui, recording: &waves::Recording) {
         middle,
         (1.0, theme::MUTED.gamma_multiply(0.4)),
     );
+    if let Some(hole) = &recording.final_hole {
+        let x = rect.left() + (hole.start / span) as f32 * rect.width();
+        painter.vline(x, rect.y_range(), (1.0, theme::MUTED.gamma_multiply(0.6)));
+        painter.text(
+            pos2(x - 4.0, rect.top() + 4.0),
+            Align2::RIGHT_TOP,
+            "ringdown starts here",
+            FontId::proportional(11.0),
+            theme::MUTED,
+        );
+    }
     let columns = rect.width().max(1.0) as usize;
     let mut k = 0;
     for column in 0..columns {
@@ -161,6 +175,25 @@ fn long_time(seconds: f64) -> String {
         format!("{} days", significant(seconds / DAY))
     } else {
         format!("{} years", significant(years))
+    }
+}
+
+/// A frequency in words: "270.7 Hz", or for slow ones "one cycle every
+/// 21.4 s".
+fn frequency(hz: f64) -> String {
+    if hz >= 1.0 {
+        format!("{} Hz", significant(hz))
+    } else {
+        format!("one cycle every {}", long_time(1.0 / hz))
+    }
+}
+
+/// A duration from nanoseconds to years.
+fn any_time(seconds: f64) -> String {
+    if seconds < 1.0 {
+        short_time(seconds)
+    } else {
+        long_time(seconds)
     }
 }
 
@@ -680,6 +713,8 @@ impl WorldlineApp {
             if is_black_hole(body) {
                 ui.label(key("Event horizon"));
                 ui.label(length(body.radius));
+                ui.end_row();
+                self.black_hole_rows(ui, body);
             } else {
                 ui.label(key("Radius"));
                 ui.label(if body.radius > 0.0 {
@@ -774,6 +809,8 @@ impl WorldlineApp {
             details::BodyKind::Galactic {
                 star: self.simulation.parent(self.selected).is_some(),
             }
+        } else if self.simulation.merger(self.selected).is_some() {
+            details::BodyKind::MergerRemnant
         } else if self.simulation.is_added(self.selected) {
             details::BodyKind::Added(self.simulation.entry(self.selected).and_then(Entry::kind))
         } else if let Some((kind, outgassing)) = self.simulation.small_body(self.selected) {
@@ -851,9 +888,62 @@ impl WorldlineApp {
         });
     }
 
+    /// Inspector rows for a black hole: its spin and the tone it rings
+    /// with, and for one that formed in a merger, what the merger
+    /// radiated, its recoil and, for a real merger's pair, the hole that
+    /// was measured. The horizon row is above, and ends its row.
+    fn black_hole_rows(&self, ui: &mut egui::Ui, body: &Body) {
+        let merger = self.simulation.merger(self.selected);
+        // A black hole's spin is in its horizon's size.
+        let spin = merger.map_or_else(|| horizon_spin(body.gm, body.radius), |m| m.spin);
+        if let Some(m) = merger {
+            ui.label(key("Spin"));
+            ui.label(format!("{spin:.3} (numerical-relativity fit)"));
+            ui.end_row();
+            let total = body.gm + m.radiated_gm;
+            ui.label(key("Its merger radiated"));
+            ui.label(format!(
+                "{} Suns ({:.1}%) as gravitational waves",
+                significant(m.radiated_gm / GM_SUN),
+                100.0 * m.radiated_gm / total
+            ));
+            ui.end_row();
+            ui.label(key("Its kick"));
+            ui.label(format!("{} km/s", significant(m.kick.length() / 1e3)));
+            ui.end_row();
+            if let Some(o) = self
+                .simulation
+                .entry(self.selected)
+                .and_then(Entry::measured_remnant)
+            {
+                ui.label(key("The real one, measured"));
+                ui.label(format!(
+                    "{}, spin {}",
+                    measured_suns(o.mass.value, o.mass.plus_minus),
+                    o.spin
+                        .map_or("not measured".to_string(), |s| s.0.to_string())
+                ));
+                ui.end_row();
+            }
+        }
+        let tone = ringdown(body.gm, spin);
+        ui.label(key("Rings down at"));
+        ui.label(format!(
+            "{}, fading in {}",
+            frequency(tone.frequency),
+            any_time(tone.damping)
+        ))
+        .on_hover_text(
+            "The tone a black hole rings with when disturbed, as after a merger (Berti, Cardoso & Will 2006)",
+        );
+    }
+
     /// Inspector rows for a real object added from the catalog: its
     /// published mass, size and spin.
     fn catalog_rows(&self, ui: &mut egui::Ui) {
+        if self.simulation.merger(self.selected).is_some() {
+            return;
+        }
         let Some(o) = self.simulation.entry(self.selected).and_then(Entry::object) else {
             return;
         };
@@ -893,7 +983,13 @@ impl WorldlineApp {
     /// Below the rows, for a catalog object: where the real one is, and
     /// where its values were published.
     fn catalog_notes(&self, ui: &mut egui::Ui) {
-        let Some(o) = self.simulation.entry(self.selected).and_then(Entry::object) else {
+        let entry = self.simulation.entry(self.selected);
+        let object = if self.simulation.merger(self.selected).is_some() {
+            entry.and_then(Entry::measured_remnant)
+        } else {
+            entry.and_then(Entry::object)
+        };
+        let Some(o) = object else {
             return;
         };
         let place = match o.distance {
@@ -991,7 +1087,7 @@ impl WorldlineApp {
             if !waves.converging {
                 notes.push((
                     red,
-                    "Its last orbits: the post-Newtonian radiation reaction no longer converges here, so the motion is beyond this model; mergers come in step 2.4".into(),
+                    "Its last orbits: the post-Newtonian radiation reaction no longer converges here, so the motion is beyond this model, and the pair merges".into(),
                 ));
             }
         }
@@ -1103,12 +1199,22 @@ impl WorldlineApp {
         self.reattend((survivor(names.0), survivor(names.1)));
         let mut parts = Vec::new();
         if let Some(last) = events.last() {
-            let mut message = format!(
-                "{} hit {} at {:.1} km/s and merged",
-                last.absorbed,
-                last.survivor,
-                last.speed / 1e3
-            );
+            let mut message = match &last.merger {
+                Some(m) => format!(
+                    "{} and {} merged into one black hole: {} Suns radiated as gravitational waves; it spins at {:.2} and recoils at {} km/s",
+                    last.absorbed,
+                    last.survivor,
+                    significant(m.radiated_gm / GM_SUN),
+                    m.spin,
+                    significant(m.kick.length() / 1e3)
+                ),
+                None => format!(
+                    "{} hit {} at {:.1} km/s and merged",
+                    last.absorbed,
+                    last.survivor,
+                    last.speed / 1e3
+                ),
+            };
             if !last.freed.is_empty() {
                 message += &format!(", freeing {}", last.freed.join(", "));
             }
@@ -1600,7 +1706,12 @@ impl WorldlineApp {
                 let r = &view.recording;
                 let n = r.times.len();
                 let span = r.times[n - 1];
-                let (f0, f1) = (r.frequency[0], r.frequency[n - 1]);
+                // The inspiral's last sample, before any ringdown.
+                let last = r
+                    .final_hole
+                    .as_ref()
+                    .map_or(n - 1, |hole| r.times.partition_point(|&t| t <= hole.start) - 1);
+                let (f0, f1) = (r.frequency[0], r.frequency[last]);
                 ui.label(
                     RichText::new(format!(
                         "The strain h+ (the \"plus\" polarization) an observer on Earth would record, {} away: the leading-order (quadrupole) waveform, from a copy of the pair run ahead with Worldline's gravity.",
@@ -1610,10 +1721,14 @@ impl WorldlineApp {
                 );
                 ui.label(
                     RichText::new(format!(
-                        "{} of signal, {} Hz to {} Hz.",
+                        "{} of signal: the inspiral, {} Hz to {} Hz{}.",
                         long_time(span),
                         significant(f0),
-                        significant(f1)
+                        significant(f1),
+                        r.final_hole.as_ref().map_or(String::new(), |hole| format!(
+                            ", then the final hole's ringdown, {} Hz",
+                            significant(hole.tone.frequency)
+                        ))
                     ))
                     .small(),
                 );
@@ -1648,10 +1763,28 @@ impl WorldlineApp {
                         .color(Color32::from_rgb(240, 180, 80)),
                     );
                 }
-                if r.reached_end {
+                if let Some(hole) = &r.final_hole {
+                    ui.label(
+                        RichText::new(format!(
+                            "The inspiral ends where the post-Newtonian description gives out, a few orbits before the merger. Then the final hole, {} Suns spinning at {:.2} (numerical-relativity fits), rings down at {} Hz, fading in {} (Berti, Cardoso & Will 2006).",
+                            significant(hole.gm / GM_SUN),
+                            hole.spin,
+                            significant(hole.tone.frequency),
+                            short_time(hole.tone.damping)
+                        ))
+                        .small(),
+                    );
                     ui.label(
                         RichText::new(
-                            "It ends where the post-Newtonian description gives out, a few orbits before the merger (step 2.4).",
+                            "Not modeled: the plunge and merger between, where the real wave is loudest. The ringdown starts where the inspiral ends, at its strength.",
+                        )
+                        .small()
+                        .color(Color32::from_rgb(240, 180, 80)),
+                    );
+                } else if r.reached_end {
+                    ui.label(
+                        RichText::new(
+                            "It ends where the post-Newtonian description gives out, a few orbits before the merger.",
                         )
                         .small()
                         .color(theme::MUTED),

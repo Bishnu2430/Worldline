@@ -15,9 +15,9 @@ use crate::compact::is_black_hole;
 ///
 /// If either is a black hole, the result is a black hole: nothing comes
 /// back out of a horizon. Its horizon grows in proportion to its mass, as
-/// it does at a fixed spin. (Two black holes merging radiate a few percent
-/// of their mass as gravitational waves, and the result spins; that comes
-/// with step 2.4.)
+/// it does at a fixed spin. (Two black holes that spiral together instead
+/// merge as numerical relativity says, radiating a few percent of their
+/// mass: see [`crate::merger::merge_black_holes`].)
 pub fn merge(survivor: &Body, absorbed: &Body) -> Body {
     let gm = survivor.gm + absorbed.gm;
     let (position, velocity) = if gm > 0.0 {

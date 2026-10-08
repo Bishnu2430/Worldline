@@ -134,6 +134,27 @@ const ADDED_UNFELT: Detail = detail(
     Kind::Model,
 );
 
+/// A black hole that formed when two spiraled together.
+const MERGER_REMNANT: &[Detail] = &[
+    detail(
+        "Its mass, spin and kick: numerical-relativity fits for two non-spinning black holes on a near-circular orbit (Jiménez-Forteza et al. 2017; González et al. 2007)",
+        Kind::Model,
+    ),
+    detail(
+        "It formed where the post-Newtonian description gave out, a few orbits before the real merger: the plunge and merger aren't simulated",
+        Kind::Model,
+    ),
+    detail(
+        "Its kick's direction within the orbital plane isn't modeled: taken along the heavier hole's motion",
+        Kind::Model,
+    ),
+    detail(
+        "Drawn as its shadow seen from afar, a dark disk √27 GM/c² across: how light bends around it comes in step 3.1",
+        Kind::Visual,
+    ),
+    ADDED_PATH,
+];
+
 /// For a real object from the notable-objects catalog, added in the
 /// sandbox.
 fn catalog_details(kind: ObjectKind) -> Vec<Detail> {
@@ -350,6 +371,8 @@ pub enum BodyKind {
     /// A body added in the sandbox: a copy of a solar-system body, or a
     /// real object of the given kind from the catalog.
     Added(Option<ObjectKind>),
+    /// A black hole that formed when two spiraled together.
+    MergerRemnant,
     /// Sagittarius A* in the galactic center, or (`star`) a star orbiting
     /// it.
     Galactic { star: bool },
@@ -373,6 +396,7 @@ pub fn details(name: &str, kind: BodyKind) -> Vec<Detail> {
         BodyKind::Galactic { star: false } => return GALACTIC_CENTER.to_vec(),
         BodyKind::Galactic { star: true } => return S_STAR.to_vec(),
         BodyKind::Added(Some(kind)) => return catalog_details(kind),
+        BodyKind::MergerRemnant => return MERGER_REMNANT.to_vec(),
         BodyKind::SmallBody {
             comet,
             outgassing,

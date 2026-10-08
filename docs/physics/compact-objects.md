@@ -52,7 +52,7 @@ Uncertainties are as published: one standard deviation, except the gravitational
 - **Momentum:** kept exactly, as in every merger (see [collisions.md](collisions.md)).
 - **Horizon:** grows in proportion to the mass, as it does at a fixed spin.
 
-Two simplifications are labeled. The merger is instant: in reality, a black hole much lighter than the star it enters takes time to consume it. And two black holes merging radiate a few percent of their mass as gravitational waves; that comes with step 2.4's numerical-relativity fits.
+One simplification is labeled: the merger is instant. In reality, a black hole much lighter than the star it enters takes time to consume it. Two black holes that spiral together are the exception to keeping all the mass: since step 2.4 they merge as numerical relativity says, radiating a few percent of their mass as gravitational waves, and the final hole spins and recoils (see [mergers.md](mergers.md)).
 
 **Swallowing the Sun.** Whatever absorbs the Sun (a black hole, or a heavier star) takes its place as body 0, which the comets' and asteroids' relativistic term is measured from. Without the Sun there is no sunlight, solar wind, heliosphere or magnetopause, and the app stops showing them. If a black hole took its place, the planets go dark.
 
@@ -82,7 +82,7 @@ Two simplifications are labeled. The merger is instant: in reality, a black hole
 ## Not handled yet
 
 - **Motion close to a black hole** needs exact general relativity (step 2.5). The post-Newtonian equations used everywhere else lose accuracy within a few horizon radii, and the model indicator says so.
-- **Binaries spiral in:** since step 2.2, close pairs lose energy to gravitational waves, and the Hulse–Taylor orbit shrinks as measured. Since step 2.3 their waves can be seen and heard, and a pair merges where the post-Newtonian description ends, a few orbits before the real merger (see [post-newtonian.md](post-newtonian.md)).
+- **Binaries spiral in:** since step 2.2, close pairs lose energy to gravitational waves, and the Hulse–Taylor orbit shrinks as measured. Since step 2.3 their waves can be seen and heard, and a pair merges where the post-Newtonian description ends, a few orbits before the real merger (see [post-newtonian.md](post-newtonian.md)); two black holes, since step 2.4, as numerical relativity says (see [mergers.md](mergers.md)).
 - **Small moons of a planet not in focus** ride their mean orbits until an added body could tear them away; then they are freed as live particles (see [swarm.md](swarm.md)). The belts have been live since step 2.1b.
 - **Neutron star and white dwarf interiors**, collapse and mergers: steps 2.6 and 2.7.
 - **Where the real objects are:** Sagittarius A\* is at its real place, with the stars orbiting it, since step 2.1c (see [galactic-center.md](galactic-center.md)). The other catalog objects are dropped where you like.

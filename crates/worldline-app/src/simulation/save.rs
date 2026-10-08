@@ -3,8 +3,9 @@
 //! A save records the moment and every body's state: the top level
 //! (relative to the solar system's barycenter), each moon system (relative
 //! to its barycenter) and the followers, plus which bodies were added in the
-//! sandbox and the catalogue entry each came from, and the swarm: every
-//! belt body and freed small moon, brought up to the same moment first.
+//! sandbox and the catalogue entry each came from, how any black hole that
+//! formed in a merger formed, and the swarm: every belt body and freed
+//! small moon, brought up to the same moment first.
 //! Everything else (gravity fields, rotation, the data behind each body)
 //! comes from the bundled data when it loads. Numbers are written in their
 //! shortest exact form, so they load back bit for bit.
@@ -13,10 +14,15 @@ use std::fmt::Write;
 
 use super::*;
 
-/// The first line of every save. Version 3 records the swarm, version 2
-/// each added body's catalogue entry; older saves load too.
-const HEADER: &str = "worldline-save\t3";
-const OLDER: [&str; 2] = ["worldline-save\t1", "worldline-save\t2"];
+/// The first line of every save. Version 4 records black-hole mergers,
+/// version 3 the swarm, version 2 each added body's catalogue entry; older
+/// saves load too.
+const HEADER: &str = "worldline-save\t4";
+const OLDER: [&str; 3] = [
+    "worldline-save\t1",
+    "worldline-save\t2",
+    "worldline-save\t3",
+];
 
 fn body_line(kind: &str, prefix: &str, b: &Body) -> String {
     let (p, v) = (b.position, b.velocity);
@@ -99,6 +105,13 @@ impl Simulation {
         for (name, entry) in &self.added {
             let _ = writeln!(out, "added\t{name}\t{entry}");
         }
+        for (name, m) in &self.merged {
+            let _ = writeln!(
+                out,
+                "merged\t{name}\t{}\t{}\t{}\t{}\t{}\t{}",
+                m.radiated_gm, m.spin, m.kick.x, m.kick.y, m.kick.z, m.spins_left_out
+            );
+        }
         if let Some(system) = self.detailed {
             let planet = &h.moon_systems[system].system.bodies[0].name;
             let _ = writeln!(out, "detailed\t{planet}");
@@ -134,7 +147,7 @@ impl Simulation {
         let (mut epoch, mut time, mut detailed) = (None, None, None);
         let (mut top, mut moons, mut followers, mut added) =
             (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-        let (mut freed, mut particles) = (Vec::new(), Vec::new());
+        let (mut freed, mut particles, mut merged) = (Vec::new(), Vec::new(), Vec::new());
         let (mut gtop, mut gfollowers) = (Vec::new(), Vec::new());
         for line in lines {
             let fields: Vec<&str> = line.split('\t').collect();
@@ -160,6 +173,22 @@ impl Simulation {
                     added.push((fields[1].to_string(), fields[2].to_string()))
                 }
                 "detailed" if fields.len() == 2 => detailed = Some(fields[1].to_string()),
+                "merged" if fields.len() == 8 => {
+                    let n = |k: usize| {
+                        fields[k]
+                            .parse::<f64>()
+                            .map_err(|_| format!("bad line `{line}`"))
+                    };
+                    merged.push((
+                        fields[1].to_string(),
+                        Merger {
+                            radiated_gm: n(2)?,
+                            spin: n(3)?,
+                            kick: DVec3::new(n(4)?, n(5)?, n(6)?),
+                            spins_left_out: n(7)?,
+                        },
+                    ));
+                }
                 "freed" if fields.len() == 7 => {
                     let n = |k: usize| {
                         fields[k]
@@ -352,6 +381,7 @@ impl Simulation {
         h.set_next_freed_id(freed.iter().map(|m| m.id + 1).max().unwrap_or(0));
         sim.freed = freed;
         sim.added = added;
+        sim.merged = merged;
         sim.detailed = None;
         sim.trails.clear();
         sim.bodies.clear();
