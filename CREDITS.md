@@ -20,6 +20,8 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 | Position of Sagittarius A\* on the sky | Gordon, de Witt & Jacobs 2023 (*AJ*, doi:10.3847/1538-3881/aca65b), ICRF3 | Published scientific values |
 | Sagittarius A\*'s galactic coordinates (validation) | SIMBAD (CDS, Strasbourg) | Published values |
 | Landmark positions on the moons, Pluto and Ceres (validation of the maps' placement) | IAU Gazetteer of Planetary Nomenclature (USGS Astrogeology Science Center, planetarynames.wr.usgs.gov) | Public domain (U.S. government work) |
+| The Hulse–Taylor binary's orbital decay (validation): measured, corrected for the galaxy's pull, and general relativity's prediction | Weisberg & Huang 2016 (*ApJ* 829, 55) | Published scientific values |
+| Age of the universe (when the inspector shows a pair's merger time) | Planck Collaboration 2020 (*A&A* 641, A6), 13.787 ± 0.020 billion years | Published scientific values |
 | Zodiacal dust model | Kelsall et al. (1998), *ApJ* 508, 44, from COBE DIRBE; full-precision parameters as reproduced by ZodiPy (San et al. 2022, *A&A* 666, A107) | Published scientific values |
 | Zodiacal light brightening toward the Sun (validation) | Helios 1 and 2, Leinert et al. (1981), *A&A* 103, 177 | Published scientific values |
 | Hourly solar wind at Earth, 2025 | NASA OMNI (King & Papitashvili 2005, *J. Geophys. Res.* 110, A02104), served by CDPP/AMDA (IRAP, France) through HAPI | Public domain (U.S. government work); AMDA service |

@@ -37,22 +37,31 @@ impl Regime {
         }
     }
 
-    /// Whether the first post-Newtonian equations (Einstein–Infeld–
-    /// Hoffmann) cover it. They keep terms one order beyond Newton, of
-    /// relative size ε and β²; the next order, which they leave out, is of
-    /// relative size ε², εβ² and β⁴. That is below IAS15's tolerance of
-    /// 10⁻⁹ while ε and β² stay under 3 × 10⁻⁵, and below 1% while they
-    /// stay under 0.1. Beyond that, gravity is strong (near a neutron star
-    /// or black hole) and needs higher orders or full general relativity.
-    pub fn post_newtonian(&self) -> Validity {
-        let order = self.epsilon.max(self.beta * self.beta);
-        if order < 3e-5 {
+    /// Whether post-Newtonian equations that keep every term through order
+    /// `kept` cover it (1 for Einstein–Infeld–Hoffmann, 2 with the pairwise
+    /// 2PN terms). The first order left out is of relative size
+    /// max(ε, β²)^(kept + 1). Within range while that is below IAS15's
+    /// tolerance of 10⁻⁹, approximate while it is below 1%, beyond after:
+    /// - kept 1: ε and β² under 3 × 10⁻⁵ within, under 0.1 approximate;
+    /// - kept 2: under 10⁻³ within, under 0.2 approximate.
+    ///
+    /// Beyond that, gravity is strong (near a neutron star or black hole)
+    /// and needs higher orders or full general relativity.
+    pub fn validity(&self, kept: i32) -> Validity {
+        let left_out = self.epsilon.max(self.beta * self.beta).powi(kept + 1);
+        if left_out < 1e-9 {
             Validity::Within
-        } else if order < 0.1 {
+        } else if left_out < 1e-2 {
             Validity::Approximate
         } else {
             Validity::Beyond
         }
+    }
+
+    /// Whether the first post-Newtonian equations (Einstein–Infeld–
+    /// Hoffmann) cover it: [`Regime::validity`] with one order kept.
+    pub fn post_newtonian(&self) -> Validity {
+        self.validity(1)
     }
 }
 
@@ -86,5 +95,26 @@ mod tests {
         let star = Body::new("Neutron star", 1.4 * GM_SUN, 1.2e4);
         let close = Body::new("Close", 0.0, 0.0).at(DVec3::new(1e4, 0.0, 0.0));
         assert_eq!(Regime::of(&close, &star).post_newtonian(), Validity::Beyond);
+    }
+
+    #[test]
+    fn second_order_reaches_closer_in() {
+        // The Hulse–Taylor pair at periastron, ε ≈ 5 × 10⁻⁶, is within range
+        // either way. At ε = 10⁻⁴ what first order leaves out (10⁻⁸) shows,
+        // but not what 2PN leaves out (10⁻¹²). At ε = 10⁻², a pair a few
+        // hundred km apart, even 2PN's leftovers show (10⁻⁶); at ε = 0.3
+        // they pass 1%.
+        let regime = |epsilon: f64| Regime { epsilon, beta: 0.0 };
+        assert_eq!(regime(5e-6).validity(1), Validity::Within);
+        assert_eq!(regime(5e-6).validity(2), Validity::Within);
+        assert_eq!(regime(1e-4).validity(1), Validity::Approximate);
+        assert_eq!(regime(1e-4).validity(2), Validity::Within);
+        assert_eq!(regime(1e-2).validity(2), Validity::Approximate);
+        assert_eq!(regime(0.3).validity(2), Validity::Beyond);
+        // The thresholds match the documented ones for first order.
+        assert_eq!(regime(2.9e-5).post_newtonian(), Validity::Within);
+        assert_eq!(regime(3.3e-5).post_newtonian(), Validity::Approximate);
+        assert_eq!(regime(0.099).post_newtonian(), Validity::Approximate);
+        assert_eq!(regime(0.101).post_newtonian(), Validity::Beyond);
     }
 }

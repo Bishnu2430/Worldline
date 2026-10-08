@@ -72,6 +72,32 @@ fn duration(seconds: f64) -> String {
     }
 }
 
+/// A short time, from nanoseconds to seconds: "76 µs".
+fn short_time(seconds: f64) -> String {
+    let (value, unit) = if seconds < 1e-6 {
+        (seconds * 1e9, "ns")
+    } else if seconds < 1e-3 {
+        (seconds * 1e6, "µs")
+    } else if seconds < 1.0 {
+        (seconds * 1e3, "ms")
+    } else {
+        (seconds, "s")
+    };
+    format!("{} {unit}", significant(value))
+}
+
+/// A long time, from seconds to billions of years: "301 million years".
+fn long_time(seconds: f64) -> String {
+    let years = seconds / JULIAN_YEAR;
+    if seconds < 2.0 * DAY {
+        duration(seconds)
+    } else if years < 1.0 {
+        format!("{} days", significant(seconds / DAY))
+    } else {
+        format!("{} years", significant(years))
+    }
+}
+
 const SUN: usize = 0;
 const EARTH: usize = 3;
 
@@ -798,7 +824,7 @@ impl WorldlineApp {
         let index = self.selected;
         let model = match simulation.computed(index) {
             Computed::TopLevel => {
-                "Relativistic N-body gravity (Einstein–Infeld–Hoffmann): it pulls on every massive body and they on it"
+                "Relativistic N-body gravity (Einstein–Infeld–Hoffmann), with each pair's second-order (2PN) terms and gravitational-wave losses (2.5PN): it pulls on every massive body and they on it"
             }
             Computed::MoonSystem => {
                 "Its planet's moon system: Newtonian, the planet's field, tides"
@@ -830,7 +856,14 @@ impl WorldlineApp {
         ui.label(RichText::new(model).small());
         let mut notes: Vec<(Color32, String)> = Vec::new();
         if let Some(regime) = simulation.regime(index) {
-            let (color, verdict) = match regime.post_newtonian() {
+            // The top level keeps every term through second order; the
+            // rest of the models, first.
+            let kept = if simulation.computed(index) == Computed::TopLevel {
+                2
+            } else {
+                1
+            };
+            let (color, verdict) = match regime.validity(kept) {
                 Validity::Within => (green, "within range"),
                 Validity::Approximate => (amber, "approximate: higher orders show"),
                 Validity::Beyond => (red, "beyond this model: gravity too strong"),
@@ -847,6 +880,16 @@ impl WorldlineApp {
             notes.push((
                 amber,
                 "Approximate position: fly to its planet to compute it in detail".into(),
+            ));
+        }
+        if let Some((shrink, merging)) = simulation.gravitational_waves(index) {
+            notes.push((
+                green,
+                format!(
+                    "Gravitational waves: its orbit's period shrinks {} a year, and the pair merges in {} (Peters & Mathews, at leading order)",
+                    short_time(-shrink * JULIAN_YEAR),
+                    long_time(merging)
+                ),
             ));
         }
         let body = &simulation.bodies[index];
@@ -1596,6 +1639,16 @@ fn initial_camera() -> Camera {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn short_and_long_times_read_naturally() {
+        assert_eq!(short_time(7.58e-5), "75.8 µs");
+        assert_eq!(short_time(0.034), "34 ms");
+        assert_eq!(long_time(301e6 * JULIAN_YEAR), "301 million years");
+        assert_eq!(long_time(4.2e9 * JULIAN_YEAR), "4.2 billion years");
+        assert_eq!(long_time(12.0 * DAY), "12 days");
+        assert_eq!(long_time(3.5 * JULIAN_YEAR), "3.5 years");
+    }
 
     #[test]
     fn durations_read_naturally() {

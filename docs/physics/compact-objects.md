@@ -81,7 +81,8 @@ Two simplifications are labeled. The merger is instant: in reality, a black hole
 
 ## Not handled yet
 
-- **Motion close to a black hole** needs exact general relativity (step 2.5). The first post-Newtonian equations used everywhere else lose accuracy within a few horizon radii, and the model indicator says so.
+- **Motion close to a black hole** needs exact general relativity (step 2.5). The post-Newtonian equations used everywhere else lose accuracy within a few horizon radii, and the model indicator says so.
+- **Binaries spiral in:** since step 2.2, close pairs lose energy to gravitational waves, and the Hulse–Taylor orbit shrinks as measured (see [post-newtonian.md](post-newtonian.md)).
 - **Small moons of a planet not in focus** ride their mean orbits until an added body could tear them away; then they are freed as live particles (see [swarm.md](swarm.md)). The belts have been live since step 2.1b.
 - **Neutron star and white dwarf interiors**, collapse and mergers: steps 2.6 and 2.7.
 - **Where the real objects are:** Sagittarius A\* is at its real place, with the stars orbiting it, since step 2.1c (see [galactic-center.md](galactic-center.md)). The other catalog objects are dropped where you like.

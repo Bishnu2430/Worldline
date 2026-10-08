@@ -31,8 +31,8 @@ In plain language, the corrections say that gravity's pull depends on:
 ## Where it's valid
 
 - Weak fields and slow motion: GM/(rc²) ≪ 1 and v/c ≪ 1. In the solar system both are below 10⁻⁷.
-- Second-order terms of size (GM/rc²)² are left out. They matter for compact binaries such as neutron stars, which step 2.2 adds.
-- Energy lost to gravitational waves (the "2.5PN" term) is left out, so this model can't make binaries spiral together. That is also step 2.2.
+- Second-order terms of size (GM/rc²)² are left out here. They matter for compact binaries such as neutron stars; since step 2.2 the top level adds them for each pair (see [post-newtonian.md](post-newtonian.md)).
+- Energy lost to gravitational waves (the "2.5PN" term) is left out here, so this model alone can't make binaries spiral together. The same pair terms add it.
 - Bodies are treated as points. The Sun's oblateness, tides and asteroids are not modeled.
 
 ## Validation

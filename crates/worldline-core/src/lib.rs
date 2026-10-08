@@ -9,6 +9,7 @@ pub mod collision;
 pub mod compact;
 pub mod constants;
 pub mod diagnostics;
+pub mod gravitational_waves;
 pub mod gravity;
 pub mod hierarchy;
 pub mod integrator;

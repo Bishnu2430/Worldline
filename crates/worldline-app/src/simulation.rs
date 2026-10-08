@@ -6,7 +6,8 @@ mod save;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
-use worldline_core::constants::DAY;
+use worldline_core::constants::{AGE_OF_UNIVERSE, DAY};
+use worldline_core::gravitational_waves::{merger_time, period_derivative};
 use worldline_core::gravity::Gravity;
 use worldline_core::hierarchy::{Collision, FREED_MOON_IDS, Hierarchy, MOON_SYSTEM_GRAVITY};
 use worldline_core::integrator::{Ias15, Integrator};
@@ -968,13 +969,20 @@ impl Simulation {
     /// relative to what pulls on it hardest: its planet, for a moon; for
     /// anything else, the top-level body with the strongest pull.
     pub fn regime(&self, index: usize) -> Option<Regime> {
+        let attractor = self.attractor(index)?;
+        Some(Regime::of(&self.bodies[index], &self.bodies[attractor]))
+    }
+
+    /// What pulls on body `index` hardest: its planet, for a moon; for
+    /// anything else, the top-level body with the strongest pull.
+    fn attractor(&self, index: usize) -> Option<usize> {
         let body = &self.bodies[index];
         let top = match (self.sources[index], &self.galaxy) {
             (Source::Galactic(_), Some(g)) => &g.hierarchy.top,
             _ => &self.hierarchy.top,
         };
-        let attractor = match self.parents[index] {
-            Some(planet) => planet,
+        match self.parents[index] {
+            Some(planet) => Some(planet),
             None => top
                 .bodies
                 .iter()
@@ -984,9 +992,36 @@ impl Simulation {
                     let pull = |x: &Body| x.gm / (x.position - body.position).length_squared();
                     pull(a).total_cmp(&pull(b))
                 })
-                .and_then(|(_, b)| self.index_of(&b.name))?,
-        };
-        Some(Regime::of(body, &self.bodies[attractor]))
+                .and_then(|(_, b)| self.index_of(&b.name)),
+        }
+    }
+
+    /// For a body in a bound pair with what pulls on it hardest, if the
+    /// gravitational waves they give off will merge them within the age of
+    /// the universe: how fast the orbit's period shrinks (s/s, Peters &
+    /// Mathews 1963) and how long until they merge (s, Peters 1964), from
+    /// their two-body orbit as it is now.
+    pub fn gravitational_waves(&self, index: usize) -> Option<(f64, f64)> {
+        if self.computed(index) != Computed::TopLevel {
+            return None;
+        }
+        let (body, other) = (&self.bodies[index], &self.bodies[self.attractor(index)?]);
+        if body.gm <= 0.0 || other.gm <= 0.0 {
+            return None;
+        }
+        let mu = body.gm + other.gm;
+        let r = body.position - other.position;
+        let v = body.velocity - other.velocity;
+        let a = 1.0 / (2.0 / r.length() - v.length_squared() / mu);
+        // The eccentricity vector, (v × h)/μ − r̂ with h = r × v.
+        let e = (v.cross(r.cross(v)) / mu - r / r.length()).length();
+        if a <= 0.0 || e >= 1.0 {
+            return None;
+        }
+        let period = std::f64::consts::TAU * (a.powi(3) / mu).sqrt();
+        let merging = merger_time(body.gm, other.gm, period, e);
+        (merging < AGE_OF_UNIVERSE)
+            .then(|| (period_derivative(body.gm, other.gm, period, e), merging))
     }
 
     /// For a moon: another massive body inside its planet's moon system
@@ -1226,6 +1261,38 @@ mod tests {
     }
 
     /// A Jupiter-mass planet 1.5 AU out, on a circular orbit.
+    #[test]
+    fn a_tight_binary_shows_its_gravitational_waves() {
+        // The Hulse–Taylor pair from the catalogue, placed 30 AU above the
+        // Sun as the sandbox places it: each star's partner pulls hardest,
+        // and their waves will merge them within the age of the universe.
+        let mut sim = Simulation::solar_system(DAY);
+        let pair = catalogue::entry("binary:PSR B1913+16").expect("listed");
+        let above = DVec3::new(0.0, 0.0, 30.0 * worldline_core::constants::AU);
+        let indices: Vec<usize> = pair
+            .bodies(&sim)
+            .into_iter()
+            .map(|b| {
+                let position = b.position + above;
+                sim.add_body(b.at(position), &pair.key)
+            })
+            .collect();
+        for index in indices {
+            let (shrink, merging) = sim.gravitational_waves(index).expect("a tight pair");
+            println!(
+                "{}: dP/dt = {shrink:.4e}, merges in {:.0} million years",
+                sim.bodies[index].name,
+                merging / worldline_core::constants::JULIAN_YEAR / 1e6
+            );
+            // The catalog orbit is the measured one, so this is general
+            // relativity's −2.40 × 10⁻¹² (the roadmap's number).
+            assert!((shrink - -2.40e-12).abs() < 0.005e-12);
+        }
+        // Earth and the Sun would take far longer than the universe's age.
+        let earth = sim.index_of("Earth").expect("Earth");
+        assert!(sim.gravitational_waves(earth).is_none());
+    }
+
     fn intruder(sim: &Simulation) -> Body {
         let jupiter = &sim.bodies[sim.index_of("Jupiter").unwrap()];
         let r = 1.5 * worldline_core::constants::AU;

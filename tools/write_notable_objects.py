@@ -14,7 +14,9 @@ Writes, under crates/worldline-data/data/:
     horizon   - a black hole: its size is its event horizon, computed from
                 its mass and spin (a hole whose spin isn't measured is
                 treated as not spinning, which gives the largest horizon).
-- binary-orbits.csv: the measured orbits of binaries in the catalog.
+- binary-orbits.csv: the measured orbits of binaries in the catalog, and
+  how fast their periods shrink (s/s): as measured, corrected for the
+  galaxy's pull, and as general relativity predicts from the masses.
 
 Uncertainties are as published: 1 sigma unless the source says otherwise
 (the gravitational-wave catalog gives 90% credible intervals).
@@ -172,8 +174,11 @@ OBJECTS = [
 # degrees per year, source).
 ORBITS = [
     ("PSR B1913+16", "0.322997448918", "0.6171340", "4.226585",
+     "-2.398e-12", "0.004e-12", "-2.40263e-12", "0.00005e-12",
      "Weisberg & Huang 2016, ApJ 829, 55, Table 2: Pb = 0.322997448918(3) d, e = 0.6171340(4), "
-     "mean periastron advance 4.226585(4) deg/yr"),
+     "mean periastron advance 4.226585(4) deg/yr; intrinsic Pb-dot -(2.398 +- 0.004)e-12 "
+     "(observed -2.423(1)e-12 less the galactic -(0.025 +- 0.004)e-12), and general relativity's "
+     "prediction from the measured masses (Peters & Mathews 1963) -(2.40263 +- 0.00005)e-12"),
 ]
 
 
@@ -197,7 +202,9 @@ def main():
     write(DATA / "binary-orbits.csv", [
         "# Worldline: measured orbits of binaries in notable-objects.csv. "
         "Regenerate with: python tools/write_notable_objects.py",
-    ] + rows(["system", "period_days", "eccentricity", "periastron_advance_deg_per_yr", "source"],
+    ] + rows(["system", "period_days", "eccentricity", "periastron_advance_deg_per_yr",
+              "period_derivative", "period_derivative_sigma", "period_derivative_gr",
+              "period_derivative_gr_sigma", "source"],
              ORBITS))
 
 

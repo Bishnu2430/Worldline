@@ -105,6 +105,12 @@ pub struct BinaryOrbit {
     pub eccentricity: f64,
     /// The measured mean advance of periastron, in degrees per year.
     pub periastron_advance: f64,
+    /// How fast the period shrinks (s/s), as measured and corrected for
+    /// the galaxy's pull, with its 1σ uncertainty.
+    pub period_derivative: (f64, f64),
+    /// General relativity's prediction of it from the measured masses
+    /// (Peters & Mathews 1963), with its 1σ uncertainty.
+    pub period_derivative_gr: (f64, f64),
     /// Where it was published.
     pub source: String,
 }
@@ -224,7 +230,9 @@ pub fn binary_orbits() -> Vec<BinaryOrbit> {
             period: number(&f[1]) * 86_400.0,
             eccentricity: number(&f[2]),
             periastron_advance: number(&f[3]),
-            source: f[4].clone(),
+            period_derivative: (number(&f[4]), number(&f[5])),
+            period_derivative_gr: (number(&f[6]), number(&f[7])),
+            source: f[8].clone(),
         })
         .collect()
 }
