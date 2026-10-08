@@ -90,7 +90,7 @@ It uses them to pick a model:
 | Compact binaries | EIH for every body, plus each pair's second-order (2PN) and radiation-reaction (2.5PN and 3.5PN) terms, in harmonic coordinates; 3PN left out. A pair whose radiation reaction stops converging (GM/rc² ≈ 0.11) merges | Blanchet, *Living Reviews in Relativity* 2024; Nissanke & Blanchet 2005; Kupi, Amaro-Seoane & Spurzem 2006; Mikkola & Merritt 2008; Peters & Mathews 1963; [physics/post-newtonian.md](physics/post-newtonian.md) |
 | Gravitational waves an observer records | Quadrupole waveform from the simulated pair, run ahead on its own | Einstein 1918; Blanchet 2024; [physics/post-newtonian.md](physics/post-newtonian.md) |
 | Near a dominant black hole (q ≪ 1) | Kerr geodesics with radiation reaction | Kerr 1963; Bardeen, Press & Teukolsky 1972 |
-| Merger | Fits to numerical relativity: final mass, spin, kick, ringdown | Jiménez-Forteza et al. 2017; Campanelli et al. 2007; Berti, Cardoso & Will 2006 |
+| Two black holes merging, after spiraling in | Fits to numerical relativity for non-spinning holes on near-circular orbits: final mass, spin, kick, ringdown; the pair's center of mass to second post-Newtonian order | Jiménez-Forteza et al. 2017; González et al. 2007; Berti, Cardoso & Will 2006; Blanchet 2024; [physics/mergers.md](physics/mergers.md) |
 | Tides matter (r ≲ a few r_t) | SPH with self-gravity | Monaghan 2005; Price 2012 |
 | White dwarfs | Degenerate electron gas (Lane–Emden) | Chandrasekhar 1931 |
 | Neutron stars | TOV structure with piecewise-polytrope equations of state | Tolman 1939; Oppenheimer & Volkoff 1939; Read et al. 2009 |

@@ -53,7 +53,7 @@ where G𝓜 = (Gm₁ Gm₂)^(3/5)/(Gm)^(1/5) is the chirp mass and x = (πGmf/c�
 
 **Where the post-Newtonian description ends.** For a circular orbit the 3.5PN correction is about −9 GM/rc² times the 2.5PN term, so it overtakes it near GM/rc² ≈ 0.11. Past there the truncated series no longer converges; run on, its equations can pump the orbit eccentric or even fling the pair apart, which is wrong. Worldline watches for it (`reaction_converges`):
 - **Recording the waves** stops there, or at the innermost stable orbit of a test body, x = 1/6, if that comes first.
-- **In the simulation,** a bound pair whose reaction stops converging (with GM/rc² above 0.01) merges, the way touching bodies do: mass and momentum kept. The waves' share of the mass, the final spin and the kick are step 2.4's numerical-relativity fits; until then the inspector flags the pair in red.
+- **In the simulation,** a bound pair whose reaction stops converging (with GM/rc² above 0.01) merges. Two black holes circling each other merge as numerical relativity's fits say, a few percent of their mass going into waves (see [mergers.md](mergers.md)); anything else the way touching bodies do, mass and momentum kept.
 
 ## In the app
 
@@ -83,7 +83,7 @@ To hear GW170817: `cargo run --release -- --add "GW170817 pair:30" --focus "GW17
 - **The Hulse–Taylor binary** barely notices step 2.3's 3.5PN terms: they change the period's shrink by about 10⁻⁵ of itself, a hundred times below the measurement's uncertainty.
 - **The chirp** lacks the tail (above), and its waveform is the leading-order one: its amplitude is right to GM/rc², 0.4% at 20 Hz for neutron stars.
 - **The observer** is assumed many wavelengths away (a wavelength is 15,000 km at 20 Hz): only there does the strain fall as 1/R.
-- **The last orbits and the merger itself** need numerical relativity: step 2.4.
+- **The last orbits and the merger itself** need numerical relativity: Worldline takes what they leave from its fits (see [mergers.md](mergers.md)), but doesn't simulate them.
 - **Spins are not part of the motion.** They tilt the orbit's plane and turn the stars' axes, but drain no energy, so they don't change how fast the period shrinks.
 - **Waiting for a merger in the app** isn't practical yet. The Hulse–Taylor pair turns every 7.75 hours, so 300 million years is 340 billion orbits, each computed step by step. The inspector gives the time instead.
 

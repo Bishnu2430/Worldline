@@ -16,6 +16,7 @@ pub mod integrator;
 pub mod kepler;
 pub mod magnetosphere;
 pub mod mean_elements;
+pub mod merger;
 pub mod orbit;
 pub mod regime;
 pub mod rotation;

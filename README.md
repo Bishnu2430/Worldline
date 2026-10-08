@@ -75,6 +75,7 @@
 | Hulse–Taylor pulsar's orbit turning, simulated | 4.226585°/yr measured | ✅ passing, 4.226561°/yr |
 | Hulse–Taylor pulsar's orbit shrinking from gravitational waves, simulated over 1000 orbits | −2.40 × 10⁻¹² s/s; general relativity's prediction −2.40263 × 10⁻¹² (Weisberg & Huang 2016), within mass rounding | ✅ passing, −2.40221 × 10⁻¹² (1.1σ from the measured −2.398 ± 0.004) |
 | A pair's energy loss vs. Einstein's quadrupole formula and its first correction | equal up to second post-Newtonian order | ✅ passing, 6.0 × 10⁻⁵ at GM/rc² = 0.003 (6.7 (GM/rc²)²) |
+| GW150914 replayed: its two black holes spiral in from 20 Hz and merge (numerical-relativity fits) | about 62 M☉, spin about 0.67; LIGO: 62 ± 4 M☉, spin 0.67 +0.05/−0.07, 3.0 ± 0.5 M☉ radiated | ✅ passing, 63.03 M☉, spin 0.683, 3.17 M☉ radiated; kick 43 km/s; rings down at 271 Hz |
 | Two neutron stars' chirp, 20 to 40 Hz (3,927 wave cycles) | the sweep df/dt = (96/5) π^(8/3) (G𝓜/c³)^(5/3) f^(11/3), to its next order; with its first correction, to the one after | ✅ passing, 3.2 GM/rc² off the formula (2.8% at 20 Hz); 0.24% off with its correction (30 (GM/rc²)²) |
 | Spacecraft maps of 12 moons, Pluto and Ceres are placed right: IAU Gazetteer landmarks | Sputnik Planitia, Cerealia Facula, Xanadu and Roncevaux Terra bright, Loki Patera dark, unlike a map turned halfway round | ✅ passing, e.g. Sputnik Planitia 158.8 against a 98.8 map average (114.0 turned) |
 | Pluto and Charon face each other at longitude 0° (rotation models plus JPL positions) | within one map pixel, 0.176° | ✅ passing, 0.023° (NAIF's pck00011 values: 1.5°, so the New Horizons team's are used) |
@@ -85,7 +86,6 @@
 | Sagittarius A\*'s direction in galactic coordinates | SIMBAD's l = 359.944236°, b = −0.046160°, within 0.0001° | ✅ passing, within 0.00002° |
 | Light bending at the Sun's edge | 1.75″ | planned |
 | Innermost stable orbit, photon sphere and shadow of a non-spinning black hole | 6, 3 and √27 GM/c² | planned |
-| GW150914 final black hole | about 62 M☉, spin about 0.67 | planned |
 | Chandrasekhar limit (ideal carbon-oxygen white dwarf) | 1.46 M☉ | planned |
 | Tidal disruption radius | r_t ≈ R (M/m)^(1/3) | planned |
 
@@ -133,6 +133,12 @@ To see and hear the gravitational-wave chirp of GW170817's neutron stars, droppe
 cargo run --release -- --add "GW170817 pair:30" --focus "GW170817 heavier star" --paused --waves
 ```
 
+To replay GW150914, the first black-hole merger heard (press **Play** in the top bar; after 15 to 50 seconds of computing its last orbits, the two holes merge into one):
+
+```bash
+cargo run --release -- --add "GW150914 pair:30" --focus "GW150914 heavier hole" --paused --waves
+```
+
 ## Built with
 
 Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Solar System Scope (CC BY 4.0) · moon, Pluto and Ceres maps from USGS and NASA PDS spacecraft mosaics. See [CREDITS.md](CREDITS.md).
@@ -146,6 +152,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 - [Collisions and the model indicator](docs/physics/collisions.md): merging with momentum kept, catching fast impacts, and which physics applies where
 - [Black holes, neutron stars and white dwarfs](docs/physics/compact-objects.md): the notable-objects catalog, event horizons, and what happens when they meet the solar system
 - [Compact binaries and gravitational waves](docs/physics/post-newtonian.md): second-order relativity and radiation reaction for close pairs; the Hulse–Taylor orbit shrinking as measured; the chirp, seen and heard
+- [Black-hole mergers](docs/physics/mergers.md): what two black holes leave when they merge, from numerical relativity; GW150914 replayed
 - [The swarm](docs/physics/swarm.md): the belts and freed small moons as live particles that feel every massive body
 - [The galactic center](docs/physics/galactic-center.md): Sagittarius A\* at its real place, and the stars that orbit it
 - [Rendering globes](docs/rendering.md): GPU globes, precision across 12 orders of magnitude, lighting, atmospheres

@@ -40,6 +40,7 @@
 use glam::DVec3;
 
 use crate::collision::{contact, first_survives, merge};
+use crate::compact::is_black_hole;
 use crate::constants::C;
 use crate::gravity::{
     Gravity, Newtonian, NonGravitational, SynchronousFigure, TesseralField, ZonalField,
@@ -48,6 +49,7 @@ use crate::gravity::{
 use crate::integrator::{Ias15, Integrator, advance};
 use crate::kepler::drift;
 use crate::mean_elements::MeanElements;
+use crate::merger::{Merger, merge_black_holes};
 use crate::swarm::{Bodies, CADENCE, Field, Particle, Swallowed, Swarm};
 use crate::{Body, System};
 
@@ -342,6 +344,9 @@ pub struct Collision {
     /// The moons that system's planet left behind, now orbiting freely at
     /// the top level.
     pub freed: Vec<String>,
+    /// For two black holes that spiraled together: what the merger
+    /// radiated and left, from numerical relativity.
+    pub merger: Option<Merger>,
 }
 
 /// A body too light to pull on anything, following the top level.
@@ -784,6 +789,7 @@ impl Hierarchy {
                     speed,
                     dissolved_system: None,
                     freed: Vec::new(),
+                    merger: None,
                 });
             }
         }
@@ -914,17 +920,20 @@ impl Hierarchy {
         }
         if let Some((at, i, j, speed)) = first {
             let time = self.top.time() - (1.0 - at) * h;
-            self.merge_top(i, j, speed, time);
+            self.merge_top(i, j, speed, time, false);
         }
     }
 
-    /// Merges top-level bodies `i` and `j`, conserving momentum exactly.
+    /// Merges top-level bodies `i` and `j`, conserving momentum exactly,
+    /// unless they are two black holes that spiraled together (`inspiral`):
+    /// those merge as numerical relativity says (see [`merge_black_holes`]),
+    /// the waves carrying off a few percent of their mass and some momentum.
     /// A black hole survives any collision; otherwise the more massive body
     /// does. A planet that is absorbed leaves its major moons behind as
     /// top-level bodies (its small moons go with it); a planet that survives
     /// keeps its moons. Whatever absorbs the Sun takes its place as body 0,
     /// which the followers' relativistic term is measured from.
-    fn merge_top(&mut self, i: usize, j: usize, speed: f64, time: f64) {
+    fn merge_top(&mut self, i: usize, j: usize, speed: f64, time: f64, inspiral: bool) {
         let (s, a) = if first_survives(&self.top.bodies[i], &self.top.bodies[j]) {
             (i, j)
         } else {
@@ -943,7 +952,12 @@ impl Hierarchy {
         };
         let absorbed = self.top.bodies[a].clone();
         let survivor = self.top.bodies[s].clone();
-        let merged = merge(&survivor, &absorbed);
+        let (merged, merger) = if inspiral && is_black_hole(&survivor) && is_black_hole(&absorbed) {
+            let (hole, merger) = merge_black_holes(&survivor, &absorbed);
+            (hole, Some(merger))
+        } else {
+            (merge(&survivor, &absorbed), None)
+        };
         if let Some(moons) = self.moon_systems.iter_mut().find(|m| m.host == s) {
             // The impact is on the planet itself: it takes the absorbed
             // body's mass and momentum, and the moons keep their states.
@@ -992,6 +1006,7 @@ impl Hierarchy {
             speed,
             dissolved_system,
             freed,
+            merger,
         });
     }
 
@@ -1053,7 +1068,8 @@ impl Hierarchy {
         {
             let (a, b) = (&self.top.bodies[i], &self.top.bodies[j]);
             let speed = (a.velocity - b.velocity).length();
-            self.merge_top(i, j, speed, time);
+            let inspiral = spiraled_in(a, b) && circling(a, b);
+            self.merge_top(i, j, speed, time, inspiral);
         }
         for f in (0..self.followers.len()).rev() {
             let body = &self.followers[f].system.bodies[0];
@@ -1070,6 +1086,7 @@ impl Hierarchy {
                     speed: (host.velocity - body.velocity).length(),
                     dissolved_system: None,
                     freed: Vec::new(),
+                    merger: None,
                 };
                 self.followers.remove(f);
                 self.happened.push(collision);
@@ -1590,9 +1607,9 @@ impl Gravity for MoonSystemGravity<'_> {
 /// holds: its radiation reaction no longer converges (see
 /// [`reaction_converges`]), a few orbits before the two would touch. Run on,
 /// the truncated equations would pump the orbit eccentric or fling the pair
-/// apart; instead the pair merges then, as touching bodies do. (What really
-/// happens in those last orbits, and the merger, needs numerical
-/// relativity: step 2.4.) Only strong fields are checked: the reaction can't
+/// apart; instead the pair merges then. Two black holes merge as numerical
+/// relativity's fits say (see [`merge_black_holes`]); anything else as
+/// touching bodies do. Only strong fields are checked: the reaction can't
 /// stop converging below GM/rc² of about 0.1.
 fn spiraled_in(a: &Body, b: &Body) -> bool {
     let gm = a.gm + b.gm;
@@ -1601,12 +1618,26 @@ fn spiraled_in(a: &Body, b: &Body) -> bool {
     gm > 0.0 && gm / (r * C * C) > 0.01 && bound && !reaction_converges(a, b)
 }
 
+/// Whether two bodies are circling each other more than falling together:
+/// their relative velocity more across the line between them than along
+/// it. Numerical relativity's merger fits are for quasi-circular inspirals,
+/// which spiraling in leaves nearly every pair on (near the merger its
+/// radial speed is about 1% of the tangential one); a head-on plunge
+/// radiates far less, and isn't covered.
+fn circling(a: &Body, b: &Body) -> bool {
+    let x = a.position - b.position;
+    let v = a.velocity - b.velocity;
+    let n = x.normalize_or_zero();
+    n.cross(v).length() > n.dot(v).abs()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::DMat3;
+    use crate::compact::schwarzschild_radius;
     use crate::constants::{AU, DAY, GM_SUN};
-    use crate::gravity::{PostNewtonian, relative_acceleration};
+    use crate::gravity::{PostNewtonian, circular_pair, relative_acceleration};
     use crate::orbit::{kepler_period, periapsis_state};
 
     #[test]
@@ -1657,6 +1688,44 @@ mod tests {
         assert_eq!(collisions.len(), 1);
         assert!(farthest < 1.2 * r);
         assert_eq!(h.top.bodies[0].gm, gm);
+    }
+
+    #[test]
+    fn only_black_holes_that_spiral_in_merge_as_numerical_relativity_says() {
+        // Two black holes of 36 and 29 Suns on the circular orbit whose wave
+        // is at 30 Hz spiral in and merge as the fits say: a few percent of
+        // their mass goes into waves. The same two falling into each other
+        // head-on, closing at 0.1c, plunge instead of circling, which the
+        // fits don't cover: they merge as any colliding bodies, mass kept.
+        let (gm1, gm2) = (36.0 * GM_SUN, 29.0 * GM_SUN);
+        let hole = |name: &str, gm: f64| Body::new(name, gm, schwarzschild_radius(gm));
+        let run = |a: Body, b: Body| {
+            let mut h = Hierarchy::new(
+                System::new(vec![a, b]),
+                Box::new(PostNewtonian::default()),
+                Vec::new(),
+            );
+            while h.top.bodies.len() == 2 && h.time() < 10.0 {
+                h.step(1e-3);
+            }
+            (h.top.bodies[0].gm, h.take_collisions().remove(0))
+        };
+        let (a, b) = circular_pair(hole("one", gm1), hole("two", gm2), 30.0);
+        let (spiraled, collision) = run(a, b);
+        let merger = collision.merger.expect("spiraled in");
+        assert!((merger.radiated_gm - (gm1 + gm2 - spiraled)).abs() <= f64::EPSILON * (gm1 + gm2));
+        assert!(spiraled < 0.96 * (gm1 + gm2));
+        let gap = 1e6;
+        let (head_on, collision) = run(
+            hole("one", gm1)
+                .at(DVec3::new(-gap, 0.0, 0.0))
+                .moving(DVec3::new(0.05 * C, 0.0, 0.0)),
+            hole("two", gm2)
+                .at(DVec3::new(gap, 0.0, 0.0))
+                .moving(DVec3::new(-0.05 * C, 0.0, 0.0)),
+        );
+        assert!(collision.merger.is_none());
+        assert_eq!(head_on, gm1 + gm2);
     }
 
     /// A Sun, plus a "planetary system" barycenter 5 AU out holding a planet

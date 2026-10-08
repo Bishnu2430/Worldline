@@ -12,6 +12,8 @@ Two bodies that touch merge, **perfectly inelastically**:
 - **Size:** its volume is the sum of theirs, as if both had the same density (the real result depends on what they're made of; this is labeled as an assumption).
 - **Energy:** the kinetic energy of their relative motion, ½ μ v² with μ = m₁m₂/(m₁ + m₂), becomes heat. A unit test checks that the energy lost is exactly that.
 
+**Two black holes that spiral together** are the exception: they merge as numerical relativity says, the waves carrying off a few percent of their mass and some momentum (see [mergers.md](mergers.md)).
+
 **Who survives:** a black hole, whatever it hits (see [compact-objects.md](compact-objects.md)); otherwise the more massive body keeps its name, and of equal masses, the one that came first. Whatever absorbs the Sun takes its place as body 0.
 
 **Bodies placed overlapping** merge at once, before the next step: a black hole dropped into the solar system swallows everything inside its horizon.

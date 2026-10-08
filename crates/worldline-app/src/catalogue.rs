@@ -6,10 +6,10 @@
 use std::sync::OnceLock;
 
 use eframe::egui::Color32;
-use worldline_core::constants::{AU, C, GM_SUN, SOLAR_RADIUS};
-use worldline_core::gravity::relative_acceleration;
+use worldline_core::Body;
+use worldline_core::constants::{AU, GM_SUN, SOLAR_RADIUS};
+use worldline_core::gravity::circular_pair;
 use worldline_core::orbit::periapsis_state;
-use worldline_core::{Body, DVec3};
 use worldline_data::{BinaryOrbit, NotableObject, ObjectKind, RadiusBasis};
 
 use crate::simulation::Simulation;
@@ -68,14 +68,26 @@ pub enum Template {
     Inspiral {
         members: Box<[NotableObject; 2]>,
         frequency: f64,
+        /// The hole the real merger left, as measured, if it was one.
+        remnant: Option<Box<NotableObject>>,
     },
 }
 
 /// The gravitational-wave events the catalogue offers as merging pairs, by
 /// their two bodies' names in the catalog.
-const INSPIRALS: [(&str, &str, &str); 2] = [
-    ("GW170817", "GW170817 heavier star", "GW170817 lighter star"),
-    ("GW150914", "GW150914 heavier hole", "GW150914 lighter hole"),
+const INSPIRALS: [(&str, &str, &str, Option<&str>); 2] = [
+    (
+        "GW170817",
+        "GW170817 heavier star",
+        "GW170817 lighter star",
+        None,
+    ),
+    (
+        "GW150914",
+        "GW150914 heavier hole",
+        "GW150914 lighter hole",
+        Some("GW150914 final hole"),
+    ),
 ];
 
 /// Where a catalogue inspiral starts: a wave at 20 Hz, in the band LIGO
@@ -164,7 +176,7 @@ pub fn catalogue() -> &'static [Entry] {
                 },
             });
         }
-        for (event, first, second) in INSPIRALS {
+        for (event, first, second, remnant) in INSPIRALS {
             let find = |name: &str| objects.iter().find(|o| o.name == name).cloned();
             let (Some(a), Some(b)) = (find(first), find(second)) else {
                 continue;
@@ -180,6 +192,7 @@ pub fn catalogue() -> &'static [Entry] {
                 template: Template::Inspiral {
                     members: Box::new([a, b]),
                     frequency: INSPIRAL_START,
+                    remnant: remnant.and_then(find).map(Box::new),
                 },
             });
         }
@@ -315,6 +328,14 @@ impl Entry {
         }
     }
 
+    /// For a real merger's pair, the hole it left, as measured.
+    pub fn measured_remnant(&self) -> Option<&NotableObject> {
+        match &self.template {
+            Template::Inspiral { remnant, .. } => remnant.as_deref(),
+            _ => None,
+        }
+    }
+
     /// The catalog object behind it, if it is one.
     pub fn object(&self) -> Option<&NotableObject> {
         match &self.template {
@@ -380,40 +401,18 @@ impl Entry {
                         .moving(v * w2),
                 ]
             }
-            Template::Inspiral { members, frequency } => {
+            Template::Inspiral {
+                members, frequency, ..
+            } => {
+                // On the relativistic circular orbit whose wave is at
+                // `frequency`, already spiraling in.
                 let names = free(&[&members[0].name, &members[1].name]);
-                let (m1, m2) = (members[0].gm(), members[1].gm());
-                let gm = m1 + m2;
-                let nu = m1 * m2 / (gm * gm);
-                // The orbit is half the wave's frequency. Its speed is the
-                // relativistic equations' circular speed (Newton's would be
-                // visibly eccentric this close), v² = r |a·n|, and its size
-                // is found alongside: Kepler's law first, then rescaled as
-                // r ∝ ω^(−2/3) until the angular rate v/r is the wanted one
-                // (relativity slows it by about (3 − ν)/2 · GM/(rc²), 1% at
-                // 20 Hz for neutron stars). It already falls inward at the
-                // leading-order rate, ṙ = −(64/5) G³m³ν / (r³c⁵).
-                let omega = std::f64::consts::PI * frequency;
-                let mut r = (gm / (omega * omega)).cbrt();
-                let mut speed = (gm / r).sqrt();
-                for _ in 0..40 {
-                    let x = DVec3::new(r, 0.0, 0.0);
-                    let a = relative_acceleration(gm, nu, x, DVec3::new(0.0, speed, 0.0));
-                    speed = (r * -(a.newtonian + a.first + a.second).x).sqrt();
-                    r *= (speed / (r * omega)).powf(2.0 / 3.0);
-                }
-                let x = DVec3::new(r, 0.0, 0.0);
-                let rdot = -64.0 / 5.0 * gm.powi(3) * nu / (r.powi(3) * C.powi(5));
-                let v = DVec3::new(rdot, speed, 0.0);
-                let (w1, w2) = (m2 / gm, m1 / gm);
-                vec![
-                    Body::new(names[0].clone(), m1, members[0].radius.value)
-                        .at(-x * w1)
-                        .moving(-v * w1),
-                    Body::new(names[1].clone(), m2, members[1].radius.value)
-                        .at(x * w2)
-                        .moving(v * w2),
-                ]
+                let (a, b) = circular_pair(
+                    Body::new(names[0].clone(), members[0].gm(), members[0].radius.value),
+                    Body::new(names[1].clone(), members[1].gm(), members[1].radius.value),
+                    *frequency,
+                );
+                vec![a, b]
             }
         }
     }

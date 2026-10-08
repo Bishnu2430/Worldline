@@ -4,10 +4,12 @@
 
 use std::f64::consts::{PI, TAU};
 
+use worldline_core::compact::is_black_hole;
 use worldline_core::constants::C;
 use worldline_core::gravitational_waves::strain;
 use worldline_core::gravity::{PostNewtonian, reaction_converges};
 use worldline_core::integrator::{Ias15, advance};
+use worldline_core::merger::{Ringdown, remnant, ringdown};
 use worldline_core::{Body, DVec3, System};
 
 /// Waveform samples per orbit.
@@ -40,6 +42,23 @@ pub struct Recording {
     /// Whether the pair reached the end of its post-Newtonian inspiral
     /// before the recording ended: a few orbits before it merges.
     pub reached_end: bool,
+    /// For two black holes that reached it: the final hole, whose
+    /// ringdown ends the recording.
+    pub final_hole: Option<FinalHole>,
+}
+
+/// The hole two black holes merge into, as numerical relativity's fits
+/// say, and how it rings down.
+pub struct FinalHole {
+    /// Its gravitational parameter, m³/s².
+    pub gm: f64,
+    /// Its spin.
+    pub spin: f64,
+    /// Its fundamental ringdown.
+    pub tone: Ringdown,
+    /// When its ringdown starts in the recording: where the inspiral ends,
+    /// s from now.
+    pub start: f64,
 }
 
 /// Runs a copy of the pair `a`, `b` ahead with Worldline's post-Newtonian
@@ -51,6 +70,12 @@ pub struct Recording {
 /// pair reaches the innermost stable orbit of a test body,
 /// x = (G m Ω / c³)^(2/3) = 1/6, or when they touch. Run on past that, the
 /// equations can pump the orbit eccentric or fling the pair apart.
+///
+/// Two black holes that get there go on to merge, and the recording ends
+/// with the final hole ringing down: its fundamental tone, fading over ten
+/// damping times. The plunge and merger between, where the real wave is
+/// loudest, aren't modeled; the ringdown starts where the inspiral ends, at
+/// its strength and phase.
 pub fn record(a: &Body, b: &Body, observer: DVec3, max_orbits: f64) -> Recording {
     let gm = a.gm + b.gm;
     let mut system = System::new(vec![a.clone(), b.clone()]);
@@ -68,6 +93,7 @@ pub fn record(a: &Body, b: &Body, observer: DVec3, max_orbits: f64) -> Recording
         gm,
         nu: a.gm * b.gm / (gm * gm),
         reached_end: false,
+        final_hole: None,
     };
     let mut orbits = 0.0;
     loop {
@@ -99,7 +125,47 @@ pub fn record(a: &Body, b: &Body, observer: DVec3, max_orbits: f64) -> Recording
         );
         orbits += 1.0 / SAMPLES_PER_ORBIT;
     }
+    if recording.reached_end && is_black_hole(a) && is_black_hole(b) {
+        ring_down(&mut recording, a.gm, b.gm);
+    }
     recording
+}
+
+/// Ends the recording of black holes of gravitational parameters `gm1`
+/// and `gm2` with the final hole's ringdown, continuing the inspiral's
+/// last strength and phase.
+fn ring_down(recording: &mut Recording, gm1: f64, gm2: f64) {
+    let fit = remnant(gm1, gm2);
+    let gm = (gm1 + gm2) * (1.0 - fit.radiated);
+    let tone = ringdown(gm, fit.spin);
+    let n = recording.plus.len();
+    let last_orbit = n.saturating_sub(SAMPLES_PER_ORBIT as usize);
+    let envelope = recording.plus[last_orbit..]
+        .iter()
+        .fold(0.0f64, |m, h| m.max(h.abs()));
+    let (start, h) = (recording.times[n - 1], recording.plus[n - 1]);
+    let rising = n > 1 && h > recording.plus[n - 2];
+    let mut phase = (h / envelope).clamp(-1.0, 1.0).acos();
+    if rising {
+        phase = -phase;
+    }
+    let omega = TAU * tone.frequency;
+    let dt = 1.0 / (tone.frequency * SAMPLES_PER_ORBIT);
+    let samples = (10.0 * tone.damping / dt).ceil() as usize;
+    for k in 1..=samples {
+        let t = k as f64 * dt;
+        recording.times.push(start + t);
+        recording
+            .plus
+            .push(envelope * (-t / tone.damping).exp() * (omega * t + phase).cos());
+        recording.frequency.push(tone.frequency);
+    }
+    recording.final_hole = Some(FinalHole {
+        gm,
+        spin: fit.spin,
+        tone,
+        start,
+    });
 }
 
 /// The wave frequency (Hz) above which the simulated chirp is only rough:
@@ -306,6 +372,50 @@ mod tests {
         let holes = rough_above(gm1 + gm2, gm1 * gm2 / ((gm1 + gm2) * (gm1 + gm2)));
         println!("GW150914's black holes: rough above {holes:.1} Hz");
         assert!(holes < 20.0);
+    }
+
+    #[test]
+    fn black_holes_ring_down_after_their_inspiral() {
+        // GW150914's holes from a 30 Hz wave: within a second the
+        // inspiral ends, and the final hole rings down at its fundamental
+        // tone, which the recording's zero crossings must show (two per
+        // cycle, within one at each end), joined on to the inspiral without
+        // a jump larger than one sample's change at the ringdown's pace.
+        let (a, b) = worldline_core::gravity::circular_pair(
+            Body::new("one", 35.6 * GM_SUN, 2.0 * 35.6 * GM_SUN / (C * C)),
+            Body::new("two", 30.6 * GM_SUN, 2.0 * 30.6 * GM_SUN / (C * C)),
+            30.0,
+        );
+        let recording = record(&a, &b, DVec3::new(0.0, 0.0, 400e6 * PARSEC), MAX_ORBITS);
+        let hole = recording.final_hole.as_ref().expect("a ringdown");
+        let fit = remnant(a.gm, b.gm);
+        assert_eq!(
+            hole.tone,
+            ringdown((a.gm + b.gm) * (1.0 - fit.radiated), fit.spin)
+        );
+        let first = recording.times.partition_point(|&t| t <= hole.start);
+        let ring = &recording.plus[first..];
+        let crossings = ring
+            .windows(2)
+            .filter(|w| (w[0] < 0.0) != (w[1] < 0.0))
+            .count();
+        let span = recording.times[recording.times.len() - 1] - hole.start;
+        let expected = 2.0 * hole.tone.frequency * span;
+        println!(
+            "final hole {:.2} Suns, spin {:.3}: rings at {:.1} Hz for {:.1} ms, {crossings} zero crossings ({expected:.1} expected)",
+            hole.gm / GM_SUN,
+            hole.spin,
+            hole.tone.frequency,
+            span * 1e3
+        );
+        assert!((crossings as f64 - expected).abs() <= 2.0);
+        // The ringdown starts at the inspiral's last strength, its peak over
+        // the last orbit; a sample later it can have changed by at most
+        // that times ω dt = 2π/64.
+        let last_orbit = &recording.plus[first - SAMPLES_PER_ORBIT as usize..first];
+        let strength = last_orbit.iter().fold(0.0f64, |m, h| m.max(h.abs()));
+        let step = TAU / SAMPLES_PER_ORBIT;
+        assert!((ring[0] - recording.plus[first - 1]).abs() <= strength * step);
     }
 
     #[test]
