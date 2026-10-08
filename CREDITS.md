@@ -66,4 +66,4 @@ The maps of the major moons, Pluto, Charon and Ceres (`2k_*.png` in the same fol
 
 ## Software
 
-Rust, [wgpu](https://wgpu.rs), [egui/eframe](https://github.com/emilk/egui), [glam](https://github.com/bitshifter/glam-rs) and the [image](https://github.com/image-rs/image) crate, under their respective MIT/Apache-2.0 licenses.
+Rust, [wgpu](https://wgpu.rs), [egui/eframe](https://github.com/emilk/egui), [glam](https://github.com/bitshifter/glam-rs), the [image](https://github.com/image-rs/image) crate and [rodio](https://github.com/RustAudio/rodio) (sound), under their respective MIT/Apache-2.0 licenses.

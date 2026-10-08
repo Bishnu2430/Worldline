@@ -64,13 +64,13 @@ See [physics/galactic-center.md](physics/galactic-center.md).
 
 ![The catalogue open beside Sagittarius A*, dropped 3 AU from the Sun: a dark disk the size of its shadow](images/catalogue-step-2.1.png)
 
-**The catalogue.** **Add a body** in the top bar opens the catalogue: 25 entries in six groups, each with its mass and size. Hover over one to see where the real one is and where its values were published. The entries are:
+**The catalogue.** **Add a body** in the top bar opens the catalogue: 27 entries in six groups, each with its mass and size. Hover over one to see where the real one is and where its values were published. The entries are:
 - **Planets:** copies of Earth, Neptune and Jupiter.
 - **Stars:** a Sun-mass copy, Proxima Centauri, Alpha Centauri A and B, and Sirius A.
 - **White dwarfs:** Sirius B.
 - **Neutron stars:** the Hulse–Taylor pulsar and its companion, two NICER pulsars, and GW170817's pair.
 - **Black holes:** from Gaia BH1 (9.6 Suns) up to Sagittarius A\*, M87\* and TON 618 (66 billion Suns).
-- **Binaries:** the Hulse–Taylor pair, together on its measured 7.75-hour orbit.
+- **Binaries:** the Hulse–Taylor pair, together on its measured 7.75-hour orbit; GW170817's neutron stars and GW150914's black holes, on the circular orbits whose waves are at 20 Hz, about 3 minutes and under a second before they merge.
 
 See [physics/compact-objects.md](physics/compact-objects.md).
 
@@ -79,9 +79,9 @@ See [physics/compact-objects.md](physics/compact-objects.md).
 - **Click without dragging** to put it on a circular orbit around the body in focus, or around the Sun if the focus has no mass. The speed is √(G(M + m)/r) relative to that body, prograde in the ecliptic; for two bodies that orbit is exactly circular.
 - **Drag** to launch it faster or slower. One circular speed is added for every quarter of the camera's distance dragged.
 - **The preview.** While dragging, the app draws the orbit it would follow around that body if nothing else pulled, its speed, and whether it would escape.
-- **What it joins.** New bodies join the Sun and planets at the top of the hierarchy, with relativistic gravity: they pull on everything and everything pulls on them. A close pair, like the Hulse–Taylor neutron stars, also loses energy to gravitational waves; the inspector shows how fast its period shrinks and when the two will merge (see [physics/post-newtonian.md](physics/post-newtonian.md)). The moon systems feel their tides, and the asteroids and comets that follow the top level feel their pull. The belts, the small moons on fixed orbits, the solar wind and the heliosphere don't respond to them; the inspector says so.
+- **What it joins.** New bodies join the Sun and planets at the top of the hierarchy, with relativistic gravity: they pull on everything and everything pulls on them. A close pair, like the Hulse–Taylor neutron stars, also loses energy to gravitational waves; the inspector shows how fast its period shrinks and when the two will merge, and **See and hear its gravitational waves** opens a window with the waveform an observer on Earth would record, played as sound (see [physics/post-newtonian.md](physics/post-newtonian.md)). The moon systems feel their tides, and the asteroids and comets that follow the top level feel their pull. The belts, the small moons on fixed orbits, the solar wind and the heliosphere don't respond to them; the inspector says so.
 - **When you're done,** press **Done** or Esc.
-- **From the command line:** `--add jupiter:1.5` drops a Jupiter-mass planet on a circular orbit 1.5 AU from the Sun before the window opens (also `earth:`, `sun:`, or any catalogue name, like `"Gaia BH1:3"`). `--catalogue` opens the catalogue at startup.
+- **From the command line:** `--add jupiter:1.5` drops a Jupiter-mass planet on a circular orbit 1.5 AU from the Sun before the window opens (also `earth:`, `sun:`, or any catalogue name, like `"Gaia BH1:3"`). `--catalogue` opens the catalogue at startup, and `--waves` opens the gravitational-wave window for the focused body's pair.
 - **Near a black hole:** closer than 6 G(M + m)/c², where no circular orbit exists, a body starts at rest. Launches are capped at half the speed of light.
 
 **Remove.** **Remove** in the inspector, or the Delete key, takes the selected body out.
@@ -130,3 +130,4 @@ A distant body pulls the whole solar system almost equally, so it falls together
 - **Sandbox:** added bodies join the simulation and run. Removing Jupiter takes its 115 moons with it while Saturn's keep their planet. The Sun and moons can't be removed. A save loads back to the same text, and two loads of one save run identically.
 - **Picking a point:** a point picked on a plane projects back to the same pixel.
 - **Names:** only the bodies attended to are named (followed, selected, pointed at, near enough to be a globe, or a major moon of the planet in focus).
+- **Gravitational waves:** two neutron stars recorded from 190 Hz chirp to the end of their post-Newtonian inspiral, their strain growing as f^(2/3); the sound plays in real time with the wave's zero crossings, a slow pair is sped up into hearing, the chirp is flagged rough above 290 Hz for neutron stars (below 20 Hz for GW150914), and the WAV file is well formed. The catalogue's GW170817 pair starts with its wave at 20 Hz, to rounding.

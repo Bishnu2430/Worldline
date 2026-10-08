@@ -6,9 +6,10 @@
 use std::sync::OnceLock;
 
 use eframe::egui::Color32;
-use worldline_core::Body;
-use worldline_core::constants::{AU, GM_SUN, SOLAR_RADIUS};
+use worldline_core::constants::{AU, C, GM_SUN, SOLAR_RADIUS};
+use worldline_core::gravity::relative_acceleration;
 use worldline_core::orbit::periapsis_state;
+use worldline_core::{Body, DVec3};
 use worldline_data::{BinaryOrbit, NotableObject, ObjectKind, RadiusBasis};
 
 use crate::simulation::Simulation;
@@ -62,7 +63,25 @@ pub enum Template {
         orbit: BinaryOrbit,
         members: Box<[NotableObject; 2]>,
     },
+    /// The two bodies of a gravitational-wave event, on a circular orbit
+    /// whose wave is at `frequency` (Hz), spiraling in.
+    Inspiral {
+        members: Box<[NotableObject; 2]>,
+        frequency: f64,
+    },
 }
+
+/// The gravitational-wave events the catalogue offers as merging pairs, by
+/// their two bodies' names in the catalog.
+const INSPIRALS: [(&str, &str, &str); 2] = [
+    ("GW170817", "GW170817 heavier star", "GW170817 lighter star"),
+    ("GW150914", "GW150914 heavier hole", "GW150914 lighter hole"),
+];
+
+/// Where a catalogue inspiral starts: a wave at 20 Hz, in the band LIGO
+/// hears. A choice, not a measurement: by then real pairs have long since
+/// become circular.
+const INSPIRAL_START: f64 = 20.0;
 
 /// One thing the catalogue can add.
 #[derive(Debug, Clone)]
@@ -142,6 +161,25 @@ pub fn catalogue() -> &'static [Entry] {
                 template: Template::Binary {
                     orbit,
                     members: Box::new(members),
+                },
+            });
+        }
+        for (event, first, second) in INSPIRALS {
+            let find = |name: &str| objects.iter().find(|o| o.name == name).cloned();
+            let (Some(a), Some(b)) = (find(first), find(second)) else {
+                continue;
+            };
+            entries.push(Entry {
+                key: format!("inspiral:{event}"),
+                label: format!("{event} pair"),
+                group: Group::Binaries,
+                summary: format!(
+                    "{} and {} Suns, spiraling in from a {INSPIRAL_START} Hz wave",
+                    a.mass.value, b.mass.value
+                ),
+                template: Template::Inspiral {
+                    members: Box::new([a, b]),
+                    frequency: INSPIRAL_START,
                 },
             });
         }
@@ -260,7 +298,9 @@ impl Entry {
                     .gm
             }
             Template::Notable(o) => o.gm(),
-            Template::Binary { members, .. } => members[0].gm() + members[1].gm(),
+            Template::Binary { members, .. } | Template::Inspiral { members, .. } => {
+                members[0].gm() + members[1].gm()
+            }
         }
     }
 
@@ -269,7 +309,9 @@ impl Entry {
         match &self.template {
             Template::Copy { .. } => None,
             Template::Notable(o) => Some(o.kind),
-            Template::Binary { members, .. } => Some(members[0].kind),
+            Template::Binary { members, .. } | Template::Inspiral { members, .. } => {
+                Some(members[0].kind)
+            }
         }
     }
 
@@ -338,6 +380,41 @@ impl Entry {
                         .moving(v * w2),
                 ]
             }
+            Template::Inspiral { members, frequency } => {
+                let names = free(&[&members[0].name, &members[1].name]);
+                let (m1, m2) = (members[0].gm(), members[1].gm());
+                let gm = m1 + m2;
+                let nu = m1 * m2 / (gm * gm);
+                // The orbit is half the wave's frequency. Its speed is the
+                // relativistic equations' circular speed (Newton's would be
+                // visibly eccentric this close), v² = r |a·n|, and its size
+                // is found alongside: Kepler's law first, then rescaled as
+                // r ∝ ω^(−2/3) until the angular rate v/r is the wanted one
+                // (relativity slows it by about (3 − ν)/2 · GM/(rc²), 1% at
+                // 20 Hz for neutron stars). It already falls inward at the
+                // leading-order rate, ṙ = −(64/5) G³m³ν / (r³c⁵).
+                let omega = std::f64::consts::PI * frequency;
+                let mut r = (gm / (omega * omega)).cbrt();
+                let mut speed = (gm / r).sqrt();
+                for _ in 0..40 {
+                    let x = DVec3::new(r, 0.0, 0.0);
+                    let a = relative_acceleration(gm, nu, x, DVec3::new(0.0, speed, 0.0));
+                    speed = (r * -(a.newtonian + a.first + a.second).x).sqrt();
+                    r *= (speed / (r * omega)).powf(2.0 / 3.0);
+                }
+                let x = DVec3::new(r, 0.0, 0.0);
+                let rdot = -64.0 / 5.0 * gm.powi(3) * nu / (r.powi(3) * C.powi(5));
+                let v = DVec3::new(rdot, speed, 0.0);
+                let (w1, w2) = (m2 / gm, m1 / gm);
+                vec![
+                    Body::new(names[0].clone(), m1, members[0].radius.value)
+                        .at(-x * w1)
+                        .moving(-v * w1),
+                    Body::new(names[1].clone(), m2, members[1].radius.value)
+                        .at(x * w2)
+                        .moving(v * w2),
+                ]
+            }
         }
     }
 }
@@ -384,8 +461,9 @@ mod tests {
     #[test]
     fn the_catalogue_offers_every_catalog_object() {
         let entries = catalogue();
-        // 4 copies, 20 catalog objects and the Hulse–Taylor pair.
-        assert_eq!(entries.len(), 25);
+        // 4 copies, 20 catalog objects, the Hulse–Taylor pair and the
+        // GW170817 and GW150914 pairs.
+        assert_eq!(entries.len(), 27);
         let groups: Vec<Group> = entries.iter().map(|e| e.group).collect();
         assert!(groups.windows(2).all(|w| {
             Group::ALL.iter().position(|g| *g == w[0]) <= Group::ALL.iter().position(|g| *g == w[1])
@@ -401,6 +479,35 @@ mod tests {
             entry("copy:Earth").unwrap().summary,
             "Earth's mass and size, 1 Earth mass"
         );
+    }
+
+    #[test]
+    fn an_inspiral_starts_with_its_wave_at_20_hz_and_merges_soon() {
+        // GW170817's neutron stars, on a circular orbit whose wave is at
+        // 20 Hz: the orbital frequency is 10 Hz, and gravitational waves
+        // merge them within minutes (Peters & Mathews' leading-order time
+        // from the orbit's Newtonian elements: 2.4 minutes).
+        let mut sim = Simulation::solar_system(1.0);
+        let pair = entry("inspiral:GW170817").expect("listed");
+        assert_eq!(pair.label, "GW170817 pair");
+        let bodies = pair.bodies(&sim);
+        let x = bodies[0].position - bodies[1].position;
+        let v = bodies[0].velocity - bodies[1].velocity;
+        let wave = x.cross(v).length() / x.length_squared() / std::f64::consts::PI;
+        println!("the wave starts at {wave} Hz");
+        // Exact up to rounding.
+        assert!((wave / 20.0 - 1.0).abs() < 1e4 * f64::EPSILON, "{wave}");
+        let above = DVec3::new(0.0, 0.0, 30.0 * AU);
+        let indices: Vec<usize> = bodies
+            .into_iter()
+            .map(|b| {
+                let position = b.position + above;
+                sim.add_body(b.at(position), &pair.key)
+            })
+            .collect();
+        let waves = sim.gravitational_waves(indices[0]).expect("a merging pair");
+        println!("merges in {:.1} minutes", waves.merging / 60.0);
+        assert!(waves.merging < 3.0 * 60.0);
     }
 
     #[test]

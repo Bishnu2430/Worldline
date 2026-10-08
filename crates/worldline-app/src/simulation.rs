@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use worldline_core::constants::{AGE_OF_UNIVERSE, DAY};
 use worldline_core::gravitational_waves::{merger_time, period_derivative};
-use worldline_core::gravity::Gravity;
+use worldline_core::gravity::{Gravity, reaction_converges};
 use worldline_core::hierarchy::{Collision, FREED_MOON_IDS, Hierarchy, MOON_SYSTEM_GRAVITY};
 use worldline_core::integrator::{Ias15, Integrator};
 use worldline_core::kepler::drift;
@@ -178,6 +178,20 @@ pub enum Computed {
     Swarm,
     /// A star following Sagittarius A*.
     GalacticStar,
+}
+
+/// What gravitational waves do to a pair (see
+/// [`Simulation::gravitational_waves`]).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PairWaves {
+    /// The other body of the pair.
+    pub partner: usize,
+    /// How fast the orbit's period shrinks, s/s (negative).
+    pub shrink: f64,
+    /// How long until the pair merges, s.
+    pub merging: f64,
+    /// Whether the post-Newtonian radiation reaction still converges.
+    pub converging: bool,
 }
 
 /// Whether a body can be removed from the simulation.
@@ -998,14 +1012,17 @@ impl Simulation {
 
     /// For a body in a bound pair with what pulls on it hardest, if the
     /// gravitational waves they give off will merge them within the age of
-    /// the universe: how fast the orbit's period shrinks (s/s, Peters &
-    /// Mathews 1963) and how long until they merge (s, Peters 1964), from
-    /// their two-body orbit as it is now.
-    pub fn gravitational_waves(&self, index: usize) -> Option<(f64, f64)> {
+    /// the universe: its partner, how fast the orbit's period shrinks (s/s,
+    /// Peters & Mathews 1963) and how long until they merge (s, Peters
+    /// 1964), from their two-body orbit as it is now; and whether the
+    /// post-Newtonian radiation reaction still converges there (it stops a
+    /// few orbits before a merger).
+    pub fn gravitational_waves(&self, index: usize) -> Option<PairWaves> {
         if self.computed(index) != Computed::TopLevel {
             return None;
         }
-        let (body, other) = (&self.bodies[index], &self.bodies[self.attractor(index)?]);
+        let partner = self.attractor(index)?;
+        let (body, other) = (&self.bodies[index], &self.bodies[partner]);
         if body.gm <= 0.0 || other.gm <= 0.0 {
             return None;
         }
@@ -1020,8 +1037,12 @@ impl Simulation {
         }
         let period = std::f64::consts::TAU * (a.powi(3) / mu).sqrt();
         let merging = merger_time(body.gm, other.gm, period, e);
-        (merging < AGE_OF_UNIVERSE)
-            .then(|| (period_derivative(body.gm, other.gm, period, e), merging))
+        (merging < AGE_OF_UNIVERSE).then(|| PairWaves {
+            partner,
+            shrink: period_derivative(body.gm, other.gm, period, e),
+            merging,
+            converging: reaction_converges(body, other),
+        })
     }
 
     /// For a moon: another massive body inside its planet's moon system
@@ -1278,7 +1299,13 @@ mod tests {
             })
             .collect();
         for index in indices {
-            let (shrink, merging) = sim.gravitational_waves(index).expect("a tight pair");
+            let PairWaves {
+                shrink,
+                merging,
+                converging,
+                ..
+            } = sim.gravitational_waves(index).expect("a tight pair");
+            assert!(converging);
             println!(
                 "{}: dP/dt = {shrink:.4e}, merges in {:.0} million years",
                 sim.bodies[index].name,

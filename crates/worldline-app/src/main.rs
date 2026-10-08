@@ -23,6 +23,7 @@ mod simulation;
 mod textures;
 mod theme;
 mod view;
+mod waves;
 
 use eframe::egui;
 
@@ -43,6 +44,8 @@ pub struct StartOptions {
     /// a catalogue entry's name, like "Sagittarius A*") and how far from
     /// the Sun, in AU, on a circular orbit.
     pub add: Option<(String, f64)>,
+    /// Open the gravitational-wave window for the focused body's pair.
+    pub waves: bool,
 }
 
 impl StartOptions {
@@ -54,6 +57,7 @@ impl StartOptions {
                 "--focus" => options.focus = args.next(),
                 "--paused" => options.paused = true,
                 "--catalogue" => options.catalogue = true,
+                "--waves" => options.waves = true,
                 "--zoom" => match args.next().and_then(|r| r.parse::<f64>().ok()) {
                     Some(radii) if radii > 1.0 => options.zoom_radii = Some(radii),
                     _ => eprintln!("worldline: --zoom needs a number of radii above 1"),
@@ -117,6 +121,7 @@ mod tests {
             "--add",
             "Gaia BH1:2.5",
             "--catalogue",
+            "--waves",
         ]
         .map(String::from)
         .into_iter();
@@ -129,6 +134,7 @@ mod tests {
                 advance_years: 7.5,
                 catalogue: true,
                 add: Some(("Gaia BH1".into(), 2.5)),
+                waves: true,
             }
         );
         assert_eq!(
