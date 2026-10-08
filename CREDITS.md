@@ -19,6 +19,7 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 | Orbits of the stars around Sagittarius A\* | GRAVITY Collaboration 2022 (*A&A* 657, L12, Table B.1) for S2, S29, S38 and S55; Gillessen et al. 2017 (*ApJ* 837, 30, Table 3) for 35 more | Published scientific values |
 | Position of Sagittarius A\* on the sky | Gordon, de Witt & Jacobs 2023 (*AJ*, doi:10.3847/1538-3881/aca65b), ICRF3 | Published scientific values |
 | Sagittarius A\*'s galactic coordinates (validation) | SIMBAD (CDS, Strasbourg) | Published values |
+| Landmark positions on the moons, Pluto and Ceres (validation of the maps' placement) | IAU Gazetteer of Planetary Nomenclature (USGS Astrogeology Science Center, planetarynames.wr.usgs.gov) | Public domain (U.S. government work) |
 | Zodiacal dust model | Kelsall et al. (1998), *ApJ* 508, 44, from COBE DIRBE; full-precision parameters as reproduced by ZodiPy (San et al. 2022, *A&A* 666, A107) | Published scientific values |
 | Zodiacal light brightening toward the Sun (validation) | Helios 1 and 2, Leinert et al. (1981), *A&A* 103, 177 | Published scientific values |
 | Hourly solar wind at Earth, 2025 | NASA OMNI (King & Papitashvili 2005, *J. Geophys. Res.* 110, A02104), served by CDPP/AMDA (IRAP, France) through HAPI | Public domain (U.S. government work); AMDA service |
@@ -32,6 +33,7 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 | Earth's magnetopause (validation) | Shue et al. 1998, *J. Geophys. Res.* 103, 17691 | Published scientific values |
 | Radiation belt extents | Van Allen Probes-era review, *Earth Planet. Phys.* 2023, doi:10.26464/epp2023009 | Published scientific values |
 | Rotation models (spin axes and rates), including 14 asteroids and comets | IAU WGCCRE (Archinal et al. 2018), via NASA NAIF `pck00011.tpc` | Public domain (U.S. government work) |
+| Pluto's and Charon's rotation (pole, spin rate and prime meridian), replacing pck00011's | New Horizons team, SPICE kernel `nh_pcnh_010.tpc`, NASA Planetary Data System (data set NH-J/P/SS-SPICE-6-V1.0) | NASA PDS open data |
 | Radii and shapes | IAU WGCCRE (Archinal et al. 2018), via NASA NAIF `pck00011.tpc`; IAU 2015 Resolution B3 for the Sun | Public domain (U.S. government work) / published values |
 | Saturn's ring profile | Cassini Radio Science occultation Rev 7 (2005), NASA PDS Ring-Moon Systems Node, data set CO-SR-RSS-4/5-OCC-V2.0 | Public domain (U.S. government work) |
 | Saturn's ring features | NASA PDS Ring-Moon Systems Node, "Vital Statistics for Saturn's Rings" | Public domain (U.S. government work) |
@@ -43,7 +45,22 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 
 Planet, Moon and Sun surface maps and Earth's cloud map in `crates/worldline-app/assets/textures/` are from **[Solar System Scope](https://www.solarsystemscope.com/textures/)** (INOVE), based on NASA imagery and elevation data. They are distributed under the **[Creative Commons Attribution 4.0 International license (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)** and used unmodified.
 
-Maps that Solar System Scope labels "fictional" (Ceres, Eris, Haumea, Makemake) are not used. Pluto is drawn in a flat color until a published global map is added.
+Maps that Solar System Scope labels "fictional" (Ceres, Eris, Haumea, Makemake) are not used.
+
+The maps of the major moons, Pluto, Charon and Ceres (`2k_*.png` in the same folder) are spacecraft mosaics, public domain (NASA and USGS works). `tools/fetch_spacecraft_maps.py` averages each down to 2048 × 1024 and places it in the body's IAU coordinates; nothing else is changed, and areas no spacecraft photographed stay black.
+
+| Body | Mosaic | Made by |
+|---|---|---|
+| Io | Io Galileo SSI–Voyager Global Mosaic, 1 km per pixel | USGS Astrogeology Science Center |
+| Europa | Europa Voyager–Galileo SSI Global Mosaic, 500 m | T. Becker, USGS Astrogeology Science Center |
+| Ganymede, Callisto | Voyager–Galileo SSI Global Mosaics, 1 km | USGS Astrogeology Science Center |
+| Titan | Titan Cassini ISS Global Mosaic, 4 km (PIA19658) | Cassini Imaging Team (NASA/JPL-Caltech/Space Science Institute), via USGS |
+| Enceladus | Enceladus Cassini Global Mosaic, 110 m | Cassini Imaging Team; Bland et al. 2018 (*Earth and Space Science*, doi:10.1029/2018EA000399), via USGS |
+| Tethys | Tethys Cassini Global Mosaic, 293 m | Roatsch, Kersten, Hoffmeister & Wählisch (DLR); NASA/JPL/Space Science Institute, via USGS |
+| Dione, Rhea, Iapetus | Cassini–Voyager Global Mosaics, 154 m, 417 m and 803 m | Cassini Imaging Team (NASA/JPL/Space Science Institute), via USGS |
+| Triton | Triton Voyager 2 Global Color Mosaic, 600 m (PIA18668) | P. Schenk, Lunar and Planetary Institute; NASA/JPL, via USGS |
+| Pluto, Charon | New Horizons LORRI–MVIC Global Mosaics, 300 m (July 2017) | New Horizons team (NASA, JHU APL, SwRI, LPI), via USGS |
+| Ceres | Dawn Framing Camera HAMO global clear-filter mosaic, 140 m (data set DAWN-A-FC2-5-CERESMOSAIC-V1.0) | German Aerospace Center (DLR) for the Dawn team; NASA Planetary Data System, Small Bodies Node |
 
 ## Software
 

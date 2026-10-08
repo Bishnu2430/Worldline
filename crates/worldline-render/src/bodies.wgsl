@@ -77,14 +77,12 @@ fn blocked_by_body(point: vec3<f32>, direction: vec3<f32>) -> bool {
 
 struct GlobeOut {
     @builtin(position) clip: vec4<f32>,
-    // Direction on the unit sphere in the body's frame: picks the map pixel.
-    @location(0) direction: vec3<f32>,
     // Surface point in the body's frame, m.
-    @location(1) local: vec3<f32>,
+    @location(0) local: vec3<f32>,
     // Surface normal in world axes.
-    @location(2) normal: vec3<f32>,
+    @location(1) normal: vec3<f32>,
     // Position relative to the camera.
-    @location(3) world: vec3<f32>,
+    @location(2) world: vec3<f32>,
 };
 
 @vertex
@@ -96,7 +94,6 @@ fn vs_globe(@location(0) position: vec3<f32>) -> GlobeOut {
     let world = instance.center + instance.orientation * local;
     var out: GlobeOut;
     out.clip = globals.view_proj * vec4<f32>(world, 1.0);
-    out.direction = position;
     out.local = local;
     out.normal = instance.orientation * normal;
     out.world = world;
@@ -107,7 +104,10 @@ fn vs_globe(@location(0) position: vec3<f32>) -> GlobeOut {
 fn fs_globe(in: GlobeOut) -> @location(0) vec4<f32> {
     // Longitude and latitude on the body give the spot on its map
     // (equirectangular, longitude 0° in the middle, east to the right).
-    let p = normalize(in.direction);
+    // They are planetocentric, measured from the body's center as the IAU
+    // and the spacecraft maps measure them; on a squashed body that is not
+    // the same as the unstretched sphere's latitude.
+    let p = normalize(in.local);
     let longitude = atan2(p.y, p.x);
     let latitude = asin(clamp(p.z, -1.0, 1.0));
     let u = longitude / (2.0 * PI) + 0.5;
