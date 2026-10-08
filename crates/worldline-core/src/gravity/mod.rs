@@ -8,6 +8,7 @@ mod eih;
 mod figure;
 mod newtonian;
 mod nongravitational;
+mod post_newtonian;
 mod tesseral;
 mod zonal;
 
@@ -15,6 +16,9 @@ pub use eih::EinsteinInfeldHoffmann;
 pub use figure::SynchronousFigure;
 pub use newtonian::Newtonian;
 pub use nongravitational::NonGravitational;
+pub use post_newtonian::{
+    PairTerms, PostNewtonian, RelativeAcceleration, pair_terms, relative_acceleration,
+};
 pub use tesseral::{TesseralField, TesseralTerm};
 pub use zonal::ZonalField;
 

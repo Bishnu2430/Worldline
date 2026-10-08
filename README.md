@@ -73,6 +73,8 @@
 | Sirius B's gravitational redshift, from its mass and radius | 80.65 ± 0.77 km/s (Hubble) | ✅ passing, 80.70 ± 1.41 km/s |
 | Sagittarius A\*'s size on the sky, from its mass and distance (stellar orbits) | 4.8 +1.4/−0.7 μas (Event Horizon Telescope image) | ✅ passing, 5.12 μas |
 | Hulse–Taylor pulsar's orbit turning, simulated | 4.226585°/yr measured | ✅ passing, 4.226561°/yr |
+| Hulse–Taylor pulsar's orbit shrinking from gravitational waves, simulated over 1000 orbits | −2.40 × 10⁻¹² s/s; general relativity's prediction −2.40263 × 10⁻¹² (Weisberg & Huang 2016), within mass rounding | ✅ passing, −2.40221 × 10⁻¹² (1.1σ from the measured −2.398 ± 0.004) |
+| A pair's energy loss vs. Einstein's quadrupole formula | equal up to the next post-Newtonian order | ✅ passing, 0.66% at GM/rc² = 0.003 (2.2 GM/rc²) |
 | Spacecraft maps of 12 moons, Pluto and Ceres are placed right: IAU Gazetteer landmarks | Sputnik Planitia, Cerealia Facula, Xanadu and Roncevaux Terra bright, Loki Patera dark, unlike a map turned halfway round | ✅ passing, e.g. Sputnik Planitia 158.8 against a 98.8 map average (114.0 turned) |
 | Pluto and Charon face each other at longitude 0° (rotation models plus JPL positions) | within one map pixel, 0.176° | ✅ passing, 0.023° (NAIF's pck00011 values: 1.5°, so the New Horizons team's are used) |
 | A black hole of 10 Suns falls into the Sun | survives as 11 Suns with a 32.5 km horizon, momentum kept | ✅ passing, to 4 × 10⁻¹⁷ |
@@ -137,6 +139,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 - [The desktop app](docs/app.md): frame loop, double-precision 3D view, camera, trails and the sandbox tools
 - [Collisions and the model indicator](docs/physics/collisions.md): merging with momentum kept, catching fast impacts, and which physics applies where
 - [Black holes, neutron stars and white dwarfs](docs/physics/compact-objects.md): the notable-objects catalog, event horizons, and what happens when they meet the solar system
+- [Compact binaries and gravitational waves](docs/physics/post-newtonian.md): second-order relativity and radiation reaction for close pairs; the Hulse–Taylor orbit shrinking as measured
 - [The swarm](docs/physics/swarm.md): the belts and freed small moons as live particles that feel every massive body
 - [The galactic center](docs/physics/galactic-center.md): Sagittarius A\* at its real place, and the stars that orbit it
 - [Rendering globes](docs/rendering.md): GPU globes, precision across 12 orders of magnitude, lighting, atmospheres

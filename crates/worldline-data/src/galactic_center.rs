@@ -8,7 +8,7 @@
 use std::f64::consts::TAU;
 
 use worldline_core::constants::{AU, JULIAN_YEAR, OBLIQUITY_J2000, PARSEC};
-use worldline_core::gravity::EinsteinInfeldHoffmann;
+use worldline_core::gravity::{EinsteinInfeldHoffmann, PostNewtonian};
 use worldline_core::hierarchy::Hierarchy;
 use worldline_core::mean_elements::solve_kepler;
 use worldline_core::{Body, DMat3, DVec3, System};
@@ -235,9 +235,11 @@ pub fn galactic_center() -> GalacticCenter {
             )
         })
         .collect();
+    // The stars follow Sagittarius A* (FollowerGravity); bodies dropped into
+    // the region pull on each other with the same gravity as at home.
     let mut hierarchy = Hierarchy::new(
         System::new(vec![center]),
-        Box::new(EinsteinInfeldHoffmann),
+        Box::new(PostNewtonian::default()),
         Vec::new(),
     );
     hierarchy.add_followers(followers);

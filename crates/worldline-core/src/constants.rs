@@ -56,6 +56,10 @@ pub const SOLAR_LUMINOSITY: f64 = 3.828e26;
 /// Solar mass, kg, derived as GM☉ / G. Inherits G's 22 ppm uncertainty.
 pub const SOLAR_MASS: f64 = GM_SUN / G;
 
+/// The age of the universe, s: 13.787 ± 0.020 billion years (Planck
+/// Collaboration 2020, *A&A* 641, A6, Table 2).
+pub const AGE_OF_UNIVERSE: f64 = 13.787e9 * JULIAN_YEAR;
+
 /// Julian Date of the J2000 epoch, 2000-01-01 12:00 TDB.
 pub const J2000_JD: f64 = 2_451_545.0;
 

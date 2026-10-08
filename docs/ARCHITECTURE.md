@@ -87,7 +87,7 @@ It uses them to pick a model:
 | Planetary magnetic fields | Measured dipoles (degree-1 Gauss coefficients) | IGRF-14; JRM09; Cao et al. 2020; Q3; O8; Anderson et al. 2012 |
 | Magnetopause | Pressure balance of the dipole with the measured solar wind (Chapman–Ferraro, f = 2.44, K = 0.88); Earth's measured flaring | Mead & Beard 1964; Spreiter et al. 1966; Shue et al. 1998 |
 | Moons, inside their planet's system | Newtonian N-body plus the planet's zonal and tesseral harmonics, locked moons' shapes, and outside tides | JPL satellite ephemeris models; Montenbruck & Gill 2000 |
-| Compact binaries | Post-Newtonian up to 3.5PN, including radiation reaction | Blanchet, *Living Reviews in Relativity* 2014; Peters 1964 |
+| Compact binaries | EIH for every body, plus each pair's second-order (2PN) and radiation-reaction (2.5PN) terms, in harmonic coordinates. 3PN and 3.5PN come with step 2.3. | Blanchet, *Living Reviews in Relativity* 2024; Kupi, Amaro-Seoane & Spurzem 2006; Mikkola & Merritt 2008; Peters & Mathews 1963; [physics/post-newtonian.md](physics/post-newtonian.md) |
 | Near a dominant black hole (q ≪ 1) | Kerr geodesics with radiation reaction | Kerr 1963; Bardeen, Press & Teukolsky 1972 |
 | Merger | Fits to numerical relativity: final mass, spin, kick, ringdown | Jiménez-Forteza et al. 2017; Campanelli et al. 2007; Berti, Cardoso & Will 2006 |
 | Tides matter (r ≲ a few r_t) | SPH with self-gravity | Monaghan 2005; Price 2012 |
@@ -99,9 +99,11 @@ It uses them to pick a model:
 
 The app always shows which model is active for the selected body, and warns when a scenario leaves that model's validity range.
 
-**First version (step 1.7).** The inspector names the model computing the selected body. It shows ε and v/c relative to what pulls on the body hardest, and grades them for the first post-Newtonian equations:
-- **Within range** while what they leave out (relative size ε², ε v²/c², v⁴/c⁴) is below IAS15's 10⁻⁹ tolerance.
+**First version (step 1.7).** The inspector names the model computing the selected body. It shows ε and v/c relative to what pulls on the body hardest, and grades them for the post-Newtonian order the model keeps:
+- **Within range** while what it leaves out (relative size max(ε, v²/c²)ⁿ⁺¹ for a model keeping order n) is below IAS15's 10⁻⁹ tolerance.
 - **Approximate** while it stays under 1%.
 - **Beyond** past that.
+
+The top level keeps second order since step 2.2 (within range up to ε = 10⁻³); everything else is graded for first order (up to 3 × 10⁻⁵).
 
 It also flags small moons on mean orbits, and massive bodies inside a moon system (where collisions with moons aren't detected yet). See [physics/collisions.md](physics/collisions.md).
