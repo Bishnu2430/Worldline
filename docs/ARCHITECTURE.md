@@ -93,8 +93,8 @@ It uses them to pick a model:
 | Two black holes merging, after spiraling in | Fits to numerical relativity for non-spinning holes on near-circular orbits: final mass, spin, kick, ringdown; the pair's center of mass to second post-Newtonian order | Jiménez-Forteza et al. 2017; González et al. 2007; Berti, Cardoso & Will 2006; Blanchet 2024; [physics/mergers.md](physics/mergers.md) |
 | Tides matter (r ≲ a few r_t) | SPH with self-gravity | Monaghan 2005; Price 2012 |
 | White dwarfs | Cold, ideal degenerate electron gas: Chandrasekhar's white-dwarf equation for the mass–radius relation, and his limit (1.456 Suns for carbon–oxygen); past it, a type Ia supernova that leaves nothing | Chandrasekhar 1931, 1935, 1939; Hillebrandt & Niemeyer 2000; [physics/white-dwarfs.md](physics/white-dwarfs.md) |
-| Neutron stars | TOV structure with piecewise-polytrope equations of state | Tolman 1939; Oppenheimer & Volkoff 1939; Read et al. 2009 |
-| Neutron star merger outcome | Prompt-collapse threshold | Bauswein, Baumgarte & Janka 2013 |
+| Neutron stars | Tolman–Oppenheimer–Volkoff structure (Lindblom's enthalpy form) with the SLy equation of state as Read et al.'s piecewise polytrope: radius for a mass, the maximum mass (2.048 Suns); past it, collapse into a black hole | Tolman 1939; Oppenheimer & Volkoff 1939; Lindblom 1992; Douchin & Haensel 2001; Read et al. 2009; [physics/neutron-stars.md](physics/neutron-stars.md) |
+| Neutron star merger outcome | Prompt collapse above k M_max, k = −3.606 GM_max/(c²R₁.₆) + 2.380 (2.94 Suns for SLy); below it, a hot spinning remnant that collapses later if above the maximum mass | Bauswein, Baumgarte & Janka 2013; [physics/neutron-stars.md](physics/neutron-stars.md) |
 | Small black holes | Hawking evaporation (semiclassical) | Hawking 1974, 1975; Page 1976 |
 | Time integration | IAS15 adaptive integrator, with the timescale step criterion | Rein & Spiegel 2015; Pham, Rein & Spiegel 2024 |
 

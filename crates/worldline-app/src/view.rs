@@ -139,7 +139,7 @@ pub fn color(simulation: &Simulation, index: usize) -> Color32 {
         };
     }
     if simulation.is_added(index) {
-        crate::catalogue::kind_color(simulation.entry(index).and_then(|e| e.kind()))
+        crate::catalogue::kind_color(simulation.kind(index))
     } else {
         body_color(&simulation.bodies[index].name)
     }

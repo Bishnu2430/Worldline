@@ -155,6 +155,19 @@ const MERGER_REMNANT: &[Detail] = &[
     ADDED_PATH,
 ];
 
+/// A neutron star that collapsed into a black hole.
+const COLLAPSED_STAR: &[Detail] = &[
+    detail(
+        "Collapsed into a black hole when it passed the heaviest neutron star the SLy equation of state allows; its mass kept, its spin and the matter flung out not modeled",
+        Kind::Model,
+    ),
+    detail(
+        "Drawn as its shadow seen from afar, a dark disk √27 GM/c² across: how light bends around it comes in step 3.1",
+        Kind::Visual,
+    ),
+    ADDED_PATH,
+];
+
 /// For a real object from the notable-objects catalog, added in the
 /// sandbox.
 fn catalog_details(kind: ObjectKind) -> Vec<Detail> {
@@ -179,7 +192,7 @@ fn catalog_details(kind: ObjectKind) -> Vec<Detail> {
         ObjectKind::NeutronStar => [
             detail("No surface map: a flat, glowing color", Kind::Visual),
             detail(
-                "Its interior is known only through models of nuclear matter (step 2.7)",
+                "If it grows, its size follows the SLy equation of state, one model of nuclear matter among several that fit the measured neutron stars; past SLy's heaviest star it collapses into a black hole",
                 Kind::Model,
             ),
         ],
@@ -380,6 +393,8 @@ pub enum BodyKind {
     Added(Option<ObjectKind>),
     /// A black hole that formed when two spiraled together.
     MergerRemnant,
+    /// A neutron star from the catalog that collapsed into a black hole.
+    CollapsedStar,
     /// Sagittarius A* in the galactic center, or (`star`) a star orbiting
     /// it.
     Galactic { star: bool },
@@ -404,6 +419,7 @@ pub fn details(name: &str, kind: BodyKind) -> Vec<Detail> {
         BodyKind::Galactic { star: true } => return S_STAR.to_vec(),
         BodyKind::Added(Some(kind)) => return catalog_details(kind),
         BodyKind::MergerRemnant => return MERGER_REMNANT.to_vec(),
+        BodyKind::CollapsedStar => return COLLAPSED_STAR.to_vec(),
         BodyKind::SmallBody {
             comet,
             outgassing,

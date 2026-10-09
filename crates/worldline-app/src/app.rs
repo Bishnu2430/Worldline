@@ -11,6 +11,7 @@ use worldline_core::constants::{AU, C, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSIT
 use worldline_core::gravity::kerr::innermost_stable_orbit;
 use worldline_core::magnetosphere::standoff;
 use worldline_core::merger::ringdown;
+use worldline_core::neutron_star::{sly_maximum, sly_radius};
 use worldline_core::sunlight::{irradiance, light_time};
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DVec3};
@@ -818,8 +819,13 @@ impl WorldlineApp {
             }
         } else if self.simulation.merger(self.selected).is_some() {
             details::BodyKind::MergerRemnant
+        } else if self.simulation.kind(self.selected) == Some(ObjectKind::BlackHole)
+            && self.simulation.entry(self.selected).and_then(Entry::kind)
+                == Some(ObjectKind::NeutronStar)
+        {
+            details::BodyKind::CollapsedStar
         } else if self.simulation.is_added(self.selected) {
-            details::BodyKind::Added(self.simulation.entry(self.selected).and_then(Entry::kind))
+            details::BodyKind::Added(self.simulation.kind(self.selected))
         } else if let Some((kind, outgassing)) = self.simulation.small_body(self.selected) {
             details::BodyKind::SmallBody {
                 comet: matches!(kind, SmallBodyKind::Comet | SmallBodyKind::Interstellar),
@@ -969,6 +975,10 @@ impl WorldlineApp {
         let Some(o) = self.simulation.entry(self.selected).and_then(Entry::object) else {
             return;
         };
+        // A neutron star that collapsed isn't the published star any more.
+        if self.simulation.kind(self.selected) != Some(o.kind) {
+            return;
+        }
         ui.label(key("Published mass"));
         ui.label(measured_suns(o.mass.value, o.mass.plus_minus));
         ui.end_row();
@@ -982,6 +992,31 @@ impl WorldlineApp {
         if let Some(basis) = basis {
             ui.label(key("Published radius"));
             ui.label(format!("{} ({basis})", length(o.radius.value)));
+            ui.end_row();
+        }
+        if o.kind == ObjectKind::NeutronStar {
+            let body = &self.simulation.bodies[self.selected];
+            ui.label(key("Heaviest neutron star"));
+            ui.label(format!(
+                "{:.3} Suns (SLy equation of state)",
+                sly_maximum().gm / GM_SUN
+            ))
+            .on_hover_text(
+                "No static neutron star can be heavier: gravity overwhelms nuclear matter, and it collapses into a black hole (Tolman–Oppenheimer–Volkoff, with the SLy equation of state)",
+            );
+            ui.end_row();
+            ui.label(key("Radius for its mass"));
+            match sly_radius(body.gm) {
+                Some(radius) => {
+                    ui.label(format!("{} (SLy)", length(radius)));
+                }
+                // PSR J0740+6620: 2.08 ± 0.07 Suns.
+                None => {
+                    ui.label("none: above SLy's maximum").on_hover_text(
+                        "Heavier than SLy allows, though within its measured uncertainty: a stiffer equation of state would fit it better",
+                    );
+                }
+            }
             ui.end_row();
         }
         if o.kind == ObjectKind::WhiteDwarf {
