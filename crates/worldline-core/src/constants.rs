@@ -28,6 +28,13 @@ pub const HBAR: f64 = H / (2.0 * PI);
 /// Boltzmann constant, J/K. Exact (SI 2019).
 pub const K_B: f64 = 1.380_649e-23;
 
+/// Electron mass, kg (CODATA 2018).
+pub const ELECTRON_MASS: f64 = 9.109_383_701_5e-31;
+
+/// Atomic mass unit, one twelfth of a carbon-12 atom's mass, kg (CODATA
+/// 2018).
+pub const ATOMIC_MASS_UNIT: f64 = 1.660_539_066_60e-27;
+
 /// Astronomical unit, m. Exact (IAU 2012 Resolution B2).
 pub const AU: f64 = 149_597_870_700.0;
 

@@ -67,7 +67,7 @@ See [physics/galactic-center.md](physics/galactic-center.md).
 **The catalogue.** **Add a body** in the top bar opens the catalogue: 27 entries in six groups, each with its mass and size. Hover over one to see where the real one is and where its values were published. The entries are:
 - **Planets:** copies of Earth, Neptune and Jupiter.
 - **Stars:** a Sun-mass copy, Proxima Centauri, Alpha Centauri A and B, and Sirius A.
-- **White dwarfs:** Sirius B.
+- **White dwarfs:** Sirius B. The inspector shows Chandrasekhar's limit and the radius an ideal white dwarf of its mass has; one that grows in a merger shrinks to that radius, and one pushed past the limit explodes (see [physics/white-dwarfs.md](physics/white-dwarfs.md)).
 - **Neutron stars:** the Hulse–Taylor pulsar and its companion, two NICER pulsars, and GW170817's pair.
 - **Black holes:** from Gaia BH1 (9.6 Suns) up to Sagittarius A\*, M87\* and TON 618 (66 billion Suns).
 - **Binaries:** the Hulse–Taylor pair, together on its measured 7.75-hour orbit; GW170817's neutron stars and GW150914's black holes, on the circular orbits whose waves are at 20 Hz, about 3 minutes and under a second before they merge.

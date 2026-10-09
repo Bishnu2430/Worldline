@@ -85,5 +85,6 @@ One simplification is labeled: the merger is instant. In reality, a black hole m
 - **Binaries spiral in:** since step 2.2, close pairs lose energy to gravitational waves, and the Hulse–Taylor orbit shrinks as measured. Since step 2.3 their waves can be seen and heard, and a pair merges where the post-Newtonian description ends, a few orbits before the real merger (see [post-newtonian.md](post-newtonian.md)); two black holes, since step 2.4, as numerical relativity says (see [mergers.md](mergers.md)).
 - **Bodies near a black hole:** since step 2.5, a body a black hole holds, if at least 35 times lighter, moves in the hole's exact spacetime: down to the innermost stable orbit, then into the horizon (see [kerr.md](kerr.md)).
 - **Small moons of a planet not in focus** ride their mean orbits until an added body could tear them away; then they are freed as live particles (see [swarm.md](swarm.md)). The belts have been live since step 2.1b.
-- **Neutron star and white dwarf interiors**, collapse and mergers: steps 2.6 and 2.7.
+- **White dwarfs:** since step 2.6, a white dwarf that grows shrinks as Chandrasekhar's ideal model says, and one pushed past his limit explodes (see [white-dwarfs.md](white-dwarfs.md)).
+- **Neutron star interiors, maximum mass and collapse:** step 2.7.
 - **Where the real objects are:** Sagittarius A\* is at its real place, with the stars orbiting it, since step 2.1c (see [galactic-center.md](galactic-center.md)). The other catalog objects are dropped where you like.

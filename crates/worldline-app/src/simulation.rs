@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use worldline_core::compact::horizon_spin;
-use worldline_core::constants::{AGE_OF_UNIVERSE, DAY};
+use worldline_core::constants::{AGE_OF_UNIVERSE, DAY, GM_SUN};
 use worldline_core::gravitational_waves::{merger_time, period_derivative};
 use worldline_core::gravity::kerr::plunge_time;
 use worldline_core::gravity::{Gravity, holding_hole, moves_in_spacetime_of, reaction_converges};
@@ -20,6 +20,7 @@ use worldline_core::regime::Regime;
 use worldline_core::rotation::RotationModel;
 use worldline_core::solar_wind::{Heliosphere, ParkerSpiral};
 use worldline_core::swarm::{Particle, Swarm};
+use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DVec3};
 use worldline_data::{
     BeltKind, ObjectKind, RadiationBelt, SmallBodyKind, SmallMoon, VoyagerCrossing,
@@ -599,6 +600,53 @@ impl Simulation {
             .flatten()
     }
 
+    /// After collisions, a white dwarf that grew: it takes the radius a
+    /// cold, ideal carbon–oxygen white dwarf of its new mass has (heavier
+    /// ones are smaller; see `worldline_core::white_dwarf`). One pushed
+    /// past Chandrasekhar's limit explodes, as carbon–oxygen white dwarfs
+    /// near the limit do, in a thermonuclear (type Ia) supernova that
+    /// leaves nothing (Hillebrandt & Niemeyer 2000): it is removed, its
+    /// debris not followed. If it holds the place everything is measured
+    /// from (it absorbed the Sun), it can't be removed, and stays.
+    fn settle_white_dwarfs(&mut self, collisions: &[Collision]) {
+        for collision in collisions {
+            let Some(index) = self.index_of(&collision.survivor) else {
+                continue;
+            };
+            if self.entry(index).and_then(Entry::kind) != Some(ObjectKind::WhiteDwarf) {
+                continue;
+            }
+            let (name, gm) = (self.bodies[index].name.clone(), self.bodies[index].gm);
+            let limit = chandrasekhar_limit(CARBON_OXYGEN) / GM_SUN;
+            match radius_for(gm, CARBON_OXYGEN) {
+                Some(radius) => self.set_radius(index, radius),
+                None if matches!(self.removal(index), Removal::Allowed { .. }) => {
+                    self.remove(index);
+                    self.notices.push(format!(
+                        "{name} passed Chandrasekhar's limit ({limit:.3} Suns) and exploded as a type Ia supernova: all {:.3} Suns flung out at about 10,000 km/s (the debris isn't simulated)",
+                        gm / GM_SUN
+                    ));
+                }
+                None => self.notices.push(format!(
+                    "{name} passed Chandrasekhar's limit ({limit:.3} Suns) and would explode as a type Ia supernova, but it holds the Sun's place, so it stays"
+                )),
+            }
+        }
+    }
+
+    /// Sets top-level body `index`'s radius (in either region).
+    fn set_radius(&mut self, index: usize, radius: f64) {
+        match self.sources[index] {
+            Source::Top(k) => self.hierarchy.top.bodies[k].radius = radius,
+            Source::Galactic(Far::Top(k)) => {
+                let g = self.galaxy.as_mut().expect("the galactic center");
+                g.hierarchy.top.bodies[k].radius = radius;
+            }
+            _ => return,
+        }
+        self.bodies[index].radius = radius;
+    }
+
     /// Keeps the record of how a black hole formed, if `collision` was two
     /// black holes merging; an absorbed body's record goes with it.
     fn record_merger(&mut self, collision: &Collision) {
@@ -978,8 +1026,9 @@ impl Simulation {
                 self.added.retain(|(name, _)| name != &c.absorbed);
                 self.record_merger(c);
             }
-            self.events.extend(collisions);
             self.reindex();
+            self.settle_white_dwarfs(&collisions);
+            self.events.extend(collisions);
         }
         self.refresh();
     }
@@ -1001,6 +1050,7 @@ impl Simulation {
             self.record_merger(collision);
         }
         self.reindex();
+        self.settle_white_dwarfs(collisions);
         if let Some(system) = self.detailed {
             let moons = &self.hierarchy.moon_systems[system];
             if moons.small_moon_count() != self.small[system].len() {
@@ -1233,7 +1283,6 @@ impl Simulation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use worldline_core::constants::GM_SUN;
 
     const GENEROUS: Duration = Duration::from_secs(10);
 
@@ -1440,6 +1489,46 @@ mod tests {
         b.update(1.0, GENEROUS);
         assert_eq!(a.save(), b.save());
         assert!(Simulation::load("not a save", DAY).is_err());
+    }
+
+    #[test]
+    fn a_white_dwarf_that_grows_shrinks_and_past_the_limit_explodes() {
+        // Sirius B, 30 AU above the Sun, swallows a Jupiter dropped onto
+        // it: at 1.019 Suns it is a little smaller, as the degenerate-
+        // electron model says. A second Sirius B dropped onto it takes it to
+        // 2.04 Suns, past Chandrasekhar's limit: it explodes, and is gone.
+        let mut sim = Simulation::solar_system(DAY);
+        let above =
+            sim.bodies[0].position + DVec3::new(0.0, 0.0, 30.0 * worldline_core::constants::AU);
+        let drop = |sim: &mut Simulation, key: &str, offset: f64| {
+            let entry = catalogue::entry(key).expect("listed");
+            let body = entry.bodies(sim).remove(0);
+            let name = body.name.clone();
+            sim.add_body(body.at(above + DVec3::new(offset, 0.0, 0.0)), key);
+            name
+        };
+        drop(&mut sim, "object:Sirius B", 0.0);
+        drop(&mut sim, "copy:Jupiter", 1e6);
+        sim.advance_by(1.0);
+        let dwarf = sim.index_of("Sirius B").expect("still there");
+        let gm = sim.bodies[dwarf].gm;
+        let radius = sim.bodies[dwarf].radius;
+        println!(
+            "Sirius B after a Jupiter: {:.4} Suns, radius {:.0} km",
+            gm / GM_SUN,
+            radius / 1e3
+        );
+        assert_eq!(radius, radius_for(gm, CARBON_OXYGEN).unwrap());
+        assert!(radius < 5.586e6);
+        let second = drop(&mut sim, "object:Sirius B", 1e6);
+        sim.advance_by(1.0);
+        println!("{}", sim.notices.join("; "));
+        assert!(sim.index_of("Sirius B").is_none() && sim.index_of(&second).is_none());
+        assert!(
+            sim.notices
+                .iter()
+                .any(|n| n.contains("exploded as a type Ia supernova"))
+        );
     }
 
     #[test]

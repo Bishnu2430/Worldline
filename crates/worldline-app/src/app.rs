@@ -12,6 +12,7 @@ use worldline_core::gravity::kerr::innermost_stable_orbit;
 use worldline_core::magnetosphere::standoff;
 use worldline_core::merger::ringdown;
 use worldline_core::sunlight::{irradiance, light_time};
+use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DVec3};
 use worldline_render::{Atmosphere, Rings, View};
 
@@ -982,6 +983,23 @@ impl WorldlineApp {
             ui.label(key("Published radius"));
             ui.label(format!("{} ({basis})", length(o.radius.value)));
             ui.end_row();
+        }
+        if o.kind == ObjectKind::WhiteDwarf {
+            let body = &self.simulation.bodies[self.selected];
+            ui.label(key("Chandrasekhar's limit"));
+            ui.label(format!(
+                "{:.3} Suns (ideal carbon–oxygen)",
+                chandrasekhar_limit(CARBON_OXYGEN) / GM_SUN
+            ))
+            .on_hover_text(
+                "The most a white dwarf can weigh: its electrons, nearing light speed, can't hold up more (Chandrasekhar 1931)",
+            );
+            ui.end_row();
+            if let Some(radius) = radius_for(body.gm, CARBON_OXYGEN) {
+                ui.label(key("Ideal radius for its mass"));
+                ui.label(format!("{} (cold, carbon–oxygen)", length(radius)));
+                ui.end_row();
+            }
         }
         if o.kind == ObjectKind::BlackHole {
             ui.label(key("Spin"));
