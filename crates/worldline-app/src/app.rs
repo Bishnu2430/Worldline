@@ -8,6 +8,7 @@ use eframe::egui::{self, Align2, Color32, FontId, Rect, RichText, Sense, Texture
 use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
 use worldline_core::constants::{AU, C, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSITY};
+use worldline_core::gravity::kerr::innermost_stable_orbit;
 use worldline_core::magnetosphere::standoff;
 use worldline_core::merger::ringdown;
 use worldline_core::sunlight::{irradiance, light_time};
@@ -25,9 +26,7 @@ use crate::simulation::{Computed, Removal};
 use crate::theme;
 use crate::view::{self, OnScreen, ViewOptions};
 use crate::waves;
-use worldline_core::compact::{
-    gravitational_redshift, horizon_spin, is_black_hole, schwarzschild_radius,
-};
+use worldline_core::compact::{gravitational_redshift, horizon_spin, is_black_hole};
 use worldline_core::regime::Validity;
 use worldline_data::{Distance, ObjectKind, RadiusBasis, SmallBodyKind};
 
@@ -302,7 +301,14 @@ impl WorldlineApp {
         app.simulation.paused = start.paused;
         app.catalogue_open = start.catalogue;
         if let Some((kind, au)) = &start.add {
-            app.add_on_circle(kind, *au);
+            let around = match &start.around {
+                Some(name) => app.simulation.index_of(name).unwrap_or_else(|| {
+                    eprintln!("worldline: no body named `{name}` to circle; circling the Sun");
+                    SUN
+                }),
+                None => SUN,
+            };
+            app.add_on_circle(kind, *au, around);
         }
         let names = app.attended_names();
         app.simulation.advance_by(start.advance_years * JULIAN_YEAR);
@@ -926,6 +932,21 @@ impl WorldlineApp {
                 ui.end_row();
             }
         }
+        let unit = body.gm / (C * C);
+        ui.label(key("Innermost stable orbit"));
+        ui.label(if spin < 1e-6 {
+            format!("{}: 6 GM/c²", length(6.0 * unit))
+        } else {
+            format!(
+                "{} with its spin, {} against",
+                length(innermost_stable_orbit(spin, true) * unit),
+                length(innermost_stable_orbit(spin, false) * unit)
+            )
+        })
+        .on_hover_text(
+            "Closer in, no circular orbit lasts: a body circling there plunges into the hole (Bardeen, Press & Teukolsky 1972)",
+        );
+        ui.end_row();
         let tone = ringdown(body.gm, spin);
         ui.label(key("Rings down at"));
         ui.label(format!(
@@ -1015,7 +1036,15 @@ impl WorldlineApp {
     fn model_indicator(&self, ui: &mut egui::Ui) {
         let simulation = &self.simulation;
         let index = self.selected;
+        let held = simulation.held_by(index);
+        let held_model = held.map(|h| {
+            format!(
+                "The exact spacetime of {} (Kerr), as a test body, with gravitational-wave losses at leading order (2.5PN), and Newtonian tides from everything else",
+                simulation.bodies[h].name
+            )
+        });
         let model = match simulation.computed(index) {
+            Computed::TopLevel if held_model.is_some() => held_model.as_deref().unwrap_or(""),
             Computed::TopLevel => {
                 "Relativistic N-body gravity (Einstein–Infeld–Hoffmann), with each pair's second-order (2PN) terms and gravitational-wave losses (2.5PN and 3.5PN): it pulls on every massive body and they on it"
             }
@@ -1056,7 +1085,14 @@ impl WorldlineApp {
             } else {
                 1
             };
-            let (color, verdict) = match regime.validity(kept) {
+            let validity = match held {
+                Some(h) => {
+                    let (m, big) = (simulation.bodies[index].gm, simulation.bodies[h].gm);
+                    regime.test_body_validity(m * big / ((m + big) * (m + big)))
+                }
+                None => regime.validity(kept),
+            };
+            let (color, verdict) = match validity {
                 Validity::Within => (green, "within range"),
                 Validity::Approximate => (amber, "approximate: higher orders show"),
                 Validity::Beyond => (red, "beyond this model: gravity too strong"),
@@ -1084,7 +1120,16 @@ impl WorldlineApp {
                     long_time(waves.merging)
                 ),
             ));
-            if !waves.converging {
+            if let Some(plunge) = waves.plunge {
+                notes.push((
+                    green,
+                    format!(
+                        "In the hole's exact spacetime, circling, it reaches the innermost stable orbit and plunges in {}",
+                        long_time(plunge)
+                    ),
+                ));
+            }
+            if !waves.converging && waves.plunge.is_none() {
                 notes.push((
                     red,
                     "Its last orbits: the post-Newtonian radiation reaction no longer converges here, so the motion is beyond this model, and the pair merges".into(),
@@ -1094,11 +1139,8 @@ impl WorldlineApp {
         let body = &simulation.bodies[index];
         if is_black_hole(body) {
             notes.push((
-                amber,
-                format!(
-                    "Within a few horizon radii ({}) its gravity is beyond this model: exact black-hole motion comes in step 2.5",
-                    length(5.0 * schwarzschild_radius(body.gm))
-                ),
+                green,
+                "Bodies it holds that are at least 35 times lighter move in its exact spacetime (Kerr), spin axis taken along the frame's z axis (the ecliptic's north pole)".into(),
             ));
         }
         if let Some(intruder) = simulation.intruder(index) {
@@ -1237,9 +1279,9 @@ impl WorldlineApp {
 
     /// Adds a body from the command line: `kind` ("earth", "jupiter",
     /// "sun", or any catalogue entry's name, like "Sagittarius A*") on a
-    /// circular orbit `au` from the Sun, in the ecliptic, on the far side
-    /// of the Sun from where the x axis points.
-    fn add_on_circle(&mut self, kind: &str, au: f64) {
+    /// circular orbit `au` from body `around` (the Sun, usually), in the
+    /// ecliptic, on the far side of it from where the x axis points.
+    fn add_on_circle(&mut self, kind: &str, au: f64, around: usize) {
         let key = match kind {
             "earth" => "copy:Earth".to_string(),
             "jupiter" => "copy:Jupiter".to_string(),
@@ -1253,12 +1295,12 @@ impl WorldlineApp {
             eprintln!("worldline: nothing called `{kind}` in the catalogue");
             return;
         };
-        let sun = self.simulation.bodies[SUN].position;
-        let position = sun - DVec3::X * au * AU;
+        let center = self.simulation.bodies[around].position;
+        let position = center - DVec3::X * au * AU;
         self.place(Launch {
             entry,
             position,
-            around: SUN,
+            around,
             drag: position,
             at_rest: self.start_at_rest,
         });
@@ -1269,7 +1311,18 @@ impl WorldlineApp {
     fn place(&mut self, launch: Launch) {
         let names = self.attended_names();
         let entry = launch.entry;
-        let velocity = launch.velocity(&self.simulation, self.camera.distance, entry.gm());
+        let mut velocity = launch.velocity(&self.simulation, self.camera.distance, entry.gm());
+        // Something heavier than what it circles takes that body around
+        // their common center of mass instead of dragging it off: each
+        // gets its share of their relative motion.
+        let around = &self.simulation.bodies[launch.around];
+        let (gm, other) = (entry.gm(), around.gm);
+        if gm > other {
+            let relative = velocity - around.velocity;
+            velocity = around.velocity + relative * (other / (gm + other));
+            self.simulation
+                .shift_velocity(launch.around, -relative * (gm / (gm + other)));
+        }
         let bodies = entry.bodies(&self.simulation);
         let added: Vec<String> = bodies.iter().map(|b| b.name.clone()).collect();
         for body in bodies {
@@ -1721,13 +1774,13 @@ impl WorldlineApp {
                 );
                 ui.label(
                     RichText::new(format!(
-                        "{} of signal: the inspiral, {} Hz to {} Hz{}.",
+                        "{} of signal: the inspiral, from {} to {}{}.",
                         long_time(span),
-                        significant(f0),
-                        significant(f1),
+                        frequency(f0),
+                        frequency(f1),
                         r.final_hole.as_ref().map_or(String::new(), |hole| format!(
-                            ", then the final hole's ringdown, {} Hz",
-                            significant(hole.tone.frequency)
+                            ", then the final hole's ringdown, {}",
+                            frequency(hole.tone.frequency)
                         ))
                     ))
                     .small(),
@@ -1740,20 +1793,32 @@ impl WorldlineApp {
                 } else {
                     format!("{tail:.1e}%")
                 };
-                ui.label(
-                    RichText::new(format!(
-                        "Approximate: the sweep leaves out the tail (the waves scattering off the curved spacetime around the pair), which makes general relativity's {tail} faster at {} Hz, and more at higher frequencies.",
-                        significant(f0)
-                    ))
-                    .small()
-                    .color(theme::MUTED),
-                );
+                if r.held {
+                    // The orbit is exact; the radiation reaction is the
+                    // leading-order one.
+                    ui.label(
+                        RichText::new(
+                            "The lighter moves in the heavier's exact spacetime (Kerr). Approximate: it loses energy at the leading-order (quadrupole) rate; close to the innermost stable orbit general relativity's differs by tens of percent.",
+                        )
+                        .small()
+                        .color(Color32::from_rgb(240, 180, 80)),
+                    );
+                } else {
+                    ui.label(
+                        RichText::new(format!(
+                            "Approximate: the sweep leaves out the tail (the waves scattering off the curved spacetime around the pair), which makes general relativity's {tail} faster at {}, and more at higher frequencies.",
+                            frequency(f0)
+                        ))
+                        .small()
+                        .color(theme::MUTED),
+                    );
+                }
                 let rough = waves::rough_above(r.gm, r.nu);
-                if rough <= f1 {
+                if !r.held && rough <= f1 {
                     let from = if rough <= f0 {
                         "From the start".to_string()
                     } else {
-                        format!("Above {} Hz", significant(rough))
+                        format!("Above {}", frequency(rough))
                     };
                     ui.label(
                         RichText::new(format!(
@@ -1763,14 +1828,19 @@ impl WorldlineApp {
                         .color(Color32::from_rgb(240, 180, 80)),
                     );
                 }
+                let ending = if r.held {
+                    "at the innermost stable orbit, where the plunge begins"
+                } else {
+                    "where the post-Newtonian description gives out, a few orbits before the merger"
+                };
                 if let Some(hole) = &r.final_hole {
                     ui.label(
                         RichText::new(format!(
-                            "The inspiral ends where the post-Newtonian description gives out, a few orbits before the merger. Then the final hole, {} Suns spinning at {:.2} (numerical-relativity fits), rings down at {} Hz, fading in {} (Berti, Cardoso & Will 2006).",
+                            "The inspiral ends {ending}. Then the final hole, {} Suns spinning at {:.2} (numerical-relativity fits), rings down at {}, fading in {} (Berti, Cardoso & Will 2006).",
                             significant(hole.gm / GM_SUN),
                             hole.spin,
-                            significant(hole.tone.frequency),
-                            short_time(hole.tone.damping)
+                            frequency(hole.tone.frequency),
+                            any_time(hole.tone.damping)
                         ))
                         .small(),
                     );
@@ -1783,11 +1853,9 @@ impl WorldlineApp {
                     );
                 } else if r.reached_end {
                     ui.label(
-                        RichText::new(
-                            "It ends where the post-Newtonian description gives out, a few orbits before the merger.",
-                        )
-                        .small()
-                        .color(theme::MUTED),
+                        RichText::new(format!("It ends {ending}."))
+                            .small()
+                            .color(theme::MUTED),
                     );
                 }
                 waveform_plot(ui, r);

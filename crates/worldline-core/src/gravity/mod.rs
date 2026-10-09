@@ -6,9 +6,11 @@
 
 mod eih;
 mod figure;
+pub mod kerr;
 mod newtonian;
 mod nongravitational;
 mod post_newtonian;
+mod relativistic;
 mod tesseral;
 mod zonal;
 
@@ -20,6 +22,7 @@ pub use post_newtonian::{
     PairTerms, PostNewtonian, RelativeAcceleration, center_of_mass, circular_pair, pair_terms,
     reaction_converges, relative_acceleration,
 };
+pub use relativistic::{Relativistic, TEST_BODY_NU, holding_hole, moves_in_spacetime_of};
 pub use tesseral::{TesseralField, TesseralTerm};
 pub use zonal::ZonalField;
 

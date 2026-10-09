@@ -11,6 +11,9 @@
 //! - `--paused` starts with time stopped.
 //! - `--advance 7` runs the physics 7 years past the 2025-01-01 snapshot
 //!   before showing anything.
+//! - `--add "Gaia BH1:3"` drops a catalogue body on a circular orbit 3 AU
+//!   from the Sun; `--add "TON 618:6600@Sagittarius A*"`, 6,600 AU from
+//!   Sagittarius A*.
 
 mod app;
 mod calendar;
@@ -44,6 +47,8 @@ pub struct StartOptions {
     /// a catalogue entry's name, like "Sagittarius A*") and how far from
     /// the Sun, in AU, on a circular orbit.
     pub add: Option<(String, f64)>,
+    /// What the added body circles, if not the Sun.
+    pub around: Option<String>,
     /// Open the gravitational-wave window for the focused body's pair.
     pub waves: bool,
 }
@@ -67,13 +72,20 @@ impl StartOptions {
                     _ => eprintln!("worldline: --advance needs a number of years, 0 or more"),
                 },
                 "--add" => match args.next().and_then(|a| {
-                    let (kind, au) = a.rsplit_once(':')?;
+                    let (what, around) = match a.split_once('@') {
+                        Some((what, around)) => (what.to_string(), Some(around.to_string())),
+                        None => (a, None),
+                    };
+                    let (kind, au) = what.rsplit_once(':')?;
                     let au = au.parse::<f64>().ok().filter(|au| *au > 0.0)?;
-                    (!kind.is_empty()).then(|| (kind.to_string(), au))
+                    (!kind.is_empty()).then(|| ((kind.to_string(), au), around))
                 }) {
-                    Some(add) => options.add = Some(add),
+                    Some((add, around)) => {
+                        options.add = Some(add);
+                        options.around = around;
+                    }
                     None => eprintln!(
-                        "worldline: --add needs a body and a distance in AU, as jupiter:1.5 or \"Gaia BH1:3\""
+                        "worldline: --add needs a body and a distance in AU, as jupiter:1.5, \"Gaia BH1:3\" or \"TON 618:6600@Sagittarius A*\""
                     ),
                 },
                 other => eprintln!("worldline: ignoring unknown argument `{other}`"),
@@ -119,7 +131,7 @@ mod tests {
             "--advance",
             "7.5",
             "--add",
-            "Gaia BH1:2.5",
+            "Gaia BH1:2.5@Sagittarius A*",
             "--catalogue",
             "--waves",
         ]
@@ -134,6 +146,7 @@ mod tests {
                 advance_years: 7.5,
                 catalogue: true,
                 add: Some(("Gaia BH1".into(), 2.5)),
+                around: Some("Sagittarius A*".into()),
                 waves: true,
             }
         );

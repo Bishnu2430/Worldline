@@ -85,7 +85,9 @@
 | The star S2 around Sagittarius A\*: its orbit's relativistic turning | GRAVITY measured 0.997 ± 0.144 times general relativity's 12.2′ per orbit | ✅ passing, 12.26′ per orbit (1.005 times) |
 | Sagittarius A\*'s direction in galactic coordinates | SIMBAD's l = 359.944236°, b = −0.046160°, within 0.0001° | ✅ passing, within 0.00002° |
 | Light bending at the Sun's edge | 1.75″ | planned |
-| Innermost stable orbit, photon sphere and shadow of a non-spinning black hole | 6, 3 and √27 GM/c² | planned |
+| Innermost stable orbit of a black hole, from orbits in its exact (Kerr) spacetime | 6 GM/c² without spin; 2.32 and 8.72 GM/c² with and against a spin of 0.9 (Bardeen, Press & Teukolsky) | ✅ passing: nudged orbits 0.5% outside keep circling, 0.5% inside plunge, at all three |
+| Sagittarius A\* spirals into TON 618 (extreme mass ratio, 1 : 15,000) | shrinks at the adiabatic rate of circular orbits in TON 618's spacetime, then plunges at 6 GM/c² within about ν^(−1/5) orbits | ✅ passing, 3.8 × 10⁻⁵ from the rate (8.5 to 6.5 GM/c², 3,002 years); plunge in 4.4 orbits |
+| Photon sphere and shadow of a non-spinning black hole | 3 and √27 GM/c² | planned |
 | Chandrasekhar limit (ideal carbon-oxygen white dwarf) | 1.46 M☉ | planned |
 | Tidal disruption radius | r_t ≈ R (M/m)^(1/3) | planned |
 
@@ -133,6 +135,12 @@ To see and hear the gravitational-wave chirp of GW170817's neutron stars, droppe
 cargo run --release -- --add "GW170817 pair:30" --focus "GW170817 heavier star" --paused --waves
 ```
 
+To watch Sagittarius A\* spiral into TON 618, 15,000 times heavier, from ten times TON 618's GM/c² away (in TON 618's exact spacetime):
+
+```bash
+cargo run --release -- --add "TON 618:6600@Sagittarius A*" --focus "Sagittarius A*" --paused --waves
+```
+
 To replay GW150914, the first black-hole merger heard (press **Play** in the top bar; after 15 to 50 seconds of computing its last orbits, the two holes merge into one):
 
 ```bash
@@ -153,6 +161,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 - [Black holes, neutron stars and white dwarfs](docs/physics/compact-objects.md): the notable-objects catalog, event horizons, and what happens when they meet the solar system
 - [Compact binaries and gravitational waves](docs/physics/post-newtonian.md): second-order relativity and radiation reaction for close pairs; the Hulse–Taylor orbit shrinking as measured; the chirp, seen and heard
 - [Black-hole mergers](docs/physics/mergers.md): what two black holes leave when they merge, from numerical relativity; GW150914 replayed
+- [Near a black hole](docs/physics/kerr.md): motion in a black hole's exact (Kerr) spacetime, the innermost stable orbit, and Sagittarius A\* spiraling into TON 618
 - [The swarm](docs/physics/swarm.md): the belts and freed small moons as live particles that feel every massive body
 - [The galactic center](docs/physics/galactic-center.md): Sagittarius A\* at its real place, and the stars that orbit it
 - [Rendering globes](docs/rendering.md): GPU globes, precision across 12 orders of magnitude, lighting, atmospheres

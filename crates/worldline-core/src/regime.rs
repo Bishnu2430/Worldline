@@ -58,6 +58,21 @@ impl Regime {
         }
     }
 
+    /// Whether a black hole's exact spacetime, with the body as a test body
+    /// in it, covers it. What that leaves out is the body's own mass: to
+    /// relative order ν max(ε, β²), with ν = m M/(m + M)². Graded as
+    /// [`Regime::validity`].
+    pub fn test_body_validity(&self, nu: f64) -> Validity {
+        let left_out = nu * self.epsilon.max(self.beta * self.beta);
+        if left_out < 1e-9 {
+            Validity::Within
+        } else if left_out < 1e-2 {
+            Validity::Approximate
+        } else {
+            Validity::Beyond
+        }
+    }
+
     /// Whether the first post-Newtonian equations (Einstein–Infeld–
     /// Hoffmann) cover it: [`Regime::validity`] with one order kept.
     pub fn post_newtonian(&self) -> Validity {

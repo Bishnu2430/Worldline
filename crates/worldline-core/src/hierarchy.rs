@@ -44,7 +44,7 @@ use crate::compact::is_black_hole;
 use crate::constants::C;
 use crate::gravity::{
     Gravity, Newtonian, NonGravitational, SynchronousFigure, TesseralField, ZonalField,
-    reaction_converges,
+    moves_in_spacetime_of, reaction_converges,
 };
 use crate::integrator::{Ias15, Integrator, advance};
 use crate::kepler::drift;
@@ -1610,12 +1610,17 @@ impl Gravity for MoonSystemGravity<'_> {
 /// apart; instead the pair merges then. Two black holes merge as numerical
 /// relativity's fits say (see [`merge_black_holes`]); anything else as
 /// touching bodies do. Only strong fields are checked: the reaction can't
-/// stop converging below GM/rc² of about 0.1.
+/// stop converging below GM/rc² of about 0.1. A light body that moves in a
+/// black hole's exact spacetime (see [`moves_in_spacetime_of`]) isn't
+/// described by the post-Newtonian equations near it: it circles down to
+/// the innermost stable orbit, plunges, and merges when it reaches the
+/// horizon.
 fn spiraled_in(a: &Body, b: &Body) -> bool {
     let gm = a.gm + b.gm;
     let r = (a.position - b.position).length();
     let bound = 0.5 * (a.velocity - b.velocity).length_squared() < gm / r;
-    gm > 0.0 && gm / (r * C * C) > 0.01 && bound && !reaction_converges(a, b)
+    let held = moves_in_spacetime_of(a, b) || moves_in_spacetime_of(b, a);
+    gm > 0.0 && gm / (r * C * C) > 0.01 && bound && !held && !reaction_converges(a, b)
 }
 
 /// Whether two bodies are circling each other more than falling together:

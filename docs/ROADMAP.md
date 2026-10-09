@@ -44,7 +44,7 @@ Added 2026-10-05, before steps 1.6 and 1.7. Detail follows focus: see [SCOPE.md]
 | 2.2 | Post-Newtonian binary dynamics with gravitational-wave energy loss | The Hulse–Taylor pulsar's orbital period shrinks at −2.40 × 10⁻¹² s/s | ✅ |
 | 2.3 | Gravitational waveform plot and audible chirp | The chirp's frequency sweep matches the theoretical formula | ✅ |
 | 2.4 | Mergers using numerical-relativity fits (mass, spin, kick, ringdown) | A GW150914 replay leaves a black hole of about 62 M☉ with spin about 0.67 | ✅ |
-| 2.5 | Kerr-spacetime motion and extreme-mass-ratio inspiral | Innermost stable orbit at 6 GM/c² for a non-spinning hole. TON 618 + Sagittarius A\* runs. | ⬜ |
+| 2.5 | Kerr-spacetime motion and extreme-mass-ratio inspiral | Innermost stable orbit at 6 GM/c² for a non-spinning hole. TON 618 + Sagittarius A\* runs. | ✅ |
 | 2.6 | White dwarfs and the Chandrasekhar limit | The computed limit is 1.46 M☉ for an ideal carbon-oxygen white dwarf | ⬜ |
 | 2.7 | Neutron stars from equations of state, maximum mass, prompt collapse | The SLy equation of state gives a maximum mass of about 2.05 M☉ | ⬜ |
 | 2.8 | Hawking evaporation | Lifetimes match t = 5120πG²M³/(ħc⁴) | ⬜ |
