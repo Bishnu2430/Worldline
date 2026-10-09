@@ -183,7 +183,14 @@ fn catalog_details(kind: ObjectKind) -> Vec<Detail> {
                 Kind::Model,
             ),
         ],
-        ObjectKind::WhiteDwarf | ObjectKind::Star => [
+        ObjectKind::WhiteDwarf => [
+            detail("No surface map: a flat, glowing color", Kind::Visual),
+            detail(
+                "Held up by degenerate electrons: if it grows, it shrinks as an ideal carbon–oxygen white dwarf does, and past Chandrasekhar's limit it explodes (its debris isn't simulated)",
+                Kind::Model,
+            ),
+        ],
+        ObjectKind::Star => [
             detail("No surface map: a flat, glowing color", Kind::Visual),
             detail(
                 "It shines, but the planets stay lit by the Sun, unless it takes the Sun's place",

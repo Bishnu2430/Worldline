@@ -92,7 +92,7 @@ It uses them to pick a model:
 | A body held by a black hole at least 35 times heavier (ν < 1/36) | The hole's exact spacetime (Kerr, in Kerr–Schild coordinates) as a test body, with leading-order radiation reaction and Newtonian tides of everything else; it plunges inside the innermost stable orbit and merges at the horizon | Kerr 1963; Kerr & Schild 1965; Bardeen, Press & Teukolsky 1972; Ori & Thorne 2000; [physics/kerr.md](physics/kerr.md) |
 | Two black holes merging, after spiraling in | Fits to numerical relativity for non-spinning holes on near-circular orbits: final mass, spin, kick, ringdown; the pair's center of mass to second post-Newtonian order | Jiménez-Forteza et al. 2017; González et al. 2007; Berti, Cardoso & Will 2006; Blanchet 2024; [physics/mergers.md](physics/mergers.md) |
 | Tides matter (r ≲ a few r_t) | SPH with self-gravity | Monaghan 2005; Price 2012 |
-| White dwarfs | Degenerate electron gas (Lane–Emden) | Chandrasekhar 1931 |
+| White dwarfs | Cold, ideal degenerate electron gas: Chandrasekhar's white-dwarf equation for the mass–radius relation, and his limit (1.456 Suns for carbon–oxygen); past it, a type Ia supernova that leaves nothing | Chandrasekhar 1931, 1935, 1939; Hillebrandt & Niemeyer 2000; [physics/white-dwarfs.md](physics/white-dwarfs.md) |
 | Neutron stars | TOV structure with piecewise-polytrope equations of state | Tolman 1939; Oppenheimer & Volkoff 1939; Read et al. 2009 |
 | Neutron star merger outcome | Prompt-collapse threshold | Bauswein, Baumgarte & Janka 2013 |
 | Small black holes | Hawking evaporation (semiclassical) | Hawking 1974, 1975; Page 1976 |

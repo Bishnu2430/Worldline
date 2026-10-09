@@ -24,6 +24,7 @@ pub mod solar_wind;
 pub mod sunlight;
 pub mod swarm;
 pub mod system;
+pub mod white_dwarf;
 pub mod zodiacal;
 
 pub use body::Body;
