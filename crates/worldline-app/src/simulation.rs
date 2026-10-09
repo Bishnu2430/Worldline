@@ -7,6 +7,7 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use worldline_core::compact::horizon_spin;
+use worldline_core::compact::{is_black_hole, schwarzschild_radius};
 use worldline_core::constants::{AGE_OF_UNIVERSE, DAY, GM_SUN};
 use worldline_core::gravitational_waves::{merger_time, period_derivative};
 use worldline_core::gravity::kerr::plunge_time;
@@ -16,6 +17,7 @@ use worldline_core::integrator::{Ias15, Integrator};
 use worldline_core::kepler::drift;
 use worldline_core::magnetosphere::Dipole;
 use worldline_core::merger::Merger;
+use worldline_core::neutron_star::{sly_maximum, sly_radius, sly_threshold};
 use worldline_core::regime::Regime;
 use worldline_core::rotation::RotationModel;
 use worldline_core::solar_wind::{Heliosphere, ParkerSpiral};
@@ -600,38 +602,103 @@ impl Simulation {
             .flatten()
     }
 
-    /// After collisions, a white dwarf that grew: it takes the radius a
-    /// cold, ideal carbon–oxygen white dwarf of its new mass has (heavier
-    /// ones are smaller; see `worldline_core::white_dwarf`). One pushed
-    /// past Chandrasekhar's limit explodes, as carbon–oxygen white dwarfs
-    /// near the limit do, in a thermonuclear (type Ia) supernova that
-    /// leaves nothing (Hillebrandt & Niemeyer 2000): it is removed, its
-    /// debris not followed. If it holds the place everything is measured
-    /// from (it absorbed the Sun), it can't be removed, and stays.
-    fn settle_white_dwarfs(&mut self, collisions: &[Collision]) {
-        for collision in collisions {
+    /// After collisions, white dwarfs and neutron stars that grew, given
+    /// what kind of body each collision's absorbed one was (`absorbed`).
+    fn settle_compact_stars(&mut self, collisions: &[Collision], absorbed: &[Option<ObjectKind>]) {
+        for (collision, &absorbed) in collisions.iter().zip(absorbed) {
             let Some(index) = self.index_of(&collision.survivor) else {
                 continue;
             };
-            if self.entry(index).and_then(Entry::kind) != Some(ObjectKind::WhiteDwarf) {
-                continue;
-            }
-            let (name, gm) = (self.bodies[index].name.clone(), self.bodies[index].gm);
-            let limit = chandrasekhar_limit(CARBON_OXYGEN) / GM_SUN;
-            match radius_for(gm, CARBON_OXYGEN) {
-                Some(radius) => self.set_radius(index, radius),
-                None if matches!(self.removal(index), Removal::Allowed { .. }) => {
-                    self.remove(index);
-                    self.notices.push(format!(
-                        "{name} passed Chandrasekhar's limit ({limit:.3} Suns) and exploded as a type Ia supernova: all {:.3} Suns flung out at about 10,000 km/s (the debris isn't simulated)",
-                        gm / GM_SUN
-                    ));
+            match self.kind(index) {
+                Some(ObjectKind::WhiteDwarf) => self.settle_white_dwarf(index),
+                Some(ObjectKind::NeutronStar) => {
+                    self.settle_neutron_star(index, &collision.absorbed, absorbed)
                 }
-                None => self.notices.push(format!(
-                    "{name} passed Chandrasekhar's limit ({limit:.3} Suns) and would explode as a type Ia supernova, but it holds the Sun's place, so it stays"
-                )),
+                _ => {}
             }
         }
+    }
+
+    /// A neutron star that grew takes the radius of SLy's static star of
+    /// its new mass (see `worldline_core::neutron_star`). Past the heaviest
+    /// SLy allows, it collapses into a black hole: its horizon replaces its
+    /// surface, its mass kept (the matter flung out, and its spin, aren't
+    /// modeled). Two neutron stars merging collapse at once above Bauswein,
+    /// Baumgarte & Janka's (2013) threshold; below it they first form a
+    /// hot, spinning star, which collapses once its spin and heat run down
+    /// (shown at once).
+    fn settle_neutron_star(&mut self, index: usize, other: &str, other_kind: Option<ObjectKind>) {
+        let (name, gm) = (self.bodies[index].name.clone(), self.bodies[index].gm);
+        if let Some(radius) = sly_radius(gm) {
+            self.set_radius(index, radius);
+            return;
+        }
+        self.set_radius(index, schwarzschild_radius(gm));
+        let (mass, heaviest, threshold) = (
+            gm / GM_SUN,
+            sly_maximum().gm / GM_SUN,
+            sly_threshold() / GM_SUN,
+        );
+        self.notices.push(if other_kind == Some(ObjectKind::NeutronStar) {
+            if mass >= threshold {
+                format!(
+                    "{other} and {name} merged: at {mass:.2} Suns, above the prompt-collapse threshold ({threshold:.2} Suns for the SLy equation of state), they collapsed at once into a black hole"
+                )
+            } else {
+                format!(
+                    "{other} and {name} merged: at {mass:.2} Suns, below the prompt-collapse threshold ({threshold:.2} Suns) but above the heaviest static neutron star ({heaviest:.2}), they form a hot, spinning neutron star that collapses into a black hole as its spin and heat run down (shown at once)"
+                )
+            }
+        } else {
+            format!(
+                "{name} passed the heaviest a neutron star can be ({heaviest:.2} Suns for the SLy equation of state) and collapsed into a black hole"
+            )
+        });
+    }
+
+    /// A white dwarf that grew takes the radius a cold, ideal carbon–oxygen
+    /// white dwarf of its new mass has (heavier ones are smaller; see
+    /// `worldline_core::white_dwarf`). One pushed past Chandrasekhar's
+    /// limit explodes, as carbon–oxygen white dwarfs near the limit do, in
+    /// a thermonuclear (type Ia) supernova that leaves nothing (Hillebrandt
+    /// & Niemeyer 2000): it is removed, its debris not followed. If it
+    /// holds the place everything is measured from (it absorbed the Sun),
+    /// it can't be removed, and stays.
+    fn settle_white_dwarf(&mut self, index: usize) {
+        let (name, gm) = (self.bodies[index].name.clone(), self.bodies[index].gm);
+        let limit = chandrasekhar_limit(CARBON_OXYGEN) / GM_SUN;
+        match radius_for(gm, CARBON_OXYGEN) {
+            Some(radius) => self.set_radius(index, radius),
+            None if matches!(self.removal(index), Removal::Allowed { .. }) => {
+                self.remove(index);
+                self.notices.push(format!(
+                    "{name} passed Chandrasekhar's limit ({limit:.3} Suns) and exploded as a type Ia supernova: all {:.3} Suns flung out at about 10,000 km/s (the debris isn't simulated)",
+                    gm / GM_SUN
+                ));
+            }
+            None => self.notices.push(format!(
+                "{name} passed Chandrasekhar's limit ({limit:.3} Suns) and would explode as a type Ia supernova, but it holds the Sun's place, so it stays"
+            )),
+        }
+    }
+
+    /// What kind of object body `index` is, if it came from the catalog: a
+    /// black hole if it has become one (a neutron star that collapsed).
+    pub fn kind(&self, index: usize) -> Option<ObjectKind> {
+        let kind = self.entry(index).and_then(Entry::kind)?;
+        Some(if is_black_hole(&self.bodies[index]) {
+            ObjectKind::BlackHole
+        } else {
+            kind
+        })
+    }
+
+    /// The catalogue entry the body named `name` was added from, if any.
+    fn entry_named(&self, name: &str) -> Option<&'static Entry> {
+        self.added
+            .iter()
+            .find(|(n, _)| n == name)
+            .and_then(|(_, key)| catalogue::entry(key))
     }
 
     /// Sets top-level body `index`'s radius (in either region).
@@ -692,13 +759,11 @@ impl Simulation {
         if index == 0 && self.has_sun() {
             return true;
         }
-        self.entry(index).is_some_and(|e| {
-            e.key == "copy:Sun"
-                || matches!(
-                    e.kind(),
-                    Some(ObjectKind::Star | ObjectKind::WhiteDwarf | ObjectKind::NeutronStar)
-                )
-        })
+        self.entry(index).is_some_and(|e| e.key == "copy:Sun")
+            || matches!(
+                self.kind(index),
+                Some(ObjectKind::Star | ObjectKind::WhiteDwarf | ObjectKind::NeutronStar)
+            )
     }
 
     /// Where the planets' light comes from: body 0, if it shines (the Sun,
@@ -1022,12 +1087,16 @@ impl Simulation {
         }
         let collisions = g.hierarchy.take_collisions();
         if !collisions.is_empty() {
+            let absorbed: Vec<Option<ObjectKind>> = collisions
+                .iter()
+                .map(|c| self.entry_named(&c.absorbed).and_then(Entry::kind))
+                .collect();
             for c in &collisions {
                 self.added.retain(|(name, _)| name != &c.absorbed);
                 self.record_merger(c);
             }
             self.reindex();
-            self.settle_white_dwarfs(&collisions);
+            self.settle_compact_stars(&collisions, &absorbed);
             self.events.extend(collisions);
         }
         self.refresh();
@@ -1037,6 +1106,10 @@ impl Simulation {
     /// that was absorbed takes its small moons with it, and a planet that
     /// absorbed something has its small moons placed again.
     fn after_collisions(&mut self, collisions: &[Collision]) {
+        let absorbed: Vec<Option<ObjectKind>> = collisions
+            .iter()
+            .map(|c| self.entry_named(&c.absorbed).and_then(Entry::kind))
+            .collect();
         for collision in collisions {
             if let Some(system) = collision.dissolved_system {
                 self.small.remove(system);
@@ -1050,7 +1123,7 @@ impl Simulation {
             self.record_merger(collision);
         }
         self.reindex();
-        self.settle_white_dwarfs(collisions);
+        self.settle_compact_stars(collisions, &absorbed);
         if let Some(system) = self.detailed {
             let moons = &self.hierarchy.moon_systems[system];
             if moons.small_moon_count() != self.small[system].len() {
@@ -1528,6 +1601,58 @@ mod tests {
             sim.notices
                 .iter()
                 .any(|n| n.contains("exploded as a type Ia supernova"))
+        );
+    }
+
+    #[test]
+    fn neutron_stars_that_grow_shrink_or_collapse() {
+        // The Hulse–Taylor pulsar, 30 AU above the Sun, swallows a Jupiter:
+        // it takes the radius of SLy's star of its new mass. GW170817's two
+        // stars dropped onto each other merge at 2.73 Suns: below the
+        // prompt-collapse threshold, above the heaviest static star, so the
+        // remnant collapses into a black hole (after a delay, shown at
+        // once), and is treated as one from then on.
+        let mut sim = Simulation::solar_system(DAY);
+        let above =
+            sim.bodies[0].position + DVec3::new(0.0, 0.0, 30.0 * worldline_core::constants::AU);
+        let drop = |sim: &mut Simulation, key: &str, offset: DVec3| {
+            let entry = catalogue::entry(key).expect("listed");
+            let body = entry.bodies(sim).remove(0);
+            let name = body.name.clone();
+            sim.add_body(body.at(above + offset), key);
+            name
+        };
+        let pulsar = drop(&mut sim, "object:PSR B1913+16", DVec3::ZERO);
+        drop(&mut sim, "copy:Jupiter", DVec3::new(1e6, 0.0, 0.0));
+        sim.advance_by(1.0);
+        let index = sim.index_of(&pulsar).expect("still there");
+        let star = &sim.bodies[index];
+        println!(
+            "{pulsar} after a Jupiter: {:.4} Suns, radius {:.2} km",
+            star.gm / GM_SUN,
+            star.radius / 1e3
+        );
+        assert_eq!(star.radius, sly_radius(star.gm).unwrap());
+        assert_eq!(sim.kind(index), Some(ObjectKind::NeutronStar));
+
+        let far = DVec3::new(0.0, 1e9, 0.0);
+        let heavier = drop(&mut sim, "object:GW170817 heavier star", far);
+        drop(
+            &mut sim,
+            "object:GW170817 lighter star",
+            far + DVec3::new(5e3, 0.0, 0.0),
+        );
+        sim.advance_by(1.0);
+        println!("{}", sim.notices.join("; "));
+        let index = sim.index_of(&heavier).expect("the remnant");
+        let hole = &sim.bodies[index];
+        assert!(is_black_hole(hole));
+        assert_eq!(sim.kind(index), Some(ObjectKind::BlackHole));
+        assert!(!sim.shines(index));
+        assert!(
+            sim.notices
+                .iter()
+                .any(|n| n.contains("below the prompt-collapse threshold"))
         );
     }
 

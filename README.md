@@ -89,6 +89,8 @@
 | Sagittarius A\* spirals into TON 618 (extreme mass ratio, 1 : 15,000) | shrinks at the adiabatic rate of circular orbits in TON 618's spacetime, then plunges at 6 GM/c² within about ν^(−1/5) orbits | ✅ passing, 3.8 × 10⁻⁵ from the rate (8.5 to 6.5 GM/c², 3,002 years); plunge in 4.4 orbits |
 | Photon sphere and shadow of a non-spinning black hole | 3 and √27 GM/c² | planned |
 | Chandrasekhar limit (ideal carbon-oxygen white dwarf), from the degenerate-electron equation of state | 1.46 M☉ | ✅ passing, 1.4563 M☉; ever denser white dwarfs approach it from below, short by 1/x² |
+| Maximum mass of a neutron star, SLy equation of state (general relativity's static stars) | about 2.05 M☉ | ✅ passing, 2.048 M☉; a 1.4 M☉ star is 11.71 km (both 0.05% from Read et al.) |
+| Neutron stars that merge collapse at once above Bauswein et al.'s threshold | their fit within their 0.025 for all 12 of their equations of state; GW170817 (2.73 M☉) didn't, as its kilonova showed | ✅ passing, within 0.024; SLy's threshold 2.94 M☉ |
 | Sirius B's radius from its measured mass (ideal cold carbon-oxygen white dwarf) | 0.00803 ± 0.00011 R☉ (Joyce et al. 2018) | ✅ passing, 0.00803 R☉: 5,583 km against 5,586 (0.03σ) |
 | Tidal disruption radius | r_t ≈ R (M/m)^(1/3) | planned |
 
@@ -162,6 +164,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 - [Black holes, neutron stars and white dwarfs](docs/physics/compact-objects.md): the notable-objects catalog, event horizons, and what happens when they meet the solar system
 - [Compact binaries and gravitational waves](docs/physics/post-newtonian.md): second-order relativity and radiation reaction for close pairs; the Hulse–Taylor orbit shrinking as measured; the chirp, seen and heard
 - [Black-hole mergers](docs/physics/mergers.md): what two black holes leave when they merge, from numerical relativity; GW150914 replayed
+- [Neutron stars](docs/physics/neutron-stars.md): nuclear matter's equation of state, the heaviest a neutron star can be, and when merging ones collapse
 - [White dwarfs](docs/physics/white-dwarfs.md): stars held up by quantum mechanics, the Chandrasekhar limit, and what happens past it
 - [Near a black hole](docs/physics/kerr.md): motion in a black hole's exact (Kerr) spacetime, the innermost stable orbit, and Sagittarius A\* spiraling into TON 618
 - [The swarm](docs/physics/swarm.md): the belts and freed small moons as live particles that feel every massive body
