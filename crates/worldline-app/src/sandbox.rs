@@ -4,9 +4,12 @@
 use std::path::PathBuf;
 
 use eframe::egui::{Align2, Color32, FontId, Painter, Rect, Stroke};
+use worldline_core::Body;
 use worldline_core::DVec3;
-use worldline_core::compact::is_black_hole;
+use worldline_core::compact::{horizon_spin, is_black_hole};
 use worldline_core::constants::C;
+use worldline_core::gravity::kerr::{boyer_lindquist_radius, innermost_stable_orbit};
+use worldline_core::gravity::moves_in_spacetime_of;
 use worldline_core::orbit::osculating_orbit;
 
 use crate::calendar::DateTime;
@@ -42,19 +45,27 @@ impl Launch {
         let center = &simulation.bodies[self.around];
         let r = self.position - center.position;
         let mu = center.gm + gm;
-        // Closer than 6GM/c², the innermost stable orbit, no circular orbit
-        // exists: it starts at rest and falls in. Launches stay below half
-        // the speed of light, already far beyond what the gravity model
-        // covers.
-        let circular = if !self.at_rest && r.length() > 6.0 * mu / (C * C) {
-            (mu / r.length()).sqrt()
+        let m = mu / (C * C);
+        // A body a black hole holds circles in its exact spacetime, at
+        // Ω = 1/(r^(3/2) + a) in units of GM/c² and c (Boyer–Lindquist r;
+        // prograde, the hole's spin being along z), moving at Ω ẑ × r.
+        // Without spin that is √(G(M + m)/r), as for Newton. Inside the
+        // innermost stable orbit no circular orbit lasts: it starts at rest
+        // and falls in. Launches stay below half the speed of light.
+        let held = is_black_hole(center) && moves_in_spacetime_of(&Body::new("", gm, 0.0), center);
+        let spin = if held {
+            horizon_spin(center.gm, center.radius) * center.gm / mu
         } else {
             0.0
         };
+        let radius = boyer_lindquist_radius(mu, spin, r) / m;
+        let circular = if !self.at_rest && radius > innermost_stable_orbit(spin, true) {
+            DVec3::Z.cross(r) * (C / m / (radius.powf(1.5) + spin))
+        } else {
+            DVec3::ZERO
+        };
         let scale = (mu / r.length()).sqrt().min(C / 6f64.sqrt());
-        let along = DVec3::Z.cross(r).normalize_or_zero();
-        let relative =
-            along * circular + (self.drag - self.position) * (scale / (0.25 * camera_distance));
+        let relative = circular + (self.drag - self.position) * (scale / (0.25 * camera_distance));
         center.velocity + relative.clamp_length_max(0.5 * C)
     }
 

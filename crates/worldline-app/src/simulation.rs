@@ -6,9 +6,11 @@ mod save;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
+use worldline_core::compact::horizon_spin;
 use worldline_core::constants::{AGE_OF_UNIVERSE, DAY};
 use worldline_core::gravitational_waves::{merger_time, period_derivative};
-use worldline_core::gravity::{Gravity, reaction_converges};
+use worldline_core::gravity::kerr::plunge_time;
+use worldline_core::gravity::{Gravity, holding_hole, moves_in_spacetime_of, reaction_converges};
 use worldline_core::hierarchy::{Collision, FREED_MOON_IDS, Hierarchy, MOON_SYSTEM_GRAVITY};
 use worldline_core::integrator::{Ias15, Integrator};
 use worldline_core::kepler::drift;
@@ -193,6 +195,11 @@ pub struct PairWaves {
     pub merging: f64,
     /// Whether the post-Newtonian radiation reaction still converges.
     pub converging: bool,
+    /// For a body a black hole holds, if the hole doesn't spin: how long
+    /// until it reaches the innermost stable orbit and plunges, as if its
+    /// orbit were circular, in the hole's exact spacetime (s; see
+    /// `worldline_core::gravity::kerr::plunge_time`).
+    pub plunge: Option<f64>,
 }
 
 /// Whether a body can be removed from the simulation.
@@ -524,6 +531,25 @@ impl Simulation {
         self.reindex();
         self.refresh();
         self.index_of(&name).expect("the new body is listed")
+    }
+
+    /// Adds `dv` to the velocity of top-level body `index` (in either
+    /// region), restarting that region's integrator. Other bodies don't
+    /// change.
+    pub fn shift_velocity(&mut self, index: usize, dv: DVec3) {
+        match self.sources[index] {
+            Source::Top(k) => {
+                self.hierarchy.top.bodies[k].velocity += dv;
+                self.hierarchy.restart();
+            }
+            Source::Galactic(Far::Top(k)) => {
+                let g = self.galaxy.as_mut().expect("the galactic center");
+                g.hierarchy.top.bodies[k].velocity += dv;
+                g.hierarchy.restart();
+            }
+            _ => return,
+        }
+        self.refresh();
     }
 
     /// The body body `index`'s region is measured from: Sagittarius A* in
@@ -1011,6 +1037,21 @@ impl Simulation {
         Some(Regime::of(&self.bodies[index], &self.bodies[attractor]))
     }
 
+    /// The black hole whose exact spacetime body `index` moves in, if one
+    /// holds it (see `worldline_core::gravity::holding_hole`).
+    pub fn held_by(&self, index: usize) -> Option<usize> {
+        if self.computed(index) != Computed::TopLevel {
+            return None;
+        }
+        let top = match (self.sources[index], &self.galaxy) {
+            (Source::Galactic(_), Some(g)) => &g.hierarchy.top,
+            _ => &self.hierarchy.top,
+        };
+        let name = &self.bodies[index].name;
+        let k = top.bodies.iter().position(|b| &b.name == name)?;
+        holding_hole(&top.bodies, k).and_then(|h| self.index_of(&top.bodies[h].name))
+    }
+
     /// What pulls on body `index` hardest: its planet, for a moon; for
     /// anything else, the top-level body with the strongest pull.
     fn attractor(&self, index: usize) -> Option<usize> {
@@ -1061,11 +1102,18 @@ impl Simulation {
         }
         let period = std::f64::consts::TAU * (a.powi(3) / mu).sqrt();
         let merging = merger_time(body.gm, other.gm, period, e);
+        let hole = [body, other]
+            .into_iter()
+            .find(|h| moves_in_spacetime_of(if h.name == body.name { other } else { body }, h));
+        let plunge = hole
+            .filter(|h| horizon_spin(h.gm, h.radius) < 1e-6)
+            .and_then(|_| plunge_time(mu, body.gm * other.gm / (mu * mu), r.length()));
         (merging < AGE_OF_UNIVERSE).then(|| PairWaves {
             partner,
             shrink: period_derivative(body.gm, other.gm, period, e),
             merging,
             converging: reaction_converges(body, other),
+            plunge,
         })
     }
 
@@ -1440,7 +1488,7 @@ mod tests {
         let at = sun.position + DVec3::new(0.0, 0.05 * worldline_core::constants::AU, 0.0);
         sim.add_body(hole.at(at).moving(sun.velocity), &entry.key);
         assert!(sim.has_sun() && sim.light_source().is_some());
-        sim.update(1.0, GENEROUS);
+        sim.advance_by(DAY);
         let collision = sim.events.first().expect("it fell in");
         assert_eq!(
             (collision.survivor.as_str(), collision.absorbed.as_str()),

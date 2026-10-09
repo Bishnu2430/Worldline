@@ -53,7 +53,7 @@ where G𝓜 = (Gm₁ Gm₂)^(3/5)/(Gm)^(1/5) is the chirp mass and x = (πGmf/c�
 
 **Where the post-Newtonian description ends.** For a circular orbit the 3.5PN correction is about −9 GM/rc² times the 2.5PN term, so it overtakes it near GM/rc² ≈ 0.11. Past there the truncated series no longer converges; run on, its equations can pump the orbit eccentric or even fling the pair apart, which is wrong. Worldline watches for it (`reaction_converges`):
 - **Recording the waves** stops there, or at the innermost stable orbit of a test body, x = 1/6, if that comes first.
-- **In the simulation,** a bound pair whose reaction stops converging (with GM/rc² above 0.01) merges. Two black holes circling each other merge as numerical relativity's fits say, a few percent of their mass going into waves (see [mergers.md](mergers.md)); anything else the way touching bodies do, mass and momentum kept.
+- **In the simulation,** a bound pair whose reaction stops converging (with GM/rc² above 0.01) merges, unless the lighter is a test body in a black hole's exact spacetime (at least 35 times lighter; see [kerr.md](kerr.md)), which circles down to the innermost stable orbit and plunges instead. Two black holes circling each other merge as numerical relativity's fits say, a few percent of their mass going into waves (see [mergers.md](mergers.md)); anything else the way touching bodies do, mass and momentum kept.
 
 ## In the app
 

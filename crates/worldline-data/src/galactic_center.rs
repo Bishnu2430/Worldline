@@ -8,7 +8,7 @@
 use std::f64::consts::TAU;
 
 use worldline_core::constants::{AU, JULIAN_YEAR, OBLIQUITY_J2000, PARSEC};
-use worldline_core::gravity::{EinsteinInfeldHoffmann, PostNewtonian};
+use worldline_core::gravity::{EinsteinInfeldHoffmann, Relativistic};
 use worldline_core::hierarchy::Hierarchy;
 use worldline_core::mean_elements::solve_kepler;
 use worldline_core::{Body, DMat3, DVec3, System};
@@ -239,7 +239,7 @@ pub fn galactic_center() -> GalacticCenter {
     // the region pull on each other with the same gravity as at home.
     let mut hierarchy = Hierarchy::new(
         System::new(vec![center]),
-        Box::new(PostNewtonian::default()),
+        Box::new(Relativistic::default()),
         Vec::new(),
     );
     hierarchy.add_followers(followers);

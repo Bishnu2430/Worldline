@@ -7,7 +7,7 @@ use std::f64::consts::{PI, TAU};
 use worldline_core::compact::is_black_hole;
 use worldline_core::constants::C;
 use worldline_core::gravitational_waves::strain;
-use worldline_core::gravity::{PostNewtonian, reaction_converges};
+use worldline_core::gravity::{Relativistic, moves_in_spacetime_of, reaction_converges};
 use worldline_core::integrator::{Ias15, advance};
 use worldline_core::merger::{Ringdown, remnant, ringdown};
 use worldline_core::{Body, DVec3, System};
@@ -39,6 +39,9 @@ pub struct Recording {
     pub gm: f64,
     /// The pair's symmetric mass ratio ν = m₁m₂/(m₁ + m₂)².
     pub nu: f64,
+    /// Whether the lighter moves in the heavier's exact spacetime (see
+    /// `worldline_core::gravity::moves_in_spacetime_of`).
+    pub held: bool,
     /// Whether the pair reached the end of its post-Newtonian inspiral
     /// before the recording ended: a few orbits before it merges.
     pub reached_end: bool,
@@ -83,7 +86,10 @@ pub fn record(a: &Body, b: &Body, observer: DVec3, max_orbits: f64) -> Recording
     let toward = observer - center;
     let distance = toward.length();
     let touching = a.radius + b.radius;
-    let gravity = PostNewtonian::default();
+    // A light body in a black hole's exact spacetime circles down to the
+    // innermost stable orbit: the post-Newtonian reaction doesn't apply.
+    let held = moves_in_spacetime_of(a, b) || moves_in_spacetime_of(b, a);
+    let gravity = Relativistic::default();
     let mut ias = Ias15::new();
     let mut recording = Recording {
         times: Vec::new(),
@@ -92,6 +98,7 @@ pub fn record(a: &Body, b: &Body, observer: DVec3, max_orbits: f64) -> Recording
         distance,
         gm,
         nu: a.gm * b.gm / (gm * gm),
+        held,
         reached_end: false,
         final_hole: None,
     };
@@ -109,7 +116,7 @@ pub fn record(a: &Body, b: &Body, observer: DVec3, max_orbits: f64) -> Recording
         let parameter = (gm * omega / C.powi(3)).powf(2.0 / 3.0);
         if parameter >= 1.0 / 6.0
             || x.length() <= touching
-            || !reaction_converges(&system.bodies[0], &system.bodies[1])
+            || (!held && !reaction_converges(&system.bodies[0], &system.bodies[1]))
         {
             recording.reached_end = true;
             break;

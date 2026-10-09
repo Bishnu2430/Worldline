@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use worldline_core::constants::DAY;
 use worldline_core::gravity::{
-    PostNewtonian, SynchronousFigure, TesseralField, TesseralTerm, ZonalField,
+    Relativistic, SynchronousFigure, TesseralField, TesseralTerm, ZonalField,
 };
 use worldline_core::hierarchy::{Hierarchy, MoonSystem};
 use worldline_core::{Body, DVec3};
@@ -249,7 +249,7 @@ pub(crate) fn hierarchy_with_moons(top: worldline_core::System) -> Hierarchy {
     // Relativistic N-body gravity, with each pair's second-order and
     // gravitational-wave terms: below double precision for the solar
     // system, decisive for a compact binary dropped into it.
-    Hierarchy::new(top, Box::new(PostNewtonian::default()), moon_systems)
+    Hierarchy::new(top, Box::new(Relativistic::default()), moon_systems)
 }
 
 #[cfg(test)]
