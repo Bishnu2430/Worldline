@@ -64,12 +64,12 @@ See [physics/galactic-center.md](physics/galactic-center.md).
 
 ![The catalogue open beside Sagittarius A*, dropped 3 AU from the Sun: a dark disk the size of its shadow](images/catalogue-step-2.1.png)
 
-**The catalogue.** **Add a body** in the top bar opens the catalogue: 27 entries in six groups, each with its mass and size. Hover over one to see where the real one is and where its values were published. The entries are:
+**The catalogue.** **Add a body** in the top bar opens the catalogue: 28 entries in six groups, each with its mass and size. Hover over one to see where the real one is and where its values were published. The entries are:
 - **Planets:** copies of Earth, Neptune and Jupiter.
 - **Stars:** a Sun-mass copy, Proxima Centauri, Alpha Centauri A and B, and Sirius A.
 - **White dwarfs:** Sirius B. The inspector shows Chandrasekhar's limit and the radius an ideal white dwarf of its mass has; one that grows in a merger shrinks to that radius, and one pushed past the limit explodes (see [physics/white-dwarfs.md](physics/white-dwarfs.md)).
 - **Neutron stars:** the Hulse–Taylor pulsar and its companion, two NICER pulsars, and GW170817's pair. The inspector shows the heaviest a neutron star can be and the radius for its mass (SLy); one that grows takes that radius, and one pushed past the maximum collapses into a black hole (see [physics/neutron-stars.md](physics/neutron-stars.md)).
-- **Black holes:** from Gaia BH1 (9.6 Suns) up to Sagittarius A\*, M87\* and TON 618 (66 billion Suns).
+- **Black holes:** from Gaia BH1 (9.6 Suns) up to Sagittarius A\*, M87\* and TON 618 (66 billion Suns), and a hypothetical mini black hole of 10⁸ kg that evaporates by Hawking radiation in 2.7 years (see [physics/hawking.md](physics/hawking.md)).
 - **Binaries:** the Hulse–Taylor pair, together on its measured 7.75-hour orbit; GW170817's neutron stars and GW150914's black holes, on the circular orbits whose waves are at 20 Hz, about 3 minutes and under a second before they merge.
 
 See [physics/compact-objects.md](physics/compact-objects.md).

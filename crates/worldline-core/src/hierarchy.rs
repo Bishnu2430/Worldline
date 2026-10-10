@@ -46,6 +46,7 @@ use crate::gravity::{
     Gravity, Newtonian, NonGravitational, SynchronousFigure, TesseralField, ZonalField,
     moves_in_spacetime_of, reaction_converges,
 };
+use crate::hawking;
 use crate::integrator::{Ias15, Integrator, advance};
 use crate::kepler::drift;
 use crate::mean_elements::MeanElements;
@@ -257,6 +258,8 @@ pub struct Hierarchy {
     followers: Vec<Follower>,
     /// Collisions since the last [`Self::take_collisions`].
     happened: Vec<Collision>,
+    /// Black holes that evaporated since the last [`Self::take_evaporated`].
+    evaporated: Vec<Evaporated>,
     /// Moon systems torn apart since the last [`Self::take_unbound`].
     unbound: Vec<Unbound>,
     /// The massless swarm (see `swarm.rs`).
@@ -349,6 +352,15 @@ pub struct Collision {
     pub merger: Option<Merger>,
 }
 
+/// A black hole that evaporated completely by Hawking radiation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Evaporated {
+    /// The end of the step it vanished in, simulation time in s.
+    pub time: f64,
+    /// Its name.
+    pub name: String,
+}
+
 /// A body too light to pull on anything, following the top level.
 struct Follower {
     /// The body alone, in the top level's frame.
@@ -388,6 +400,7 @@ impl Hierarchy {
             integrator: Ias15::new(),
             followers: Vec::new(),
             happened: Vec::new(),
+            evaporated: Vec::new(),
             unbound: Vec::new(),
             swarm: Swarm::new(0.0),
             field: Field::default(),
@@ -885,10 +898,47 @@ impl Hierarchy {
         if self.collisions {
             self.collide(&before, t1 - t0);
         }
+        self.evaporate(t1 - t0);
         if !self.swarm.is_empty() && self.top.time() - self.swarm.time() >= CADENCE {
             self.sync_swarm();
         }
         taken
+    }
+
+    /// Black holes radiate (see [`hawking`]): over a step of `h` seconds,
+    /// each top-level black hole hotter than the cosmic microwave background
+    /// loses the mass it radiates, exactly (its horizon shrinking with it, at
+    /// its spin), and one that runs out is removed. Hawking radiation leaves
+    /// evenly in all directions, so its velocity doesn't change. Body 0,
+    /// which everything is measured from, stays.
+    fn evaporate(&mut self, h: f64) {
+        if h <= 0.0 {
+            return;
+        }
+        let time = self.top.time();
+        for k in (1..self.top.bodies.len()).rev() {
+            let body = &self.top.bodies[k];
+            if !is_black_hole(body) || !hawking::evaporating(body.gm) {
+                continue;
+            }
+            match hawking::after(body.gm, h) {
+                Some(gm) => {
+                    let body = &mut self.top.bodies[k];
+                    body.radius *= gm / body.gm;
+                    body.gm = gm;
+                }
+                None => {
+                    let name = body.name.clone();
+                    self.remove_body(k);
+                    self.evaporated.push(Evaporated { time, name });
+                }
+            }
+        }
+    }
+
+    /// The black holes that evaporated since the last call, oldest first.
+    pub fn take_evaporated(&mut self) -> Vec<Evaporated> {
+        std::mem::take(&mut self.evaporated)
     }
 
     /// Finds the top-level bodies that touched during the step just taken
