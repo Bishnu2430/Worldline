@@ -9,6 +9,7 @@ use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
 use worldline_core::constants::{AU, C, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSITY};
 use worldline_core::gravity::kerr::innermost_stable_orbit;
+use worldline_core::hawking;
 use worldline_core::magnetosphere::standoff;
 use worldline_core::merger::ringdown;
 use worldline_core::neutron_star::{sly_maximum, sly_radius};
@@ -153,9 +154,12 @@ fn waveform_plot(ui: &mut egui::Ui, recording: &waves::Recording) {
     );
 }
 
-/// A short time, from nanoseconds to seconds: "76 µs".
+/// A short time, from nanoseconds to seconds: "76 µs". Shorter ones are in
+/// seconds, in powers of ten: "2.7e-27 s".
 fn short_time(seconds: f64) -> String {
-    let (value, unit) = if seconds < 1e-6 {
+    let (value, unit) = if seconds < 1e-9 {
+        (seconds, "s")
+    } else if seconds < 1e-6 {
         (seconds * 1e9, "ns")
     } else if seconds < 1e-3 {
         (seconds * 1e6, "µs")
@@ -709,10 +713,13 @@ impl WorldlineApp {
                 ui.label(format!("{:.4e} kg", body.mass()));
                 ui.end_row();
                 ui.label("");
+                let earths = body.gm / GM_EARTH;
                 if body.gm >= 0.01 * GM_SUN {
                     ui.label(measured_suns(body.gm / GM_SUN, None));
+                } else if earths >= 1e-3 {
+                    ui.label(format!("{earths:.6} Earth masses"));
                 } else {
-                    ui.label(format!("{:.6} Earth masses", body.gm / GM_EARTH));
+                    ui.label(format!("{} Earth masses", significant(earths)));
                 }
             } else {
                 ui.label(key("not measured"));
@@ -824,6 +831,12 @@ impl WorldlineApp {
                 == Some(ObjectKind::NeutronStar)
         {
             details::BodyKind::CollapsedStar
+        } else if self
+            .simulation
+            .entry(self.selected)
+            .is_some_and(Entry::is_hypothetical)
+        {
+            details::BodyKind::MiniBlackHole
         } else if self.simulation.is_added(self.selected) {
             details::BodyKind::Added(self.simulation.kind(self.selected))
         } else if let Some((kind, outgassing)) = self.simulation.small_body(self.selected) {
@@ -953,6 +966,26 @@ impl WorldlineApp {
         .on_hover_text(
             "Closer in, no circular orbit lasts: a body circling there plunges into the hole (Bardeen, Press & Teukolsky 1972)",
         );
+        ui.end_row();
+        ui.label(key("Hawking temperature"));
+        ui.label(format!(
+            "{} K (theoretical)",
+            significant(hawking::temperature(body.gm))
+        ))
+            .on_hover_text("Quantum effects at the horizon make a black hole glow, hotter the smaller it is (Hawking 1974). Theoretical: Hawking radiation has never been observed");
+        ui.end_row();
+        ui.label(key("Evaporates"));
+        let life = any_time(hawking::lifetime(body.gm));
+        if hawking::evaporating(body.gm) {
+            ui.label(format!("in {life} (photons only)")).on_hover_text(
+                "The textbook estimate: a black body at its temperature, as big as its horizon. Real holes also emit neutrinos, gravitons and, when hot enough, every lighter particle: 13 to 200 times faster (Carr et al. 2010)",
+            );
+        } else {
+            ui.label("not today: colder than the cosmic background")
+                .on_hover_text(format!(
+                    "It absorbs more of the 2.725 K cosmic microwave background than it radiates. Alone in a colder universe, it would last {life}"
+                ));
+        }
         ui.end_row();
         let tone = ringdown(body.gm, spin);
         ui.label(key("Rings down at"));

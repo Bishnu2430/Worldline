@@ -155,6 +155,23 @@ const MERGER_REMNANT: &[Detail] = &[
     ADDED_PATH,
 ];
 
+/// A hypothetical mini black hole.
+const MINI_BLACK_HOLE: &[Detail] = &[
+    detail(
+        "Hypothetical: a primordial black hole, which may have formed in the early universe; none has been found",
+        Kind::Model,
+    ),
+    detail(
+        "Evaporates by Hawking radiation, theoretical: never observed. As the textbook estimate has it: a black body at its temperature, as big as its horizon, emitting photons; real ones would also emit neutrinos, gravitons and heavier particles, faster",
+        Kind::Model,
+    ),
+    detail(
+        "Drawn as a dot: its horizon is far smaller than a proton",
+        Kind::Visual,
+    ),
+    ADDED_PATH,
+];
+
 /// A neutron star that collapsed into a black hole.
 const COLLAPSED_STAR: &[Detail] = &[
     detail(
@@ -395,6 +412,8 @@ pub enum BodyKind {
     MergerRemnant,
     /// A neutron star from the catalog that collapsed into a black hole.
     CollapsedStar,
+    /// A hypothetical mini black hole, evaporating.
+    MiniBlackHole,
     /// Sagittarius A* in the galactic center, or (`star`) a star orbiting
     /// it.
     Galactic { star: bool },
@@ -420,6 +439,7 @@ pub fn details(name: &str, kind: BodyKind) -> Vec<Detail> {
         BodyKind::Added(Some(kind)) => return catalog_details(kind),
         BodyKind::MergerRemnant => return MERGER_REMNANT.to_vec(),
         BodyKind::CollapsedStar => return COLLAPSED_STAR.to_vec(),
+        BodyKind::MiniBlackHole => return MINI_BLACK_HOLE.to_vec(),
         BodyKind::SmallBody {
             comet,
             outgassing,

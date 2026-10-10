@@ -95,7 +95,7 @@ It uses them to pick a model:
 | White dwarfs | Cold, ideal degenerate electron gas: Chandrasekhar's white-dwarf equation for the mass–radius relation, and his limit (1.456 Suns for carbon–oxygen); past it, a type Ia supernova that leaves nothing | Chandrasekhar 1931, 1935, 1939; Hillebrandt & Niemeyer 2000; [physics/white-dwarfs.md](physics/white-dwarfs.md) |
 | Neutron stars | Tolman–Oppenheimer–Volkoff structure (Lindblom's enthalpy form) with the SLy equation of state as Read et al.'s piecewise polytrope: radius for a mass, the maximum mass (2.048 Suns); past it, collapse into a black hole | Tolman 1939; Oppenheimer & Volkoff 1939; Lindblom 1992; Douchin & Haensel 2001; Read et al. 2009; [physics/neutron-stars.md](physics/neutron-stars.md) |
 | Neutron star merger outcome | Prompt collapse above k M_max, k = −3.606 GM_max/(c²R₁.₆) + 2.380 (2.94 Suns for SLy); below it, a hot spinning remnant that collapses later if above the maximum mass | Bauswein, Baumgarte & Janka 2013; [physics/neutron-stars.md](physics/neutron-stars.md) |
-| Small black holes | Hawking evaporation (semiclassical) | Hawking 1974, 1975; Page 1976 |
+| Small black holes | Hawking evaporation, the textbook estimate (a black body at the Hawking temperature, the horizon's size, photons only), applied exactly each step to holes hotter than the 2.725 K cosmic background; theoretical, labeled | Hawking 1974, 1975; Page 1976; Carr et al. 2010; Fixsen 2009; [physics/hawking.md](physics/hawking.md) |
 | Time integration | IAS15 adaptive integrator, with the timescale step criterion | Rein & Spiegel 2015; Pham, Rein & Spiegel 2024 |
 
 The app always shows which model is active for the selected body, and warns when a scenario leaves that model's validity range.

@@ -12,7 +12,9 @@ use worldline_core::constants::{AGE_OF_UNIVERSE, DAY, GM_SUN};
 use worldline_core::gravitational_waves::{merger_time, period_derivative};
 use worldline_core::gravity::kerr::plunge_time;
 use worldline_core::gravity::{Gravity, holding_hole, moves_in_spacetime_of, reaction_converges};
-use worldline_core::hierarchy::{Collision, FREED_MOON_IDS, Hierarchy, MOON_SYSTEM_GRAVITY};
+use worldline_core::hierarchy::{
+    Collision, Evaporated, FREED_MOON_IDS, Hierarchy, MOON_SYSTEM_GRAVITY,
+};
 use worldline_core::integrator::{Ias15, Integrator};
 use worldline_core::kepler::drift;
 use worldline_core::magnetosphere::Dipole;
@@ -1068,7 +1070,26 @@ impl Simulation {
             self.after_collisions(&collisions);
             self.events.extend(collisions);
         }
+        let gone = self.hierarchy.take_evaporated();
+        self.after_evaporating(&gone);
         self.refresh();
+    }
+
+    /// Black holes that evaporated: their records go, and the top bar says
+    /// so.
+    fn after_evaporating(&mut self, gone: &[Evaporated]) {
+        if gone.is_empty() {
+            return;
+        }
+        for hole in gone {
+            self.added.retain(|(name, _)| name != &hole.name);
+            self.merged.retain(|(name, _)| name != &hole.name);
+            self.notices.push(format!(
+                "{} evaporated completely: its last moments were a burst of Hawking radiation",
+                hole.name
+            ));
+        }
+        self.reindex();
     }
 
     /// Brings the galactic center up to the solar system's time, in its own
@@ -1098,6 +1119,10 @@ impl Simulation {
             self.reindex();
             self.settle_compact_stars(&collisions, &absorbed);
             self.events.extend(collisions);
+        }
+        let gone = self.galaxy.as_mut().map(|g| g.hierarchy.take_evaporated());
+        if let Some(gone) = gone {
+            self.after_evaporating(&gone);
         }
         self.refresh();
     }
@@ -1273,7 +1298,11 @@ impl Simulation {
         for (body, source) in self.bodies.iter_mut().zip(&self.sources) {
             let (position, velocity) = match *source {
                 Source::Top(k) => {
+                    // Top-level bodies' masses can change (a black hole
+                    // evaporating), and their sizes with them.
                     let b = &self.hierarchy.top.bodies[k];
+                    body.gm = b.gm;
+                    body.radius = b.radius;
                     (b.position, b.velocity)
                 }
                 Source::Moon { system, body } => self.hierarchy.absolute(system, body),
@@ -1281,7 +1310,12 @@ impl Simulation {
                 Source::Galactic(far) => {
                     let g = self.galaxy.as_ref().expect("the galactic center");
                     let b = match far {
-                        Far::Top(k) => &g.hierarchy.top.bodies[k],
+                        Far::Top(k) => {
+                            let b = &g.hierarchy.top.bodies[k];
+                            body.gm = b.gm;
+                            body.radius = b.radius;
+                            b
+                        }
                         Far::Follower(i) => g.hierarchy.follower(i),
                     };
                     (g.origin + b.position, b.velocity)
@@ -1653,6 +1687,42 @@ mod tests {
             sim.notices
                 .iter()
                 .any(|n| n.contains("below the prompt-collapse threshold"))
+        );
+    }
+
+    #[test]
+    fn a_mini_black_hole_evaporates_and_is_gone() {
+        // The catalogue's mini black hole (10⁸ kg) evaporates in 2.7 years;
+        // a lighter one, 10⁶ kg, in 84 seconds. Dropped 1 AU from the Sun,
+        // it shrinks, then vanishes, and the top bar says so.
+        let entry = catalogue::entry("hypothetical:mini black hole").expect("listed");
+        println!("{}: {}", entry.label, entry.summary);
+        assert!(entry.summary.contains("2.7 years"));
+        let mut sim = Simulation::solar_system(DAY);
+        let gm = worldline_core::constants::G * 1e6;
+        let life = worldline_core::hawking::lifetime(gm);
+        let at = sim.bodies[0].position + DVec3::new(worldline_core::constants::AU, 0.0, 0.0);
+        let index = sim.add_body(
+            Body::new("Mini black hole", gm, schwarzschild_radius(gm)).at(at),
+            &entry.key,
+        );
+        assert!(sim.entry(index).is_some_and(Entry::is_hypothetical));
+        let start = sim.time();
+        sim.advance_by(0.5 * life);
+        let half = sim.index_of("Mini black hole").expect("still there");
+        let left = sim.bodies[half].gm / gm;
+        let expected = (1.0 - (sim.time() - start) / life).cbrt();
+        println!(
+            "after half its lifetime ({life:.1} s): {left:.6} of its mass, expected {expected:.6}"
+        );
+        assert!((left / expected - 1.0).abs() < 1e-9);
+        sim.advance_by(life);
+        println!("{}", sim.notices.join("; "));
+        assert!(sim.index_of("Mini black hole").is_none());
+        assert!(
+            sim.notices
+                .iter()
+                .any(|n| n.contains("evaporated completely"))
         );
     }
 

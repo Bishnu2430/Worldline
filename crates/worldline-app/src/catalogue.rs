@@ -7,8 +7,9 @@ use std::sync::OnceLock;
 
 use eframe::egui::Color32;
 use worldline_core::Body;
-use worldline_core::constants::{AU, GM_SUN, SOLAR_RADIUS};
+use worldline_core::constants::{AU, C, G, GM_SUN, JULIAN_YEAR, SOLAR_RADIUS};
 use worldline_core::gravity::circular_pair;
+use worldline_core::hawking;
 use worldline_core::orbit::periapsis_state;
 use worldline_data::{BinaryOrbit, NotableObject, ObjectKind, RadiusBasis};
 
@@ -71,7 +72,14 @@ pub enum Template {
         /// The hole the real merger left, as measured, if it was one.
         remnant: Option<Box<NotableObject>>,
     },
+    /// A hypothetical black hole of `mass` kg, small enough to evaporate
+    /// by Hawking radiation within years: a primordial black hole, which
+    /// may have formed in the early universe. None has been found.
+    MiniBlackHole { mass: f64 },
 }
+
+/// The mini black hole's mass, kg: 10⁸ kg evaporates in 2.7 years.
+const MINI_BLACK_HOLE: f64 = 1e8;
 
 /// The gravitational-wave events the catalogue offers as merging pairs, by
 /// their two bodies' names in the catalog.
@@ -196,6 +204,18 @@ pub fn catalogue() -> &'static [Entry] {
                 },
             });
         }
+        entries.push(Entry {
+            key: "hypothetical:mini black hole".to_string(),
+            label: "Mini black hole".to_string(),
+            group: Group::BlackHoles,
+            summary: format!(
+                "Hypothetical: 100,000 tonnes, smaller than a proton; evaporates in {:.1} years",
+                hawking::lifetime(G * MINI_BLACK_HOLE) / JULIAN_YEAR
+            ),
+            template: Template::MiniBlackHole {
+                mass: MINI_BLACK_HOLE,
+            },
+        });
         entries.sort_by_key(|e| Group::ALL.iter().position(|g| *g == e.group));
         entries
     })
@@ -256,8 +276,15 @@ fn size_words(o: &NotableObject) -> String {
 }
 
 /// A number to four significant figures, without trailing zeros, in
-/// words above a million: "4.297 million".
+/// words above a million: "4.297 million". Beyond a thousand billion, or
+/// below a thousandth, in powers of ten: "2.366e26", "1.485e-19".
 pub fn significant(x: f64) -> String {
+    if x != 0.0 && !(1e-3..1e12).contains(&x.abs()) {
+        let s = format!("{x:.3e}");
+        let (mantissa, exponent) = s.split_once('e').unwrap_or((&s, "0"));
+        let mantissa = mantissa.trim_end_matches('0').trim_end_matches('.');
+        return format!("{mantissa}e{exponent}");
+    }
     let (x, word) = if x >= 1e9 {
         (x / 1e9, " billion")
     } else if x >= 1e6 {
@@ -277,14 +304,16 @@ pub fn significant(x: f64) -> String {
 
 /// A length in the unit that suits it: AU from a hundredth of one (where
 /// it compares with planetary orbits), the Sun's radius for stars (from a
-/// tenth of it), else km.
+/// tenth of it), km, and meters below one (a mini black hole's horizon).
 pub fn length(meters: f64) -> String {
     if meters >= 0.01 * AU {
         format!("{} AU", significant(meters / AU))
     } else if meters >= 0.1 * SOLAR_RADIUS {
         format!("{} Sun radii", significant(meters / SOLAR_RADIUS))
-    } else {
+    } else if meters >= 1e3 {
         format!("{} km", significant(meters / 1e3))
+    } else {
+        format!("{} m", significant(meters))
     }
 }
 
@@ -314,7 +343,13 @@ impl Entry {
             Template::Binary { members, .. } | Template::Inspiral { members, .. } => {
                 members[0].gm() + members[1].gm()
             }
+            Template::MiniBlackHole { mass } => G * mass,
         }
+    }
+
+    /// Whether it is a hypothetical object rather than a real one.
+    pub fn is_hypothetical(&self) -> bool {
+        matches!(self.template, Template::MiniBlackHole { .. })
     }
 
     /// What kind of object it is, for the catalog's own objects.
@@ -325,6 +360,7 @@ impl Entry {
             Template::Binary { members, .. } | Template::Inspiral { members, .. } => {
                 Some(members[0].kind)
             }
+            Template::MiniBlackHole { .. } => Some(ObjectKind::BlackHole),
         }
     }
 
@@ -414,6 +450,11 @@ impl Entry {
                 );
                 vec![a, b]
             }
+            Template::MiniBlackHole { mass } => {
+                let name = free(&["Mini black hole"]).remove(0);
+                let gm = G * mass;
+                vec![Body::new(name, gm, 2.0 * gm / (C * C))]
+            }
         }
     }
 }
@@ -445,6 +486,10 @@ mod tests {
         assert_eq!(significant(21.2), "21.2");
         assert_eq!(length(1.268e10), "0.08476 AU");
         assert_eq!(length(33_020.0), "33.02 km");
+        // A mini black hole: its horizon, and the tone it rings with.
+        assert_eq!(length(1.485e-19), "1.485e-19 m");
+        assert_eq!(significant(2.366e26), "2.366e26");
+        assert_eq!(significant(5e-4), "5e-4");
         assert_eq!(
             measured_suns(4.297e6, Some((0.012e6, 0.012e6))),
             "4.297 ± 0.012 million Suns"
@@ -460,9 +505,9 @@ mod tests {
     #[test]
     fn the_catalogue_offers_every_catalog_object() {
         let entries = catalogue();
-        // 4 copies, 20 catalog objects, the Hulse–Taylor pair and the
-        // GW170817 and GW150914 pairs.
-        assert_eq!(entries.len(), 27);
+        // 4 copies, 20 catalog objects, the Hulse–Taylor pair, the
+        // GW170817 and GW150914 pairs, and a hypothetical mini black hole.
+        assert_eq!(entries.len(), 28);
         let groups: Vec<Group> = entries.iter().map(|e| e.group).collect();
         assert!(groups.windows(2).all(|w| {
             Group::ALL.iter().position(|g| *g == w[0]) <= Group::ALL.iter().position(|g| *g == w[1])
