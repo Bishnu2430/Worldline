@@ -8,8 +8,9 @@ When a body is big enough on screen to see, at least 3 points across, Worldline 
 
 ## How a frame is drawn
 
-The 3D view is drawn in three layers:
+The 3D view is drawn in four layers:
 
+0. **The sky, on the GPU:** a full-screen pass that looks up the sky map along each pixel's ray, bent first by a black hole if one bends the view (see [The sky](#the-sky)).
 1. **Back, on the CPU through egui:** reference rings, orbit trails and the Sun's glow.
 2. **Middle, on the GPU (`worldline-render`):** drawn into an offscreen image that is transparent everywhere else. egui then paints that image over the back layer, so trails pass behind planets naturally. Three pipelines run in order:
    - **globes:** opaque, writing depth;
@@ -36,6 +37,14 @@ The view spans from the camera a few thousand kilometers above Earth out to Plut
 - **Mipmaps averaged in linear light.** Every map gets a full chain of half-size copies, so a distant planet samples a properly averaged image instead of sparkling. The 2 × 2 averaging happens in linear light, not on raw sRGB values, so colors don't darken as they shrink. A unit test checks that black and white average to sRGB 188, not 128.
 - **Loaded only when needed.** A map is decoded and uploaded the first time its body becomes a globe. Bodies you never zoom in on never cost memory.
 - **4× multisampling** smooths planets' edges.
+
+## The sky
+
+- **The map:** Gaia's Milky Way with the Bright Star Catalogue's 9,096 stars drawn in, 4,096 × 2,048, equirectangular in galactic coordinates. It is built once, when the sky is first drawn, and uploaded with its mipmaps.
+- **A pixel's ray:** its direction from the camera's axes and field of view, the same projection as the globes. Turned into galactic coordinates, it gives the place on the map.
+- **Level of detail from the ray:** how much sky the pixel's ray covers, from its screen-space derivatives. So there's no seam at the map's edge, and where a black hole squeezes the sky the map blurs as it should.
+- **Bent by a black hole:** the GPU looks each ray's bending up in a table the core crate computes in double precision (see [physics/lensing.md](physics/lensing.md)). The renderer itself knows nothing about physics. Choices are made with `select`, not branches, so the derivatives stay in uniform control flow, which naga checks.
+- **Tests:** a naga test compiles and validates `sky.wgsl`, and another checks that its uniform's layout, as naga computes it, matches the Rust struct. A `vec3` of padding there once made it 144 bytes against 128.
 
 ## Spacecraft maps
 

@@ -8,7 +8,7 @@ use eframe::egui_wgpu::RenderState;
 use eframe::wgpu;
 use glam::{Mat3, Vec3};
 use worldline_render::{
-    Atmosphere, Image, Material, MaterialImages, Renderer, Rings, SphereDraw, View,
+    Atmosphere, Image, Material, MaterialImages, Renderer, Rings, Sky, SkyView, SphereDraw, View,
 };
 
 use crate::textures;
@@ -88,6 +88,53 @@ impl GpuGlobes {
             .renderer
             .render(&state.device, &state.queue, &view, &draws);
         let output = self.renderer.output()?;
+        let mut egui_renderer = state.renderer.write();
+        match self.texture {
+            Some(id) if resized => egui_renderer.update_egui_texture_from_wgpu_texture(
+                &state.device,
+                output,
+                wgpu::FilterMode::Linear,
+                id,
+            ),
+            Some(_) => {}
+            None => {
+                self.texture = Some(egui_renderer.register_native_texture(
+                    &state.device,
+                    output,
+                    wgpu::FilterMode::Linear,
+                ));
+            }
+        }
+        self.texture
+    }
+}
+
+/// Owns the sky's GPU pass and its output's place in egui.
+pub struct GpuSky {
+    sky: Sky,
+    texture: Option<TextureId>,
+}
+
+impl GpuSky {
+    /// Builds the sky map (Gaia's Milky Way and the bright stars) and
+    /// uploads it.
+    pub fn new(state: &RenderState) -> Self {
+        let (width, height, rgba) = crate::sky::map();
+        let image = Image {
+            width,
+            height,
+            rgba: &rgba,
+        };
+        Self {
+            sky: Sky::new(&state.device, &state.queue, &image),
+            texture: None,
+        }
+    }
+
+    /// Draws the sky and returns the texture holding it.
+    pub fn draw(&mut self, state: &RenderState, view: &SkyView<'_>) -> Option<TextureId> {
+        let resized = self.sky.render(&state.device, &state.queue, view);
+        let output = self.sky.output()?;
         let mut egui_renderer = state.renderer.write();
         match self.texture {
             Some(id) if resized => egui_renderer.update_egui_texture_from_wgpu_texture(

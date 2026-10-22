@@ -10,7 +10,7 @@ use crate::{mesh, mipmap};
 
 /// The output texture's format. sRGB, so lighting math happens in linear
 /// light and the GPU encodes the result for display.
-const COLOR_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
+pub(crate) const COLOR_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// 32-bit float depth, used reversed (1 near, 0 far) for even precision
 /// across the huge range of distances in space.
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -690,7 +690,7 @@ fn upload_levels(
 }
 
 /// Uploads an sRGB image with its full mipmap chain.
-fn upload_image(
+pub(crate) fn upload_image(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     image: &Image<'_>,

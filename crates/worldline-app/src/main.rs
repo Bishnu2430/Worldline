@@ -23,6 +23,7 @@ mod details;
 mod gpu;
 mod sandbox;
 mod simulation;
+mod sky;
 mod textures;
 mod theme;
 mod view;

@@ -28,6 +28,7 @@ pub struct ViewOptions {
     pub solar_wind: bool,
     pub heliosphere: bool,
     pub magnetospheres: bool,
+    pub starfield: bool,
 }
 
 /// A visible body and how it will be drawn.
@@ -56,6 +57,8 @@ pub struct Attention {
     pub focus: usize,
     pub selected: usize,
     pub pointer: Option<Pos2>,
+    /// The black hole the ray tracer draws, bending the sky, if any.
+    pub lensed: Option<usize>,
 }
 
 impl Attention {
@@ -816,9 +819,12 @@ pub fn draw_over(
         let body = &bodies[item.index];
         let color = color(simulation, item.index);
         let center = item.projection.position;
-        if is_black_hole(body) {
+        // The black hole bending the sky shows its true shadow there, once
+        // it is bigger than a dot.
+        let traced = Some(item.index) == attention.lensed && item.radius > MIN_RADIUS + 1.0;
+        if is_black_hole(body) && !traced {
             draw_black_hole(painter, center, item.radius, color);
-        } else if !item.globe {
+        } else if !item.globe && !is_black_hole(body) {
             painter.circle_filled(center, item.radius, color);
         }
         // Up close it's obvious what's selected, so large globes skip the ring.
@@ -910,8 +916,8 @@ pub fn draw_over(
 }
 
 /// A black hole: a dark disk the size of its shadow, edged by a thin ring
-/// in `color` so it shows against the dark sky. A visual stand-in for the
-/// bright ring of bent light around a real shadow (step 3.1 traces it).
+/// in `color` so it shows against the dark sky. The one bending the sky is
+/// drawn by the ray tracer instead, once it is bigger than a dot.
 fn draw_black_hole(painter: &Painter, center: Pos2, radius: f32, color: Color32) {
     painter.circle_filled(center, radius, Color32::BLACK);
     painter.circle_stroke(center, radius, Stroke::new(1.5, color));
@@ -1068,6 +1074,7 @@ mod tests {
                 focus,
                 selected,
                 pointer: None,
+                lensed: None,
             };
             attention.names(&sim, index, globe, hovered)
         };

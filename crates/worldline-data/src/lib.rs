@@ -16,6 +16,7 @@ mod rotation;
 mod small_bodies;
 mod small_moons;
 mod snapshot;
+mod stars;
 
 pub use atmosphere::{Atmosphere, atmosphere};
 pub use belts::{Belt, BeltKind, BeltSample, belt_particles, belt_samples, belts};
@@ -49,6 +50,7 @@ pub use small_moons::{
     small_moon_zonal_harmonics, small_moons,
 };
 pub use snapshot::{ParseError, Snapshot};
+pub use stars::{BrightStar, bright_stars};
 
 /// The solar system at 2025-01-01 00:00:00 TDB: the Sun, the eight planets,
 /// the Moon and Pluto, from NASA JPL Horizons (ephemeris DE441) with JPL
