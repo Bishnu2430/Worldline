@@ -99,14 +99,20 @@ The owner asked to connect the galactic center with the solar system, as a found
 - **The solar system goes around the galactic center** in it, from its measured place and motion relative to Sagittarius A\*. The galactic center region moves accordingly, and the solar system's path around the galaxy is drawn.
 - **Still in v2:** the galaxy's stars from Gaia, a live dark-matter halo and disk, the bar and spiral arms, and the "compute in the background, then replay" mode that would let a whole galactic year play out.
 
+## Added to v1: the present, collisions in full, and the Milky Way filled in (decided 2026-10-22)
+
+The owner asked for three more things, now milestones M5 to M7 of the [roadmap](ROADMAP.md):
+- **The solar system now:** the app can start at the present moment and run in real time, for eclipses and the like: an eclipse finder, the Moon's shadow on Earth, and the sky from a place on Earth.
+- **Collisions in full:** what a collision leaves (merging, hit-and-run, disruption), debris, craters, and giant impacts between planets as fluids with rock and iron equations of state. That last part moves here from v2.
+- **The Milky Way filled in:** famous stars, clusters, nebulae and satellite galaxies at their real places; the rest of the galaxy's stars as a swarm of dots that move in its gravity and feel anything added, without full detail.
+
 ## v2: committed, starts once v1 is established
 
 All of these will be built. They are ordered after v1 because they depend on its engine, not because they are optional.
 
 - Stellar evolution (stars aging, supernovae of massive stars)
-- A Milky Way built from Gaia data (its stars one by one), a live dark-matter halo, galaxy-scale simulation, and a "compute in the background, then replay" mode (v1 has the galaxy's mass as a smooth model, from step 2.9)
+- A Milky Way built from Gaia data (all its stars one by one, beyond v1's sampled swarm), a live dark-matter halo, galaxy-scale self-gravitating simulation, and a "compute in the background, then replay" mode (v1 has the galaxy's mass as a smooth model, from step 2.9, and its stars as a swarm, M7)
 - TON 618 dropped into the full galaxy (v1 covers the two-black-hole merger only)
-- Fluid collisions between planets with realistic rock and iron equations of state
 - Accretion disk physics
 - Quantum lab mode (Schrödinger equation)
 

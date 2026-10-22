@@ -64,7 +64,7 @@ pub struct Attention {
 impl Attention {
     /// The planet in focus: the followed planet, or the followed moon's.
     fn planet(&self, simulation: &Simulation) -> usize {
-        simulation.parent(self.focus).unwrap_or(self.focus)
+        simulation.neighborhood(self.focus)
     }
 
     /// Whether body `index` gets its name shown. Zoomed out, names would

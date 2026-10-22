@@ -700,6 +700,46 @@ impl Hierarchy {
         }
     }
 
+    /// Restarts the top level's integrator and the followers', after a
+    /// top-level body's state was changed from outside (a kick). Moon
+    /// systems keep theirs, and their small moons: they feel the change
+    /// through their tides, step by step.
+    pub fn restart_top(&mut self) {
+        self.integrator = Ias15::new();
+        for follower in &mut self.followers {
+            follower.integrator = Ias15::new();
+        }
+    }
+
+    /// Gives body `body` of moon system `system` (0 the planet) a kick of
+    /// `dv` (m/s), as seen from outside: the system's barycenter, the host
+    /// at the top level, takes its share m/M of it, and every member's
+    /// motion around the barycenter shifts back by as much, so only the
+    /// kicked body's actual motion changes.
+    pub fn kick_moon(&mut self, system: usize, body: usize, dv: DVec3) {
+        let moons = &mut self.moon_systems[system];
+        let total: f64 = moons.system.bodies.iter().map(|b| b.gm).sum();
+        let share = if total > 0.0 {
+            moons.system.bodies[body].gm / total
+        } else {
+            0.0
+        };
+        for b in &mut moons.system.bodies {
+            b.velocity -= share * dv;
+        }
+        for group in &mut moons.groups {
+            for b in &mut group.system.bodies {
+                b.velocity -= share * dv;
+            }
+            group.integrator = Ias15::new();
+        }
+        moons.system.bodies[body].velocity += dv;
+        moons.integrator = Ias15::new();
+        let host = moons.host;
+        self.top.bodies[host].velocity += share * dv;
+        self.restart_top();
+    }
+
     /// How many followers there are.
     pub fn follower_count(&self) -> usize {
         self.followers.len()

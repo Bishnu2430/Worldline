@@ -68,13 +68,46 @@ Added 2026-10-05, before steps 1.6 and 1.7. Detail follows focus: see [SCOPE.md]
 | 4.3 | Automatic switching between point body and fluid body when tides matter | A planet stays a point until it nears the tidal radius, then becomes a fluid | ⬜ |
 | 4.4 | Tidal disruption scenarios | Disruption begins near r_t ≈ R(M/m)^(1/3). Debris falls back at a rate ∝ t^(−5/3). | ⬜ |
 
-## M5: Portfolio release
+## M5: The solar system now, and eclipses
+
+Added 2026-10-22 at the owner's request: the sky as it is at this moment, for eclipses and the like. See [SCOPE.md](SCOPE.md#added-to-v1-the-present-collisions-in-full-and-the-milky-way-filled-in-decided-2026-10-22).
 
 | # | Step | How you verify it | Status |
 |---|---|---|---|
-| 5.1 | Scenario library: Mercury, Hulse–Taylor, GW150914, GW170817, planet versus black hole, TON 618 meets Sagittarius A\*, white dwarf pushed past the limit, evaporating mini black hole | Each scenario loads and plays from a menu | ⬜ |
-| 5.2 | Validation report: plots generated automatically into `docs/validation/` | Every claim in the README links to a passing test and a plot | ⬜ |
-| 5.3 | README with GIFs, physics docs, Windows release build | A fresh machine can download and run it | ⬜ |
+| 5.1 | **Now:** start at the present moment and run in real time. The computer's clock (UTC) turned into the simulation's time (TDB), with leap seconds and Earth's rotation (ΔT) from the IERS | The clock matches UTC to under a second; planets' positions for today match NASA JPL Horizons as closely as step 1.3's did | ⬜ |
+| 5.2 | **Eclipses:** the shadow cones of the Moon and Earth (umbra and penumbra), and an eclipse finder | Every solar and lunar eclipse of 2026–2030 found, at the times of greatest eclipse in NASA's Five Millennium Canon (Espenak & Meeus), to the minute | ⬜ |
+| 5.3 | **The Moon's shadow on Earth:** the path of totality and the penumbra drawn on the globe | The 12 August 2026 total eclipse's central line within a few km of NASA's tabulated path | ⬜ |
+| 5.4 | **The sky from a place on Earth:** the view from a latitude and longitude, with the horizon, Sun, Moon and planets | Rise and set times of the Sun and Moon for a city match the U.S. Naval Observatory's to the minute | ⬜ |
+
+## M6: Collisions in full
+
+Added 2026-10-22 at the owner's request: what really happens when bodies collide, beyond step 1.7's perfect merging. Builds on M4's fluid bodies.
+
+| # | Step | How you verify it | Status |
+|---|---|---|---|
+| 6.1 | **What a collision leaves:** merging, partial accretion, hit-and-run or disruption, by Leinhardt & Stewart's (2012) scaling laws for the largest remnant | Their catastrophic-disruption threshold and largest remnants reproduced for their published cases | ⬜ |
+| 6.2 | **Debris:** the mass a collision throws off flies off as fragments; the energy lost heats what's left | Mass and momentum before and after equal to rounding; energy accounted for to rounding | ⬜ |
+| 6.3 | **Craters and small impacts:** crater sizes from impact scaling laws (Holsapple 1993), drawn on the globe | Meteor Crater and Chicxulub from their estimated impactors, within the published scaling's spread | ⬜ |
+| 6.4 | **Giant impacts as fluids:** planets in SPH with rock and iron (the Tillotson equation of state); the Moon-forming impact | The canonical giant impact (Canup 2004) leaves a disk of debris around Earth of the mass its published simulations find | ⬜ |
+
+## M7: The Milky Way filled in
+
+Added 2026-10-22 at the owner's request: the galaxy's stars, cheaply. Famous objects are full bodies at their real places; the rest are dots that move in the galaxy's gravity and feel anything added (a black hole dropped among them scatters them), without full detail or exact orbits. Builds on step 2.9's mass model and step 2.1b's swarm.
+
+| # | Step | How you verify it | Status |
+|---|---|---|---|
+| 7.1 | **Famous neighbors** as full bodies at their measured places and motions (Gaia and Hipparcos: position, distance, proper motion, radial velocity): the nearest and brightest stars | α Centauri A and B circle each other with their measured period; Barnard's Star crosses the sky at its measured rate | ⬜ |
+| 7.2 | **The galaxy's stars as live dots:** a swarm of sampled stars (Gaia's nearby ones, the rest drawn from McMillan's model) moving in the galaxy's potential, kicked by anything added | Left alone, the swarm keeps the model's density; a black hole passing through scatters it as the impulse approximation predicts (as in step 2.1b) | ⬜ |
+| 7.3 | **Clusters, nebulae and satellite galaxies:** the Pleiades, the Orion Nebula, globular clusters, the Magellanic Clouds, as named objects at their measured places | Each at its published distance and position | ⬜ |
+| 7.4 | **Seeing the galaxy:** the swarm drawn on the GPU, from inside and from outside | From above, the drawn disk thins out with the model's scale length | ⬜ |
+
+## M8: Portfolio release
+
+| # | Step | How you verify it | Status |
+|---|---|---|---|
+| 8.1 | Scenario library: Mercury, Hulse–Taylor, GW150914, GW170817, planet versus black hole, TON 618 meets Sagittarius A\*, white dwarf pushed past the limit, evaporating mini black hole, the next total solar eclipse, the Moon-forming impact, a black hole through the Sun's neighborhood | Each scenario loads and plays from a menu | ⬜ |
+| 8.2 | Validation report: plots generated automatically into `docs/validation/` | Every claim in the README links to a passing test and a plot | ⬜ |
+| 8.3 | README with GIFs, physics docs, Windows release build | A fresh machine can download and run it | ⬜ |
 
 ## After v1
 

@@ -588,23 +588,103 @@ impl Simulation {
         self.index_of(&name).expect("the new body is listed")
     }
 
-    /// Adds `dv` to the velocity of top-level body `index` (in either
-    /// region), restarting that region's integrator. Other bodies don't
-    /// change.
+    /// Adds `dv` to the velocity of body `index`: a top-level body (in
+    /// either region), a planet with moons (its whole system moves), or a
+    /// moon (its system's barycenter takes its share). Other bodies don't
+    /// change, and moons followed in detail stay followed.
     pub fn shift_velocity(&mut self, index: usize, dv: DVec3) {
         match self.sources[index] {
             Source::Top(k) => {
                 self.hierarchy.top.bodies[k].velocity += dv;
-                self.hierarchy.restart();
+                self.hierarchy.restart_top();
             }
+            Source::Moon { system, body: 0 } => {
+                let host = self.hierarchy.moon_systems[system].host;
+                self.hierarchy.top.bodies[host].velocity += dv;
+                self.hierarchy.restart_top();
+            }
+            Source::Moon { system, body } => self.hierarchy.kick_moon(system, body, dv),
             Source::Galactic(Far::Top(k)) => {
                 let g = self.galaxy.as_mut().expect("the galactic center");
                 g.hierarchy.top.bodies[k].velocity += dv;
-                g.hierarchy.restart();
+                g.hierarchy.restart_top();
             }
             _ => return,
         }
         self.refresh();
+        self.refresh_small_moons();
+    }
+
+    /// What dominates gravity at `point` (in the solar system's frame): of
+    /// the bodies whose Hill sphere holds it, the one whose sphere is
+    /// smallest; if none, the nearest body nothing heavier holds (the Sun,
+    /// or Sagittarius A* far enough away). A body's Hill sphere reaches
+    /// r (m/3(M + m))^(1/3) toward what holds it: its planet, for a moon;
+    /// otherwise the heavier body pulling on it hardest (e.g. Murray &
+    /// Dermott 1999, §3.13). Something placed there circles this body.
+    pub fn dominant_at(&self, point: DVec3) -> usize {
+        let pull_on = |i: usize, j: usize| {
+            self.bodies[j].gm / (self.bodies[j].position - self.bodies[i].position).length_squared()
+        };
+        let holder = |i: usize| -> Option<usize> {
+            self.parents[i].or_else(|| {
+                (0..self.bodies.len())
+                    .filter(|&j| j != i && self.bodies[j].gm > self.bodies[i].gm)
+                    .max_by(|&a, &b| pull_on(i, a).total_cmp(&pull_on(i, b)))
+            })
+        };
+        let mut held: Option<(usize, f64)> = None;
+        let mut root: Option<(usize, f64)> = None;
+        for (i, body) in self.bodies.iter().enumerate() {
+            if body.gm <= 0.0 {
+                continue;
+            }
+            let distance = (body.position - point).length();
+            match holder(i) {
+                Some(h) => {
+                    let outer = &self.bodies[h];
+                    let reach = (outer.position - body.position).length()
+                        * (body.gm / (3.0 * (outer.gm + body.gm))).cbrt();
+                    if distance < reach && held.is_none_or(|(_, r)| reach < r) {
+                        held = Some((i, reach));
+                    }
+                }
+                None => {
+                    if root.is_none_or(|(_, d)| distance < d) {
+                        root = Some((i, distance));
+                    }
+                }
+            }
+        }
+        held.or(root).map_or(0, |(i, _)| i)
+    }
+
+    /// The planet whose moons go with body `index` when it is in focus: its
+    /// own or its planet's, or, for a body without, the planet whose Hill
+    /// sphere around the Sun it is inside (a body dropped among Saturn's
+    /// moons brings Saturn's moons into detail and view).
+    pub fn neighborhood(&self, index: usize) -> usize {
+        if let Some(planet) = self.parents[index] {
+            return planet;
+        }
+        if self.is_galactic(index) || !self.has_sun() {
+            return index;
+        }
+        let here = self.bodies[index].position;
+        let sun = &self.bodies[0];
+        self.hierarchy
+            .moon_systems
+            .iter()
+            .map(|m| m.host)
+            .filter(|&host| host != index)
+            .filter_map(|host| {
+                let planet = &self.bodies[host];
+                let reach =
+                    (planet.position - sun.position).length() * (planet.gm / (3.0 * sun.gm)).cbrt();
+                ((planet.position - here).length() < reach).then_some((host, reach))
+            })
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map_or(index, |(host, _)| host)
     }
 
     /// The body body `index`'s region is measured from: Sagittarius A* in
@@ -902,7 +982,7 @@ impl Simulation {
     /// At the snapshot moment the detailed moons start from JPL's exact
     /// states; later, from their mean orbits at that moment.
     pub fn focus_detail_on(&mut self, index: usize) {
-        let planet = self.parents[index].unwrap_or(index);
+        let planet = self.neighborhood(index);
         let system = self
             .hierarchy
             .moon_systems
@@ -975,7 +1055,7 @@ impl Simulation {
     /// view.
     pub fn in_view(&self, index: usize, focus: usize, selected: usize) -> bool {
         match self.parents[index] {
-            Some(planet) => planet == self.parents[focus].unwrap_or(focus) || index == selected,
+            Some(planet) => planet == self.neighborhood(focus) || index == selected,
             None => true,
         }
     }
@@ -1828,6 +1908,95 @@ mod tests {
                 .iter()
                 .any(|n| n.contains("evaporated completely"))
         );
+    }
+
+    #[test]
+    fn what_is_placed_circles_what_dominates_where_it_goes() {
+        // Not the body the camera follows: whatever's Hill sphere holds
+        // the point, the smallest one.
+        let sim = Simulation::solar_system(DAY);
+        let at = |name: &str, offset: DVec3| {
+            let i = sim.index_of(name).unwrap();
+            sim.bodies[sim.dominant_at(sim.bodies[i].position + offset)]
+                .name
+                .clone()
+        };
+        let km = 1e3;
+        let au = worldline_core::constants::AU;
+        assert_eq!(at("Jupiter", DVec3::new(0.02 * au, 0.0, 0.0)), "Jupiter");
+        assert_eq!(at("Earth", DVec3::new(0.0, 200_000.0 * km, 0.0)), "Earth");
+        // The Moon's sphere, about 60,000 km, inside Earth's.
+        assert_eq!(at("Moon", DVec3::new(20_000.0 * km, 0.0, 0.0)), "Moon");
+        assert_eq!(at("Titan", DVec3::new(20_000.0 * km, 0.0, 0.0)), "Titan");
+        // Between Mars and Jupiter, far from both: the Sun.
+        assert_eq!(at("Sun", DVec3::new(3.0 * au, 0.0, 0.0)), "Sun");
+        assert_eq!(
+            at("Sagittarius A*", DVec3::new(1000.0 * au, 0.0, 0.0)),
+            "Sagittarius A*"
+        );
+    }
+
+    #[test]
+    fn a_kick_moves_a_planet_with_its_moons_or_one_moon_alone() {
+        // A planet with moons moves as a whole, and its small moons in
+        // detail stay in detail; a kicked moon alone changes its motion.
+        let mut sim = Simulation::solar_system(DAY);
+        let saturn = sim.index_of("Saturn").unwrap();
+        sim.focus_detail_on(saturn);
+        let (titan, rhea) = (
+            sim.index_of("Titan").unwrap(),
+            sim.index_of("Rhea").unwrap(),
+        );
+        let before = |sim: &Simulation, i: usize| sim.bodies[i].velocity;
+        let (s0, t0) = (before(&sim, saturn), before(&sim, titan));
+        let dv = DVec3::new(0.0, 1e3, 0.0);
+        sim.shift_velocity(saturn, dv);
+        let off = |a: DVec3, b: DVec3| (a - b).length();
+        assert!(off(sim.bodies[saturn].velocity, s0 + dv) < 1e-6);
+        assert!(off(sim.bodies[titan].velocity, t0 + dv) < 1e-6);
+        let pan = sim.index_of("Pan").unwrap();
+        assert_eq!(sim.computed(pan), Computed::SmallMoonInDetail);
+        let (t1, r1) = (before(&sim, titan), before(&sim, rhea));
+        sim.shift_velocity(titan, dv);
+        println!(
+            "Titan kicked by 1 km/s: Titan {:.3e} m/s off, Rhea {:.3e} m/s off",
+            off(sim.bodies[titan].velocity, t1 + dv),
+            off(sim.bodies[rhea].velocity, r1)
+        );
+        assert!(off(sim.bodies[titan].velocity, t1 + dv) < 1e-6);
+        assert!(off(sim.bodies[rhea].velocity, r1) < 1e-6);
+        assert!(
+            sim.hierarchy
+                .moon_systems
+                .iter()
+                .any(|m| m.small_moon_count() > 0)
+        );
+    }
+
+    #[test]
+    fn following_a_body_among_a_planets_moons_brings_them_into_detail() {
+        // A black hole dropped 0.02 AU from Saturn, inside its Hill sphere:
+        // following the hole computes and shows Saturn's small moons.
+        let mut sim = Simulation::solar_system(DAY);
+        let saturn = sim.index_of("Saturn").unwrap();
+        let gm = 10.0 * GM_SUN;
+        let at = sim.bodies[saturn].position
+            + DVec3::new(0.02 * worldline_core::constants::AU, 0.0, 0.0);
+        let hole = sim.add_body(
+            Body::new("Black hole", gm, schwarzschild_radius(gm)).at(at),
+            "copy:Earth",
+        );
+        let saturn = sim.index_of("Saturn").unwrap();
+        assert_eq!(sim.neighborhood(hole), saturn);
+        sim.focus_detail_on(hole);
+        let pan = sim.index_of("Pan").unwrap();
+        assert_eq!(sim.computed(pan), Computed::SmallMoonInDetail);
+        assert!(sim.in_view(pan, hole, hole));
+        // Far from any planet, a body brings no moons with it.
+        let far =
+            sim.bodies[0].position + DVec3::new(3.0 * worldline_core::constants::AU, 0.0, 0.0);
+        let lone = sim.add_body(Body::new("Lone planet", 4e14, 6.4e6).at(far), "copy:Earth");
+        assert_eq!(sim.neighborhood(lone), lone);
     }
 
     #[test]
