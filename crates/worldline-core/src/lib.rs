@@ -15,6 +15,7 @@ pub mod hawking;
 pub mod hierarchy;
 pub mod integrator;
 pub mod kepler;
+pub mod lensing;
 pub mod magnetosphere;
 pub mod mean_elements;
 pub mod merger;

@@ -19,6 +19,7 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 | Orbits of the stars around Sagittarius A\* | GRAVITY Collaboration 2022 (*A&A* 657, L12, Table B.1) for S2, S29, S38 and S55; Gillessen et al. 2017 (*ApJ* 837, 30, Table 3) for 35 more | Published scientific values |
 | Position of Sagittarius A\* on the sky | Gordon, de Witt & Jacobs 2023 (*AJ*, doi:10.3847/1538-3881/aca65b), ICRF3 | Published scientific values |
 | Sagittarius A\*'s galactic coordinates (validation) | SIMBAD (CDS, Strasbourg) | Published values |
+| The bright stars behind everything: positions, galactic coordinates, magnitudes, colors, proper motions | Yale Bright Star Catalogue, 5th revised edition (Hoffleit & Warren 1991), CDS catalog V/50 | Free for scientific use (CDS) |
 | Landmark positions on the moons, Pluto and Ceres (validation of the maps' placement) | IAU Gazetteer of Planetary Nomenclature (USGS Astrogeology Science Center, planetarynames.wr.usgs.gov) | Public domain (U.S. government work) |
 | The Hulse–Taylor binary's orbital decay (validation): measured, corrected for the galaxy's pull, and general relativity's prediction | Weisberg & Huang 2016 (*ApJ* 829, 55) | Published scientific values |
 | Age of the universe (when the inspector shows a pair's merger time) | Planck Collaboration 2020 (*A&A* 641, A6), 13.787 ± 0.020 billion years | Published scientific values |
@@ -44,6 +45,8 @@ Worldline is built on published data and imagery. Thank you to everyone who make
 | Notable objects: masses, sizes and distances | GRAVITY Collaboration 2022 (*A&A* 657, L12); Event Horizon Telescope Collaboration 2019 (*ApJL* 875, L1, L6) and 2022 (*ApJL* 930, L12); Shemmer et al. 2004 (*ApJ* 614, 547); Miller-Jones et al. 2021 (*Science* 371, 1046); Zhao et al. 2021 (*ApJ* 908, 117); El-Badry et al. 2023 (*MNRAS* 518, 1057); Gaia Collaboration 2024 (*A&A* 686, L2); LIGO/Virgo GWTC-1 (*Phys. Rev. X* 9, 031040) and Abbott et al. 2018 (*PRL* 121, 161101); Weisberg & Huang 2016 (*ApJ* 829, 55); Fonseca et al. 2021 (*ApJL* 915, L12); Riley et al. 2019, 2021 (*ApJL* 887, L21; 918, L27); Bond et al. 2017 (*ApJ* 840, 70); Joyce et al. 2018 (*MNRAS* 481, 2361); Kervella et al. 2003 (*A&A* 408, 681); Kervella, Thévenin & Lovis 2017 (*A&A* 598, L7) | Published scientific values |
 
 ## Imagery
+
+The Milky Way behind everything (`gaia_edr3_sky_2k.png`) is **"The colour of the sky from Gaia's Early Data Release 3"**, ESA/Gaia/DPAC, acknowledgement A. Moitinho, under the **[Creative Commons Attribution-ShareAlike 3.0 IGO license (CC BY-SA 3.0 IGO)](https://creativecommons.org/licenses/by-sa/3.0/igo/)**, from [ESA](https://sci.esa.int/web/gaia/-/the-colour-of-the-sky-from-gaia-s-early-data-release-3-equirectangular-projection). The file is unchanged. The app enlarges it and draws the Bright Star Catalogue's stars onto it.
 
 Planet, Moon and Sun surface maps and Earth's cloud map in `crates/worldline-app/assets/textures/` are from **[Solar System Scope](https://www.solarsystemscope.com/textures/)** (INOVE), based on NASA imagery and elevation data. They are distributed under the **[Creative Commons Attribution 4.0 International license (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)** and used unmodified.
 

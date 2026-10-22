@@ -95,8 +95,8 @@ const GALACTIC_CENTER: &[Detail] = &[
         Kind::Visual,
     ),
     detail(
-        "Drawn as its shadow seen from afar, a dark disk √27 GM/c² across: how light bends around it comes in step 3.1",
-        Kind::Visual,
+        "Up close it bends the sky behind it as general relativity bends light: its shadow and the starfield ray-traced through its spacetime (spin left out). Bodies and paths are drawn unbent, and other holes as their shadow's disk",
+        Kind::Model,
     ),
 ];
 
@@ -149,8 +149,8 @@ const MERGER_REMNANT: &[Detail] = &[
         Kind::Model,
     ),
     detail(
-        "Drawn as its shadow seen from afar, a dark disk √27 GM/c² across: how light bends around it comes in step 3.1",
-        Kind::Visual,
+        "Up close it bends the sky behind it as general relativity bends light: its shadow and the starfield ray-traced through its spacetime (spin left out). Bodies and paths are drawn unbent, and other holes as their shadow's disk",
+        Kind::Model,
     ),
     ADDED_PATH,
 ];
@@ -179,8 +179,8 @@ const COLLAPSED_STAR: &[Detail] = &[
         Kind::Model,
     ),
     detail(
-        "Drawn as its shadow seen from afar, a dark disk √27 GM/c² across: how light bends around it comes in step 3.1",
-        Kind::Visual,
+        "Up close it bends the sky behind it as general relativity bends light: its shadow and the starfield ray-traced through its spacetime (spin left out). Bodies and paths are drawn unbent, and other holes as their shadow's disk",
+        Kind::Model,
     ),
     ADDED_PATH,
 ];
@@ -198,8 +198,8 @@ fn catalog_details(kind: ObjectKind) -> Vec<Detail> {
     list.extend(match kind {
         ObjectKind::BlackHole => [
             detail(
-                "Drawn as its shadow seen from afar, a dark disk √27 GM/c² across: how light bends around it comes in step 3.1",
-                Kind::Visual,
+                "Up close it bends the sky behind it as general relativity bends light: its shadow and the starfield ray-traced through its spacetime (spin left out). Bodies and paths are drawn unbent, and other holes as their shadow's disk",
+                Kind::Model,
             ),
             detail(
                 "Inside the horizon, physics is unknown: whatever reaches it is absorbed",

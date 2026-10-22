@@ -43,7 +43,7 @@ Uncertainties are as published: one standard deviation, except the gravitational
 
 **Gravitational redshift.** Light climbing out of a body's gravity loses energy: from the surface of a static body of radius R, 1 + z = 1/√(1 − 2GM/(Rc²)) (the Schwarzschild solution). The inspector shows it for stars, white dwarfs and neutron stars.
 
-**The shadow.** A black hole seen from afar is a dark disk of radius √27 GM/c², 2.6 times its horizon, because light passing closer falls in (Synge 1966). The app draws black holes as that disk, edged by a thin ring so they show against the sky. How light bends around the shadow, and the bright ring it makes, comes with the ray tracer in step 3.1.
+**The shadow.** A black hole seen from afar is a dark disk of radius √27 GM/c², 2.6 times its horizon, because light passing closer falls in (Synge 1966). The app draws black holes as that disk, edged by a thin ring so they show against the sky. Since step 3.1 the one that bends the view most is ray-traced: its true shadow, and the starfield bent around it (see [lensing.md](lensing.md)).
 
 ## When they meet other bodies
 

@@ -10,6 +10,7 @@ use glam::Mat3;
 use worldline_core::constants::{AU, C, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSITY};
 use worldline_core::gravity::kerr::innermost_stable_orbit;
 use worldline_core::hawking;
+use worldline_core::lensing::BendTable;
 use worldline_core::magnetosphere::standoff;
 use worldline_core::merger::ringdown;
 use worldline_core::milky_way::KILOPARSEC;
@@ -17,13 +18,13 @@ use worldline_core::neutron_star::{sly_maximum, sly_radius};
 use worldline_core::sunlight::{irradiance, light_time};
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DVec3};
-use worldline_render::{Atmosphere, Rings, View};
+use worldline_render::{Atmosphere, Lens, Rings, SkyView, View};
 
 use crate::calendar::DateTime;
 use crate::camera::Camera;
 use crate::catalogue::{self, Entry, Group, length, light_years, measured_suns, significant};
 use crate::details;
-use crate::gpu::{Globe, GpuGlobes};
+use crate::gpu::{Globe, GpuGlobes, GpuSky};
 use crate::sandbox::{self, Launch};
 use crate::simulation::Simulation;
 use crate::simulation::{Computed, Removal};
@@ -206,6 +207,25 @@ fn any_time(seconds: f64) -> String {
 const SUN: usize = 0;
 const EARTH: usize = 3;
 
+/// How bright the sky is shown: its map as stored, dimmed a little so the
+/// bodies stand out.
+const SKY_EXPOSURE: f32 = 0.8;
+
+/// How the black hole bending the sky bends each ray, from where the camera
+/// is (see `worldline_core::lensing::BendTable`).
+struct LensTable {
+    /// The hole's name, and its GM (it can grow).
+    hole: String,
+    gm: f64,
+    /// The camera's distance from it when the table was worked out, in m.
+    distance: f64,
+    /// The shadow's edge, and the bending, as the GPU reads them.
+    edge: f64,
+    bending: Vec<f32>,
+    /// From the camera toward the hole, now.
+    toward: DVec3,
+}
+
 /// Where the camera settles when you focus on a body, in body radii: close
 /// enough that the globe fills most of the view.
 const FOCUS_DISTANCE_RADII: f64 = 4.0;
@@ -242,6 +262,11 @@ pub struct WorldlineApp {
     flight: Option<Flight>,
     /// The GPU renderer for globes, created on the first frame.
     gpu: Option<GpuGlobes>,
+    /// The sky's GPU pass, created on the first frame.
+    sky: Option<GpuSky>,
+    /// How the black hole bending the sky bends it, for the camera's
+    /// distance from it.
+    lens: Option<LensTable>,
     /// What's typed in the body list's search box.
     search: String,
     /// The catalogue entry a press in the view adds, if adding; otherwise
@@ -291,10 +316,13 @@ impl WorldlineApp {
                 solar_wind: true,
                 heliosphere: true,
                 magnetospheres: true,
+                starfield: true,
             },
             last_frame: Instant::now(),
             flight: None,
             gpu: None,
+            sky: None,
+            lens: None,
             search: String::new(),
             reveal: false,
             tool: None,
@@ -651,6 +679,13 @@ impl WorldlineApp {
     }
 
     fn display(&mut self, ui: &mut egui::Ui) {
+        ui.checkbox(&mut self.options.starfield, "Starfield")
+            .on_hover_text(
+                "The Milky Way as ESA's Gaia mapped it (CC BY-SA 3.0 IGO), and the 9,096 stars of \
+                 the Yale Bright Star Catalogue at their places: as seen from the solar system. \
+                 Around a black hole it is bent as general relativity bends light; how bright \
+                 the stars are drawn is visual",
+            );
         ui.checkbox(&mut self.options.trails, "Orbit trails")
             .on_hover_text("Moons show their current orbit instead");
         ui.checkbox(&mut self.options.grid, "Distance rings")
@@ -1636,7 +1671,19 @@ impl WorldlineApp {
     fn scene(&mut self, ui: &mut egui::Ui, frame: &eframe::Frame) {
         let (response, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
         let viewport = response.rect;
-        painter.rect_filled(viewport, 0.0, Color32::from_rgb(3, 5, 12));
+        let render_state = frame.wgpu_render_state();
+        let sky = render_state
+            .filter(|_| self.options.starfield)
+            .and_then(|state| self.draw_sky(state, ui.ctx().pixels_per_point(), viewport));
+        match sky {
+            Some(texture) => {
+                let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+                painter.image(texture, viewport, uv, Color32::WHITE);
+            }
+            None => {
+                painter.rect_filled(viewport, 0.0, Color32::from_rgb(3, 5, 12));
+            }
+        }
 
         if response.dragged() && self.tool.is_none() {
             let delta = response.drag_delta();
@@ -1652,12 +1699,16 @@ impl WorldlineApp {
         }
         self.camera.clamp_distance(min_distance);
 
-        let render_state = frame.wgpu_render_state();
         let globes_allowed = self.options.globes && render_state.is_some();
         let attention = view::Attention {
             focus: self.focus,
             selected: self.selected,
             pointer: response.hover_pos(),
+            lensed: self
+                .lens
+                .as_ref()
+                .filter(|_| sky.is_some())
+                .and_then(|l| self.simulation.index_of(&l.hole)),
         };
         let layout = view::layout(
             &self.camera,
@@ -2126,6 +2177,76 @@ impl WorldlineApp {
             self.launch = None;
         }
         ui.add_space(2.0);
+    }
+
+    /// Draws the sky on the GPU: the Milky Way and the bright stars, bent
+    /// by the black hole whose Einstein ring, √(4GM/c²r) across, is widest
+    /// from here, if it spans half a pixel or more.
+    fn draw_sky(
+        &mut self,
+        state: &RenderState,
+        pixels_per_point: f32,
+        viewport: Rect,
+    ) -> Option<TextureId> {
+        let size = [
+            (viewport.width() * pixels_per_point).round() as u32,
+            (viewport.height() * pixels_per_point).round() as u32,
+        ];
+        let eye = self.camera.eye();
+        let pixel = self.camera.fov_y / f64::from(size[1].max(1));
+        let hole = self
+            .simulation
+            .bodies
+            .iter()
+            .filter(|b| is_black_hole(b))
+            .map(|b| (b, (b.position - eye).length()))
+            .max_by(|a, b| (a.0.gm / a.1).total_cmp(&(b.0.gm / b.1)))
+            .filter(|(b, d)| {
+                *d > 2.0 * b.gm / (C * C) && (4.0 * b.gm / (C * C * d)).sqrt() >= 0.5 * pixel
+            });
+        match hole {
+            Some((body, distance)) => {
+                // Worked out again once the camera has moved a thousandth
+                // of its distance: the shadow's edge moves by as much.
+                let stale = self.lens.as_ref().is_none_or(|l| {
+                    l.hole != body.name
+                        || (l.distance / distance - 1.0).abs() > 1e-3
+                        || l.gm != body.gm
+                });
+                if stale {
+                    let table = BendTable::new(body.gm, distance);
+                    self.lens = Some(LensTable {
+                        hole: body.name.clone(),
+                        gm: body.gm,
+                        distance,
+                        edge: table.edge,
+                        bending: table.bending.iter().map(|&b| b as f32).collect(),
+                        toward: (body.position - eye).normalize(),
+                    });
+                }
+                if let Some(lens) = &mut self.lens {
+                    lens.toward = (body.position - eye).normalize();
+                }
+            }
+            None => self.lens = None,
+        }
+        let (forward, _, up) = self.camera.basis();
+        let view = SkyView {
+            size,
+            forward: forward.as_vec3(),
+            up: up.as_vec3(),
+            fov_y: self.camera.fov_y as f32,
+            to_map: crate::sky::to_galactic().as_mat3(),
+            exposure: SKY_EXPOSURE,
+            lens: self.lens.as_ref().map(|l| Lens {
+                toward: l.toward.as_vec3(),
+                edge: l.edge as f32,
+                bending: &l.bending,
+                x_min: BendTable::X_MIN as f32,
+            }),
+        };
+        let gpu = self.sky.get_or_insert_with(|| GpuSky::new(state));
+        gpu.draw(state, &view)
     }
 
     /// Draws the bodies that are big enough on screen as textured, lit,
