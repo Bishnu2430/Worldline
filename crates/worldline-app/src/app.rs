@@ -1797,12 +1797,14 @@ impl WorldlineApp {
             }
             return;
         }
-        let around = self.launch_center();
         let plane = self.camera.target.z;
         let here = response
             .interact_pointer_pos()
             .or(response.hover_pos())
             .and_then(|p| self.camera.point_on_plane(p, viewport, plane));
+        // It circles whatever dominates gravity where it's placed, not the
+        // body the camera happens to follow.
+        let around = here.map_or_else(|| self.launch_center(), |p| self.simulation.dominant_at(p));
         if response.drag_started()
             && let Some(position) = here
         {
@@ -1837,8 +1839,8 @@ impl WorldlineApp {
         }
     }
 
-    /// What a body orbits when placed without a drag: the body in focus,
-    /// if it has mass, or else body 0 (the Sun, or what took its place).
+    /// What a body orbits when where it goes isn't known yet: the body in
+    /// focus, if it has mass, or else its region's center.
     fn launch_center(&self) -> usize {
         if self.simulation.bodies[self.focus].gm > 0.0 {
             self.focus
@@ -1859,10 +1861,11 @@ impl WorldlineApp {
         let Some(position) = position else {
             return;
         };
+        let around = self.simulation.dominant_at(position);
         let launch = |entry: &'static Entry| Launch {
             entry,
             position,
-            around: self.launch_center(),
+            around,
             drag: position,
             at_rest: self.start_at_rest,
         };
@@ -2346,6 +2349,9 @@ impl eframe::App for WorldlineApp {
         self.last_frame = now;
         let names = self.attended_names();
         self.simulation.update(real_dt, PHYSICS_BUDGET);
+        // Detail follows focus, and the focus can drift into a planet's
+        // neighborhood (or out of it) as it moves.
+        self.simulation.focus_detail_on(self.focus);
         self.after_events(names);
         self.aim_camera();
 

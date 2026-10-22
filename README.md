@@ -26,7 +26,9 @@
 - Add, drag and launch bodies, with time running anywhere from real time to millions of years per second.
 - Simulate relativistic gravity: orbits precess, binaries spiral together by emitting gravitational waves, and black holes merge.
 - Play the gravitational-wave chirp and show light bending around black holes.
-- Show planets and stars torn apart by tides.
+- Show planets and stars torn apart by tides, and collisions in full: what they leave, debris, craters, giant impacts.
+- Show the sky as it is right now, with eclipses, from space or from a place on Earth.
+- Fill the Milky Way: famous stars and clusters at their real places, the rest as live dots that feel anything you add.
 - Include quantum physics where it decides the outcome: white dwarf and neutron star mass limits, and Hawking evaporation.
 - Always show which physics model is running, and warn when a scenario goes beyond known physics.
 
