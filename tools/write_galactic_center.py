@@ -5,6 +5,11 @@ Writes, under crates/worldline-data/data/:
 
 - sgr-a-star-position.csv: Sagittarius A*'s position (ICRF3) from VLBI
   radio astrometry.
+- sun-galactic-motion.csv: how the Sun moves relative to Sagittarius A*:
+  Sagittarius A*'s apparent proper motion from VLBI (the reflex of the
+  Sun's orbit around the galaxy), the Sun's motion toward the galactic
+  center relative to its neighbors, and its height above the galactic
+  midplane.
 - s-stars.csv: the orbital elements of 39 stars around Sagittarius A*.
   S2, S29, S38 and S55 come from the GRAVITY Collaboration's 2022
   four-star fit, whose elements are osculating at each star's apocenter
@@ -99,6 +104,23 @@ def main():
         ("17", "45", "40.034047", "-29", "00", "28.21601",
          "Gordon, de Witt & Jacobs 2023, AJ, doi:10.3847/1538-3881/aca65b (RA uncertainty "
          "0.000018 s, Dec 0.00044 arcsec)"),
+    ]))
+    write(DATA / "sun-galactic-motion.csv", [
+        "# Worldline: how the Sun moves relative to Sagittarius A*. "
+        "Regenerate with: python tools/write_galactic_center.py",
+        "# mu_l, mu_b: Sagittarius A*'s apparent proper motion along the galactic plane and "
+        "toward the north galactic pole, the reflex of the Sun's orbit around the galaxy; u: the "
+        "Sun's velocity toward the galactic center relative to the local standard of rest; z: the "
+        "Sun's height above the galactic midplane. Uncertainties are 1 sigma, statistical",
+    ] + rows(["quantity", "value", "uncertainty", "unit", "source"], [
+        ("mu_l", "-6.411", "0.008", "mas/yr",
+         "Reid & Brunthaler 2020, ApJ 892, 39, doi:10.3847/1538-4357/ab76cd"),
+        ("mu_b", "-0.219", "0.007", "mas/yr",
+         "Reid & Brunthaler 2020, ApJ 892, 39, doi:10.3847/1538-4357/ab76cd"),
+        ("u", "11.1", "0.74", "km/s",
+         "Schoenrich, Binney & Dehnen 2010, MNRAS 403, 1829, doi:10.1111/j.1365-2966.2010.16253.x"),
+        ("z", "20.8", "0.3", "pc",
+         "Bennett & Bovy 2019, MNRAS 482, 1417, doi:10.1093/mnras/sty2813"),
     ]))
     write(DATA / "s-stars.csv", [
         "# Worldline: stars orbiting Sagittarius A*. Regenerate with: python tools/write_galactic_center.py",

@@ -19,13 +19,14 @@ use worldline_core::integrator::{Ias15, Integrator};
 use worldline_core::kepler::drift;
 use worldline_core::magnetosphere::Dipole;
 use worldline_core::merger::Merger;
+use worldline_core::milky_way::{GalacticOrbit, Survey, milky_way};
 use worldline_core::neutron_star::{sly_maximum, sly_radius, sly_threshold};
 use worldline_core::regime::Regime;
 use worldline_core::rotation::RotationModel;
 use worldline_core::solar_wind::{Heliosphere, ParkerSpiral};
 use worldline_core::swarm::{Particle, Swarm};
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
-use worldline_core::{Body, DVec3};
+use worldline_core::{Body, DMat3, DVec3};
 use worldline_data::{
     BeltKind, ObjectKind, RadiationBelt, SmallBodyKind, SmallMoon, VoyagerCrossing,
 };
@@ -157,15 +158,51 @@ enum Far {
 
 /// A region far from the solar system, simulated on its own: the galactic
 /// center. The two regions don't pull on each other: 8,277 pc apart, each
-/// one's tide on the other is below 10⁻²⁰ m/s². The region holds still
-/// relative to the solar system: the galaxy's mass, which carries the Sun
-/// around it every 230 million years, isn't simulated (v2).
+/// one's tide on the other is below 10⁻²⁰ m/s². What connects them is the
+/// galaxy's mass, McMillan's (2017) model of it, which carries the solar
+/// system around the center once every 238 million years: the region moves
+/// relative to the solar system as the solar system goes round.
 pub struct Region {
-    /// Where its origin (Sagittarius A*) is, in the solar system's frame.
+    /// Where its origin (Sagittarius A*'s first place, the galaxy's center)
+    /// is, in the solar system's frame.
     pub origin: DVec3,
+    /// How fast the origin moves, in the solar system's frame.
+    pub drift: DVec3,
     hierarchy: Hierarchy,
     /// Each star's spectral type ('e' early, 'l' late), in follower order.
     spectral_types: Vec<Option<char>>,
+    /// The solar system's barycenter going around the galaxy, in
+    /// galactocentric axes (see `worldline_data::galactic_frame`).
+    orbit: GalacticOrbit,
+    /// Turns the simulation's axes into galactocentric ones.
+    to_galactic: DMat3,
+    /// What that orbit does, from the start.
+    survey: Survey,
+    /// Where the solar system will be over the next galactic year, in
+    /// galactocentric axes, from when the path was last worked out.
+    path: Vec<DVec3>,
+    path_time: f64,
+}
+
+impl Region {
+    /// Sets the region's place and motion from the solar system's orbit:
+    /// the center is where the barycenter isn't, turned back into the
+    /// simulation's axes.
+    fn place(&mut self) {
+        let back = self.to_galactic.transpose();
+        self.origin = back * -self.orbit.position();
+        self.drift = back * -self.orbit.velocity();
+    }
+
+    /// Works out the path ahead, one galactic year of it, again if the
+    /// solar system has gone a thousandth of the way round since.
+    fn chart(&mut self) {
+        let year = self.survey.azimuthal_period;
+        if self.path.is_empty() || (self.orbit.time() - self.path_time).abs() > 1e-3 * year {
+            self.path = self.orbit.path(year, 720);
+            self.path_time = self.orbit.time();
+        }
+    }
 }
 
 /// Which part of the simulation computes a body's motion.
@@ -344,14 +381,26 @@ impl Simulation {
             notices: Vec::new(),
             galaxy: {
                 let gc = worldline_data::galactic_center();
-                Some(Region {
+                let frame = worldline_data::galactic_frame();
+                let orbit = GalacticOrbit::new(milky_way(), frame.position, frame.velocity);
+                let year = worldline_core::constants::JULIAN_YEAR;
+                let mut region = Region {
                     origin: gc.origin,
+                    drift: DVec3::ZERO,
                     hierarchy: gc.hierarchy,
                     spectral_types: worldline_data::s_stars()
                         .iter()
                         .map(|s| s.spectral_type)
                         .collect(),
-                })
+                    survey: orbit.survey(1e9 * year, 2e6 * year),
+                    orbit,
+                    to_galactic: frame.to_galactic,
+                    path: Vec::new(),
+                    path_time: 0.0,
+                };
+                region.place();
+                region.chart();
+                Some(region)
             },
             wind: worldline_data::parker_spiral(),
             heliosphere: worldline_data::heliosphere(),
@@ -529,6 +578,7 @@ impl Simulation {
         let g = self.galaxy.as_mut().expect("the galactic center");
         let local = Body {
             position: body.position - g.origin,
+            velocity: body.velocity - g.drift,
             ..body
         };
         g.hierarchy.add_body(local);
@@ -583,6 +633,12 @@ impl Simulation {
             .collect();
         distances.sort_by(f64::total_cmp);
         distances.get(distances.len() / 2).map(|d| 2.0 * d)
+    }
+
+    /// Whether body `index` is the galactic center's central body,
+    /// Sagittarius A* (or what absorbed it).
+    pub fn is_galactic_center(&self, index: usize) -> bool {
+        matches!(self.sources[index], Source::Galactic(Far::Top(0)))
     }
 
     /// Whether body `index` is in the galactic center.
@@ -1106,6 +1162,9 @@ impl Simulation {
                 g.hierarchy.set_time(now);
             }
         }
+        g.orbit.advance_to(now);
+        g.place();
+        g.chart();
         let collisions = g.hierarchy.take_collisions();
         if !collisions.is_empty() {
             let absorbed: Vec<Option<ObjectKind>> = collisions
@@ -1318,7 +1377,7 @@ impl Simulation {
                         }
                         Far::Follower(i) => g.hierarchy.follower(i),
                     };
-                    (g.origin + b.position, b.velocity)
+                    (g.origin + b.position, g.drift + b.velocity)
                 }
                 Source::Follower(i) => {
                     let b = self.hierarchy.follower(i);
@@ -1328,12 +1387,57 @@ impl Simulation {
             body.position = position;
             body.velocity = velocity;
         }
+        // Trails in the galactic center are kept relative to it, so they
+        // don't stretch out as the region moves past the solar system.
         let time = self.hierarchy.time();
-        for ((trail, body), parent) in self.trails.iter_mut().zip(&self.bodies).zip(&self.parents) {
+        let (origin, drift) = self
+            .galaxy
+            .as_ref()
+            .map_or((DVec3::ZERO, DVec3::ZERO), |g| (g.origin, g.drift));
+        for (((trail, body), parent), source) in self
+            .trails
+            .iter_mut()
+            .zip(&self.bodies)
+            .zip(&self.parents)
+            .zip(&self.sources)
+        {
             if parent.is_none() {
-                trail.record(time, body.position, body.velocity);
+                if let Source::Galactic(_) = source {
+                    trail.record(time, body.position - origin, body.velocity - drift);
+                } else {
+                    trail.record(time, body.position, body.velocity);
+                }
             }
         }
+    }
+
+    /// What body `index`'s trail is kept relative to: the galactic center's
+    /// origin for a body there, else the solar system's barycenter.
+    pub fn trail_origin(&self, index: usize) -> DVec3 {
+        match (self.sources[index], &self.galaxy) {
+            (Source::Galactic(_), Some(g)) => g.origin,
+            _ => DVec3::ZERO,
+        }
+    }
+
+    /// Where the solar system will be over the next galactic year, in the
+    /// solar system's frame as it is now: a path from the barycenter around
+    /// the galactic center (McMillan's 2017 mass model).
+    pub fn galactic_path(&self) -> Vec<DVec3> {
+        let Some(g) = &self.galaxy else {
+            return Vec::new();
+        };
+        let back = g.to_galactic.transpose();
+        let here = g.orbit.position();
+        g.path.iter().map(|p| back * (*p - here)).collect()
+    }
+
+    /// The solar system's orbit around the galactic center: where its
+    /// barycenter is now (galactocentric, m), how fast it moves (m/s), and
+    /// what the orbit does (from the start).
+    pub fn galactic_orbit(&self) -> Option<(DVec3, DVec3, Survey)> {
+        let g = self.galaxy.as_ref()?;
+        Some((g.orbit.position(), g.orbit.velocity(), g.survey))
     }
 
     /// Places the small moons: from the detailed simulation for the moon
@@ -1790,8 +1894,9 @@ mod tests {
     #[test]
     fn the_galactic_center_runs_alongside_and_takes_what_is_dropped_there() {
         // Sagittarius A* sits 8,277 pc away with its 39 stars, which keep
-        // time with the solar system. A planet dropped 1,000 AU from it
-        // joins its region and falls toward it, not toward the Sun.
+        // time with the solar system. A planet dropped 1,000 AU from it, at
+        // rest beside it, joins its region and falls toward it, not toward
+        // the Sun.
         let mut sim = Simulation::solar_system(DAY);
         let sgr = sim.index_of("Sagittarius A*").expect("the galactic center");
         assert!(sim.is_galactic(sgr));
@@ -1805,14 +1910,58 @@ mod tests {
         let before = sim.bodies[s2].position;
         let at =
             sim.bodies[sgr].position + DVec3::new(1000.0 * worldline_core::constants::AU, 0.0, 0.0);
-        let planet = Body::new("New planet 1", 4e14, 6.4e6).at(at);
+        let planet = Body::new("New planet 1", 4e14, 6.4e6)
+            .at(at)
+            .moving(sim.bodies[sgr].velocity);
         let new = sim.add_body_near(planet, "copy:Earth", sgr);
         assert!(sim.is_galactic(new));
         sim.update(30.0, GENEROUS);
         assert_ne!(sim.bodies[s2].position, before);
         let new = sim.index_of("New planet 1").unwrap();
         let toward = (sim.bodies[sgr].position - sim.bodies[new].position).normalize();
-        assert!(sim.bodies[new].velocity.normalize().dot(toward) > 0.99);
+        let falling = sim.bodies[new].velocity - sim.bodies[sgr].velocity;
+        assert!(falling.normalize().dot(toward) > 0.99);
+    }
+
+    #[test]
+    fn the_galactic_center_moves_as_the_solar_system_goes_around_the_galaxy() {
+        // The solar system goes around the galaxy at 252 km/s, so seen from
+        // it Sagittarius A* moves the other way: in 30 days by its drift
+        // times 30 days, to within the drift's own change, of order a t²
+        // with a the galaxy's pull, and the rounding of positions 8 kpc
+        // out, 2ε|x| (about 100 km).
+        let mut sim = Simulation::solar_system(DAY);
+        let sgr = sim.index_of("Sagittarius A*").expect("the galactic center");
+        let (start, drift) = (sim.bodies[sgr].position, sim.bodies[sgr].velocity);
+        let (place, _, survey) = sim.galactic_orbit().expect("the galaxy");
+        let pull = worldline_core::milky_way::milky_way()
+            .acceleration(place)
+            .length();
+        let t = 30.0 * DAY;
+        sim.advance_by(t);
+        let moved = sim.bodies[sgr].position - start;
+        println!(
+            "Sagittarius A* drifts {:.2} km/s; in 30 days it moved {:.4e} m, {:.1} m from drift × time (a t² = {:.1} m); the solar system goes round every {:.0} million years",
+            drift.length() / 1e3,
+            moved.length(),
+            (moved - drift * t).length(),
+            pull * t * t,
+            survey.azimuthal_period / (1e6 * worldline_core::constants::JULIAN_YEAR)
+        );
+        assert!((drift.length() / 1e3 - 252.0).abs() < 1.0);
+        let rounding = 2.0 * f64::EPSILON * start.length();
+        assert!((moved - drift * t).length() < pull * t * t + rounding);
+        // Its stars move with it.
+        let s2 = sim.index_of("S2").unwrap();
+        let relative = sim.bodies[s2].velocity - sim.bodies[sgr].velocity;
+        assert!(relative.length() < 1e7 && relative.length() > 1e5);
+        // A save keeps where the solar system is on its way round, exactly.
+        let loaded = Simulation::load(&sim.save(), DAY).expect("it loads");
+        let (here, moving, _) = sim.galactic_orbit().unwrap();
+        let (there, going, _) = loaded.galactic_orbit().unwrap();
+        assert_eq!((here, moving), (there, going));
+        let sgr = loaded.index_of("Sagittarius A*").unwrap();
+        assert_eq!(loaded.bodies[sgr].position, sim.bodies[sgr].position);
     }
 
     #[test]

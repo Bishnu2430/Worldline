@@ -87,11 +87,11 @@ const GALACTIC_CENTER: &[Detail] = &[
         Kind::Measured,
     ),
     detail(
-        "Held still relative to the solar system: the galaxy's mass, which carries the Sun around it every 230 million years, isn't simulated (v2)",
+        "At rest at the center of the galaxy's mass, a smooth model (McMillan 2017) that carries the solar system around it every 238 million years: the solar system's place and motion are measured (GRAVITY 2022; Reid & Brunthaler 2020)",
         Kind::Model,
     ),
     detail(
-        "The Milky Way's other stars, gas and dark matter between are not shown (v2)",
+        "The Milky Way's stars, gas and dark matter are in the model as smooth mass, not shown or simulated one by one (Gaia's stars come in v2)",
         Kind::Visual,
     ),
     detail(

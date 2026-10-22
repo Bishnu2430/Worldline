@@ -11,7 +11,9 @@ use std::f64::consts::{PI, TAU};
 use worldline_core::DMat3;
 use worldline_core::DVec3;
 use worldline_core::constants::{AU, C, JULIAN_YEAR, OBLIQUITY_J2000};
-use worldline_data::{galactic_center, s_stars, sgr_a_star_direction, year_to_time};
+use worldline_data::{
+    equatorial_to_galactic, galactic_center, s_stars, sgr_a_star_direction, year_to_time,
+};
 
 #[test]
 fn sagittarius_a_star_is_where_it_is_on_the_sky() {
@@ -21,11 +23,7 @@ fn sagittarius_a_star_is_where_it_is_on_the_sky() {
     // b = −0.04616002°, computed from an earlier radio position (Petrov et
     // al. 2011) that differs from ours by under 0.05″: so within 0.0001°.
     let equatorial = DMat3::from_rotation_x(OBLIQUITY_J2000) * sgr_a_star_direction();
-    let galactic = DMat3::from_cols(
-        DVec3::new(-0.054_875_560_4, 0.494_109_427_9, -0.867_666_149_0),
-        DVec3::new(-0.873_437_090_2, -0.444_829_630_0, -0.198_076_373_4),
-        DVec3::new(-0.483_835_015_5, 0.746_982_244_5, 0.455_983_776_2),
-    ) * equatorial;
+    let galactic = equatorial_to_galactic() * equatorial;
     let l = galactic.y.atan2(galactic.x).to_degrees().rem_euclid(360.0);
     let b = galactic.z.asin().to_degrees();
     println!("Sagittarius A*: l = {l:.8}°, b = {b:.8}° (SIMBAD: 359.94423568°, −0.04616002°)");
@@ -123,4 +121,77 @@ fn s2_circles_sagittarius_a_star_and_turns_as_gravity_measured() {
     assert!((perihelia[0] - expected).abs() < allowed);
     // Its turning as GRAVITY measured it, within their 1σ.
     assert!((f - 0.997).abs() < 0.144);
+}
+
+#[test]
+fn the_solar_system_goes_around_the_galaxy() {
+    use worldline_core::constants::PARSEC;
+    use worldline_core::milky_way::{GalacticOrbit, KILOPARSEC, milky_way};
+    use worldline_data::{galactic_frame, galactic_north_pole, sun_motion};
+
+    // Where the measurements put the solar system: Sagittarius A* 8,277 pc
+    // away in its radio direction, the Sun 20.8 pc above the midplane.
+    let frame = galactic_frame();
+    let turn = frame.to_galactic;
+    let (x, v) = (frame.position, frame.velocity);
+    println!(
+        "the solar system, from Sagittarius A*: x {:.4} kpc, z {:.2} pc; moving {:.2} km/s toward it, {:.2} km/s the way the galaxy turns, {:.2} km/s north",
+        x.x / KILOPARSEC,
+        x.z / PARSEC,
+        v.x / 1e3,
+        v.y / 1e3,
+        v.z / 1e3
+    );
+    assert!(
+        ((turn * turn.transpose()) - DMat3::IDENTITY)
+            .abs()
+            .to_cols_array()
+            .iter()
+            .all(|e| *e < 1e-15)
+    );
+    assert!((x.length() / (8277.0 * PARSEC) - 1.0).abs() < 1e-14);
+    assert!((x.z / PARSEC - 20.8).abs() < 1e-9 && x.y.abs() < 1e-6 * PARSEC);
+
+    // Back the other way, Sagittarius A* must move on the sky exactly as
+    // measured: −6.411 and −0.219 mas/yr, and 11.1 km/s toward us.
+    let toward = sgr_a_star_direction();
+    let pole = galactic_north_pole();
+    let along = pole.cross(toward).normalize();
+    let north = toward.cross(along);
+    let seen = turn.transpose() * -v;
+    let d = x.length();
+    let mas_per_year = (1e-3 / 3600.0_f64).to_radians() / JULIAN_YEAR;
+    let m = sun_motion();
+    let (mu_l, mu_b) = (seen.dot(along) / d, seen.dot(north) / d);
+    println!(
+        "Sagittarius A* seen from the Sun: {:.4} mas/yr along the plane, {:.4} north, {:.3} km/s along the line of sight",
+        mu_l / mas_per_year,
+        mu_b / mas_per_year,
+        seen.dot(toward) / 1e3
+    );
+    assert!((mu_l / m.mu_l - 1.0).abs() < 1e-12 && (mu_b / m.mu_b - 1.0).abs() < 1e-12);
+    assert!((seen.dot(toward) + m.u).abs() < 1e-9);
+
+    // Its orbit in McMillan's (2017) model, over two billion years.
+    let potential = milky_way();
+    let orbit = GalacticOrbit::new(potential, x, v);
+    let r = x.truncate().length();
+    let circular = potential.circular_speed(r);
+    let myr = 1e6 * JULIAN_YEAR;
+    let s = orbit.survey(2e3 * myr, 0.5 * myr);
+    println!(
+        "a circular orbit there goes {:.1} km/s; the Sun {:.1} km/s faster along it",
+        circular / 1e3,
+        (v.y - circular) / 1e3
+    );
+    println!(
+        "its orbit: {:.2} to {:.2} kpc from the center, up to {:.0} pc from the midplane; around every {:.1} Myr, in and out every {:.1} Myr, through the plane every {:.1} Myr",
+        s.r_min / KILOPARSEC,
+        s.r_max / KILOPARSEC,
+        s.z_max / PARSEC,
+        s.azimuthal_period / myr,
+        s.radial_period.unwrap() / myr,
+        s.vertical_period.unwrap() / myr
+    );
+    assert!(orbit.energy() < 0.0);
 }

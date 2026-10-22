@@ -125,6 +125,113 @@ pub fn sgr_a_star_direction() -> DVec3 {
     sky_frame().2
 }
 
+/// Equatorial (ICRS) to galactic coordinates: the Hipparcos catalogue's
+/// rotation (ESA 1997, vol. 1, §1.5.3).
+pub fn equatorial_to_galactic() -> DMat3 {
+    DMat3::from_cols(
+        DVec3::new(-0.054_875_560_4, 0.494_109_427_9, -0.867_666_149_0),
+        DVec3::new(-0.873_437_090_2, -0.444_829_630_0, -0.198_076_373_4),
+        DVec3::new(-0.483_835_015_5, 0.746_982_244_5, 0.455_983_776_2),
+    )
+}
+
+/// The north galactic pole's direction, in the simulation's frame.
+pub fn galactic_north_pole() -> DVec3 {
+    to_ecliptic(equatorial_to_galactic().row(2))
+}
+
+/// How the Sun moves relative to Sagittarius A*, as measured.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SunMotion {
+    /// Sagittarius A*'s apparent proper motion along the galactic plane
+    /// (toward increasing longitude), in rad/s: the reflex of the Sun's
+    /// orbit (Reid & Brunthaler 2020).
+    pub mu_l: f64,
+    /// Its apparent proper motion toward the north galactic pole, in rad/s.
+    pub mu_b: f64,
+    /// The Sun's velocity toward the galactic center relative to its
+    /// neighbors' average (the local standard of rest), in m/s (Schönrich,
+    /// Binney & Dehnen 2010).
+    pub u: f64,
+    /// The Sun's height above the galactic midplane, in m (Bennett & Bovy
+    /// 2019).
+    pub z: f64,
+}
+
+/// The measurements in `sun-galactic-motion.csv`.
+pub fn sun_motion() -> SunMotion {
+    let value = |name: &str| {
+        let line = include_str!("../data/sun-galactic-motion.csv")
+            .lines()
+            .filter(|l| !l.starts_with('#'))
+            .find(|l| l.starts_with(&format!("{name},")))
+            .expect("a measurement");
+        fields(line, 5)[1].parse::<f64>().expect("published number")
+    };
+    let mas_per_year = (1e-3 / 3600.0_f64).to_radians() / JULIAN_YEAR;
+    SunMotion {
+        mu_l: value("mu_l") * mas_per_year,
+        mu_b: value("mu_b") * mas_per_year,
+        u: value("u") * 1e3,
+        z: value("z") * PARSEC,
+    }
+}
+
+/// The galaxy's frame, and the solar system's place and motion in it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GalacticFrame {
+    /// Turns the simulation's (ecliptic) axes into galactocentric ones: x
+    /// from the Sun toward the center, along the midplane; z toward the
+    /// north galactic pole; y the way the galaxy turns at the Sun.
+    pub to_galactic: DMat3,
+    /// The solar system barycenter's position relative to Sagittarius A*,
+    /// in galactocentric axes, in m.
+    pub position: DVec3,
+    /// Its velocity, likewise, in m/s.
+    pub velocity: DVec3,
+}
+
+/// Where the solar system is in the galaxy and how it moves, from
+/// measurements alone: Sagittarius A* at GRAVITY's distance in its radio
+/// direction, the Sun 20.8 pc above the midplane, and moving as Sagittarius
+/// A*'s apparent motion reflects, plus 11.1 km/s toward it. Sagittarius A*
+/// is taken at rest at the galaxy's center: its own motion is under about
+/// 1 km/s (Reid & Brunthaler 2020).
+///
+/// The axes are those astropy calls Galactocentric: x toward Sagittarius
+/// A*, z toward the north galactic pole (made perpendicular to x), then
+/// tilted by asin(z☉/d) so that the Sun lies z☉ above the midplane.
+pub fn galactic_frame() -> GalacticFrame {
+    let toward = sgr_a_star_direction();
+    let distance = sgr_a_star_distance();
+    let motion = sun_motion();
+    let pole = galactic_north_pole();
+    let up = (pole - toward * pole.dot(toward)).normalize();
+    let ahead = up.cross(toward);
+    let (s, c) = (motion.z / distance).asin().sin_cos();
+    let x = toward * c + up * s;
+    let z = up * c - toward * s;
+    let to_galactic = DMat3::from_cols(x, ahead, z).transpose();
+    // Sagittarius A*'s motion as seen from the Sun: across the sky, and
+    // toward us as the Sun closes in on it.
+    let along = pole.cross(toward).normalize();
+    let north = toward.cross(along);
+    let seen = (along * motion.mu_l + north * motion.mu_b) * distance - toward * motion.u;
+    GalacticFrame {
+        to_galactic,
+        position: to_galactic * (-toward * distance),
+        velocity: to_galactic * -seen,
+    }
+}
+
+/// Sagittarius A*'s distance, in m: GRAVITY's 8,277 pc.
+fn sgr_a_star_distance() -> f64 {
+    match crate::notable_object("Sagittarius A*").and_then(|o| o.distance) {
+        Some(crate::Distance::Meters(d)) => d,
+        _ => 8277.0 * PARSEC,
+    }
+}
+
 /// Simulation time (s after 2025-01-01 00:00 TDB) of a Julian-epoch year
 /// such as 2018.3789: J2000.0 is JD 2451545.0, and a Julian year 365.25
 /// days.
@@ -198,11 +305,7 @@ fn sgr_a_star() -> Body {
 pub fn galactic_center() -> GalacticCenter {
     let center = sgr_a_star();
     let gm = center.gm;
-    let catalog = crate::notable_object("Sagittarius A*").expect("in the catalog");
-    let distance = match catalog.distance {
-        Some(crate::Distance::Meters(d)) => d,
-        _ => 8277.0 * PARSEC,
-    };
+    let distance = sgr_a_star_distance();
     let stars = s_stars();
     let followers = stars
         .iter()

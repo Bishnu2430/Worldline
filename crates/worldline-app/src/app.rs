@@ -12,6 +12,7 @@ use worldline_core::gravity::kerr::innermost_stable_orbit;
 use worldline_core::hawking;
 use worldline_core::magnetosphere::standoff;
 use worldline_core::merger::ringdown;
+use worldline_core::milky_way::KILOPARSEC;
 use worldline_core::neutron_star::{sly_maximum, sly_radius};
 use worldline_core::sunlight::{irradiance, light_time};
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
@@ -777,6 +778,7 @@ impl WorldlineApp {
             }
             if !self.simulation.is_galactic(self.selected) {
                 self.sun_reach(ui);
+                self.galaxy_rows(ui);
                 self.magnetism(ui);
             }
             if let Some(model) = self.simulation.rotation(self.selected) {
@@ -1229,6 +1231,18 @@ impl WorldlineApp {
                 "Bodies it holds that are at least 35 times lighter move in its exact spacetime (Kerr), spin axis taken along the frame's z axis (the ecliptic's north pole)".into(),
             ));
         }
+        if index == SUN && simulation.has_sun() && simulation.galactic_orbit().is_some() {
+            notes.push((
+                amber,
+                "The whole solar system goes around the galaxy's center, in McMillan's (2017) model of the Milky Way's mass: smooth and symmetric about its axis, with no bar, spiral arms or stars one by one".into(),
+            ));
+        }
+        if simulation.is_galactic_center(index) {
+            notes.push((
+                amber,
+                "At the center of the galaxy's mass (McMillan's 2017 model), at rest: its own motion is under about 1 km/s (Reid & Brunthaler 2020). The galaxy's mass isn't felt inside this region: the model puts a tenth of a Sun inside S2's orbit, against its 4.3 million".into(),
+            ));
+        }
         if let Some(intruder) = simulation.intruder(index) {
             notes.push((
                 amber,
@@ -1462,6 +1476,48 @@ impl WorldlineApp {
             }
             Err(e) => self.status = Some((format!("Couldn't load: {e}"), Instant::now())),
         }
+    }
+
+    /// Inspector rows for the Sun: the solar system's orbit around the
+    /// galaxy's center, in McMillan's (2017) model of the galaxy's mass.
+    fn galaxy_rows(&self, ui: &mut egui::Ui) {
+        if self.selected != SUN || !self.simulation.has_sun() {
+            return;
+        }
+        let Some((position, velocity, survey)) = self.simulation.galactic_orbit() else {
+            return;
+        };
+        let source = "McMillan's (2017) model of the Milky Way's mass (bulge, star and gas disks, dark-matter halo), from the Sun's measured place and motion: GRAVITY's distance to Sagittarius A* (2022), Sagittarius A*'s motion across the sky (Reid & Brunthaler 2020), the Sun's toward it (Schönrich, Binney & Dehnen 2010) and its height above the galaxy's midplane (Bennett & Bovy 2019)";
+        let myr = 1e6 * JULIAN_YEAR;
+        let years = |p: Option<f64>| p.map_or("—".to_string(), |p| format!("{:.0}", p / myr));
+        ui.label(key("Around the galaxy"));
+        ui.label(format!(
+            "{:.3} kpc from its center, {:.1} km/s: once around in {:.0} million years",
+            position.truncate().length() / KILOPARSEC,
+            velocity.length() / 1e3,
+            survey.azimuthal_period / myr
+        ))
+        .on_hover_text(source);
+        ui.end_row();
+        ui.label(key("Galactic orbit"));
+        ui.label(format!(
+            "{:.2} to {:.2} kpc out, in and out every {} million years",
+            survey.r_min / KILOPARSEC,
+            survey.r_max / KILOPARSEC,
+            years(survey.radial_period)
+        ))
+        .on_hover_text(source);
+        ui.end_row();
+        ui.label(key("From the galactic plane"));
+        ui.label(format!(
+            "{:.1} pc {} now; up to {:.0} pc either side, through and back every {} million years",
+            position.z.abs() / worldline_core::constants::PARSEC,
+            if position.z >= 0.0 { "north" } else { "south" },
+            survey.z_max / worldline_core::constants::PARSEC,
+            years(survey.vertical_period)
+        ))
+        .on_hover_text(source);
+        ui.end_row();
     }
 
     /// Inspector rows for the Sun's reach: sunlight and its travel time,

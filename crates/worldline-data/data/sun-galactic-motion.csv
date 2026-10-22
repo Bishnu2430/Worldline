@@ -1,0 +1,7 @@
+# Worldline: how the Sun moves relative to Sagittarius A*. Regenerate with: python tools/write_galactic_center.py
+# mu_l, mu_b: Sagittarius A*'s apparent proper motion along the galactic plane and toward the north galactic pole, the reflex of the Sun's orbit around the galaxy; u: the Sun's velocity toward the galactic center relative to the local standard of rest; z: the Sun's height above the galactic midplane. Uncertainties are 1 sigma, statistical
+quantity,value,uncertainty,unit,source
+mu_l,-6.411,0.008,mas/yr,"Reid & Brunthaler 2020, ApJ 892, 39, doi:10.3847/1538-4357/ab76cd"
+mu_b,-0.219,0.007,mas/yr,"Reid & Brunthaler 2020, ApJ 892, 39, doi:10.3847/1538-4357/ab76cd"
+u,11.1,0.74,km/s,"Schoenrich, Binney & Dehnen 2010, MNRAS 403, 1829, doi:10.1111/j.1365-2966.2010.16253.x"
+z,20.8,0.3,pc,"Bennett & Bovy 2019, MNRAS 482, 1417, doi:10.1093/mnras/sty2813"
