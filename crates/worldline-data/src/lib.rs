@@ -20,8 +20,9 @@ mod snapshot;
 pub use atmosphere::{Atmosphere, atmosphere};
 pub use belts::{Belt, BeltKind, BeltSample, belt_particles, belt_samples, belts};
 pub use galactic_center::{
-    GalacticCenter, SStar, galactic_center, kepler_state, s_stars, sgr_a_star_direction,
-    sgr_a_star_sky_position, year_to_time,
+    GalacticCenter, GalacticFrame, SStar, SunMotion, equatorial_to_galactic, galactic_center,
+    galactic_frame, galactic_north_pole, kepler_state, s_stars, sgr_a_star_direction,
+    sgr_a_star_sky_position, sun_motion, year_to_time,
 };
 pub use heliosphere::{
     Boundary, SolarWindHour, VoyagerCrossing, heliosphere, mean_flow_pressure, parker_spiral,

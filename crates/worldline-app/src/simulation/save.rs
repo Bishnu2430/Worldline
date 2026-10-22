@@ -4,8 +4,9 @@
 //! (relative to the solar system's barycenter), each moon system (relative
 //! to its barycenter) and the followers, plus which bodies were added in the
 //! sandbox and the catalogue entry each came from, how any black hole that
-//! formed in a merger formed, and the swarm: every belt body and freed
-//! small moon, brought up to the same moment first.
+//! formed in a merger formed, the swarm (every belt body and freed small
+//! moon, brought up to the same moment first), and where the solar system
+//! is on its way around the galaxy.
 //! Everything else (gravity fields, rotation, the data behind each body)
 //! comes from the bundled data when it loads. Numbers are written in their
 //! shortest exact form, so they load back bit for bit.
@@ -14,14 +15,15 @@ use std::fmt::Write;
 
 use super::*;
 
-/// The first line of every save. Version 4 records black-hole mergers,
-/// version 3 the swarm, version 2 each added body's catalogue entry; older
-/// saves load too.
-const HEADER: &str = "worldline-save\t4";
-const OLDER: [&str; 3] = [
+/// The first line of every save. Version 5 records the solar system's
+/// place in the galaxy, version 4 black-hole mergers, version 3 the swarm,
+/// version 2 each added body's catalogue entry; older saves load too.
+const HEADER: &str = "worldline-save\t5";
+const OLDER: [&str; 4] = [
     "worldline-save\t1",
     "worldline-save\t2",
     "worldline-save\t3",
+    "worldline-save\t4",
 ];
 
 fn body_line(kind: &str, prefix: &str, b: &Body) -> String {
@@ -101,6 +103,14 @@ impl Simulation {
                     body_line("gfollower", "", g.hierarchy.follower(i))
                 );
             }
+            // The solar system's barycenter from the galaxy's center, in
+            // galactocentric axes.
+            let (r, v) = (g.orbit.position(), g.orbit.velocity());
+            let _ = writeln!(
+                out,
+                "galactic\t{}\t{}\t{}\t{}\t{}\t{}",
+                r.x, r.y, r.z, v.x, v.y, v.z
+            );
         }
         for (name, entry) in &self.added {
             let _ = writeln!(out, "added\t{name}\t{entry}");
@@ -148,7 +158,7 @@ impl Simulation {
         let (mut top, mut moons, mut followers, mut added) =
             (Vec::new(), Vec::new(), Vec::new(), Vec::new());
         let (mut freed, mut particles, mut merged) = (Vec::new(), Vec::new(), Vec::new());
-        let (mut gtop, mut gfollowers) = (Vec::new(), Vec::new());
+        let (mut gtop, mut gfollowers, mut galactic) = (Vec::new(), Vec::new(), None);
         for line in lines {
             let fields: Vec<&str> = line.split('\t').collect();
             let number = || {
@@ -167,6 +177,13 @@ impl Simulation {
                 "follower" => followers.push(parse_body(&fields[1..])?),
                 "gtop" => gtop.push(parse_body(&fields[1..])?),
                 "gfollower" => gfollowers.push(parse_body(&fields[1..])?),
+                "galactic" if fields.len() == 7 => {
+                    let n: Vec<f64> = fields[1..]
+                        .iter()
+                        .map(|f| f.parse::<f64>().map_err(|_| format!("bad line `{line}`")))
+                        .collect::<Result<_, _>>()?;
+                    galactic = Some((DVec3::new(n[0], n[1], n[2]), DVec3::new(n[3], n[4], n[5])));
+                }
                 // Version 1 didn't record where added bodies came from.
                 "added" if fields.len() == 2 => added.push((fields[1].to_string(), String::new())),
                 "added" if fields.len() == 3 => {
@@ -347,6 +364,19 @@ impl Simulation {
             }
             gh.set_time(time);
             gh.restart();
+            // Saves from before version 5 carry the solar system around the
+            // galaxy from the start.
+            g.orbit = match galactic {
+                Some((r, v)) => GalacticOrbit::new(milky_way(), r, v).at_time(time),
+                None => {
+                    let mut orbit = g.orbit.clone();
+                    orbit.advance_to(time);
+                    orbit
+                }
+            };
+            g.place();
+            g.path.clear();
+            g.chart();
         }
         // The swarm, as saved; saves from before it existed have the belts
         // carried from the start along fixed ellipses around body 0.

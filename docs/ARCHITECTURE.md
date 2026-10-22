@@ -29,6 +29,8 @@ Everything uses SI units in `f64`. Bodies store their gravitational parameter GM
 
 The galactic center is simulated as a region of its own, 8,277 pc from the solar system, on the same clock. At that distance each one's tide on the other is below 10⁻²⁰ m/s², so neither feels the other. A region holds its bodies around a local origin; the app adds the origin when drawing. Bodies dropped near the galactic center join its region. See [physics/galactic-center.md](physics/galactic-center.md).
 
+What connects the two regions is the galaxy's mass. The solar system's barycenter goes around the galaxy as a test body in McMillan's (2017) mass model, and the galactic center region's origin moves accordingly. Each region falls freely with its own center, so inside it nothing else changes. See [physics/milky-way.md](physics/milky-way.md).
+
 ## Hierarchical integration
 
 Fast inner orbits shouldn't set the pace for everything. The solar system runs as a hierarchy (`worldline-core/src/hierarchy.rs`):
@@ -81,6 +83,7 @@ It uses them to pick a model:
 | Black holes, neutron stars, white dwarfs (as point bodies) | Published masses and sizes; Kerr horizons; Buchdahl's limit tells a black hole from a star | [physics/compact-objects.md](physics/compact-objects.md); Buchdahl 1959 |
 | A moon system meets an intruder | The moons join the top level once another body's tide on one passes 1/12 of the planet's pull (half the Hill radius, far away) | Domingos, Winter & Yokoyama 2006 |
 | Stars around Sagittarius A\* | Its Newtonian pull plus its first relativistic (Schwarzschild) term, from published orbits | GRAVITY Collaboration 2022; Gillessen et al. 2017; [physics/galactic-center.md](physics/galactic-center.md) |
+| The galaxy's mass, and the solar system's orbit around its center | McMillan's axisymmetric model (bulge, star and gas disks, NFW halo), its potential solved as his code solves it: the disks' thin layers analytically, the rest as multipoles to l = 80. The barycenter is a test body in it (IAS15), from its measured place and motion; smooth, labeled | McMillan 2017; Dehnen & Binney 1998; GRAVITY 2022; Reid & Brunthaler 2020; Schönrich, Binney & Dehnen 2010; Bennett & Bovy 2019; [physics/milky-way.md](physics/milky-way.md) |
 | Sunlight and its travel time | Inverse-square law from the IAU luminosity; distance over c plus the Shapiro delay | IAU 2015 B3; Shapiro 1964 |
 | Solar wind | Parker spiral with the measured average wind at Earth | Parker 1958; NASA OMNI |
 | Heliosphere | Boundaries measured at the Voyager crossings; Rankine half-body shape between them (visual) | Stone et al. 2005–2019; Bzowski et al. 2015 |

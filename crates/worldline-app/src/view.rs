@@ -114,6 +114,14 @@ const BELT_MARKER: f32 = 1.6;
 /// Reference rings in the ecliptic plane, in AU.
 const RING_RADII_AU: [f64; 8] = [1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0];
 
+/// A reference ring smaller than this on screen (points) goes unlabeled.
+const RING_LABEL_MIN: f32 = 40.0;
+
+/// The solar system's path around the galaxy shows once the camera is this
+/// far from what it looks at: closer in it would only be a straight line
+/// leaving the Sun.
+const GALAXY_MIN_VIEW: f64 = 1e4 * AU;
+
 /// How long light takes to cross `distance` (m), for a label.
 fn light_time_label(distance: f64) -> String {
     let seconds = distance / C;
@@ -281,8 +289,12 @@ pub fn draw_under(
                 DVec3::new(radius * angle.cos(), radius * angle.sin(), 0.0)
             });
             draw_path(painter, &ring.map(screen).collect::<Vec<_>>(), stroke);
+            // A ring shrunk to a few points (seen from light-years away)
+            // gets no label: they would all pile up on the Sun.
+            let center = screen(DVec3::ZERO);
             if options.labels
                 && let Some(p) = screen(DVec3::new(radius, 0.0, 0.0))
+                && center.is_none_or(|c| (p.position - c.position).length() > RING_LABEL_MIN)
             {
                 painter.text(
                     p.position + vec2(4.0, 0.0),
@@ -352,15 +364,62 @@ pub fn draw_under(
                         .map(|p| screen(planet.position + p))
                         .collect()
                 }
-                None => trail.points().chain([body.position]).map(screen).collect(),
+                None => {
+                    let origin = simulation.trail_origin(index);
+                    trail
+                        .points()
+                        .map(|p| origin + p)
+                        .chain([body.position])
+                        .map(screen)
+                        .collect()
+                }
             };
             draw_trail(painter, &points, color(simulation, index));
+        }
+        if camera.distance >= GALAXY_MIN_VIEW {
+            draw_galactic_path(painter, camera, viewport, simulation, options.labels);
         }
     }
 
     // The Sun's corona sits behind its disk.
     if let Some(sun) = layout.iter().find(|s| s.index == 0 && sun_here) {
         draw_corona(painter, sun.projection.position, sun.radius);
+    }
+}
+
+/// Draws where the solar system will go over the next galactic year, around
+/// the galaxy's center, from where it is now.
+fn draw_galactic_path(
+    painter: &Painter,
+    camera: &Camera,
+    viewport: Rect,
+    simulation: &Simulation,
+    labels: bool,
+) {
+    let path = simulation.galactic_path();
+    let Some((_, _, survey)) = simulation.galactic_orbit() else {
+        return;
+    };
+    let color = Color32::from_rgba_unmultiplied(235, 215, 160, 70);
+    let points: Vec<_> = path.iter().map(|&p| screen(camera, viewport, p)).collect();
+    draw_path(painter, &points, Stroke::new(1.2, color));
+    // Named under the far side of the loop from the Sun, clear of both.
+    let start = points.first().copied().flatten();
+    let far = points.iter().flatten().max_by(|a, b| {
+        let away = |p: &&Projection| start.map_or(0.0, |s| (p.position - s.position).length());
+        away(a).total_cmp(&away(b))
+    });
+    if labels && let Some(p) = far {
+        painter.text(
+            p.position + vec2(0.0, 6.0),
+            Align2::CENTER_TOP,
+            format!(
+                "the solar system's path around the galaxy: once round in {:.0} million years",
+                survey.azimuthal_period / (1e6 * worldline_core::constants::JULIAN_YEAR)
+            ),
+            FontId::proportional(11.0),
+            Color32::from_rgba_unmultiplied(235, 215, 160, 140),
+        );
     }
 }
 

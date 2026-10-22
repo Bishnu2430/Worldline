@@ -90,14 +90,21 @@ Focusing also zooms the camera in close. Computation follows the same rule, but 
 ## Added to v1: the galactic center and live small bodies (decided 2026-10-07)
 
 - **Everything feels everything.** The belts' 28,000 asteroids and Kuiper belt objects, and every small moon, become live particles that feel any body added in the sandbox, not fixed orbits. Massless, they still pull on nothing.
-- **The galactic center.** Sagittarius A\* with the real stars orbiting it (S2 and others, from GRAVITY's orbits), placed 8.3 kpc from the solar system in its true direction, so you can zoom out from one to the other. The full Milky Way (its stars from Gaia, dark matter, the Sun's orbit around the center) stays in v2.
+- **The galactic center.** Sagittarius A\* with the real stars orbiting it (S2 and others, from GRAVITY's orbits), placed 8.3 kpc from the solar system in its true direction, so you can zoom out from one to the other. The full Milky Way stays in v2; its foundation moved into v1 on 2026-10-22 (below).
+
+## Added to v1: the Milky Way's foundation (decided 2026-10-22)
+
+The owner asked to connect the galactic center with the solar system, as a foundation of the Milky Way, without simulating or drawing its stars one by one, to save computing.
+- **The galaxy's mass:** McMillan's (2017) published model (a bulge, thin and thick star disks, atomic and molecular gas disks and a dark-matter halo) as a smooth potential.
+- **The solar system goes around the galactic center** in it, from its measured place and motion relative to Sagittarius A\*. The galactic center region moves accordingly, and the solar system's path around the galaxy is drawn.
+- **Still in v2:** the galaxy's stars from Gaia, a live dark-matter halo and disk, the bar and spiral arms, and the "compute in the background, then replay" mode that would let a whole galactic year play out.
 
 ## v2: committed, starts once v1 is established
 
 All of these will be built. They are ordered after v1 because they depend on its engine, not because they are optional.
 
 - Stellar evolution (stars aging, supernovae of massive stars)
-- A Milky Way built from Gaia data, a dark matter halo, galaxy-scale simulation, and a "compute in the background, then replay" mode
+- A Milky Way built from Gaia data (its stars one by one), a live dark-matter halo, galaxy-scale simulation, and a "compute in the background, then replay" mode (v1 has the galaxy's mass as a smooth model, from step 2.9)
 - TON 618 dropped into the full galaxy (v1 covers the two-black-hole merger only)
 - Fluid collisions between planets with realistic rock and iron equations of state
 - Accretion disk physics

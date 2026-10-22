@@ -51,7 +51,11 @@ The app is a window around the physics engine. It never does physics itself. It 
 
 Sagittarius A\*, the Milky Way's central black hole, is in the body list with its 39 stars, at its real place: 8,277 pc away, in its true direction on the sky. Double-click it to fly there; the camera climbs out from the solar system and comes back in, framing the stars. The camera can zoom out to about 300 kpc, far enough to see both at once.
 - **Its stars** are colored by type: young, hot ones blue-white, cool giants orange. They show, with their orbits, around Sagittarius A\* in focus, like a planet's moons.
-- **The inspector** gives its distance in light-years and parsecs, and labels what's measured and what isn't simulated. The galaxy between (its stars, gas and dark matter) and the Sun's 230-million-year orbit around the center come in v2.
+- **The inspector** gives its distance in light-years and parsecs, and labels what's measured and what isn't simulated.
+- **The galaxy between** is a smooth mass model (McMillan 2017). It carries the solar system around the center every 238 million years, so the region drifts past the solar system at about 252 km/s.
+  - **The Sun's inspector** gives that orbit: how far out it goes and how far from the galactic plane.
+  - **Zoomed out past 10,000 AU,** the view draws the solar system's path for the next galactic year, a loop around Sagittarius A\*. `cargo run --release -- --focus Sun --zoom 2.2e12 --paused` frames it.
+  - See [physics/milky-way.md](physics/milky-way.md).
 - **Dropped bodies:** anything dropped near it, from the catalogue, joins its region and feels it.
 
 See [physics/galactic-center.md](physics/galactic-center.md).

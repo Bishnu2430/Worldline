@@ -48,6 +48,7 @@ Added 2026-10-05, before steps 1.6 and 1.7. Detail follows focus: see [SCOPE.md]
 | 2.6 | White dwarfs and the Chandrasekhar limit | The computed limit is 1.46 M☉ for an ideal carbon-oxygen white dwarf | ✅ |
 | 2.7 | Neutron stars from equations of state, maximum mass, prompt collapse | The SLy equation of state gives a maximum mass of about 2.05 M☉ | ✅ |
 | 2.8 | Hawking evaporation | Lifetimes match t = 5120πG²M³/(ħc⁴) | ✅ |
+| 2.9 | The Milky Way's foundation (added 2026-10-22): its mass as McMillan's (2017) model carries the solar system around Sagittarius A\* | The model's circular speed at 8.21 kpc is McMillan's 233.1 km/s, and the Sun's orbit in it matches the one his paper traces, within his code's grid precision | ✅ |
 
 ## M3: Seeing curved spacetime
 

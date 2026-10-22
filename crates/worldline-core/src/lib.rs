@@ -18,6 +18,7 @@ pub mod kepler;
 pub mod magnetosphere;
 pub mod mean_elements;
 pub mod merger;
+pub mod milky_way;
 pub mod neutron_star;
 pub mod orbit;
 pub mod regime;

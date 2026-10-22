@@ -18,7 +18,7 @@ To see it: `cargo run --release -- --focus "Sagittarius A*"`, or double-click Sa
 - **No pull between them:** 8,277 pc apart, each one's tide on the other is below 10⁻²⁰ m/s², so neither needs to feel the other.
 - **Bodies dropped near it** join its region and feel it.
 
-**Held still.** The region holds still relative to the solar system. In reality the galaxy's mass carries the Sun around the galactic center every 230 million years, at about 250 km/s. Simulating that needs the galaxy's stars, gas and dark matter, which come in v2, and the app says so. Nothing is drawn between the two regions for the same reason.
+**Moving with the galaxy.** Since step 2.9 the galaxy's mass, McMillan's (2017) model of it, carries the solar system around the center once every 238 million years, at about 252 km/s, from its measured place and motion. The region moves relative to the solar system accordingly, and the app draws the solar system's path around it. See [milky-way.md](milky-way.md). (Until then the region held still.)
 
 ## The stars around it
 
@@ -47,7 +47,7 @@ The simulated turning is 0.5% above the first-order formula. That's the size of 
 
 ## Not handled yet
 
-- **The galaxy:** the Milky Way's stars, gas and dark matter, and the Sun's orbit around the center (v2).
+- **The galaxy's stars one by one:** its mass is a smooth model (step 2.9, [milky-way.md](milky-way.md)); its stars from Gaia come in v2.
 - **The S-stars' own masses and sizes:** they are points, which their effect on each other allows.
 - **Exact black-hole motion:** S2 never comes within 1,400 horizon radii, where first-order relativity is accurate, but anything dropped closer needs step 2.5.
 - **The other catalog objects** (M87\*, TON 618, Cygnus X-1…) stay in the catalogue, to be dropped where you like, not at their real places.
