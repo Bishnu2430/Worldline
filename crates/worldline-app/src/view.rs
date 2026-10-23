@@ -29,6 +29,7 @@ pub struct ViewOptions {
     pub heliosphere: bool,
     pub magnetospheres: bool,
     pub starfield: bool,
+    pub accretion_disk: bool,
 }
 
 /// A visible body and how it will be drawn.

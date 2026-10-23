@@ -10,6 +10,7 @@ use glam::Mat3;
 use worldline_core::constants::{AU, C, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSITY};
 use worldline_core::gravity::kerr::innermost_stable_orbit;
 use worldline_core::hawking;
+use worldline_core::kerr_light::{self, circular, disk_temperature, photon_orbits};
 use worldline_core::lensing::BendTable;
 use worldline_core::magnetosphere::standoff;
 use worldline_core::merger::ringdown;
@@ -18,7 +19,7 @@ use worldline_core::neutron_star::{sly_maximum, sly_radius};
 use worldline_core::sunlight::{irradiance, light_time};
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DVec3};
-use worldline_render::{Atmosphere, Lens, Rings, SkyView, View};
+use worldline_render::{Atmosphere, KerrDisk, KerrLens, Lens, Rings, SkyView, View};
 
 use crate::calendar::DateTime;
 use crate::camera::Camera;
@@ -226,6 +227,98 @@ struct LensTable {
     toward: DVec3,
 }
 
+/// Within this many GM/c² of the black hole bending the sky, its rays are
+/// traced one by one, spin and all, and a disk can be drawn around it.
+/// Farther, the table above serves. On the GPU a ray's direction is good
+/// to 6 × 10⁻⁸ rad, so from here it passes the hole within 6 × 10⁻⁴ GM/c²
+/// of where it should, a ten-thousandth of the shadow.
+const KERR_REACH: f64 = 1e4;
+
+/// Traced rays have escaped once moving outward past this many times the
+/// camera's distance: a ray passing at b would bend by under GM b/(c²R²)
+/// more, under 10⁻⁴ of the camera's distance in GM/c², a hundredth of a
+/// pixel or less.
+const KERR_FAR: f64 = 100.0;
+
+/// The accretion disk, which is visual: a thin disk (Novikov & Thorne
+/// 1973) fed at a tenth of the Eddington rate, from the innermost stable
+/// orbit out to 25 GM/c², fading to clear from 15.
+const DISK_EDDINGTON: f64 = 0.1;
+const DISK_OUTER: f64 = 25.0;
+const DISK_RINGS: usize = 256;
+/// How bright its hottest ring is drawn, unshifted, before the display's
+/// gentle limit (1 − e^(−x)).
+const DISK_BRIGHTNESS: f64 = 4.0;
+/// The colors the disk can glow: ln T from 10³ K to 10⁹ K. Each is the tint
+/// of a blackbody that hot, as bright as the square root of its total
+/// light, σT⁴, relative to one at [`DISK_REFERENCE`]: the scale a picture
+/// needs to show the dim outer disk along with the bright inner one.
+const DISK_REFERENCE: f64 = 1e4;
+const DISK_COLORS: usize = 512;
+const LN_T_MIN: f64 = 6.907_755_278_982_137;
+const LN_T_MAX: f64 = 20.723_265_836_946_41;
+
+/// The accretion disk drawn around the black hole whose rays are traced,
+/// as the GPU reads it, worked out for one hole.
+struct DiskTable {
+    /// The hole's name, GM (it can grow) and spin.
+    hole: String,
+    gm: f64,
+    spin: f64,
+    /// Where it starts: the innermost stable orbit.
+    inner: f64,
+    /// At radii evenly spaced in ln r out to [`DISK_OUTER`]: ln T, the
+    /// orbits' angular velocity Ω and u^t.
+    rings: Vec<[f32; 3]>,
+    /// Scales the colors so the hottest ring shows [`DISK_BRIGHTNESS`].
+    exposure: f32,
+}
+
+impl DiskTable {
+    fn new(hole: &Body, spin: f64) -> Self {
+        let inner = innermost_stable_orbit(spin, true);
+        let rings: Vec<[f32; 3]> = (0..DISK_RINGS)
+            .map(|k| {
+                let r = inner * (DISK_OUTER / inner).powf(k as f64 / (DISK_RINGS - 1) as f64);
+                let temperature = disk_temperature(hole.gm, spin, DISK_EDDINGTON, r).max(1.0);
+                let (omega, ut) = circular(spin, r);
+                [temperature.ln() as f32, omega as f32, ut as f32]
+            })
+            .collect();
+        let hottest = rings
+            .iter()
+            .map(|r| f64::from(r[0]))
+            .fold(0.0, f64::max)
+            .exp();
+        Self {
+            hole: hole.name.clone(),
+            gm: hole.gm,
+            spin,
+            inner,
+            rings,
+            exposure: (DISK_BRIGHTNESS / (hottest / DISK_REFERENCE).powi(2)) as f32,
+        }
+    }
+}
+
+/// The colors a disk can glow, at ln T evenly spaced from [`LN_T_MIN`] to
+/// [`LN_T_MAX`]: a blackbody's tint, brightest channel 1, times the square
+/// root of its total light relative to one at [`DISK_REFERENCE`],
+/// (T/T_ref)². Light shifted by g looks like a blackbody at gT, so this
+/// shows, on that scale, the (gT)⁴ that makes the side coming toward you
+/// so much brighter.
+fn disk_colors() -> Vec<[f32; 3]> {
+    (0..DISK_COLORS)
+        .map(|k| {
+            let ln_t = LN_T_MIN + (LN_T_MAX - LN_T_MIN) * k as f64 / (DISK_COLORS - 1) as f64;
+            let tint = crate::sky::blackbody(ln_t.exp());
+            let top = tint.iter().copied().fold(0.0, f64::max);
+            let light = (ln_t.exp() / DISK_REFERENCE).powi(2);
+            tint.map(|c| (c / top * light) as f32)
+        })
+        .collect()
+}
+
 /// Where the camera settles when you focus on a body, in body radii: close
 /// enough that the globe fills most of the view.
 const FOCUS_DISTANCE_RADII: f64 = 4.0;
@@ -267,6 +360,12 @@ pub struct WorldlineApp {
     /// How the black hole bending the sky bends it, for the camera's
     /// distance from it.
     lens: Option<LensTable>,
+    /// The disk around the black hole whose rays are traced, and the
+    /// colors it can glow.
+    disk: Option<DiskTable>,
+    disk_colors: Vec<[f32; 3]>,
+    /// The black hole bending the sky, if any.
+    lensed: Option<String>,
     /// What's typed in the body list's search box.
     search: String,
     /// The catalogue entry a press in the view adds, if adding; otherwise
@@ -317,12 +416,16 @@ impl WorldlineApp {
                 heliosphere: true,
                 magnetospheres: true,
                 starfield: true,
+                accretion_disk: true,
             },
             last_frame: Instant::now(),
             flight: None,
             gpu: None,
             sky: None,
             lens: None,
+            disk: None,
+            disk_colors: disk_colors(),
+            lensed: None,
             search: String::new(),
             reveal: false,
             tool: None,
@@ -335,6 +438,9 @@ impl WorldlineApp {
         };
         app.simulation.paused = start.paused;
         app.catalogue_open = start.catalogue;
+        if let Some(degrees) = start.pitch_degrees {
+            app.camera.pitch = degrees.to_radians();
+        }
         if let Some((kind, au)) = &start.add {
             let around = match &start.around {
                 Some(name) => app.simulation.index_of(name).unwrap_or_else(|| {
@@ -685,6 +791,16 @@ impl WorldlineApp {
                  the Yale Bright Star Catalogue at their places: as seen from the solar system. \
                  Around a black hole it is bent as general relativity bends light; how bright \
                  the stars are drawn is visual",
+            );
+        ui.checkbox(&mut self.options.accretion_disk, "Accretion disk")
+            .on_hover_text(
+                "Visual only: a thin disk of gas around the black hole bending the sky, within \
+                 10,000 GM/c² of it, as Novikov and Thorne's model has it glow if fed at a tenth \
+                 of the Eddington rate, out to 25 GM/c². Its light is bent, and shifted by the \
+                 disk's motion and the hole's gravity, as general relativity predicts. Color is \
+                 the tint of a blackbody at the shifted temperature; brightness, the square root \
+                 of its total light, so the dim outer disk shows too. The gas itself isn't \
+                 simulated",
             );
         ui.checkbox(&mut self.options.trails, "Orbit trails")
             .on_hover_text("Moons show their current orbit instead");
@@ -1673,7 +1789,7 @@ impl WorldlineApp {
         let viewport = response.rect;
         let render_state = frame.wgpu_render_state();
         let sky = render_state
-            .filter(|_| self.options.starfield)
+            .filter(|_| self.options.starfield || self.options.accretion_disk)
             .and_then(|state| self.draw_sky(state, ui.ctx().pixels_per_point(), viewport));
         match sky {
             Some(texture) => {
@@ -1705,10 +1821,10 @@ impl WorldlineApp {
             selected: self.selected,
             pointer: response.hover_pos(),
             lensed: self
-                .lens
+                .lensed
                 .as_ref()
                 .filter(|_| sky.is_some())
-                .and_then(|l| self.simulation.index_of(&l.hole)),
+                .and_then(|name| self.simulation.index_of(name)),
         };
         let layout = view::layout(
             &self.camera,
@@ -2191,7 +2307,7 @@ impl WorldlineApp {
         pixels_per_point: f32,
         viewport: Rect,
     ) -> Option<TextureId> {
-        let size = [
+        let mut size = [
             (viewport.width() * pixels_per_point).round() as u32,
             (viewport.height() * pixels_per_point).round() as u32,
         ];
@@ -2207,7 +2323,27 @@ impl WorldlineApp {
             .filter(|(b, d)| {
                 *d > 2.0 * b.gm / (C * C) && (4.0 * b.gm / (C * C * d)).sqrt() >= 0.5 * pixel
             });
+        self.lensed = hole.map(|(body, _)| body.name.clone());
+        // Close up, the rays are traced, from a camera turning with the
+        // hole's frame dragging.
+        let mut traced = None;
         match hole {
+            Some((body, distance)) if distance * C * C / body.gm <= KERR_REACH => {
+                self.lens = None;
+                let spin = horizon_spin(body.gm, body.radius);
+                let unit = body.gm / (C * C);
+                traced = Some((
+                    kerr_light::Camera::at(spin, (eye - body.position) / unit),
+                    spin,
+                ));
+                let stale = self
+                    .disk
+                    .as_ref()
+                    .is_none_or(|d| d.hole != body.name || d.gm != body.gm || d.spin != spin);
+                if self.options.accretion_disk && stale {
+                    self.disk = Some(DiskTable::new(body, spin));
+                }
+            }
             Some((body, distance)) => {
                 // Worked out again once the camera has moved a thousandth
                 // of its distance: the shadow's edge moves by as much.
@@ -2233,6 +2369,39 @@ impl WorldlineApp {
             }
             None => self.lens = None,
         }
+        // Without the starfield, only a traced hole and its disk are drawn,
+        // on black.
+        if !self.options.starfield && traced.is_none() {
+            return None;
+        }
+        // Traced rays cost a hundred steps or more each: at half the
+        // screen's resolution, a pixel spans about what a texel of the sky
+        // map does (1.5 × 10⁻³ rad at the usual field of view), so the sky
+        // loses little.
+        if traced.is_some() {
+            size = size.map(|s| s.div_ceil(2));
+        }
+        let disk = self
+            .disk
+            .as_ref()
+            .filter(|_| self.options.accretion_disk)
+            .map(|d| KerrDisk {
+                inner: d.inner as f32,
+                outer: DISK_OUTER as f32,
+                rings: &d.rings,
+                colors: &self.disk_colors,
+                ln_t_min: LN_T_MIN as f32,
+                ln_t_step: ((LN_T_MAX - LN_T_MIN) / (DISK_COLORS - 1) as f64) as f32,
+                exposure: d.exposure,
+            });
+        let kerr = traced.map(|(camera, spin)| KerrLens {
+            camera: camera.place.as_vec3(),
+            launch: camera.launch().as_mat4(),
+            spin: spin as f32,
+            capture: photon_orbits(spin).0 as f32,
+            far: (KERR_FAR * camera.r) as f32,
+            disk,
+        });
         let (forward, _, up) = self.camera.basis();
         let view = SkyView {
             size,
@@ -2240,13 +2409,18 @@ impl WorldlineApp {
             up: up.as_vec3(),
             fov_y: self.camera.fov_y as f32,
             to_map: crate::sky::to_galactic().as_mat3(),
-            exposure: SKY_EXPOSURE,
+            exposure: if self.options.starfield {
+                SKY_EXPOSURE
+            } else {
+                0.0
+            },
             lens: self.lens.as_ref().map(|l| Lens {
                 toward: l.toward.as_vec3(),
                 edge: l.edge as f32,
                 bending: &l.bending,
                 x_min: BendTable::X_MIN as f32,
             }),
+            kerr,
         };
         let gpu = self.sky.get_or_insert_with(|| GpuSky::new(state));
         gpu.draw(state, &view)

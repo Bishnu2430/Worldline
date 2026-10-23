@@ -53,20 +53,25 @@ fn encoded(c: f64) -> u8 {
     (s * 255.0).round() as u8
 }
 
+/// A blackbody's light at the red, green and blue of a display (610, 550
+/// and 465 nm), each relative to a 6,504 K blackbody's, so that one is
+/// white: Planck's law, λ⁻⁵/(e^(hc/λkT) − 1) up to a constant.
+pub fn blackbody(temperature: f64) -> [f64; 3] {
+    let planck = |nm: f64, t: f64| {
+        let lambda = nm * 1e-9;
+        1.0 / (lambda.powi(5) * (0.014_387_77 / (lambda * t)).exp_m1())
+    };
+    [610.0, 550.0, 465.0].map(|nm| planck(nm, temperature) / planck(nm, 6504.0))
+}
+
 /// A star's color from its B − V: its temperature by Ballesteros's (2012)
-/// formula (*EPL* 97, 34008), and Planck's law at the red, green and blue
-/// of a display (610, 550 and 465 nm), relative to a 6,504 K white.
+/// formula (*EPL* 97, 34008), as a [`blackbody`], brightest channel 1.
 fn star_color(b_v: Option<f64>) -> [f64; 3] {
     let Some(bv) = b_v else {
         return [1.0; 3];
     };
     let temperature = 4600.0 * (1.0 / (0.92 * bv + 1.7) + 1.0 / (0.92 * bv + 0.62));
-    // Planck's law up to a constant: λ⁻⁵/(e^(hc/λkT) − 1).
-    let planck = |nm: f64, t: f64| {
-        let lambda = nm * 1e-9;
-        1.0 / (lambda.powi(5) * (0.014_387_77 / (lambda * t)).exp_m1())
-    };
-    let rgb = [610.0, 550.0, 465.0].map(|nm| planck(nm, temperature) / planck(nm, 6504.0));
+    let rgb = blackbody(temperature);
     let top = rgb.iter().copied().fold(0.0, f64::max);
     rgb.map(|c| c / top)
 }

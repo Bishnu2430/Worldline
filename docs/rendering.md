@@ -10,7 +10,7 @@ When a body is big enough on screen to see, at least 3 points across, Worldline 
 
 The 3D view is drawn in four layers:
 
-0. **The sky, on the GPU:** a full-screen pass that looks up the sky map along each pixel's ray, bent first by a black hole if one bends the view (see [The sky](#the-sky)).
+0. **The sky, on the GPU:** a full-screen pass that looks up the sky map along each pixel's ray, bent first by a black hole if one bends the view, and traced past it ray by ray, with its disk, when the camera is close (see [The sky](#the-sky)).
 1. **Back, on the CPU through egui:** reference rings, orbit trails and the Sun's glow.
 2. **Middle, on the GPU (`worldline-render`):** drawn into an offscreen image that is transparent everywhere else. egui then paints that image over the back layer, so trails pass behind planets naturally. Three pipelines run in order:
    - **globes:** opaque, writing depth;
@@ -44,7 +44,16 @@ The view spans from the camera a few thousand kilometers above Earth out to Plut
 - **A pixel's ray:** its direction from the camera's axes and field of view, the same projection as the globes. Turned into galactic coordinates, it gives the place on the map.
 - **Level of detail from the ray:** how much sky the pixel's ray covers, from its screen-space derivatives. So there's no seam at the map's edge, and where a black hole squeezes the sky the map blurs as it should.
 - **Bent by a black hole:** the GPU looks each ray's bending up in a table the core crate computes in double precision (see [physics/lensing.md](physics/lensing.md)). The renderer itself knows nothing about physics. Choices are made with `select`, not branches, so the derivatives stay in uniform control flow, which naga checks.
-- **Tests:** a naga test compiles and validates `sky.wgsl`, and another checks that its uniform's layout, as naga computes it, matches the Rust struct. A `vec3` of padding there once made it 144 bytes against 128.
+- **Traced past a spinning hole:** within 10,000 GM/c² of the hole, a second pipeline (`fs_kerr`) traces each pixel's ray back through Kerr spacetime in single precision, the equations core uses (see [physics/lensing.md](physics/lensing.md#a-spinning-hole-step-32)). The app hands it what it needs, worked out in double precision:
+  - the camera's place in units of GM/c²;
+  - the matrix giving each ray's energy and momentum from its direction;
+  - the disk's tables: temperature, Ω and u^t at 256 radii, and colors at 512 temperatures.
+
+  The tracing is a loop with early exits, so it runs in a function: the derivatives for the map's level of detail are taken after it returns, in uniform control flow again.
+  - **Cost:** 40 to 50 ms for 800 × 500 rays on an Intel Iris Xe. So this view is drawn at half the screen's resolution, where a pixel spans about what a texel of the sky map does.
+  - **Drawn again only when the view changes.** The pass remembers everything it was drawn from, and skips a frame when nothing has changed. The camera follows the hole, so time running doesn't change the view; only turning or zooming it does.
+- **A compute entry point (`cs_trace`)** runs the same tracing for a list of directions. `trace_rays` uses it so a test can check the shader's rays against core's (it needs a GPU, so it is ignored by default).
+- **Tests:** a naga test compiles and validates `sky.wgsl`, and another checks that its uniforms' layouts, as naga computes them, match the Rust structs. A `vec3` of padding there once made one 144 bytes against 128.
 
 ## Spacecraft maps
 

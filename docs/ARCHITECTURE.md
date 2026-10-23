@@ -16,8 +16,9 @@ crates/
   worldline-data     catalogs and real-world snapshots (JPL Horizons, notable objects)
   worldline-app      desktop app: window, 3D view, egui interface, sandbox tools   (since step 1.5)
   worldline-render   wgpu GPU rendering: textured globes, the sky and its lensing
-                     (looked up from a table core computes); accretion disks and
-                     SPH later                                                    (since step 1b.2)
+                     (looked up from a table core computes, or near a hole traced
+                     ray by ray in single precision, checked against core's double
+                     precision), the accretion disk's look; SPH later           (since step 1b.2)
 ```
 
 Each crate is added when its milestone starts, not before. The 3D view is drawn in layers. Rings, trails, dots and labels are projected relative to the camera in double precision and drawn with egui's painter. Globes and the sky behind everything are drawn by `worldline-render` on the GPU. See [app.md](app.md) and [rendering.md](rendering.md).
@@ -86,6 +87,7 @@ It uses them to pick a model:
 | Stars around Sagittarius A\* | Its Newtonian pull plus its first relativistic (Schwarzschild) term, from published orbits | GRAVITY Collaboration 2022; Gillessen et al. 2017; [physics/galactic-center.md](physics/galactic-center.md) |
 | The galaxy's mass, and the solar system's orbit around its center | McMillan's axisymmetric model (bulge, star and gas disks, NFW halo), its potential solved as his code solves it: the disks' thin layers analytically, the rest as multipoles to l = 80. The barycenter is a test body in it (IAS15), from its measured place and motion; smooth, labeled | McMillan 2017; Dehnen & Binney 1998; GRAVITY 2022; Reid & Brunthaler 2020; Schönrich, Binney & Dehnen 2010; Bennett & Bovy 2019; [physics/milky-way.md](physics/milky-way.md) |
 | Light near a black hole: what the camera sees | Rays through Schwarzschild spacetime (Binet's equation, Runge–Kutta in double precision), tabulated for the camera's distance; the GPU looks each pixel up in the table. The shadow's edge by Synge's formula; bodies are drawn unbent | Misner, Thorne & Wheeler 1973; Darwin 1959; Synge 1966; Carlson 1988; [physics/lensing.md](physics/lensing.md) |
+| Light near a black hole, within 10,000 GM/c²: spin, and a disk | Rays through Kerr spacetime in Kerr–Schild coordinates, from a camera turning with the frame dragging: in core in double precision with error control, on the GPU ray by ray in single precision for each pixel. A thin disk's light (visual only) shifted by g = 1/(u^t(E − ΩL)) | Kerr 1963; Carter 1968; Bardeen, Press & Teukolsky 1972; Bardeen 1973; Novikov & Thorne 1973; Page & Thorne 1974; [physics/lensing.md](physics/lensing.md) |
 | Sunlight and its travel time | Inverse-square law from the IAU luminosity; distance over c plus the Shapiro delay | IAU 2015 B3; Shapiro 1964 |
 | Solar wind | Parker spiral with the measured average wind at Earth | Parker 1958; NASA OMNI |
 | Heliosphere | Boundaries measured at the Voyager crossings; Rankine half-body shape between them (visual) | Stone et al. 2005–2019; Bzowski et al. 2015 |

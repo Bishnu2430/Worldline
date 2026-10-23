@@ -26,9 +26,9 @@ use crate::constants::C;
 /// the Christoffel symbols) come out exactly, without being written by
 /// hand.
 #[derive(Debug, Clone, Copy)]
-struct Dual {
-    value: f64,
-    slope: [f64; 3],
+pub(crate) struct Dual {
+    pub(crate) value: f64,
+    pub(crate) slope: [f64; 3],
 }
 
 impl Dual {
@@ -132,7 +132,7 @@ impl Mul<Dual> for f64 {
 /// The Kerr–Schild functions at `x` (m), for a hole of mass `m` = GM/c²
 /// and Kerr parameter `a` (both m): (f, l₀, l₁, l₂, l₃), with their
 /// gradients.
-fn field(x: DVec3, m: f64, a: f64) -> (Dual, [Dual; 4]) {
+pub(crate) fn field(x: DVec3, m: f64, a: f64) -> (Dual, [Dual; 4]) {
     let (px, py, pz) = (
         Dual::variable(x.x, 0),
         Dual::variable(x.y, 1),
