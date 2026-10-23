@@ -73,6 +73,8 @@ For each body or pair of bodies, the engine computes a few dimensionless numbers
 | q = m₂ / m₁ | Mass ratio |
 | r / r_t | Distance compared with the tidal disruption radius |
 
+The inspector shows these numbers and the verdict for the selected body, and the Models overlay for every body on screen ([physics/overlays.md](physics/overlays.md)).
+
 It uses them to pick a model:
 
 | Situation | Model | Source |

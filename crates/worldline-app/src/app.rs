@@ -26,6 +26,7 @@ use crate::camera::Camera;
 use crate::catalogue::{self, Entry, Group, length, light_years, measured_suns, significant};
 use crate::details;
 use crate::gpu::{Globe, GpuGlobes, GpuSky};
+use crate::overlays::{self, Overlays};
 use crate::sandbox::{self, Launch};
 use crate::simulation::Simulation;
 use crate::simulation::{Computed, Removal};
@@ -417,6 +418,7 @@ impl WorldlineApp {
                 magnetospheres: true,
                 starfield: true,
                 accretion_disk: true,
+                overlays: Overlays::default(),
             },
             last_frame: Instant::now(),
             flight: None,
@@ -438,6 +440,7 @@ impl WorldlineApp {
         };
         app.simulation.paused = start.paused;
         app.catalogue_open = start.catalogue;
+        app.options.overlays = start.overlays;
         if let Some(degrees) = start.pitch_degrees {
             app.camera.pitch = degrees.to_radians();
         }
@@ -621,6 +624,9 @@ impl WorldlineApp {
                 egui::CollapsingHeader::new("Display")
                     .id_salt("display section")
                     .show(ui, |ui| self.display(ui));
+                egui::CollapsingHeader::new("Overlays")
+                    .id_salt("overlays section")
+                    .show(ui, |ui| self.overlay_options(ui));
             });
     }
 
@@ -782,6 +788,47 @@ impl WorldlineApp {
                 ui.end_row();
             }
         });
+    }
+
+    /// The overlays' switches: data drawn over the view (see
+    /// `overlays.rs`).
+    fn overlay_options(&mut self, ui: &mut egui::Ui) {
+        let overlays = &mut self.options.overlays;
+        ui.checkbox(&mut overlays.models, "Models").on_hover_text(
+            "Which model computes each body on screen, with a ring around any it covers only \
+                 approximately (amber) or not at all (red), from how strong gravity is there \
+                 (GM/rc²) and how fast it moves (v/c)",
+        );
+        ui.checkbox(&mut overlays.clocks, "Clock rates")
+            .on_hover_text(
+                "How much more slowly a clock at rest runs than one far away, √(1 − 2U/c²): a \
+                 heatmap on the plane through what the camera looks at, square to the view. \
+                 Exact for one body (Schwarzschild, or Kerr near a spinning hole); for several, \
+                 their weak fields added",
+            );
+        ui.checkbox(&mut overlays.tides, "Tides").on_hover_text(
+            "How the body in focus is stretched and squeezed by everything else (Newton's \
+                 tidal field); around a black hole, the stretch a small body near it would feel",
+        );
+        ui.checkbox(&mut overlays.embedding, "Embedding diagram")
+            .on_hover_text(
+                "The shape of space around the body in focus: its equatorial plane drawn as a \
+                 surface whose distances are true (Flamm's paraboloid; inside a body, \
+                 Schwarzschild's interior solution for even density), depth exaggerated by a \
+                 stated power of ten when too small to see",
+            );
+        ui.checkbox(&mut overlays.waves, "Gravitational waves")
+            .on_hover_text(
+                "When the body in focus is in a pair that radiates: the crests of its \
+                 gravitational waves in the orbit's plane, spiralling out at the speed of light \
+                 (leading order, as from a circular orbit)",
+            );
+        ui.add_space(4.0);
+        ui.label(
+            RichText::new("Each says what it shows in the view's top-left corner.")
+                .small()
+                .color(theme::MUTED),
+        );
     }
 
     fn display(&mut self, ui: &mut egui::Ui) {
@@ -1307,30 +1354,12 @@ impl WorldlineApp {
                 "Follows the Sun and planets: Newtonian, the Sun's relativistic term, outgassing"
             }
         };
-        let (green, amber, red) = (
-            Color32::from_rgb(110, 205, 140),
-            Color32::from_rgb(240, 180, 80),
-            Color32::from_rgb(240, 110, 100),
-        );
+        let (green, amber, red) = (theme::WITHIN, theme::APPROXIMATE, theme::BEYOND);
         ui.add_space(4.0);
         ui.label(RichText::new("Model").strong());
         ui.label(RichText::new(model).small());
         let mut notes: Vec<(Color32, String)> = Vec::new();
-        if let Some(regime) = simulation.regime(index) {
-            // The top level keeps every term through second order; the
-            // rest of the models, first.
-            let kept = if simulation.computed(index) == Computed::TopLevel {
-                2
-            } else {
-                1
-            };
-            let validity = match held {
-                Some(h) => {
-                    let (m, big) = (simulation.bodies[index].gm, simulation.bodies[h].gm);
-                    regime.test_body_validity(m * big / ((m + big) * (m + big)))
-                }
-                None => regime.validity(kept),
-            };
+        if let Some((regime, validity)) = simulation.validity(index) {
             let (color, verdict) = match validity {
                 Validity::Within => (green, "within range"),
                 Validity::Approximate => (amber, "approximate: higher orders show"),
@@ -1858,6 +1887,19 @@ impl WorldlineApp {
             &layout,
             attention,
         );
+        let readouts = overlays::draw(
+            &overlays::Scene {
+                painter: &painter,
+                viewport,
+                camera: &self.camera,
+                simulation: &self.simulation,
+                layout: &layout,
+                focus: self.focus,
+                pointer: response.hover_pos(),
+            },
+            self.options.overlays,
+        );
+        overlays::draw_readouts(&painter, viewport, &readouts);
         if let Some(pointer) = response.hover_pos()
             && view::pick(&drawn, pointer).is_some()
         {

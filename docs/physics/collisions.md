@@ -92,4 +92,4 @@ Amber notes also flag:
 - small moons placed by mean orbits;
 - a massive body inside a moon system, where its collisions with moons go undetected.
 
-The full indicator, with overlays and warnings across the view, is step 3.3.
+Step 3.3 shows the same verdict across the view: the Models overlay rings every body on screen by it ([overlays.md](overlays.md)). It also measures a body farther from what pulls on it hardest than that is from its own partner (a planet far from a close pair) from the pair's center of mass, so the partners' whirl doesn't count as its speed.

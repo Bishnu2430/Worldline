@@ -30,6 +30,7 @@ pub struct ViewOptions {
     pub magnetospheres: bool,
     pub starfield: bool,
     pub accretion_disk: bool,
+    pub overlays: crate::overlays::Overlays,
 }
 
 /// A visible body and how it will be drawn.

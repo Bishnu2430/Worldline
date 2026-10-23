@@ -100,6 +100,18 @@ impl Camera {
         (along.is_finite() && along > 0.0).then(|| eye + direction * along)
     }
 
+    /// The point under screen position `pointer` (in `viewport`) on the
+    /// plane through the target square to the line of sight.
+    pub fn point_in_view_plane(&self, pointer: Pos2, viewport: Rect) -> DVec3 {
+        let (forward, right, up) = self.basis();
+        let focal = f64::from(viewport.height()) / 2.0 / (self.fov_y / 2.0).tan();
+        let center = viewport.center();
+        // Along forward it reaches the plane at depth `distance`.
+        let direction = forward + right * (f64::from(pointer.x - center.x) / focal)
+            - up * (f64::from(pointer.y - center.y) / focal);
+        self.eye() + direction * self.distance
+    }
+
     /// Rotates the camera around its target by a drag of (dx, dy) points.
     pub fn orbit(&mut self, dx: f32, dy: f32) {
         self.yaw -= f64::from(dx) * Self::DRAG_SENSITIVITY;

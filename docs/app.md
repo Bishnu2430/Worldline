@@ -1,6 +1,6 @@
 # The desktop app
 
-**Code:** `crates/worldline-app/` · **Run:** `cargo run --release` (options: `-- --focus Jupiter --zoom 40 --pitch 20 --paused --advance 7`; `--zoom` sets how many of the focused body's radii away the camera starts, `--pitch` how many degrees above the ecliptic plane it looks from (default 34), and `--advance` runs the physics that many years past the 2025 snapshot before the window opens)
+**Code:** `crates/worldline-app/` · **Run:** `cargo run --release` (options: `-- --focus Jupiter --zoom 40 --pitch 20 --paused --advance 7`; `--zoom` sets how many of the focused body's radii away the camera starts, `--pitch` how many degrees above the ecliptic plane it looks from (default 34), `--overlays tides,clocks` starts with those overlays on (any of models, clocks, tides, embedding and waves), and `--advance` runs the physics that many years past the 2025 snapshot before the window opens)
 
 The app is a window around the physics engine. It never does physics itself. It asks `worldline-core` to advance the simulation, then draws the result.
 
@@ -112,7 +112,14 @@ A distant body pulls the whole solar system almost equally, so it falls together
 
 **Collisions.** Bodies that touch merge: momentum is kept and volumes add. The top bar reports it ("New planet 1 hit Earth at 11.2 km/s and merged"). If the body you were following or had selected was absorbed, the camera and inspector move to the survivor. A planet that is absorbed leaves its major moons orbiting the Sun. See [physics/collisions.md](physics/collisions.md).
 
-**The model indicator.** At the top of the inspector, under the body's name, a **Model** section says which model computes it. It also gives how strong gravity is there (ε = GM/rc²) and how fast it moves (v/c), relative to what pulls on it hardest. A colored dot grades whether the model covers that: green within range, amber approximate, red beyond it. Amber notes flag approximate positions, and massive bodies inside a moon system.
+**The model indicator.** At the top of the inspector, under the body's name, a **Model** section says which model computes it. It also gives how strong gravity is there (ε = GM/rc²) and how fast it moves (v/c), relative to what pulls on it hardest (or, for a body farther from that than it is from its own partner, from the pair's center of mass). A colored dot grades whether the model covers that: green within range, amber approximate, red beyond it. Amber notes flag approximate positions, and massive bodies inside a moon system. The **Models** overlay shows the same verdict for every body on screen.
+
+**Overlays.** The Overlays panel (below Display) switches on data drawn over the view, each saying what it shows in the view's top-left corner (see [physics/overlays.md](physics/overlays.md)):
+- **Models:** a ring around each body on screen, green, amber or red by its model's verdict, with the amber and red ones named.
+- **Clock rates:** a heatmap of how much more slowly a clock at rest runs than one far away, on the plane through what the camera looks at, square to the view; the value under the pointer.
+- **Tides:** arrows around the body in focus showing how everything else stretches and squeezes it; around a black hole, the stretch a small body near it would feel.
+- **Embedding diagram:** the body in focus's equatorial plane as a surface with true distances, Flamm's paraboloid, depth exaggerated by a stated power of ten when too small to see.
+- **Gravitational waves:** for a pair that radiates, its waves' crests spiralling out at the speed of light in the orbit's plane, and the strain at the camera.
 
 **Saves** include every belt body and freed moon (about 4 MB). Saves from before step 2.1b load with the belts carried along fixed ellipses from the start.
 
