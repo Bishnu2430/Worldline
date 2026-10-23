@@ -10,6 +10,8 @@
 //!   (default 4), for example to see Jupiter with its moons.
 //! - `--pitch 8` looks from 8° above the ecliptic plane (default 34°),
 //!   for example to see a black hole's disk nearly edge on.
+//! - `--overlays tides,clocks` starts with those overlays on: any of
+//!   models, clocks, tides, embedding and waves.
 //! - `--paused` starts with time stopped.
 //! - `--advance 7` runs the physics 7 years past the 2025-01-01 snapshot
 //!   before showing anything.
@@ -23,6 +25,7 @@ mod camera;
 mod catalogue;
 mod details;
 mod gpu;
+mod overlays;
 mod sandbox;
 mod simulation;
 mod sky;
@@ -56,6 +59,8 @@ pub struct StartOptions {
     pub around: Option<String>,
     /// Open the gravitational-wave window for the focused body's pair.
     pub waves: bool,
+    /// Overlays to start with.
+    pub overlays: overlays::Overlays,
 }
 
 impl StartOptions {
@@ -72,6 +77,21 @@ impl StartOptions {
                     Some(radii) if radii > 1.0 => options.zoom_radii = Some(radii),
                     _ => eprintln!("worldline: --zoom needs a number of radii above 1"),
                 },
+                "--overlays" => {
+                    for name in args.next().unwrap_or_default().split(',') {
+                        let overlays = &mut options.overlays;
+                        match name.trim() {
+                            "models" => overlays.models = true,
+                            "clocks" => overlays.clocks = true,
+                            "tides" => overlays.tides = true,
+                            "embedding" => overlays.embedding = true,
+                            "waves" => overlays.waves = true,
+                            other => eprintln!(
+                                "worldline: no overlay `{other}`: models, clocks, tides, embedding or waves"
+                            ),
+                        }
+                    }
+                }
                 "--pitch" => match args.next().and_then(|d| d.parse::<f64>().ok()) {
                     Some(degrees) if degrees.abs() < 90.0 => options.pitch_degrees = Some(degrees),
                     _ => {
@@ -140,6 +160,8 @@ mod tests {
             "30",
             "--pitch",
             "-8",
+            "--overlays",
+            "tides,waves",
             "--paused",
             "--advance",
             "7.5",
@@ -156,6 +178,11 @@ mod tests {
                 focus: Some("Earth".into()),
                 zoom_radii: Some(30.0),
                 pitch_degrees: Some(-8.0),
+                overlays: overlays::Overlays {
+                    tides: true,
+                    waves: true,
+                    ..Default::default()
+                },
                 paused: true,
                 advance_years: 7.5,
                 catalogue: true,

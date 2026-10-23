@@ -194,6 +194,60 @@ pub fn merger_time(gm1: f64, gm2: f64, period: f64, e: f64) -> f64 {
     sum * h / 3.0
 }
 
+/// A pair's chirp mass as a gravitational parameter, G𝓜 =
+/// (Gm₁ Gm₂)^(3/5) / (G(m₁ + m₂))^(1/5), m³/s²: the one combination of the
+/// masses that sets how a circular pair's waves sweep up in frequency at
+/// leading order.
+pub fn chirp_gm(gm1: f64, gm2: f64) -> f64 {
+    (gm1 * gm2).powf(0.6) / (gm1 + gm2).powf(0.2)
+}
+
+/// How long until a circular pair sending waves at `frequency` (Hz, twice
+/// the orbit's) merges, s, at leading order: τ = (5/256) (G𝓜/c³)^(−5/3)
+/// (πf)^(−8/3) (e.g. Maggiore 2008, *Gravitational Waves* vol. 1, §4.1).
+/// It is Peters' (1964) time for a circular orbit.
+pub fn time_to_merge(chirp_gm: f64, frequency: f64) -> f64 {
+    let t = chirp_gm / C.powi(3);
+    5.0 / 256.0 * t.powf(-5.0 / 3.0) * (PI * frequency).powf(-8.0 / 3.0)
+}
+
+/// How long ago a circular pair now sending waves at `frequency` was
+/// `behind` rad of orbit back from where it is now, s, at leading order.
+/// Its orbital phase runs as Φ(τ) = Φ_c − (τ/5T)^(5/8), with τ the time
+/// left and T = G𝓜/c³ (Maggiore 2008, §4.1; the wave's phase is twice
+/// the orbit's). So the time back is L = τ((1 + Δ/x)^(8/5) − 1),
+/// with x = (τ/5T)^(5/8), written with ln_1p and exp_m1 so that a slow
+/// pair, Δ ≪ x, keeps its digits (L → Δ/(πf)).
+pub fn lookback(chirp_gm: f64, frequency: f64, behind: f64) -> f64 {
+    let tau = time_to_merge(chirp_gm, frequency);
+    let x = (tau / (5.0 * chirp_gm / C.powi(3))).powf(5.0 / 8.0);
+    tau * (1.6 * (behind / x).ln_1p()).exp_m1()
+}
+
+/// The frequency a circular pair now sending waves at `frequency` sent
+/// them at `ago` seconds back, at leading order: f ∝ τ^(−3/8).
+pub fn frequency_then(chirp_gm: f64, frequency: f64, ago: f64) -> f64 {
+    let tau = time_to_merge(chirp_gm, frequency);
+    frequency * (tau / (tau + ago)).powf(0.375)
+}
+
+/// The amplitude of a circular pair's waves at `distance` (m), seen at
+/// `inclination` from its orbit's axis, at leading order: h₊ =
+/// (4/R)(G𝓜/c²)^(5/3)(πf/c)^(2/3) (1 + cos²ι)/2, and h× the same with
+/// cos ι (Maggiore 2008, §4.1). Returns (h₊, h×).
+pub fn strain_amplitude(
+    chirp_gm: f64,
+    frequency: f64,
+    distance: f64,
+    inclination: f64,
+) -> (f64, f64) {
+    let scale = 4.0 / distance
+        * (chirp_gm / (C * C)).powf(5.0 / 3.0)
+        * (PI * frequency / C).powf(2.0 / 3.0);
+    let c = inclination.cos();
+    (scale * 0.5 * (1.0 + c * c), scale * c)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

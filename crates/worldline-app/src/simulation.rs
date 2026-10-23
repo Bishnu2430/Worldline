@@ -21,7 +21,7 @@ use worldline_core::magnetosphere::Dipole;
 use worldline_core::merger::Merger;
 use worldline_core::milky_way::{GalacticOrbit, Survey, milky_way};
 use worldline_core::neutron_star::{sly_maximum, sly_radius, sly_threshold};
-use worldline_core::regime::Regime;
+use worldline_core::regime::{Regime, Validity};
 use worldline_core::rotation::RotationModel;
 use worldline_core::solar_wind::{Heliosphere, ParkerSpiral};
 use worldline_core::swarm::{Particle, Swarm};
@@ -1319,9 +1319,46 @@ impl Simulation {
     /// How strong gravity is at body `index` and how fast it moves,
     /// relative to what pulls on it hardest: its planet, for a moon; for
     /// anything else, the top-level body with the strongest pull.
+    ///
+    /// A body farther from that than it is from its own partner (a planet
+    /// far from a close pair of black holes) is held by the pair: measured
+    /// from their center of mass, with both their masses. Otherwise the
+    /// partners' own whirl would count as its speed.
     pub fn regime(&self, index: usize) -> Option<Regime> {
         let attractor = self.attractor(index)?;
-        Some(Regime::of(&self.bodies[index], &self.bodies[attractor]))
+        let (body, held) = (&self.bodies[index], &self.bodies[attractor]);
+        if self.parents[index].is_none()
+            && let Some(partner) = self.attractor(attractor).filter(|&p| p != index)
+        {
+            let other = &self.bodies[partner];
+            if (body.position - held.position).length() > (held.position - other.position).length()
+            {
+                let gm = held.gm + other.gm;
+                let pair = Body::new("pair", gm, 0.0)
+                    .at((held.position * held.gm + other.position * other.gm) / gm)
+                    .moving((held.velocity * held.gm + other.velocity * other.gm) / gm);
+                return Some(Regime::of(body, &pair));
+            }
+        }
+        Some(Regime::of(body, held))
+    }
+
+    /// How strong gravity is at body `index` and how fast it moves (see
+    /// [`Simulation::regime`]), and whether the model computing it covers
+    /// that. The top level keeps every term through second order, the rest
+    /// of the models first; a body a black hole holds is graded as a test
+    /// body in its spacetime.
+    pub fn validity(&self, index: usize) -> Option<(Regime, Validity)> {
+        let regime = self.regime(index)?;
+        let validity = match self.held_by(index) {
+            Some(hole) => {
+                let (m, big) = (self.bodies[index].gm, self.bodies[hole].gm);
+                regime.test_body_validity(m * big / ((m + big) * (m + big)))
+            }
+            None if self.computed(index) == Computed::TopLevel => regime.validity(2),
+            None => regime.validity(1),
+        };
+        Some((regime, validity))
     }
 
     /// The black hole whose exact spacetime body `index` moves in, if one

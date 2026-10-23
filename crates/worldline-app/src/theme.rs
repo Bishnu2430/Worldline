@@ -9,6 +9,12 @@ pub const ACCENT: Color32 = Color32::from_rgb(120, 168, 255);
 /// Secondary text: hints, units, counts.
 pub const MUTED: Color32 = Color32::from_rgb(128, 136, 150);
 
+/// A model's verdict on a body's situation: within range, approximate,
+/// beyond it.
+pub const WITHIN: Color32 = Color32::from_rgb(110, 205, 140);
+pub const APPROXIMATE: Color32 = Color32::from_rgb(240, 180, 80);
+pub const BEYOND: Color32 = Color32::from_rgb(240, 110, 100);
+
 /// Applies the theme to every part of the interface.
 pub fn apply(ctx: &egui::Context) {
     let mut visuals = egui::Visuals::dark();
