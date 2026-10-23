@@ -4126,7 +4126,9 @@ dependencies = [
  "bytemuck",
  "glam",
  "naga",
+ "pollster",
  "wgpu",
+ "worldline-core",
 ]
 
 [[package]]

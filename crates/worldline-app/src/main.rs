@@ -8,6 +8,8 @@
 //! - `--focus Earth` starts with the camera flown in to Earth.
 //! - `--zoom 60` puts the camera 60 of the focused body's radii away
 //!   (default 4), for example to see Jupiter with its moons.
+//! - `--pitch 8` looks from 8° above the ecliptic plane (default 34°),
+//!   for example to see a black hole's disk nearly edge on.
 //! - `--paused` starts with time stopped.
 //! - `--advance 7` runs the physics 7 years past the 2025-01-01 snapshot
 //!   before showing anything.
@@ -38,6 +40,8 @@ pub struct StartOptions {
     pub focus: Option<String>,
     /// Camera distance from the focused body, in its radii.
     pub zoom_radii: Option<f64>,
+    /// Camera height above the ecliptic plane, as an angle in degrees.
+    pub pitch_degrees: Option<f64>,
     /// Start with time stopped.
     pub paused: bool,
     /// Start with the catalogue window open.
@@ -67,6 +71,12 @@ impl StartOptions {
                 "--zoom" => match args.next().and_then(|r| r.parse::<f64>().ok()) {
                     Some(radii) if radii > 1.0 => options.zoom_radii = Some(radii),
                     _ => eprintln!("worldline: --zoom needs a number of radii above 1"),
+                },
+                "--pitch" => match args.next().and_then(|d| d.parse::<f64>().ok()) {
+                    Some(degrees) if degrees.abs() < 90.0 => options.pitch_degrees = Some(degrees),
+                    _ => {
+                        eprintln!("worldline: --pitch needs an angle in degrees between -90 and 90")
+                    }
                 },
                 "--advance" => match args.next().and_then(|y| y.parse::<f64>().ok()) {
                     Some(years) if years >= 0.0 => options.advance_years = years,
@@ -128,6 +138,8 @@ mod tests {
             "Earth",
             "--zoom",
             "30",
+            "--pitch",
+            "-8",
             "--paused",
             "--advance",
             "7.5",
@@ -143,6 +155,7 @@ mod tests {
             StartOptions {
                 focus: Some("Earth".into()),
                 zoom_radii: Some(30.0),
+                pitch_degrees: Some(-8.0),
                 paused: true,
                 advance_years: 7.5,
                 catalogue: true,

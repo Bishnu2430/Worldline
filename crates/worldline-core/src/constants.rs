@@ -35,6 +35,16 @@ pub const ELECTRON_MASS: f64 = 9.109_383_701_5e-31;
 /// 2018).
 pub const ATOMIC_MASS_UNIT: f64 = 1.660_539_066_60e-27;
 
+/// Proton mass, kg (CODATA 2018).
+pub const PROTON_MASS: f64 = 1.672_621_923_69e-27;
+
+/// Thomson cross-section of the electron, m² (CODATA 2018).
+pub const THOMSON_CROSS_SECTION: f64 = 6.652_458_732_1e-29;
+
+/// Stefan–Boltzmann constant σ = 2π⁵k⁴/(15h³c²), W m⁻² K⁻⁴. Exact (SI
+/// 2019), here to the digits CODATA 2018 gives.
+pub const STEFAN_BOLTZMANN: f64 = 5.670_374_419e-8;
+
 /// Astronomical unit, m. Exact (IAU 2012 Resolution B2).
 pub const AU: f64 = 149_597_870_700.0;
 
