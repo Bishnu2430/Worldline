@@ -439,6 +439,10 @@ impl WorldlineApp {
             audio: None,
         };
         app.simulation.paused = start.paused;
+        if let Some(speed) = start.speed {
+            app.speed_index = speed;
+            app.simulation.speed = SPEEDS[speed].1;
+        }
         app.catalogue_open = start.catalogue;
         app.options.overlays = start.overlays;
         if let Some(degrees) = start.pitch_degrees {
@@ -817,6 +821,12 @@ impl WorldlineApp {
                  Schwarzschild's interior solution for even density), depth exaggerated by a \
                  stated power of ten when too small to see",
             );
+        ui.checkbox(&mut overlays.proper_time, "Proper time")
+            .on_hover_text(
+                "A dial beside the selected body: its own clock's hand (bright) against a \
+                 far-away clock's (faint), both turning once in the same time. Near a black hole \
+                 the bright hand visibly falls behind, by √(1 − 3GM/rc²) on a circular orbit",
+            );
         ui.checkbox(&mut overlays.waves, "Gravitational waves")
             .on_hover_text(
                 "When the body in focus is in a pair that radiates: the crests of its \
@@ -939,6 +949,7 @@ impl WorldlineApp {
             }
             ui.end_row();
             self.catalog_rows(ui);
+            self.clock_rows(ui);
             if let Some(parent) = parent {
                 let planet = &bodies[parent];
                 let d = (body.position - planet.position).length();
@@ -1112,6 +1123,44 @@ impl WorldlineApp {
                 }
             }
         });
+    }
+
+    /// Inspector rows for the selected body's own clock: how much more
+    /// slowly it runs now than a clock far away, and how far it has fallen
+    /// behind since it started (see `clocks.rs`).
+    fn clock_rows(&self, ui: &mut egui::Ui) {
+        let body = &self.simulation.bodies[self.selected];
+        let Some(clock) = self.simulation.clocks.get(&body.name) else {
+            return;
+        };
+        let against = match &clock.frame {
+            Some(hole) => format!("a clock far from {hole}, at rest with it"),
+            None => "a clock far away".to_string(),
+        };
+        ui.label(key("Its clock"));
+        ui.label(if clock.slowdown < 1e-3 {
+            format!(
+                "slow by {} against {against}: {} a day",
+                significant(clock.slowdown),
+                any_time(clock.slowdown * DAY)
+            )
+        } else {
+            format!(
+                "runs at {:.6} of the rate of {against}",
+                1.0 - clock.slowdown
+            )
+        });
+        ui.end_row();
+        if clock.elapsed() > 0.0 {
+            ui.label(key("Fallen behind"));
+            ui.label(format!(
+                "{} in {}: {:.10} as fast on average",
+                any_time(clock.behind),
+                any_time(clock.elapsed()),
+                clock.shown() / clock.elapsed()
+            ));
+            ui.end_row();
+        }
     }
 
     /// Inspector rows for a black hole: its spin and the tone it rings
@@ -1895,6 +1944,7 @@ impl WorldlineApp {
                 simulation: &self.simulation,
                 layout: &layout,
                 focus: self.focus,
+                selected: self.selected,
                 pointer: response.hover_pos(),
             },
             self.options.overlays,

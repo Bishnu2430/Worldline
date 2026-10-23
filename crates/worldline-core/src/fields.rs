@@ -45,13 +45,51 @@ fn potential(body: &Body, point: DVec3) -> f64 {
 /// `None` where nothing can stay at rest: inside a horizon, or a spinning
 /// hole's ergosphere.
 pub fn clock_slowdown(bodies: &[Body], point: DVec3) -> Option<f64> {
+    moving_clock_slowdown(bodies, point, DVec3::ZERO, None)
+}
+
+/// How much more slowly a clock at `point`, moving at `velocity` (m/s),
+/// runs than coordinate time: 1 − dτ/dt with dτ/dt = √(1 − 2U/c² − v²/c²),
+/// U the potential of `bodies` but the one at `skip` (as [`clock_slowdown`]
+/// has it). Leaving out the clock's own body is how a body's own time is
+/// kept, as geocentric time (TCG) leaves out Earth's field: 1 − dTCG/dTCB
+/// = (U_ext + v²/2)/c² (IAU 2000 Resolution B1.5). It is right to first
+/// order in U/c² and v²/c², and written 2X/(1 + √(1 − 2X)) with
+/// X = U/c² + v²/2c², so that tiny slowdowns keep their digits.
+pub fn moving_clock_slowdown(
+    bodies: &[Body],
+    point: DVec3,
+    velocity: DVec3,
+    skip: Option<usize>,
+) -> Option<f64> {
     let u: f64 = bodies
         .iter()
-        .filter(|b| b.gm > 0.0)
-        .map(|b| potential(b, point))
+        .enumerate()
+        .filter(|(i, b)| b.gm > 0.0 && Some(*i) != skip)
+        .map(|(_, b)| potential(b, point))
         .sum();
-    let rest = 1.0 - 2.0 * u;
-    (rest > 0.0).then(|| 2.0 * u / (1.0 + rest.sqrt()))
+    let x = u + 0.5 * velocity.length_squared() / (C * C);
+    let rest = 1.0 - 2.0 * x;
+    (rest > 0.0).then(|| 2.0 * x / (1.0 + rest.sqrt()))
+}
+
+/// Exactly, for a clock near one black hole: how much more slowly a clock
+/// at `offset` (m) from a hole of gravitational parameter `gm` and spin
+/// `spin`, moving at `velocity` (m/s) relative to it, runs than a clock far
+/// away at rest with the hole. dτ/dt = √(−g_μν Uᵘ Uᵛ) with U = (1, v/c), in
+/// the Kerr–Schild coordinates the engine moves such bodies in:
+/// √(1 − v²/c² − f (1 + l·v/c)²). For a circular orbit it is Bardeen,
+/// Press & Teukolsky's (1972) 1/u^t. Written Y/(1 + √(1 − Y)) with Y the
+/// two terms taken away. `None` where no clock can move that way (faster
+/// than light there, or inside the horizon at rest).
+pub fn kerr_clock_slowdown(gm: f64, spin: f64, offset: DVec3, velocity: DVec3) -> Option<f64> {
+    let m = gm / (C * C);
+    let (f, l) = field(offset, m, spin * m);
+    let u = velocity / C;
+    let lu = 1.0 + l[1].value * u.x + l[2].value * u.y + l[3].value * u.z;
+    let y = u.length_squared() + f.value * lu * lu;
+    let rest = 1.0 - y;
+    (rest > 0.0).then(|| y / (1.0 + rest.sqrt()))
 }
 
 /// The tidal field at `point` from `bodies`, leaving out the one at

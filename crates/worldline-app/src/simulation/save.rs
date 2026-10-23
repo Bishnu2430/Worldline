@@ -423,6 +423,9 @@ impl Simulation {
         }
         sim.belts_time = f64::NAN;
         sim.refresh_small_moons();
+        // Clocks start afresh at the loaded moment: saves don't keep them.
+        sim.clocks = Clocks::default();
+        sim.start_clocks();
         Ok(sim)
     }
 }

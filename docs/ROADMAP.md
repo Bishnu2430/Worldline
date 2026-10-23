@@ -57,7 +57,7 @@ Added 2026-10-05, before steps 1.6 and 1.7. Detail follows focus: see [SCOPE.md]
 | 3.1 | GPU ray tracer for a non-spinning black hole, with a starfield | Shadow radius √27 GM/c². Light grazing the Sun bends 1.75″. | ✅ |
 | 3.2 | Spinning (Kerr) black hole lensing and accretion disk appearance | The shadow is lopsided as theory predicts. The disk is brighter on the side moving toward you. | ✅ |
 | 3.3 | Overlays: model indicator with validity warnings, clock-rate heatmap, tidal field, embedding diagram, gravitational-wave ripples | Each overlay toggles on and off, and its values match hand calculations | ✅ |
-| 3.4 | Proper time versus distant-observer time | A clock near a black hole visibly runs slow by the predicted factor | ⬜ |
+| 3.4 | Proper time versus distant-observer time | A clock near a black hole visibly runs slow by the predicted factor | ✅ |
 
 ## M4: Matter that deforms
 

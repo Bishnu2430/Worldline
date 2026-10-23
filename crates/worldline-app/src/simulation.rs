@@ -32,6 +32,7 @@ use worldline_data::{
 };
 
 use crate::catalogue::{self, Entry};
+use crate::clocks::{Clocks, Reading};
 
 /// The recent path of one body around the Sun: about one orbit's worth.
 /// Moons have none; they are shown with their current orbit (see
@@ -322,6 +323,8 @@ pub struct Simulation {
     pub events: Vec<Collision>,
     /// The galactic center.
     pub galaxy: Option<Region>,
+    /// Each body's own clock, against a far-away one.
+    pub clocks: Clocks,
     hierarchy: Hierarchy,
 }
 
@@ -379,6 +382,7 @@ impl Simulation {
             freed: Vec::new(),
             swarm_positions: Vec::new(),
             notices: Vec::new(),
+            clocks: Clocks::default(),
             galaxy: {
                 let gc = worldline_data::galactic_center();
                 let frame = worldline_data::galactic_frame();
@@ -423,6 +427,7 @@ impl Simulation {
         simulation.reindex();
         simulation.refresh();
         simulation.refresh_small_moons();
+        simulation.start_clocks();
         simulation
     }
 
@@ -551,6 +556,7 @@ impl Simulation {
         self.parents = parents;
         self.sources = sources;
         self.bodies = bodies;
+        self.clocks.keep_only(&self.bodies);
     }
 
     /// Adds a body to the simulation, given relative to the solar system's
@@ -564,6 +570,7 @@ impl Simulation {
         self.reindex();
         self.refresh();
         self.refresh_small_moons();
+        self.start_clocks();
         self.index_of(&name).expect("the new body is listed")
     }
 
@@ -585,6 +592,7 @@ impl Simulation {
         self.added.push((name.clone(), entry.to_string()));
         self.reindex();
         self.refresh();
+        self.start_clocks();
         self.index_of(&name).expect("the new body is listed")
     }
 
@@ -1209,6 +1217,53 @@ impl Simulation {
         let gone = self.hierarchy.take_evaporated();
         self.after_evaporating(&gone);
         self.refresh();
+        self.tick_clocks(false);
+    }
+
+    /// Starts the clocks of bodies that have none yet (reading the others
+    /// again changes nothing, as no time has passed).
+    fn start_clocks(&mut self) {
+        self.tick_clocks(false);
+        if self.galaxy.is_some() {
+            self.tick_clocks(true);
+        }
+    }
+
+    /// Reads the clocks of the bodies of the solar system's region, or of
+    /// the galactic center's, as each has just moved: all but small moons
+    /// and swarm particles. Each feels only its own region's bodies, as the
+    /// two regions don't feel each other: the galaxy's pull is left out, as
+    /// barycentric time (TCB) leaves it out. A galactic body's far-away
+    /// clock is at rest in its region's frame, moving with it.
+    fn tick_clocks(&mut self, galactic: bool) {
+        let frame = self
+            .galaxy
+            .as_ref()
+            .filter(|_| galactic)
+            .map_or(DVec3::ZERO, |g| g.drift);
+        let members: Vec<usize> = (0..self.bodies.len())
+            .filter(|&i| self.is_galactic(i) == galactic)
+            .collect();
+        let region: Vec<Body> = members.iter().map(|&i| self.bodies[i].clone()).collect();
+        let readings: Vec<Reading> = members
+            .iter()
+            .enumerate()
+            .filter(|&(_, &i)| {
+                !matches!(
+                    self.computed(i),
+                    Computed::Swarm | Computed::SmallMoonInDetail | Computed::SmallMoonOnMeanOrbit
+                )
+            })
+            .map(|(k, &i)| Reading {
+                index: k,
+                frame,
+                hole: self
+                    .held_by(i)
+                    .and_then(|h| members.iter().position(|&m| m == h)),
+            })
+            .collect();
+        let time = self.time();
+        self.clocks.tick(time, &region, readings.into_iter());
     }
 
     /// Black holes that evaporated: their records go, and the top bar says
@@ -1264,6 +1319,7 @@ impl Simulation {
             self.after_evaporating(&gone);
         }
         self.refresh();
+        self.tick_clocks(true);
     }
 
     /// Brings the list of bodies up to date after collisions: a planet
@@ -2209,5 +2265,69 @@ mod tests {
             earth.points().len() > 300,
             "trail too coarse to draw smoothly"
         );
+    }
+
+    #[test]
+    fn a_clock_near_a_black_hole_runs_slow_by_the_predicted_factor() {
+        // The roadmap's check. A probe set circling Gaia BH1 at 10 GM/c²
+        // (30 AU above the Sun) moves in the hole's exact spacetime; its
+        // clock, read after every step, must have run at Bardeen, Press &
+        // Teukolsky's √(1 − 3/r) = 0.836660 of a clock far from the hole.
+        // On a circular orbit the trapezoid rule is exact, and the orbit
+        // holds its radius to the integrator's precision: 10⁻⁹ is ample.
+        use worldline_core::constants::{AU, C};
+        use worldline_core::gravity::kerr::circular_orbit;
+        let mut sim = Simulation::solar_system(1.0);
+        let hole = worldline_data::notable_object("Gaia BH1")
+            .expect("in the catalog")
+            .body()
+            .at(DVec3::new(0.0, 0.0, 30.0 * AU));
+        let center = hole.position;
+        let gm = hole.gm;
+        sim.add_body(hole, "copy:Gaia BH1");
+        let m = gm / (C * C);
+        let (x, v) = circular_orbit(gm, 0.0, 10.0 * m, true);
+        let probe = Body::new("Probe", 1.0, 1.0).at(center + x).moving(v);
+        let index = sim.add_body(probe, "probe");
+        let period = std::f64::consts::TAU * 10.0 * m / v.length();
+        sim.advance_by(20.0 * period);
+        let probe = sim.index_of("Probe").expect("still circling");
+        assert_eq!(sim.held_by(probe), sim.index_of("Gaia BH1"));
+        let clock = sim.clocks.get("Probe").expect("a clock");
+        let factor = clock.shown() / clock.elapsed();
+        let predicted = 0.7f64.sqrt();
+        println!(
+            "after {:.4} s far from the hole, the probe's clock shows {:.4} s: {factor:.12} as fast (√(1 − 3/10) = {predicted:.12}); against {:?}",
+            clock.elapsed(),
+            clock.shown(),
+            clock.frame
+        );
+        assert!((factor - predicted).abs() < 1e-9);
+        assert_eq!(index, probe);
+        assert_eq!(clock.frame.as_deref(), Some("Gaia BH1"));
+    }
+
+    #[test]
+    #[ignore = "slow: ten years of the solar system"]
+    fn earths_clock_runs_slow_against_the_barycenters_by_the_iau_rate() {
+        // Earth's own clock, with its own field left out (geocentric time,
+        // TCG), against a clock far away at rest with the solar system's
+        // barycenter (barycentric time, TCB): on average 1 − L_C, with
+        // L_C = 1.48082686741 × 10⁻⁸ (IAU 2006 Resolution B3, from
+        // Irwin & Fukushima 1999). Ten Julian years average out the annual
+        // terms; the longest ones that remain, Saturn's 13.8 µs over 29.5
+        // years and Jupiter's 4.8 µs over 11.9 (Fairhead & Bretagnon
+        // 1990), move the average by at most 2 (13.8 + 4.8) µs / 10 years =
+        // 1.2 × 10⁻¹³.
+        let mut sim = Simulation::solar_system(DAY);
+        sim.advance_by(10.0 * worldline_core::constants::JULIAN_YEAR);
+        let clock = sim.clocks.get("Earth").expect("a clock");
+        let rate = clock.behind / clock.elapsed();
+        println!(
+            "Earth's clock fell {:.4} s behind in 10 years: L_C = {rate:.12e} (IAU: 1.48082686741e-8), {:.1e} off",
+            clock.behind,
+            rate - 1.480_826_867_41e-8
+        );
+        assert!((rate - 1.480_826_867_41e-8).abs() < 1.2e-13);
     }
 }
