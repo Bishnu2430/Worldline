@@ -1,6 +1,6 @@
 # The desktop app
 
-**Code:** `crates/worldline-app/` · **Run:** `cargo run --release` (options: `-- --focus Jupiter --zoom 40 --pitch 20 --paused --advance 7`; `--zoom` sets how many of the focused body's radii away the camera starts, `--pitch` how many degrees above the ecliptic plane it looks from (default 34), `--overlays tides,clocks` starts with those overlays on (any of models, clocks, tides, embedding and waves), and `--advance` runs the physics that many years past the 2025 snapshot before the window opens)
+**Code:** `crates/worldline-app/` · **Run:** `cargo run --release` (options: `-- --focus Jupiter --zoom 40 --pitch 20 --paused --advance 7`; `--zoom` sets how many of the focused body's radii away the camera starts, `--pitch` how many degrees above the ecliptic plane it looks from (default 34), `--overlays tides,clocks` starts with those overlays on (any of models, clocks, tides, embedding, waves and time), `--speed hour` how fast time runs (hour, day, week, month, year, decade or century per second), and `--advance` runs the physics that many years past the 2025 snapshot before the window opens)
 
 The app is a window around the physics engine. It never does physics itself. It asks `worldline-core` to advance the simulation, then draws the result.
 
@@ -120,6 +120,9 @@ A distant body pulls the whole solar system almost equally, so it falls together
 - **Tides:** arrows around the body in focus showing how everything else stretches and squeezes it; around a black hole, the stretch a small body near it would feel.
 - **Embedding diagram:** the body in focus's equatorial plane as a surface with true distances, Flamm's paraboloid, depth exaggerated by a stated power of ten when too small to see.
 - **Gravitational waves:** for a pair that radiates, its waves' crests spiralling out at the speed of light in the orbit's plane, and the strain at the camera.
+- **Proper time:** a dial beside the selected body, its own clock's hand against a far-away clock's, both turning once in the same time; near a black hole its hand visibly falls behind.
+
+**Each body's own clock.** The inspector shows how much more slowly the selected body's clock runs than one far away ("Its clock"), and how far it has fallen behind since it started ("Fallen behind"): exactly, in a black hole's spacetime, for a body the hole holds; to first order in weak fields otherwise (see [physics/proper-time.md](physics/proper-time.md)).
 
 **Saves** include every belt body and freed moon (about 4 MB). Saves from before step 2.1b load with the belts carried along fixed ellipses from the start.
 

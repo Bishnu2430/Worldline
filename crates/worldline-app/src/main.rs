@@ -11,8 +11,10 @@
 //! - `--pitch 8` looks from 8° above the ecliptic plane (default 34°),
 //!   for example to see a black hole's disk nearly edge on.
 //! - `--overlays tides,clocks` starts with those overlays on: any of
-//!   models, clocks, tides, embedding and waves.
+//!   models, clocks, tides, embedding, waves and time (proper time).
 //! - `--paused` starts with time stopped.
+//! - `--speed hour` runs at one hour per second (also day, week, month,
+//!   year, decade and century; month is the default).
 //! - `--advance 7` runs the physics 7 years past the 2025-01-01 snapshot
 //!   before showing anything.
 //! - `--add "Gaia BH1:3"` drops a catalogue body on a circular orbit 3 AU
@@ -23,6 +25,7 @@ mod app;
 mod calendar;
 mod camera;
 mod catalogue;
+mod clocks;
 mod details;
 mod gpu;
 mod overlays;
@@ -47,6 +50,8 @@ pub struct StartOptions {
     pub pitch_degrees: Option<f64>,
     /// Start with time stopped.
     pub paused: bool,
+    /// How fast to start: which of the speeds, slowest first.
+    pub speed: Option<usize>,
     /// Start with the catalogue window open.
     pub catalogue: bool,
     /// Years to simulate past the snapshot before starting.
@@ -86,10 +91,19 @@ impl StartOptions {
                             "tides" => overlays.tides = true,
                             "embedding" => overlays.embedding = true,
                             "waves" => overlays.waves = true,
+                            "time" => overlays.proper_time = true,
                             other => eprintln!(
-                                "worldline: no overlay `{other}`: models, clocks, tides, embedding or waves"
+                                "worldline: no overlay `{other}`: models, clocks, tides, embedding, waves or time"
                             ),
                         }
+                    }
+                }
+                "--speed" => {
+                    let names = ["hour", "day", "week", "month", "year", "decade", "century"];
+                    let name = args.next().unwrap_or_default();
+                    match names.iter().position(|n| *n == name) {
+                        Some(i) => options.speed = Some(i),
+                        None => eprintln!("worldline: --speed needs one of {}", names.join(", ")),
                     }
                 }
                 "--pitch" => match args.next().and_then(|d| d.parse::<f64>().ok()) {
@@ -163,6 +177,8 @@ mod tests {
             "--overlays",
             "tides,waves",
             "--paused",
+            "--speed",
+            "hour",
             "--advance",
             "7.5",
             "--add",
@@ -184,6 +200,7 @@ mod tests {
                     ..Default::default()
                 },
                 paused: true,
+                speed: Some(0),
                 advance_years: 7.5,
                 catalogue: true,
                 add: Some(("Gaia BH1".into(), 2.5)),

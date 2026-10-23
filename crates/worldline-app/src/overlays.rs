@@ -8,16 +8,20 @@
 //! - **Tides:** how the focused body is stretched and squeezed.
 //! - **Embedding:** the shape of space around the focused body.
 //! - **Waves:** the crests of gravitational waves from the focused pair.
+//! - **Proper time:** the selected body's own clock beside a far-away
+//!   one (step 3.4).
 
 use std::f64::consts::{PI, TAU};
 
 use eframe::egui::{Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape, Stroke, pos2, vec2};
-use worldline_core::compact::is_black_hole;
+use worldline_core::compact::{horizon_spin, is_black_hole};
 use worldline_core::constants::{C, DAY};
 use worldline_core::fields::{
     clock_slowdown, embedding_height, principal_axes, ruler_excess, tidal_tensor,
 };
 use worldline_core::gravitational_waves::{chirp_gm, frequency_then, lookback, strain_amplitude};
+use worldline_core::gravity::kerr::boyer_lindquist_radius;
+use worldline_core::kerr_light::{circular, photon_orbits};
 use worldline_core::regime::Validity;
 use worldline_core::{Body, DVec3};
 
@@ -35,6 +39,7 @@ pub struct Overlays {
     pub tides: bool,
     pub embedding: bool,
     pub waves: bool,
+    pub proper_time: bool,
 }
 
 /// What an overlay says, shown in the view's corner.
@@ -52,6 +57,7 @@ pub struct Scene<'a> {
     pub simulation: &'a Simulation,
     pub layout: &'a [OnScreen],
     pub focus: usize,
+    pub selected: usize,
     pub pointer: Option<Pos2>,
 }
 
@@ -72,6 +78,9 @@ pub fn draw(scene: &Scene<'_>, overlays: Overlays) -> Vec<Readout> {
     }
     if overlays.models {
         readouts.push(models(scene));
+    }
+    if overlays.proper_time {
+        readouts.extend(proper_time(scene));
     }
     readouts
 }
@@ -108,13 +117,16 @@ pub fn draw_readouts(painter: &Painter, viewport: Rect, readouts: &[Readout]) {
     }
 }
 
-/// The bodies with mass, which shape the fields.
-fn massive(simulation: &Simulation) -> (Vec<Body>, Vec<usize>) {
+/// The bodies with mass in the region of body `near` (the solar system's
+/// or the galactic center's), which shape the fields there: the regions
+/// don't feel each other, and the galaxy's pull is left out.
+fn massive(simulation: &Simulation, near: usize) -> (Vec<Body>, Vec<usize>) {
+    let region = simulation.is_galactic(near);
     simulation
         .bodies
         .iter()
         .enumerate()
-        .filter(|(_, b)| b.gm > 0.0)
+        .filter(|&(i, b)| b.gm > 0.0 && simulation.is_galactic(i) == region)
         .map(|(i, b)| (b.clone(), i))
         .unzip()
 }
@@ -214,7 +226,7 @@ const CELL: f32 = 12.0;
 /// straight one if that range is narrow; black where no clock can stay at
 /// rest.
 fn clocks(scene: &Scene<'_>) -> Readout {
-    let (bodies, _) = massive(scene.simulation);
+    let (bodies, _) = massive(scene.simulation, scene.focus);
     let viewport = scene.viewport;
     let columns = (viewport.width() / CELL).ceil() as usize;
     let rows = (viewport.height() / CELL).ceil() as usize;
@@ -337,7 +349,7 @@ fn tides(scene: &Scene<'_>) -> Option<Readout> {
     let index = scene.focus;
     let body = &simulation.bodies[index];
     let item = scene.layout.iter().find(|i| i.index == index)?;
-    let (bodies, indices) = massive(simulation);
+    let (bodies, indices) = massive(simulation, index);
     let skip = indices.iter().position(|&i| i == index);
     let hole = is_black_hole(body);
     let ring_points = item.radius + 30.0;
@@ -526,6 +538,99 @@ fn embedding(scene: &Scene<'_>) -> Option<Readout> {
     })
 }
 
+/// The proper-time overlay: a dial beside the selected body with two hands
+/// turning once in the same time, its own clock's (bright) and a far-away
+/// clock's (faint), from when its clock started. The time for a turn is a
+/// power of ten of seconds near ten real seconds' worth at the current
+/// speed, so the far-away hand turns about once every ten seconds.
+fn proper_time(scene: &Scene<'_>) -> Option<Readout> {
+    let simulation = scene.simulation;
+    let body = &simulation.bodies[scene.selected];
+    let clock = simulation.clocks.get(&body.name)?;
+    let item = scene.layout.iter().find(|i| i.index == scene.selected)?;
+    let turn = 10f64.powf((10.0 * simulation.speed.max(1.0)).log10().round());
+    let center = item.projection.position + vec2(item.radius + 24.0, -item.radius - 24.0);
+    let radius = 15.0;
+    let color = Color32::from_rgb(255, 214, 120);
+    scene
+        .painter
+        .circle_filled(center, radius, Color32::from_black_alpha(160));
+    scene
+        .painter
+        .circle_stroke(center, radius, Stroke::new(1.0, color.gamma_multiply(0.6)));
+    let hand = |time: f64, length: f32, stroke: Stroke| {
+        let angle = (time / turn).fract() * TAU - PI / 2.0;
+        let tip = center + vec2(angle.cos() as f32, angle.sin() as f32) * length;
+        scene.painter.line_segment([center, tip], stroke);
+    };
+    hand(
+        clock.elapsed(),
+        radius - 2.0,
+        Stroke::new(1.0, Color32::from_gray(150)),
+    );
+    hand(clock.shown(), radius - 3.0, Stroke::new(2.0, color));
+    let against = match &clock.frame {
+        Some(hole) => format!("a clock far from {hole}, at rest with it"),
+        None => "a clock far away".to_string(),
+    };
+    let mut lines = vec![
+        format!(
+            "{}'s own clock (bright hand) against {against} (faint): one turn is {}",
+            body.name,
+            span(turn)
+        ),
+        if clock.slowdown < 1e-3 {
+            format!("Now it runs slow by {}", significant(clock.slowdown))
+        } else {
+            format!(
+                "Now it runs at {:.6} of the far-away rate",
+                1.0 - clock.slowdown
+            )
+        },
+    ];
+    if clock.elapsed() > 0.0 {
+        lines.push(format!(
+            "Since it started, {} behind in {}: {:.10} as fast on average",
+            span(clock.behind),
+            span(clock.elapsed()),
+            clock.shown() / clock.elapsed()
+        ));
+    }
+    // What a circular orbit there would show, for comparison.
+    if let Some(h) = simulation.held_by(scene.selected) {
+        let hole = &simulation.bodies[h];
+        let m = hole.gm / (C * C);
+        let spin = horizon_spin(hole.gm, hole.radius);
+        let r = boyer_lindquist_radius(hole.gm, spin, body.position - hole.position) / m;
+        if r > photon_orbits(spin).0 {
+            let (_, ut) = circular(spin, r);
+            lines.push(format!(
+                "A circular orbit at its radius, {r:.2} GM/c², turning with the hole, would run at {:.6}",
+                1.0 / ut
+            ));
+        }
+    }
+    Some(Readout {
+        title: "Proper time",
+        color,
+        lines,
+    })
+}
+
+/// A span of time, from picoseconds to years.
+fn span(seconds: f64) -> String {
+    let units = [
+        (365.25 * DAY, "years"),
+        (DAY, "days"),
+        (3600.0, "h"),
+        (60.0, "min"),
+    ];
+    match units.into_iter().find(|(scale, _)| seconds >= *scale) {
+        Some((scale, unit)) => format!("{} {unit}", significant(seconds / scale)),
+        None => duration(seconds),
+    }
+}
+
 /// The wave overlay: the crests of the gravitational waves the focused
 /// pair sends out in its orbit's plane, two arms spiralling out at the
 /// speed of light, each a half turn of the orbit apart (circular orbit,
@@ -643,6 +748,7 @@ mod tests {
                 simulation,
                 layout: &layout,
                 focus,
+                selected: focus,
                 pointer: Some(pos2(600.0, 300.0)),
             };
             readouts = draw(&scene, overlays);
@@ -728,6 +834,15 @@ mod tests {
                 },
                 hole,
                 600.0,
+            ),
+            (
+                "proper time",
+                Overlays {
+                    proper_time: true,
+                    ..Default::default()
+                },
+                earth,
+                60.0,
             ),
         ] {
             let camera = looking_at(&sim, focus, radii);

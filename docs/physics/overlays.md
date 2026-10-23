@@ -53,7 +53,7 @@ Amber and red rings are named, and the corner counts all of them by verdict and 
 
 **How exact:** for one body this is exact, Schwarzschild's (or Kerr's) static clocks. For several it adds their weak fields, which is right to first order in U/c². The slowdown, 1 − dτ/dt, is computed as 2U/(1 + √(1 − 2U)), so 10⁻¹⁰ keeps its digits.
 
-**What's left out:** the Milky Way's own pull. It slows every clock in the solar system by about 10⁻⁶, the same everywhere.
+**What's left out:** the Milky Way's own pull. It slows every clock in the solar system by about 10⁻⁶, the same everywhere. The other region's bodies are left out too (Sagittarius A* adds 2.5 × 10⁻¹¹ at the solar system), as the regions don't feel each other. Moving clocks, each body's own, are step 3.4's ([proper-time.md](proper-time.md)).
 
 **Where no clock can stay at rest** (inside a horizon, or a spinning hole's ergosphere), the overlay is black.
 
