@@ -531,6 +531,56 @@ pub fn polytrope_density(mass: f64, radius: f64, r: f64) -> f64 {
     }
 }
 
+/// Which of `particles` are still bound to the body they made up (step
+/// 4.4): starting from all of them, those whose kinetic energy relative to
+/// the bound ones' center of mass, plus their potential energy from the
+/// bound ones (softened by the kernels, as in [`Fluid::gravitational`]),
+/// is negative; again with those, until nothing changes. The usual
+/// measure of what a tidal encounter tore away (Faber, Rasio & Willems
+/// 2005).
+pub fn self_bound(particles: &[Particle]) -> Vec<bool> {
+    let mut bound = vec![true; particles.len()];
+    loop {
+        let mass: f64 = particles
+            .iter()
+            .zip(&bound)
+            .filter(|(_, b)| **b)
+            .map(|(p, _)| p.mass)
+            .sum();
+        if mass == 0.0 {
+            return bound;
+        }
+        let velocity = particles
+            .iter()
+            .zip(&bound)
+            .filter(|(_, b)| **b)
+            .map(|(p, _)| p.velocity * p.mass)
+            .sum::<DVec3>()
+            / mass;
+        let held = &bound;
+        let next = parallel(particles.len(), |a| {
+            let p = &particles[a];
+            let potential: f64 = particles
+                .iter()
+                .zip(held)
+                .enumerate()
+                .filter(|&(b, (_, held))| *held && b != a)
+                .map(|(_, (o, _))| {
+                    let r = (p.position - o.position).length();
+                    -G * o.mass
+                        * 0.5
+                        * (kernel_potential(r / p.h) / p.h + kernel_potential(r / o.h) / o.h)
+                })
+                .sum();
+            0.5 * (p.velocity - velocity).length_squared() + potential < 0.0
+        });
+        if next == bound {
+            return bound;
+        }
+        bound = next;
+    }
+}
+
 /// The fraction of an n = 1 polytrope's mass within `r`: (sin ξ − ξ cos ξ)/π.
 pub fn polytrope_mass(radius: f64, r: f64) -> f64 {
     let xi = (PI * r / radius).min(PI);
@@ -605,6 +655,19 @@ pub fn polytrope_particles(mass: f64, radius: f64, count: usize) -> (Vec<Particl
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_fast_particle_is_no_longer_bound() {
+        // A planet of 500 particles, all bound at rest; one sent off at
+        // twice its escape speed, √(2GM/R), is not, and the rest stay.
+        let (mass, radius) = (1.9e27, 7e7);
+        let (mut particles, _) = polytrope_particles(mass, radius, 500);
+        assert!(self_bound(&particles).iter().all(|b| *b));
+        let escape = (2.0 * G * mass / radius).sqrt();
+        particles[0].velocity = DVec3::X * 2.0 * escape;
+        let bound = self_bound(&particles);
+        assert!(!bound[0] && bound[1..].iter().all(|b| *b));
+    }
 
     #[test]
     fn the_kernel_holds_its_mass_and_its_potential_matches_its_pull() {

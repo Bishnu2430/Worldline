@@ -20,8 +20,11 @@
 //! - `--add "Gaia BH1:3"` drops a catalogue body on a circular orbit 3 AU
 //!   from the Sun; `--add "TON 618:6600@Sagittarius A*"`, 6,600 AU from
 //!   Sagittarius A*.
-//! - `--launch 0.5` starts the body `--add` adds at half the circular
-//!   speed, so it falls in on an ellipse (0 drops it from rest).
+//! - `--launch 0.5` starts the body the last `--add` adds at half the
+//!   circular speed, so it falls in on an ellipse (0 drops it from rest).
+//!   `--add` can be given more than once: `--add "Gaia BH1:40" --add
+//!   "jupiter:2@Gaia BH1" --launch 0.071` drops a Jupiter 2 AU from a
+//!   black hole 40 AU out, to fall past it at half its tidal radius.
 //! - `--fluid Jupiter` models Jupiter as a self-gravitating fluid of SPH
 //!   particles on the GPU, as many as it steps smoothly.
 
@@ -44,6 +47,20 @@ mod waves;
 
 use eframe::egui;
 
+/// A body to add before starting.
+#[derive(Debug, Default, PartialEq)]
+pub struct Addition {
+    /// Which: "earth", "jupiter", "sun" or a catalogue entry's name, like
+    /// "Sagittarius A*".
+    pub kind: String,
+    /// How far from what it circles, in AU.
+    pub au: f64,
+    /// What it circles, if not the Sun.
+    pub around: Option<String>,
+    /// The share of the circular speed it starts with, if not 1.
+    pub launch: Option<f64>,
+}
+
 /// Options from the command line.
 #[derive(Debug, Default, PartialEq)]
 pub struct StartOptions {
@@ -61,14 +78,8 @@ pub struct StartOptions {
     pub catalogue: bool,
     /// Years to simulate past the snapshot before starting.
     pub advance_years: f64,
-    /// A body to add before starting: which ("earth", "jupiter", "sun" or
-    /// a catalogue entry's name, like "Sagittarius A*") and how far from
-    /// the Sun, in AU, on a circular orbit.
-    pub add: Option<(String, f64)>,
-    /// What the added body circles, if not the Sun.
-    pub around: Option<String>,
-    /// The share of the circular speed the added body starts with.
-    pub launch: Option<f64>,
+    /// Bodies to add before starting, in order.
+    pub adds: Vec<Addition>,
     /// Open the gravitational-wave window for the focused body's pair.
     pub waves: bool,
     /// Overlays to start with.
@@ -85,10 +96,13 @@ impl StartOptions {
             match arg.as_str() {
                 "--focus" => options.focus = args.next(),
                 "--fluid" => options.fluid = args.next(),
-                "--launch" => match args.next().and_then(|f| f.parse::<f64>().ok()) {
-                    Some(share) if share >= 0.0 => options.launch = Some(share),
+                "--launch" => match (
+                    args.next().and_then(|f| f.parse::<f64>().ok()),
+                    options.adds.last_mut(),
+                ) {
+                    (Some(share), Some(added)) if share >= 0.0 => added.launch = Some(share),
                     _ => eprintln!(
-                        "worldline: --launch needs a share of the circular speed, 0 or more"
+                        "worldline: --launch needs a share of the circular speed, 0 or more, after an --add"
                     ),
                 },
                 "--paused" => options.paused = true,
@@ -139,12 +153,14 @@ impl StartOptions {
                     };
                     let (kind, au) = what.rsplit_once(':')?;
                     let au = au.parse::<f64>().ok().filter(|au| *au > 0.0)?;
-                    (!kind.is_empty()).then(|| ((kind.to_string(), au), around))
+                    (!kind.is_empty()).then(|| Addition {
+                        kind: kind.to_string(),
+                        au,
+                        around,
+                        launch: None,
+                    })
                 }) {
-                    Some((add, around)) => {
-                        options.add = Some(add);
-                        options.around = around;
-                    }
+                    Some(added) => options.adds.push(added),
                     None => eprintln!(
                         "worldline: --add needs a body and a distance in AU, as jupiter:1.5, \"Gaia BH1:3\" or \"TON 618:6600@Sagittarius A*\""
                     ),
@@ -203,8 +219,10 @@ mod tests {
             "--waves",
             "--fluid",
             "Jupiter",
+            "--add",
+            "jupiter:2@Gaia BH1",
             "--launch",
-            "0.58",
+            "0.071",
         ]
         .map(String::from)
         .into_iter();
@@ -223,11 +241,22 @@ mod tests {
                 speed: Some(0),
                 advance_years: 7.5,
                 catalogue: true,
-                add: Some(("Gaia BH1".into(), 2.5)),
-                around: Some("Sagittarius A*".into()),
+                adds: vec![
+                    Addition {
+                        kind: "Gaia BH1".into(),
+                        au: 2.5,
+                        around: Some("Sagittarius A*".into()),
+                        launch: None,
+                    },
+                    Addition {
+                        kind: "jupiter".into(),
+                        au: 2.0,
+                        around: Some("Gaia BH1".into()),
+                        launch: Some(0.071),
+                    },
+                ],
                 waves: true,
                 fluid: Some("Jupiter".into()),
-                launch: Some(0.58),
             }
         );
         assert_eq!(

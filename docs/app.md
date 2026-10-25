@@ -91,7 +91,7 @@ See [physics/compact-objects.md](physics/compact-objects.md).
 - **From the command line:** `--add jupiter:1.5` drops a Jupiter-mass planet on a circular orbit 1.5 AU from the Sun before the window opens (also `earth:`, `sun:`, or any catalogue name, like `"Gaia BH1:3"`). `--catalogue` opens the catalogue at startup, and `--waves` opens the gravitational-wave window for the focused body's pair.
 - **Near a black hole:** a body it holds circles at the hole's exact circular speed (see [physics/kerr.md](physics/kerr.md)); inside the innermost stable orbit (6 G(M + m)/c² without spin), where no circular orbit lasts, it starts at rest. Launches are capped at half the speed of light.
 - **Heavier than what it circles:** the two circle their common center of mass, rather than the new body dragging the other away.
-- **Around another body, from the command line:** `--add "TON 618:6600@Sagittarius A*"` puts it 6,600 AU from Sagittarius A\* instead of the Sun.
+- **Around another body, from the command line:** `--add "TON 618:6600@Sagittarius A*"` puts it 6,600 AU from Sagittarius A\* instead of the Sun. `--add` can be given more than once, each around a body added before it, and `--launch` starts the last one added at a share of the circular speed.
 
 **Remove.** **Remove** in the inspector, or the Delete key, takes the selected body out.
 - **A planet with moons** goes with them (the button says how many).
@@ -134,6 +134,7 @@ A distant body pulls the whole solar system almost equally, so it falls together
   - each step's length, and the frame rate.
 
   It labels the polytrope, the tides and the shared time as models, and the drawing as visual.
+- **Torn apart,** it shows its debris: how much is bound to what tore it, when the first comes back, and a plot of the rate it comes back at, against t^(−5/3) (see [physics/disruption.md](physics/disruption.md)). It stays a fluid; removing it lets time run as asked again.
 - **From the command line:**
   - `--fluid Jupiter` makes Jupiter a fluid by hand once the app has started.
   - `--launch 0.1676` with `--add` starts the added body at that share of the circular speed, so it falls in on an ellipse. `--add jupiter:1 --launch 0.1676` sends a Jupiter-mass planet past the Sun at 3 of its tidal radii.

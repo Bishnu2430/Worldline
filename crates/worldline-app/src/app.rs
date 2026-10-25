@@ -118,6 +118,82 @@ fn duration(seconds: f64) -> String {
     }
 }
 
+/// Draws debris' fallback rate against time since the closest approach,
+/// both on log scales, with a line ∝ t^(−5/3) through the late rates.
+fn fallback_plot(ui: &mut egui::Ui, debris: &crate::fluid::Debris) {
+    let rates = debris.rates();
+    if rates.len() < 2 {
+        return;
+    }
+    let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 150.0), Sense::hover());
+    let painter = ui.painter_at(rect);
+    painter.rect_filled(rect, 4.0, ui.visuals().extreme_bg_color);
+    // In days, and shares of its mass a day.
+    let points: Vec<(f64, f64)> = rates
+        .iter()
+        .map(|&(t, rate)| ((t / DAY).log10(), (rate * DAY).log10()))
+        .collect();
+    let (x0, x1) = points
+        .iter()
+        .fold((f64::INFINITY, f64::NEG_INFINITY), |(a, b), p| {
+            (a.min(p.0), b.max(p.0))
+        });
+    let (y0, y1) = points
+        .iter()
+        .fold((f64::INFINITY, f64::NEG_INFINITY), |(a, b), p| {
+            (a.min(p.1), b.max(p.1))
+        });
+    let inner = rect.shrink2(vec2(34.0, 16.0));
+    let at = |x: f64, y: f64| {
+        pos2(
+            inner.left() + ((x - x0) / (x1 - x0).max(1e-9)) as f32 * inner.width(),
+            inner.bottom() - ((y - y0) / (y1 - y0).max(1e-9)) as f32 * inner.height(),
+        )
+    };
+    let font = FontId::proportional(10.0);
+    for decade in (x0.ceil() as i32)..=(x1.floor() as i32) {
+        let p = at(f64::from(decade), y0);
+        painter.vline(
+            p.x,
+            inner.y_range(),
+            (1.0, theme::MUTED.gamma_multiply(0.25)),
+        );
+        painter.text(
+            pos2(p.x, rect.bottom() - 2.0),
+            Align2::CENTER_BOTTOM,
+            format!("{} d", significant(10f64.powi(decade))),
+            font.clone(),
+            theme::MUTED,
+        );
+    }
+    // Rees's t^(−5/3), through the first rate from LATE times the first
+    // return on (or the last).
+    let from = (crate::fluid::LATE * debris.times[0] / DAY).log10();
+    let anchor = points
+        .iter()
+        .find(|p| p.0 >= from)
+        .or(points.last())
+        .copied()
+        .unwrap_or(points[0]);
+    let guide = |x: f64| anchor.1 - 5.0 / 3.0 * (x - anchor.0);
+    painter.extend(egui::Shape::dashed_line(
+        &[at(x0, guide(x0)), at(x1, guide(x1))],
+        (1.0, theme::MUTED),
+        6.0,
+        4.0,
+    ));
+    for &(x, y) in &points {
+        painter.circle_filled(at(x, y), 2.5, theme::ACCENT);
+    }
+    painter.text(
+        rect.left_top() + vec2(6.0, 3.0),
+        Align2::LEFT_TOP,
+        "share of its mass coming back a day (log)   – – t^−5/3",
+        font,
+        theme::MUTED,
+    );
+}
+
 /// Draws a recording's h₊ against time, one column of the plot per
 /// stretch of samples (its highest and lowest), so fast waves stay visible.
 fn waveform_plot(ui: &mut egui::Ui, recording: &waves::Recording) {
@@ -508,15 +584,15 @@ impl WorldlineApp {
         if let Some(degrees) = start.pitch_degrees {
             app.camera.pitch = degrees.to_radians();
         }
-        if let Some((kind, au)) = &start.add {
-            let around = match &start.around {
+        for added in &start.adds {
+            let around = match &added.around {
                 Some(name) => app.simulation.index_of(name).unwrap_or_else(|| {
                     eprintln!("worldline: no body named `{name}` to circle; circling the Sun");
                     SUN
                 }),
                 None => SUN,
             };
-            app.add_on_circle(kind, *au, around, start.launch.unwrap_or(1.0));
+            app.add_on_circle(&added.kind, added.au, around, added.launch.unwrap_or(1.0));
         }
         let names = app.attended_names();
         app.simulation.advance_by(start.advance_years * JULIAN_YEAR);
@@ -1352,6 +1428,8 @@ impl WorldlineApp {
             });
             let note = if !giant {
                 "A point can't show that, and its matter has no fluid model yet: rock comes with step 6.4"
+            } else if fluid.is_some_and(|f| f.debris.is_some()) {
+                "Torn apart, it stays a fluid: remove it to let time run as asked again"
             } else if fluid.is_some_and(|f| !f.by_hand) {
                 "It stays a fluid until tides stretch it by under 0.5%, with none of it torn away"
             } else if fluid.is_some() || self.fluid.is_none() {
@@ -1380,6 +1458,9 @@ impl WorldlineApp {
             }
             return;
         };
+        if let Some(debris) = &fluid.debris {
+            self.debris_rows(ui, debris);
+        }
         let t = fluid.units.time;
         let since = f64::from(fluid.clock.time);
         egui::Grid::new("fluid").num_columns(2).show(ui, |ui| {
@@ -1416,6 +1497,14 @@ impl WorldlineApp {
             ui.label(key("Frame rate"));
             ui.label(format!("{:.0} a second", 1.0 / self.frame_seconds));
             ui.end_row();
+            if fluid.clock.outside > 0 {
+                ui.label(key("Beyond its Hill sphere"));
+                ui.label(format!(
+                    "{} of its mass",
+                    percent(f64::from(fluid.clock.outside) / fluid.fluid().len() as f64)
+                ));
+                ui.end_row();
+            }
         });
         let trials: Vec<String> = self
             .lab
@@ -1466,6 +1555,48 @@ impl WorldlineApp {
         {
             self.fluid = None;
         }
+    }
+
+    /// A torn body's debris: how much is bound to what tore it, when it
+    /// comes back and at what rate, against Rees's t^(−5/3).
+    fn debris_rows(&self, ui: &mut egui::Ui, debris: &crate::fluid::Debris) {
+        let Some(&first) = debris.times.first() else {
+            ui.label(RichText::new(format!("None of its debris is bound to {}", debris.by)).weak());
+            return;
+        };
+        ui.label(format!(
+            "Its debris: {} of its mass bound to {}, the first back {} after its closest approach",
+            percent(debris.bound),
+            debris.by,
+            any_time(first)
+        ));
+        ui.label(
+            RichText::new(if debris.set {
+                "Set as it passed twice the distance it became a fluid at, on its way out"
+            } else {
+                "Still being torn: worked out again every 2 s until it is twice as far as where it became a fluid"
+            })
+            .small()
+            .color(theme::MUTED),
+        );
+        fallback_plot(ui, debris);
+        if let Some((power, error)) = debris.power() {
+            ui.label(format!(
+                "From {} times that on, the rate falls as t^−{power:.2} ± {error:.2} (Rees: t^−5/3 = t^−1.67)",
+                crate::fluid::LATE
+            ));
+        }
+        ui.horizontal_wrapped(|ui| {
+            let kind = details::Kind::Model;
+            ui.label(RichText::new(kind.tag()).small().color(kind.color()));
+            ui.label(
+                RichText::new(format!(
+                    "Each piece goes round {} on the orbit it has now (Newtonian), back after its period, as if alone with it",
+                    debris.by
+                ))
+                .small(),
+            );
+        });
     }
 
     /// Inspector rows for the selected body's own clock: how much more
@@ -2930,6 +3061,31 @@ impl WorldlineApp {
         let strongest = tides.first().copied();
         let fluid = self.fluid.as_mut().expect("the fluid");
         let (l, t) = (fluid.units.length, fluid.units.time);
+        // Once torn and past its closest approach to what pulls it
+        // hardest, its debris' orbits around that body: worked out until
+        // it is twice as far as where it became a fluid, by when they are
+        // set (as in the GPU's check), and kept from then on. Later, the
+        // first pieces come back round, and a period from the closest
+        // approach no longer says when.
+        if let Some((j, _)) = strongest {
+            let other = &bodies[j];
+            let distance = (body.position - other.position).length();
+            let passed = fluid.track(&other.name, self.simulation.time(), distance);
+            let torn = fluid.clock.outside as usize * 100 > fluid.fluid().len();
+            let rt = tidal_radius(body.radius, body.gm, other.gm);
+            let h2 = 1.0 + polytrope_love_number();
+            let set = distance > 2.0 * distance_for(h2, rt, FLUID_STRETCH);
+            let kept = fluid.debris.as_ref().is_some_and(|d| d.set);
+            if passed && torn && !kept {
+                fluid.measure_debris(
+                    state,
+                    (&other.name, other.gm),
+                    body.position - other.position,
+                    body.velocity - other.velocity,
+                    set,
+                );
+            }
+        }
         // Its Hill sphere around what pulls it hardest, in its radii.
         let outside = strongest.map_or(f32::MAX, |(j, _)| {
             let d = (bodies[j].position - body.position).length();

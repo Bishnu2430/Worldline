@@ -1,13 +1,18 @@
 //! Validation: the GPU's SPH fluid (step 4.2) against worldline-core's
 //! double-precision one, and how many particles this GPU can step
-//! smoothly; and the tides it feels (step 4.3). It needs a GPU, so it is
+//! smoothly; the tides it feels (step 4.3); and a planet torn apart
+//! (step 4.4). It needs a GPU, so it is
 //! ignored by default; run it with
 //! `cargo test --release -p worldline-render --test validation_fluid_gpu -- --ignored --nocapture --test-threads=1`.
 
 use glam::{DVec3, Vec3};
 use worldline_core::constants::G;
-use worldline_core::sph::{Fluid as CoreFluid, Particle, polytrope, polytrope_particles};
-use worldline_core::tides::{FLUID_STRETCH, distance_for, polytrope_love_number};
+use worldline_core::sph::{
+    Fluid as CoreFluid, Particle, polytrope, polytrope_mass, polytrope_particles, self_bound,
+};
+use worldline_core::tides::{
+    FLUID_STRETCH, distance_for, fallback_power, polytrope_love_number, return_time,
+};
 use worldline_render::{Fluid, FluidParticle, TidalBody};
 
 /// Jupiter's mass and radius (IAU 2015 nominal), as in step 4.1's test.
@@ -330,4 +335,143 @@ fn a_fluid_planet_stretches_by_its_love_number() {
         );
         assert!(error < h);
     }
+}
+
+/// Where a body on a parabola around a mass of `mu` (G(M + m)), closest at
+/// `q`, is relative to it `t` after that closest approach (Barker's
+/// equation, s + s³/3 = √(μ/2q³) t, s = tan(ν/2)), and how it moves and
+/// accelerates there.
+fn parabola(mu: f64, q: f64, t: f64) -> (DVec3, DVec3, DVec3) {
+    let a = 1.5 * (mu / (2.0 * q.powi(3))).sqrt() * t;
+    let b = (a + (a * a + 1.0).sqrt()).cbrt();
+    let s = b - 1.0 / b;
+    let (sin, cos) = (2.0 * s / (1.0 + s * s), (1.0 - s * s) / (1.0 + s * s));
+    let r = q * (1.0 + s * s);
+    let position = DVec3::new(r * cos, r * sin, 0.0);
+    let speed = (mu / (2.0 * q)).sqrt();
+    let velocity = DVec3::new(-speed * sin, speed * (1.0 + cos), 0.0);
+    (position, velocity, -position * (mu / r.powi(3)))
+}
+
+/// The time on a parabola around `mu`, closest at `q`, at which it is `r`
+/// away, before the closest approach.
+fn parabola_time(mu: f64, q: f64, r: f64) -> f64 {
+    let s = (r / q - 1.0).sqrt();
+    -(2.0 * q.powi(3) / mu).sqrt() * (s + s.powi(3) / 3.0)
+}
+
+/// A settled fluid of about `count` particles passing a body `mass` times
+/// its own on a parabola, closest at `q` (its radii), in the tides of that
+/// body alone: from where it became a fluid (5.34 r_t) in, then out to
+/// `until` away. Returns its particles at the end, its mean smoothing
+/// length when settled, and how long after the closest approach it ends.
+fn encounter(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    count: usize,
+    mass: f64,
+    q: f64,
+    until: f64,
+) -> (Vec<FluidParticle>, f64, f64) {
+    let (l, m, t) = units();
+    let (particles, k) = polytrope_particles(MASS, RADIUS, count);
+    let mut fluid = Fluid::new(device, queue, &to_gpu(&particles), 2.0);
+    let entropy = (k * m * t * t / l.powi(5)) as f32;
+    fluid.set_settling(queue, Some((entropy, 1.0 / 0.3)));
+    while fluid.read(device, queue).1.time < 5.0 {
+        fluid.step(device, queue, 20);
+    }
+    fluid.set_settling(queue, None);
+    fluid.halt(device, queue);
+    let (settled, clock) = fluid.read(device, queue);
+    let h = settled.iter().map(|p| f64::from(p.h)).sum::<f64>() / settled.len() as f64;
+    let mu = mass + 1.0;
+    let h2 = 1.0 + polytrope_love_number();
+    let start = parabola_time(mu, q, distance_for(h2, mass.cbrt(), FLUID_STRETCH));
+    let begun = f64::from(clock.time);
+    loop {
+        let (particles, clock) = fluid.read(device, queue);
+        let now = f64::from(clock.time) - begun + start;
+        let (p, v, a) = parabola(mu, q, now);
+        if now > 0.0 && p.length() > until {
+            return (particles, h, now);
+        }
+        // The body raising the tides, seen from the fluid's center.
+        let body = TidalBody {
+            position: (-p).as_vec3(),
+            velocity: (-v).as_vec3(),
+            acceleration: (-a).as_vec3(),
+            mass: mass as f32,
+        };
+        fluid.set_tides(queue, clock.time, &[body], f32::MAX);
+        fluid.step(device, queue, 5);
+    }
+}
+
+#[test]
+#[ignore = "needs a GPU"]
+fn a_planet_passing_a_star_loses_what_faber_rasio_and_willems_found() {
+    // Step 4.4's check, its start: Jupiter as an n = 1 polytrope on a
+    // parabola past a star 1,000 times its mass (r_t = 10 of its radii),
+    // as Faber, Rasio & Willems (2005, Icarus 175, 248) ran it. The mass
+    // no longer bound to it by 2 × 5.34 r_t on the way out, against their
+    // Table 1, for closest approaches of 12, 15, 18 and 22 of its radii.
+    // Within the mass in its outermost smoothing length, (sin ξ − ξ cos ξ)
+    // short of 1 at ξ = π(1 − h/R): SPH resolves its surface no finer.
+    let (device, queue, name) = gpu();
+    let (_, m, _) = units();
+    for (q, published) in [(12.0, 0.58), (15.0, 0.24), (18.0, 0.027), (22.0, 0.0)] {
+        let (particles, h, _) = encounter(&device, &queue, 8000, 1000.0, q, 2.0 * 53.36);
+        let core = to_core(&particles);
+        let bound = self_bound(&core.particles);
+        let kept: f64 = core
+            .particles
+            .iter()
+            .zip(&bound)
+            .filter(|(_, b)| **b)
+            .map(|(p, _)| p.mass)
+            .sum::<f64>()
+            / m;
+        let lost = (1.0 - kept).max(0.0);
+        let limit = 1.0 - polytrope_mass(1.0, 1.0 - h);
+        println!(
+            "{name}: closest {q} radii ({:.1} r_t): lost {lost:.4} of its mass (Faber, Rasio & Willems: {published}); limit ±{limit:.3}",
+            q / 10.0
+        );
+        assert!((lost - published).abs() < limit);
+    }
+}
+
+#[test]
+#[ignore = "needs a GPU"]
+fn torn_right_through_its_debris_falls_back_as_t_to_the_minus_five_thirds() {
+    // Step 4.4's check, its end: the same planet passing 0.5 r_t from the
+    // star (penetration β = 2), torn right through. Its debris' orbits
+    // around the star, by 2 × 5.34 r_t on the way out: each bound piece
+    // comes back after its period. The rate they come back at falls as
+    // t^(−α): from the time t₁ = 30 times the first's on (where the law's
+    // own correction for dM/dE's curvature is down to about 2%), α by
+    // maximum likelihood, within 3 standard errors of 5/3.
+    let (device, queue, name) = gpu();
+    let mass = 1000.0;
+    let (particles, _, end) = encounter(&device, &queue, 8000, mass, 5.0, 2.0 * 53.36);
+    let (p, v, _) = parabola(mass + 1.0, 5.0, end);
+    let mut times: Vec<f64> = particles
+        .iter()
+        .filter_map(|x| {
+            let r = p + x.position.as_dvec3();
+            let w = v + x.velocity.as_dvec3();
+            return_time(mass, 0.5 * w.length_squared() - mass / r.length())
+        })
+        .collect();
+    times.sort_by(f64::total_cmp);
+    let first = times[0];
+    let (power, error) = fallback_power(&times, 30.0 * first).unwrap();
+    let later = times.iter().filter(|&&t| t > 30.0 * first).count();
+    println!(
+        "{name}: {:.1}% of its mass bound to the star, the first back {first:.1} dynamical times after the closest approach; from 30 times that on, {later} particles: the rate falls as t^-{power:.3} ± {error:.3} (5/3 within {:.1} standard errors)",
+        100.0 * times.len() as f64 / particles.len() as f64,
+        (power - 5.0 / 3.0).abs() / error
+    );
+    assert!((power - 5.0 / 3.0).abs() < 3.0 * error);
 }
