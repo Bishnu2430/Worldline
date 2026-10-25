@@ -20,6 +20,8 @@
 //! - `--add "Gaia BH1:3"` drops a catalogue body on a circular orbit 3 AU
 //!   from the Sun; `--add "TON 618:6600@Sagittarius A*"`, 6,600 AU from
 //!   Sagittarius A*.
+//! - `--fluid Jupiter` models Jupiter as a self-gravitating fluid of SPH
+//!   particles on the GPU, as many as it steps smoothly.
 
 mod app;
 mod calendar;
@@ -27,6 +29,7 @@ mod camera;
 mod catalogue;
 mod clocks;
 mod details;
+mod fluid;
 mod gpu;
 mod overlays;
 mod sandbox;
@@ -66,6 +69,8 @@ pub struct StartOptions {
     pub waves: bool,
     /// Overlays to start with.
     pub overlays: overlays::Overlays,
+    /// A body to model as a fluid.
+    pub fluid: Option<String>,
 }
 
 impl StartOptions {
@@ -75,6 +80,7 @@ impl StartOptions {
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 "--focus" => options.focus = args.next(),
+                "--fluid" => options.fluid = args.next(),
                 "--paused" => options.paused = true,
                 "--catalogue" => options.catalogue = true,
                 "--waves" => options.waves = true,
@@ -185,6 +191,8 @@ mod tests {
             "Gaia BH1:2.5@Sagittarius A*",
             "--catalogue",
             "--waves",
+            "--fluid",
+            "Jupiter",
         ]
         .map(String::from)
         .into_iter();
@@ -206,6 +214,7 @@ mod tests {
                 add: Some(("Gaia BH1".into(), 2.5)),
                 around: Some("Sagittarius A*".into()),
                 waves: true,
+                fluid: Some("Jupiter".into()),
             }
         );
         assert_eq!(

@@ -8,12 +8,14 @@
 //! single precision never limits accuracy. This crate knows nothing about
 //! physics or the window.
 
+mod fluid;
 mod mesh;
 mod mipmap;
 mod renderer;
 mod sky;
 
+pub use fluid::{Fluid, FluidClock, FluidParticle};
 pub use renderer::{
-    Atmosphere, Image, Material, MaterialImages, Renderer, Rings, SphereDraw, View,
+    Atmosphere, FluidDraw, Image, Material, MaterialImages, Renderer, Rings, SphereDraw, View,
 };
 pub use sky::{KerrDisk, KerrLens, Lens, Sky, SkyView, trace_rays};
