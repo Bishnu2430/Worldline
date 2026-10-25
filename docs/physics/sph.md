@@ -1,8 +1,11 @@
 # Fluids: smoothed particle hydrodynamics (SPH)
 
-**Code:** `crates/worldline-core/src/sph.rs`
+**Code:**
+- `crates/worldline-core/src/sph.rs`: the fluid on the CPU, in double precision (step 4.1);
+- `crates/worldline-render/src/fluid.rs` and `fluid.wgsl`: the same fluid on the GPU, in single precision (step 4.2);
+- `crates/worldline-app/src/fluid.rs`: a body modeled as a fluid in the app, and the GPU's particle budget.
 
-**Tests:** `crates/worldline-core/tests/validation_sph.rs`, plus unit tests in `sph.rs`
+**Tests:** `crates/worldline-core/tests/validation_sph.rs` and `crates/worldline-render/tests/validation_fluid_gpu.rs`, plus unit tests in `sph.rs`, `fluid.rs` (both) and the shader's naga check
 
 **Sources:**
 - **The method:** Price (2012), *J. Comput. Phys.* 231, 759, "Smoothed particle hydrodynamics and magnetohydrodynamics":
@@ -18,11 +21,14 @@
 - **Time steps:** Monaghan (1992), *ARA&A* 30, 543, with Price et al.'s (2018, *PASA* 35, e031) coefficients 0.3 and 0.25.
 - **The polytrope:** Lane–Emden for n = 1 (e.g. Chandrasekhar 1939, *An Introduction to the Study of Stellar Structure*, ch. IV).
 - **Jupiter:** IAU 2015 nominal GM and radius.
+- **On the GPU:**
+  - **finding neighbours:** a grid of cells hashed into a table with Teschner et al.'s (2003, *Proc. Vision, Modeling, Visualization*, 47) hash, the particles sorted by cell with a counting sort;
+  - **the sort's prefix sum:** Hillis & Steele's (1986, *Commun. ACM* 29, 1170) scan;
+  - **gravity, pair by pair:** in tiles shared by a workgroup, as in Nyland, Harris & Prins (2007, *GPU Gems 3*, ch. 31).
 
 ## Why it matters
 
-So far every body has been a point, or a rigid shape. But a planet that passes too close to a star or a black hole is stretched by tides until it deforms, sheds mass or is torn apart, and planets that collide splash. To show that, a body has to become a fluid. This step builds that fluid, on the CPU in double precision. Later steps:
-- **4.2** moves it to the GPU for many more particles.
+So far every body has been a point, or a rigid shape. But a planet that passes too close to a star or a black hole is stretched by tides until it deforms, sheds mass or is torn apart, and planets that collide splash. To show that, a body has to become a fluid. Step 4.1 built that fluid, on the CPU in double precision; step 4.2 moved it to the GPU, for as many particles as the GPU steps smoothly, and into the app. Later steps:
 - **4.3** turns a point into a fluid when tides start to matter.
 - **4.4** tears one apart.
 - **6.4** collides planets as fluids.
@@ -65,8 +71,44 @@ SPH represents a fluid as particles. Each carries a mass, a velocity, an interna
 - **Resolution:** SPH resolves nothing finer than a smoothing length. With 1,000 particles that is about a sixth of the radius, with 4,000 a ninth. A structure's errors shrink as h², faster in practice here.
 - **Noise:** its particles jiggle around their places by a fraction of a smoothing length. That is SPH's noise, about 10⁻⁴ of the binding energy in motion here.
 - **Equations of state:** only an ideal gas so far. Rock and iron (the Tillotson equation of state) come with giant impacts in 6.4.
-- **Gravity is Newtonian,** and computed directly, pair by pair. Thousands of particles are fine on the CPU; tens of thousands are 4.2's.
-- **Not yet in the app.** A body becomes a fluid in step 4.3.
+- **Gravity is Newtonian,** and computed directly, pair by pair, so its cost grows as N². Thousands of particles are fine on the CPU; on the GPU it is what limits the count (see [the budget](#the-particle-budget)).
+- **Single precision on the GPU.** About 7 digits: the GPU's densities and forces agree with the CPU's to the GPU's Newton tolerance (see the validation below), and its energy is kept as well as the CPU's over ten dynamical times. Positions are in the fluid's own units, relative to its center, so the precision is spent on the body, not on where it is.
+- **In the app by hand.** A body becomes a fluid when you ask (step 4.2), on its own when tides matter in step 4.3. Until then the fluid keeps its own time, a step a frame, and nothing outside it pulls on it: no spin, no tides.
+
+## On the GPU (step 4.2)
+
+The GPU steps the same equations as `sph.rs`, in single precision, for many more particles. The GPU has no double precision, so the fluid works in its own units: lengths in the body's radius R, masses in its mass M, times in its dynamical time √(R³/GM). In them G = 1 and every number is near 1, where single precision is densest. The app converts from SI going in and back coming out.
+
+**A step** is a chain of compute passes, all submitted together; the CPU never waits for them.
+1. **Kick and drift:** half a kick, then a drift, the leapfrog's first half.
+2. **Sort by cell.** Space is cut into cubes, each twice the smallest smoothing length across (or half the largest, if that is more), and each cube is hashed into a table of 262,144 buckets. The particles are counted into the buckets, the counts summed into starting places (a prefix sum, in three passes), and each particle given its place. What a neighbour needs of each particle (position, smoothing length, density, velocity, pressure) is then copied out in that order, so neighbours sit together in memory.
+3. **Density:** each particle's smoothing length and density together, by Newton's method as on the CPU, to 10⁻⁵ of h (single precision's rounding allows no tighter), searching the cells its own 2h reaches.
+4. **Gravity, as from points:** every particle's pull on every other, the particles shared in tiles of 128, two particles to a thread.
+5. **Forces:** pressure, viscosity with its switch, and heating, from every particle within 2 max(h_a, h_b). The cells searched reach twice the largest h, but a cell whose largest h can't reach is skipped. Between neighbours close enough for each other's kernels, the point pull from pass 4 is replaced by the kernel-softened one, as on the CPU.
+6. **The second half kick,** then the clock, the next time step (the smallest over the particles, found with atomic minima) and the next grid.
+
+**Settling** is the CPU's: five dynamical times with damping and the entropy set, then at rest and let go.
+
+**The clock** (the fluid's time and next step) is copied back to the CPU without waiting for the GPU. The app reads it a frame or so late, enough to show it and to know when settling is over.
+
+![Jupiter as 8,144 SPH particles stepped on the GPU, cut open to show its hot core, with the inspector's readout: the budget's trials at 4,096, 8,192 and 16,384 particles, 32 frames a second](../images/fluid-step-4.2.png)
+
+### The particle budget
+
+"Smooth playback" is taken as 30 frames a second or more. What a frame costs depends on everything else the app draws and computes, not just the fluid, so the app finds its budget by trying. The first time a body is made a fluid, the app runs it at 4,096 particles, then 8,192, 16,384 and so on, stepped once a frame and drawn. Each count runs for 2 seconds: the first half second is let go by, and the frames of the rest are counted. The largest count that kept 30 frames a second is the budget. The trials wait until the app has run for 2 seconds and the camera's flight is over: before then, frames come several times slower.
+
+On the Intel Iris Xe this was built on (Vulkan, 1618 × 1047 window, Jupiter in view, 1 month per second):
+
+| Particles | Frames a second, with the fluid stepped and drawn | GPU time a step, alone (`validation_fluid_gpu`) |
+|---|---|---|
+| 2,008 | | 4.3 ms |
+| 4,032 | 56 | 6.1 ms |
+| 8,144 | 55 | 9.3 ms |
+| 16,368 | 27 | 21.8 ms |
+| 32,752 | | 54 ms |
+| 65,752 | | 184 ms |
+
+So this GPU's budget is 8,144 particles. A frame takes a whole number of the screen's refreshes (16.7 ms at 60 Hz): the app's own drawing and the 16k fluid's step together need just over two, so frames come every three, 20 to 27 a second. Gravity's N² sets the steep rise past 16,000. A discrete GPU, with ten or more times the Iris Xe's arithmetic, reaches tens of thousands.
 
 ## Validation (`cargo test`)
 
@@ -80,3 +122,19 @@ SPH represents a fluid as particles. Each carries a mass, a velocity, an interna
 | With 4,032 particles (slow; ignored by default) | closer to Lane–Emden by at least 0.4, as h² shrinks | 0.6076 R, 0.0010 R off against 0.0120 R: 12 times closer |
 
 Also `cargo test -p worldline-core sph`: the kernel's mass adds up to 1, the softened potential's slope is the softened pull, ψ(0) = 7/5 and ψ = 1/q beyond 2h, and w′ is w's slope.
+
+### On the GPU
+
+`cargo test --release -p worldline-render --test validation_fluid_gpu -- --ignored --nocapture --test-threads=1` (needs a GPU; measured on an Intel Iris Xe):
+
+| Check | Expected | Result |
+|---|---|---|
+| The GPU's densities and forces against the CPU's, the same 968 particles of Jupiter | densities within 3 × 10⁻⁵: the GPU's Newton's method stops at 10⁻⁵ of h, and ρ ∝ h⁻³. Accelerations within 10⁻⁴ of the largest: pressure ∝ ρ² doubles that, with room for rounding (6 × 10⁻⁸ a term) | densities 6.1 × 10⁻⁷ off at most, accelerations 8.8 × 10⁻⁶ |
+| **The roadmap's check, on the GPU:** step 4.1's planet, settled on the GPU for five dynamical times, then left alone for ten | as on the CPU: its half-mass radius within h/2, its kinetic energy under (h/2R)² = 7.8 × 10⁻³ of the binding energy | moved at most 0.0126 R (0.07 h); kinetic energy at most 2.0 × 10⁻⁴ of the binding energy |
+| Its energy over those ten dynamical times | the steps' (Δt/t_dyn)², plus single precision's rounding, 10⁻⁶ a step over the 280 steps: 1.6 × 10⁻³ | 4.1 × 10⁻⁵, as on the CPU |
+| The clock copied back without waiting | exactly the clock read by waiting for the GPU | the same, to the last bit |
+| How long a step takes, 2,008 to 65,752 particles | (not a pass/fail check) | the table above |
+
+The GPU adds up its sums in an order that varies from run to run, so the last digit of these results can too.
+
+Also, without a GPU (`cargo test`): naga validates `fluid.wgsl` and `particles.wgsl`, and their structs' layouts match the Rust ones byte for byte; in the app, a polytrope in its own units has G = 1 and K = 2/π, and the budget is the largest count that ran at 30 frames a second.

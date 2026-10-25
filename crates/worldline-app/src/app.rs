@@ -19,12 +19,13 @@ use worldline_core::neutron_star::{sly_maximum, sly_radius};
 use worldline_core::sunlight::{irradiance, light_time};
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DVec3};
-use worldline_render::{Atmosphere, KerrDisk, KerrLens, Lens, Rings, SkyView, View};
+use worldline_render::{Atmosphere, FluidDraw, KerrDisk, KerrLens, Lens, Rings, SkyView, View};
 
 use crate::calendar::DateTime;
 use crate::camera::Camera;
 use crate::catalogue::{self, Entry, Group, length, light_years, measured_suns, significant};
 use crate::details;
+use crate::fluid::{Budget, FluidBody};
 use crate::gpu::{Globe, GpuGlobes, GpuSky};
 use crate::overlays::{self, Overlays};
 use crate::sandbox::{self, Launch};
@@ -53,12 +54,29 @@ const DEFAULT_SPEED: usize = 3;
 /// more, the simulation runs slower than requested and says so.
 const PHYSICS_BUDGET: Duration = Duration::from_millis(12);
 
+/// How long after starting the app waits before finding the GPU's particle
+/// budget.
+const STARTUP: Duration = Duration::from_secs(2);
+
 /// Earth's GM (JPL DE440), for showing masses in Earth masses.
 pub const GM_EARTH: f64 = 3.986_004_355_070_227e14;
 
 /// A label in an inspector grid: what the value on its right is.
 fn key(text: &str) -> RichText {
     RichText::new(text).color(theme::MUTED)
+}
+
+/// A count with its thousands set apart: "16,384".
+fn grouped(n: usize) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, digit) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(digit);
+    }
+    out
 }
 
 /// A duration (s) for display: seconds; minutes and seconds; or hours and
@@ -387,6 +405,22 @@ pub struct WorldlineApp {
     waves: Option<WaveView>,
     /// The sound output, once something has played.
     audio: Option<(rodio::OutputStream, rodio::Sink)>,
+    /// The body modeled as a fluid, if any (see `fluid.rs`).
+    fluid: Option<FluidBody>,
+    /// The body to model as a fluid once this GPU's particle budget is
+    /// timed.
+    fluid_wanted: Option<String>,
+    /// How many particles this GPU steps smoothly, once found.
+    budget: Budget,
+    /// The particle count the fluid is being tried at, while the budget is
+    /// found.
+    trial: Option<usize>,
+    /// A running mean of the time between frames, s.
+    frame_seconds: f64,
+    /// The GPU and the graphics interface it's driven through.
+    gpu_name: String,
+    /// When the app started.
+    started: Instant,
 }
 
 /// A pair's recorded gravitational waves, shown in their window.
@@ -437,6 +471,13 @@ impl WorldlineApp {
             status: None,
             waves: None,
             audio: None,
+            fluid: None,
+            fluid_wanted: None,
+            budget: Budget::default(),
+            trial: None,
+            frame_seconds: 1.0 / 60.0,
+            gpu_name: String::new(),
+            started: Instant::now(),
         };
         app.simulation.paused = start.paused;
         if let Some(speed) = start.speed {
@@ -465,6 +506,13 @@ impl WorldlineApp {
             match app.simulation.bodies.iter().position(|b| &b.name == name) {
                 Some(i) => app.fly_to(i, start.zoom_radii.unwrap_or(FOCUS_DISTANCE_RADII)),
                 None => eprintln!("worldline: no body named `{name}` to focus on"),
+            }
+        }
+        if let Some(name) = &start.fluid {
+            match app.simulation.index_of(name) {
+                Some(i) if app.can_be_fluid(i) => app.fluid_wanted = Some(name.clone()),
+                Some(_) => eprintln!("worldline: `{name}` can't be modeled as a fluid"),
+                None => eprintln!("worldline: no body named `{name}` to model as a fluid"),
             }
         }
         if start.waves {
@@ -910,12 +958,16 @@ impl WorldlineApp {
     }
 
     fn selected_body(&mut self, ui: &mut egui::Ui) {
+        ui.heading(
+            RichText::new(&self.simulation.bodies[self.selected].name)
+                .color(view::color(&self.simulation, self.selected)),
+        );
+        self.model_indicator(ui);
+        self.fluid_rows(ui);
         let bodies = &self.simulation.bodies;
         let body = &bodies[self.selected];
         let sun = &bodies[SUN];
         let parent = self.simulation.parent(self.selected);
-        ui.heading(RichText::new(&body.name).color(view::color(&self.simulation, self.selected)));
-        self.model_indicator(ui);
         egui::Grid::new("selected").num_columns(2).show(ui, |ui| {
             ui.label(key("Mass"));
             if body.gm > 0.0 {
@@ -1123,6 +1175,129 @@ impl WorldlineApp {
                 }
             }
         });
+    }
+
+    /// Whether body `index` can be modeled as a fluid: it needs a measured
+    /// mass and size, and a black hole has no fluid to model.
+    fn can_be_fluid(&self, index: usize) -> bool {
+        let body = &self.simulation.bodies[index];
+        body.gm > 0.0 && body.radius > 0.0 && !is_black_hole(body)
+    }
+
+    /// The selected body as a fluid: the button that makes it one, or back
+    /// into a point; while it is one, its particles, its clock and how fast
+    /// the GPU steps it (see `fluid.rs`).
+    fn fluid_rows(&mut self, ui: &mut egui::Ui) {
+        if !self.can_be_fluid(self.selected) {
+            return;
+        }
+        let name = self.simulation.bodies[self.selected].name.clone();
+        let tag = |ui: &mut egui::Ui, kind: details::Kind, what: &str| {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new(kind.tag()).small().color(kind.color()));
+                ui.label(RichText::new(what).small());
+            });
+        };
+        let trying = self
+            .budget
+            .trying()
+            .filter(|_| self.fluid_wanted.as_ref() == Some(&name));
+        if let Some(count) = trying {
+            ui.label(
+                RichText::new(format!(
+                    "Finding this GPU's particle budget: trying {} particles",
+                    grouped(count)
+                ))
+                .weak(),
+            );
+        }
+        let Some(fluid) = self.fluid.as_ref().filter(|f| f.name == name) else {
+            if trying.is_none() && ui
+                .button("Model as a fluid (SPH)")
+                .on_hover_text(
+                    "Replace its globe with a self-gravitating fluid of as many particles as this GPU steps smoothly",
+                )
+                .clicked()
+            {
+                self.fluid_wanted = Some(name);
+            }
+            return;
+        };
+        let t = fluid.units.time;
+        let now = f64::from(fluid.clock.time);
+        egui::Grid::new("fluid").num_columns(2).show(ui, |ui| {
+            ui.label(key("As a fluid"));
+            ui.label(format!(
+                "{} SPH particles, on the GPU",
+                grouped(fluid.fluid().len())
+            ));
+            ui.end_row();
+            ui.label(key("Dynamical time"));
+            ui.label(format!("{} (√(R³/GM))", duration(t)));
+            ui.end_row();
+            ui.label(key("Fluid time"));
+            ui.label(match fluid.freed_at {
+                None => format!("settling: {now:.2} of 5 dynamical times"),
+                Some(freed) => format!(
+                    "free for {:.2} dynamical times ({})",
+                    now - f64::from(freed),
+                    duration((now - f64::from(freed)) * t)
+                ),
+            });
+            ui.end_row();
+            ui.label(key("Each step"));
+            ui.label(format!(
+                "{:.4} dynamical times ({})",
+                fluid.clock.dt,
+                duration(f64::from(fluid.clock.dt) * t)
+            ));
+            ui.end_row();
+            ui.label(key("Frame rate"));
+            ui.label(format!("{:.0} a second", 1.0 / self.frame_seconds));
+            ui.end_row();
+        });
+        let trials: Vec<String> = self
+            .budget
+            .trials
+            .iter()
+            .map(|(n, rate)| format!("{}: {rate:.0}", grouped(*n)))
+            .collect();
+        if !trials.is_empty() {
+            ui.label(
+                RichText::new(format!(
+                    "This GPU's budget ({}) is the most particles stepped and drawn at {} frames a second or more, a step a frame. Frames a second: {}",
+                    self.gpu_name,
+                    crate::fluid::SMOOTH,
+                    trials.join(" · ")
+                ))
+                .small()
+                .color(theme::MUTED),
+            );
+        }
+        tag(
+            ui,
+            details::Kind::Model,
+            "An n = 1 polytrope (P = Kρ², γ = 2): close to Jupiter's structure, a stand-in for other bodies'. Newtonian self-gravity, ideal gas, no spin or tides yet",
+        );
+        tag(
+            ui,
+            details::Kind::Model,
+            "Its time runs on its own, a step a frame, not at the simulation's speed",
+        );
+        tag(
+            ui,
+            details::Kind::Visual,
+            "Each particle drawn as a sphere of half its smoothing length, colored by its internal energy (dark red cool, yellow-white hot); the half facing you cut away to show the inside",
+        );
+        if ui
+            .button("Back to a point body")
+            .on_hover_text("Draw it as its globe again")
+            .clicked()
+        {
+            self.fluid = None;
+            self.fluid_wanted = None;
+            self.trial = None;
+        }
     }
 
     /// Inspector rows for the selected body's own clock: how much more
@@ -2520,6 +2695,64 @@ impl WorldlineApp {
 
     /// Draws the bodies that are big enough on screen as textured, lit,
     /// rotating globes on the GPU.
+    /// The fluid's part of a frame that took `seconds`. While this GPU's
+    /// particle budget isn't known, the wanted body is tried at ever more
+    /// particles (see `fluid::Budget`); then it is built at the budget. The
+    /// fluid steps while time runs (and through the trials). A fluid whose
+    /// body is gone goes with it.
+    fn update_fluid(&mut self, state: &RenderState, ctx: &egui::Context, seconds: f64) {
+        if let Some(fluid) = &self.fluid
+            && self.simulation.index_of(&fluid.name).is_none()
+        {
+            self.fluid = None;
+        }
+        if let Some(name) = self.fluid_wanted.clone() {
+            let Some(i) = self.simulation.index_of(&name) else {
+                self.fluid_wanted = None;
+                return;
+            };
+            let (gm, radius) = (
+                self.simulation.bodies[i].gm,
+                self.simulation.bodies[i].radius,
+            );
+            match self.budget.trying() {
+                // The trials wait for the app to settle: in its first
+                // seconds (loading, the GPU clocking up) and during the
+                // camera's flight, frames come slower.
+                Some(_) if self.flight.is_some() || self.started.elapsed() < STARTUP => {
+                    ctx.request_repaint();
+                    return;
+                }
+                Some(count) => {
+                    let on_trial = self.trial == Some(count)
+                        && self.fluid.as_ref().is_some_and(|f| f.name == name);
+                    if !on_trial {
+                        let info = state.adapter.get_info();
+                        self.gpu_name = format!("{}, {:?}", info.name, info.backend);
+                        self.fluid = Some(FluidBody::new(state, &name, gm, radius, count));
+                        self.trial = Some(count);
+                        self.budget.restart();
+                    } else if self.budget.frame(count, seconds) {
+                        self.trial = None;
+                    }
+                    ctx.request_repaint();
+                }
+                None => {
+                    if let Some(count) = self.budget.chosen() {
+                        self.fluid = Some(FluidBody::new(state, &name, gm, radius, count));
+                    }
+                    self.fluid_wanted = None;
+                    self.trial = None;
+                }
+            }
+        }
+        if let Some(fluid) = &mut self.fluid
+            && (!self.simulation.paused || self.trial.is_some())
+        {
+            fluid.advance(state);
+        }
+    }
+
     fn draw_globes(
         &mut self,
         state: &RenderState,
@@ -2531,9 +2764,36 @@ impl WorldlineApp {
         let jd = self.simulation.julian_date();
         let bodies = &self.simulation.bodies;
         let light = self.simulation.light_source();
+        let sun_direction = |body: &Body| {
+            // No light at all if a black hole took the Sun's place.
+            light.map_or(glam::Vec3::ZERO, |l| {
+                (l - body.position).normalize_or_zero().as_vec3()
+            })
+        };
+        // The body modeled as a fluid is drawn as its particles instead of
+        // its globe.
+        let fluid_index = self
+            .fluid
+            .as_ref()
+            .and_then(|f| self.simulation.index_of(&f.name));
+        let fluids: Vec<FluidDraw<'_>> = layout
+            .iter()
+            .filter(|item| item.globe && Some(item.index) == fluid_index)
+            .filter_map(|item| {
+                let fluid = self.fluid.as_ref()?;
+                let body = &bodies[item.index];
+                Some(FluidDraw {
+                    fluid: fluid.fluid(),
+                    center: (body.position - eye).as_vec3(),
+                    scale: fluid.units.length as f32,
+                    energy: fluid.energy,
+                    sun_direction: sun_direction(body),
+                })
+            })
+            .collect();
         let globes: Vec<Globe> = layout
             .iter()
-            .filter(|item| item.globe)
+            .filter(|item| item.globe && Some(item.index) != fluid_index)
             .map(|item| {
                 let body = &bodies[item.index];
                 // Relative to the camera, in double precision, before the
@@ -2567,10 +2827,7 @@ impl WorldlineApp {
                     center,
                     radii,
                     orientation,
-                    // No light at all if a black hole took the Sun's place.
-                    sun_direction: light.map_or(glam::Vec3::ZERO, |l| {
-                        (l - body.position).normalize_or_zero().as_vec3()
-                    }),
+                    sun_direction: sun_direction(body),
                     emissive: self.simulation.shines(item.index),
                     night_glow: if body.name == "Earth" { 1.0 } else { 0.0 },
                     rings,
@@ -2578,11 +2835,12 @@ impl WorldlineApp {
                 }
             })
             .collect();
-        if globes.is_empty() {
+        if globes.is_empty() && fluids.is_empty() {
             return None;
         }
         // The near clipping plane sits halfway to the closest surface, ring
-        // or top of the atmosphere.
+        // or top of the atmosphere; for a fluid, half again past its radius,
+        // where its outermost particles may reach.
         let nearest_surface = globes
             .iter()
             .map(|g| {
@@ -2590,6 +2848,7 @@ impl WorldlineApp {
                     + g.atmosphere.map_or(0.0, |a| a.height);
                 g.center.length() - reach
             })
+            .chain(fluids.iter().map(|f| f.center.length() - 1.5 * f.scale))
             .fold(f32::INFINITY, f32::min);
         let (forward, _, up) = self.camera.basis();
         let view = View {
@@ -2603,16 +2862,23 @@ impl WorldlineApp {
             near: (0.5 * nearest_surface).max(1.0),
         };
         let gpu = self.gpu.get_or_insert_with(|| GpuGlobes::new(state));
-        gpu.draw(state, view, &globes)
+        gpu.draw(state, view, &globes, &fluids)
     }
 }
 
 impl eframe::App for WorldlineApp {
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         let now = Instant::now();
+        let elapsed = now.duration_since(self.last_frame).as_secs_f64();
+        self.frame_seconds += 0.05 * (elapsed.min(1.0) - self.frame_seconds);
         // Cap the step after a stall (e.g. dragging the window) at 0.1 s.
-        let real_dt = now.duration_since(self.last_frame).as_secs_f64().min(0.1);
+        let real_dt = elapsed.min(0.1);
         self.last_frame = now;
+        // The fluid's steps go to the GPU first, so it works on them while
+        // the computer works out the physics and the interface.
+        if let Some(state) = frame.wgpu_render_state() {
+            self.update_fluid(state, ui.ctx(), elapsed);
+        }
         let names = self.attended_names();
         self.simulation.update(real_dt, PHYSICS_BUDGET);
         // Detail follows focus, and the focus can drift into a planet's
@@ -2656,6 +2922,14 @@ fn initial_camera() -> Camera {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn counts_have_their_thousands_set_apart() {
+        assert_eq!(grouped(512), "512");
+        assert_eq!(grouped(8144), "8,144");
+        assert_eq!(grouped(131_072), "131,072");
+        assert_eq!(grouped(1_000_000), "1,000,000");
+    }
 
     #[test]
     fn short_and_long_times_read_naturally() {

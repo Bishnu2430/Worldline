@@ -85,6 +85,20 @@ pub struct Atmosphere {
     pub rayleigh: Vec3,
 }
 
+/// A fluid to draw, as its particles (see `fluid.rs`).
+pub struct FluidDraw<'a> {
+    /// The fluid.
+    pub fluid: &'a crate::Fluid,
+    /// Where its origin is, relative to the camera, in m.
+    pub center: Vec3,
+    /// Meters per unit of its length.
+    pub scale: f32,
+    /// The internal energy (in its units) drawn mid-scale.
+    pub energy: f32,
+    /// Unit vector toward the Sun, in world axes.
+    pub sun_direction: Vec3,
+}
+
 /// One body to draw.
 pub struct SphereDraw<'a> {
     /// Center relative to the camera, in m.
@@ -114,6 +128,20 @@ pub struct SphereDraw<'a> {
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct Globals {
     view_proj: [[f32; 4]; 4],
+}
+
+/// Matches `Draw` in particles.wgsl.
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+struct ParticleDraw {
+    center: [f32; 3],
+    scale: f32,
+    right: [f32; 3],
+    energy: f32,
+    up: [f32; 3],
+    size: f32,
+    sun: [f32; 3],
+    _padding: f32,
 }
 
 /// Matches `Instance` in bodies.wgsl, including WGSL's padding rules: each
@@ -178,6 +206,8 @@ impl Mesh {
 /// into an offscreen texture.
 pub struct Renderer {
     globe_pipeline: wgpu::RenderPipeline,
+    particle_pipeline: wgpu::RenderPipeline,
+    particle_layout: wgpu::BindGroupLayout,
     atmosphere_pipeline: wgpu::RenderPipeline,
     ring_pipeline: wgpu::RenderPipeline,
     globals: wgpu::Buffer,
@@ -328,6 +358,79 @@ impl Renderer {
         );
         let ring_pipeline = pipeline("rings", "vs_ring", "fs_ring", true, None);
 
+        // Fluids' particles: opaque spheres, writing depth, read from the
+        // buffer the GPU steps them in.
+        let particle_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("particles shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("particles.wgsl").into()),
+        });
+        let particle_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("particles layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: NonZeroU64::new(size_of::<ParticleDraw>() as u64),
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+        let particle_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("particles pipeline layout"),
+                bind_group_layouts: &[Some(&globals_layout), Some(&particle_layout)],
+                immediate_size: 0,
+            });
+        let particle_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("particles"),
+            layout: Some(&particle_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &particle_shader,
+                entry_point: Some("vs_particle"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                buffers: &[],
+            },
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH_FORMAT,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Greater),
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState {
+                count: SAMPLES,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &particle_shader,
+                entry_point: Some("fs_particle"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: COLOR_FORMAT,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            multiview_mask: None,
+            cache: None,
+        });
+
         let globals = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("globals"),
             size: size_of::<Globals>() as u64,
@@ -390,6 +493,8 @@ impl Renderer {
 
         Self {
             globe_pipeline,
+            particle_pipeline,
+            particle_layout,
             atmosphere_pipeline,
             ring_pipeline,
             globals,
@@ -464,16 +569,18 @@ impl Renderer {
         Material { bind_group }
     }
 
-    /// Draws `bodies` into the output texture, resizing it to `view.size`
-    /// if needed: globes first, then atmospheres and rings over them.
-    /// Returns `true` when the output texture was recreated, so anything
-    /// displaying it must pick up the new one.
+    /// Draws `bodies` and `fluids` into the output texture, resizing it to
+    /// `view.size` if needed: globes and fluids' particles first, then
+    /// atmospheres and rings over them. Returns `true` when the output
+    /// texture was recreated, so anything displaying it must pick up the
+    /// new one.
     pub fn render(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         view: &View,
         bodies: &[SphereDraw<'_>],
+        fluids: &[FluidDraw<'_>],
     ) -> bool {
         let size = [view.size[0].max(1), view.size[1].max(1)];
         let resized = self.targets.as_ref().is_none_or(|t| t.size != size);
@@ -498,6 +605,47 @@ impl Renderer {
         if !instance_bytes.is_empty() {
             queue.write_buffer(&self.instances, 0, &instance_bytes);
         }
+
+        // Each fluid's uniforms and particles, bound together.
+        let right = view.forward.cross(view.up).normalize();
+        let fluid_groups: Vec<(wgpu::BindGroup, u32)> = fluids
+            .iter()
+            .filter(|f| !f.fluid.is_empty())
+            .map(|f| {
+                let uniform = ParticleDraw {
+                    center: f.center.to_array(),
+                    scale: f.scale,
+                    right: right.to_array(),
+                    energy: f.energy,
+                    up: view.up.normalize().to_array(),
+                    size: 0.5,
+                    sun: f.sun_direction.to_array(),
+                    _padding: 0.0,
+                };
+                let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+                    label: Some("particles draw"),
+                    size: size_of::<ParticleDraw>() as u64,
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                });
+                queue.write_buffer(&buffer, 0, bytemuck::bytes_of(&uniform));
+                let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("particles"),
+                    layout: &self.particle_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: buffer.as_entire_binding(),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: f.fluid.particle_buffer().as_entire_binding(),
+                        },
+                    ],
+                });
+                (group, f.fluid.len() as u32)
+            })
+            .collect();
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("bodies"),
@@ -529,6 +677,11 @@ impl Renderer {
                 multiview_mask: None,
             });
             pass.set_bind_group(0, &self.globals_group, &[]);
+            pass.set_pipeline(&self.particle_pipeline);
+            for (group, count) in &fluid_groups {
+                pass.set_bind_group(1, group, &[]);
+                pass.draw(0..6, 0..*count);
+            }
             let layers: [Layer<'_>; 3] = [
                 (&self.globe_pipeline, &self.sphere, |_| true),
                 (&self.atmosphere_pipeline, &self.sphere, |b| {
@@ -770,6 +923,28 @@ mod tests {
         // WGSL pads each mat3x3 column and each vec3 to 16 bytes.
         assert_eq!(size_of::<InstanceUniform>(), 128);
         assert_eq!(size_of::<Globals>(), 64);
+    }
+
+    #[test]
+    fn the_particle_shader_validates_and_its_uniform_matches() {
+        let module =
+            naga::front::wgsl::parse_str(include_str!("particles.wgsl")).expect("WGSL parses");
+        naga::valid::Validator::new(
+            naga::valid::ValidationFlags::all(),
+            naga::valid::Capabilities::empty(),
+        )
+        .validate(&module)
+        .expect("shader validates");
+        let mut layouter = naga::proc::Layouter::default();
+        layouter.update(module.to_ctx()).expect("types lay out");
+        for (name, size) in [("Draw", size_of::<ParticleDraw>()), ("Particle", 96)] {
+            let (handle, _) = module
+                .types
+                .iter()
+                .find(|(_, t)| t.name.as_deref() == Some(name))
+                .expect("the struct");
+            assert_eq!(layouter[handle].size as usize, size, "{name}");
+        }
     }
 
     #[test]

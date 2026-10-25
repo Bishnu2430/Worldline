@@ -122,6 +122,14 @@ A distant body pulls the whole solar system almost equally, so it falls together
 - **Gravitational waves:** for a pair that radiates, its waves' crests spiralling out at the speed of light in the orbit's plane, and the strain at the camera.
 - **Proper time:** a dial beside the selected body, its own clock's hand against a far-away clock's, both turning once in the same time; near a black hole its hand visibly falls behind.
 
+**A body as a fluid.** Any body with a measured mass and radius, except a black hole, can be modeled as a self-gravitating fluid: **Model as a fluid (SPH)** in the inspector, under its Model section. It becomes an n = 1 polytrope of its mass and radius, as many particles as this GPU steps smoothly, stepped and drawn on the GPU (see [physics/sph.md](physics/sph.md) and [rendering.md](rendering.md#fluids)). Only one body is a fluid at a time.
+- **The budget.** The first time, the app finds how many particles this GPU can run at 30 frames a second or more. It runs the body at 4,096 particles, then 8,192, 16,384 and so on, each for 2 seconds, until frames come slower, and keeps the largest that didn't. The inspector shows each count's frame rate.
+- **Settling,** five dynamical times (about 2.3 hours of Jupiter's own time), then it is left alone.
+- **The inspector** gives its particle count, its dynamical time √(R³/GM), how long it has been free, each step's length, and the frame rate. It labels the polytrope as a model (close to Jupiter, a stand-in for other bodies) and the drawing as visual.
+- **Its own time.** The fluid takes a step a frame, a fraction of a dynamical time, while the simulation runs days to centuries a second. It stops while time is paused. Nothing outside pulls on it yet; step 4.3 couples the two.
+- **Back to a point body** draws the globe again.
+- **From the command line:** `--fluid Jupiter` models Jupiter as a fluid once the app has started.
+
 **Each body's own clock.** The inspector shows how much more slowly the selected body's clock runs than one far away ("Its clock"), and how far it has fallen behind since it started ("Fallen behind"): exactly, in a black hole's spacetime, for a body the hole holds; to first order in weak fields otherwise (see [physics/proper-time.md](physics/proper-time.md)).
 
 **Saves** include every belt body and freed moon (about 4 MB). Saves from before step 2.1b load with the belts carried along fixed ellipses from the start.

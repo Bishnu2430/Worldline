@@ -12,8 +12,9 @@ The 3D view is drawn in four layers:
 
 0. **The sky, on the GPU:** a full-screen pass that looks up the sky map along each pixel's ray, bent first by a black hole if one bends the view, and traced past it ray by ray, with its disk, when the camera is close (see [The sky](#the-sky)).
 1. **Back, on the CPU through egui:** reference rings, orbit trails and the Sun's glow.
-2. **Middle, on the GPU (`worldline-render`):** drawn into an offscreen image that is transparent everywhere else. egui then paints that image over the back layer, so trails pass behind planets naturally. Three pipelines run in order:
+2. **Middle, on the GPU (`worldline-render`):** drawn into an offscreen image that is transparent everywhere else. egui then paints that image over the back layer, so trails pass behind planets naturally. Four pipelines run in order:
    - **globes:** opaque, writing depth;
+   - **fluids' particles:** opaque, writing depth (see [Fluids](#fluids));
    - **atmospheres:** translucent shells;
    - **rings:** translucent quads.
 
@@ -105,10 +106,18 @@ Each body's inspector panel lists what's shown and what kind of knowledge it is:
 | Sun's corona | Baumbach model, brightness boosted | physics model (boosted) |
 | Sun's surface colors | Solar System Scope map, stylized orange (the real Sun is white) | visual, labeled in the app |
 
+## Fluids
+
+A body modeled as a fluid (step 4.2, see [physics/sph.md](physics/sph.md)) is drawn as its particles in place of its globe, its rings and its atmosphere. The particles are drawn straight from the buffer the GPU steps them in, so they never travel to the CPU and back. `particles.wgsl`:
+- **Each particle** is a square facing the camera, six vertices made in the vertex shader from the particle's index, trimmed to a disk and shaded as a sphere lit by the Sun. Its radius is half its smoothing length, so neighbours just touch.
+- **Its color** is its internal energy per unit mass, on a logarithmic scale from dark red (cool) through orange to yellow-white (hot), a factor of ten either side of the fluid's median at the start. It shows temperature's pattern, not a color the planet would have.
+- **Cut open.** The half of the fluid nearer the camera isn't drawn, so the cut face shows the inside: the hot, dense core and the cooler envelope. It follows the camera as it moves.
+- **Positions** come in the fluid's own units, relative to its center, and are scaled and moved to the body's place relative to the camera, like a globe's.
+
 ## Checks
 
 - **CI, without a GPU:**
-  - the shader is compiled and validated with naga, the same compiler wgpu uses;
+  - the shader is compiled and validated with naga, the same compiler wgpu uses (the globes', the sky's, the fluid's and its particles');
   - the uniform-buffer layout matches the shader's padding rules;
   - the depth projection maps the near plane to 1 and infinity to 0;
   - the sphere's triangles all face outward;

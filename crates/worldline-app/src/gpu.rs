@@ -8,7 +8,8 @@ use eframe::egui_wgpu::RenderState;
 use eframe::wgpu;
 use glam::{Mat3, Vec3};
 use worldline_render::{
-    Atmosphere, Image, Material, MaterialImages, Renderer, Rings, Sky, SkyView, SphereDraw, View,
+    Atmosphere, FluidDraw, Image, Material, MaterialImages, Renderer, Rings, Sky, SkyView,
+    SphereDraw, View,
 };
 
 use crate::textures;
@@ -55,10 +56,16 @@ impl GpuGlobes {
         }
     }
 
-    /// Draws the globes and returns the texture holding the result.
-    /// Textures are decoded and uploaded the first time a body needs them:
-    /// detail follows focus.
-    pub fn draw(&mut self, state: &RenderState, view: View, globes: &[Globe]) -> Option<TextureId> {
+    /// Draws the globes and the fluids' particles and returns the texture
+    /// holding the result. Textures are decoded and uploaded the first time
+    /// a body needs them: detail follows focus.
+    pub fn draw(
+        &mut self,
+        state: &RenderState,
+        view: View,
+        globes: &[Globe],
+        fluids: &[FluidDraw<'_>],
+    ) -> Option<TextureId> {
         for globe in globes {
             if !self.materials.contains_key(&globe.name) {
                 let material = load_material(&self.renderer, state, globe);
@@ -86,7 +93,7 @@ impl GpuGlobes {
 
         let resized = self
             .renderer
-            .render(&state.device, &state.queue, &view, &draws);
+            .render(&state.device, &state.queue, &view, &draws, fluids);
         let output = self.renderer.output()?;
         let mut egui_renderer = state.renderer.write();
         match self.texture {

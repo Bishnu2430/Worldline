@@ -414,6 +414,15 @@ impl Fluid {
         dt
     }
 
+    /// Each particle's acceleration (m/s²) and heating (W/kg), as last
+    /// worked out.
+    pub fn accelerations(&self) -> Vec<(DVec3, f64)> {
+        self.forces
+            .iter()
+            .map(|f| (f.acceleration, f.heating))
+            .collect()
+    }
+
     /// The kinetic energy, J.
     pub fn kinetic(&self) -> f64 {
         self.particles
@@ -538,6 +547,13 @@ pub fn polytrope_mass(radius: f64, r: f64) -> f64 {
 /// gets the energy K ρ (u = P/((γ − 1)ρ)). They are not yet in SPH's own
 /// equilibrium: [`Fluid::settle`] that first.
 pub fn polytrope(mass: f64, radius: f64, count: usize) -> (Fluid, f64) {
+    let (particles, k) = polytrope_particles(mass, radius, count);
+    (Fluid::new(particles, 2.0), k)
+}
+
+/// [`polytrope`]'s particles and K, without working out their densities
+/// and forces (for a fluid stepped elsewhere, such as on the GPU).
+pub fn polytrope_particles(mass: f64, radius: f64, count: usize) -> (Vec<Particle>, f64) {
     let k = 2.0 * G * radius * radius / PI;
     // The lattice spacing that puts about `count` points in a unit sphere.
     let spacing = (4.0 * PI / (3.0 * count as f64)).cbrt();
@@ -583,7 +599,7 @@ pub fn polytrope(mass: f64, radius: f64, count: usize) -> (Fluid, f64) {
             }
         })
         .collect();
-    (Fluid::new(particles, 2.0), k)
+    (particles, k)
 }
 
 #[cfg(test)]

@@ -18,7 +18,9 @@ crates/
   worldline-render   wgpu GPU rendering: textured globes, the sky and its lensing
                      (looked up from a table core computes, or near a hole traced
                      ray by ray in single precision, checked against core's double
-                     precision), the accretion disk's look; SPH later           (since step 1b.2)
+                     precision), the accretion disk's look; SPH fluids stepped in
+                     single precision in their own units, checked against core's
+                     double precision, and drawn as particles                    (since step 1b.2)
 ```
 
 Each crate is added when its milestone starts, not before. The 3D view is drawn in layers. Rings, trails, dots and labels are projected relative to the camera in double precision and drawn with egui's painter. Globes and the sky behind everything are drawn by `worldline-render` on the GPU. See [app.md](app.md) and [rendering.md](rendering.md).
@@ -101,7 +103,7 @@ It uses them to pick a model:
 | Gravitational waves an observer records | Quadrupole waveform from the simulated pair, run ahead on its own | Einstein 1918; Blanchet 2024; [physics/post-newtonian.md](physics/post-newtonian.md) |
 | A body held by a black hole at least 35 times heavier (ν < 1/36) | The hole's exact spacetime (Kerr, in Kerr–Schild coordinates) as a test body, with leading-order radiation reaction and Newtonian tides of everything else; it plunges inside the innermost stable orbit and merges at the horizon | Kerr 1963; Kerr & Schild 1965; Bardeen, Press & Teukolsky 1972; Ori & Thorne 2000; [physics/kerr.md](physics/kerr.md) |
 | Two black holes merging, after spiraling in | Fits to numerical relativity for non-spinning holes on near-circular orbits: final mass, spin, kick, ringdown; the pair's center of mass to second post-Newtonian order | Jiménez-Forteza et al. 2017; González et al. 2007; Berti, Cardoso & Will 2006; Blanchet 2024; [physics/mergers.md](physics/mergers.md) |
-| Tides matter (r ≲ a few r_t) | SPH with self-gravity: Price's grad-h formulation, Monaghan's viscosity with Morris & Monaghan's switch, gravity softened by the kernel; on the CPU in double precision (step 4.1), into the app with 4.3 | Monaghan 1992, 2005; Price 2012; Price & Monaghan 2007; [physics/sph.md](physics/sph.md) |
+| Tides matter (r ≲ a few r_t) | SPH with self-gravity: Price's grad-h formulation, Monaghan's viscosity with Morris & Monaghan's switch, gravity softened by the kernel; on the CPU in double precision (step 4.1); on the GPU in single precision, as many particles as it steps at 30 frames a second, in the app by hand (step 4.2), on its own when tides matter with 4.3 | Monaghan 1992, 2005; Price 2012; Price & Monaghan 2007; Teschner et al. 2003; [physics/sph.md](physics/sph.md) |
 | White dwarfs | Cold, ideal degenerate electron gas: Chandrasekhar's white-dwarf equation for the mass–radius relation, and his limit (1.456 Suns for carbon–oxygen); past it, a type Ia supernova that leaves nothing | Chandrasekhar 1931, 1935, 1939; Hillebrandt & Niemeyer 2000; [physics/white-dwarfs.md](physics/white-dwarfs.md) |
 | Neutron stars | Tolman–Oppenheimer–Volkoff structure (Lindblom's enthalpy form) with the SLy equation of state as Read et al.'s piecewise polytrope: radius for a mass, the maximum mass (2.048 Suns); past it, collapse into a black hole | Tolman 1939; Oppenheimer & Volkoff 1939; Lindblom 1992; Douchin & Haensel 2001; Read et al. 2009; [physics/neutron-stars.md](physics/neutron-stars.md) |
 | Neutron star merger outcome | Prompt collapse above k M_max, k = −3.606 GM_max/(c²R₁.₆) + 2.380 (2.94 Suns for SLy); below it, a hot spinning remnant that collapses later if above the maximum mass | Bauswein, Baumgarte & Janka 2013; [physics/neutron-stars.md](physics/neutron-stars.md) |
