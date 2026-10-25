@@ -5,8 +5,12 @@
 //! of the bodies around it, and the simulation's time follows its own, a
 //! step a frame (step 4.3).
 
+use std::time::Instant;
+
 use eframe::egui_wgpu::RenderState;
+use worldline_core::DVec3;
 use worldline_core::sph::{Particle, polytrope_particles};
+use worldline_core::tides::{fallback_power, return_time};
 use worldline_render::{Fluid, FluidClock, FluidParticle, TidalBody};
 
 /// Frames a second taken as smooth playback.
@@ -280,6 +284,72 @@ fn polytrope(state: &RenderState, count: usize) -> (Fluid, f32) {
 /// far as its clock comes back late, a frame or two.
 const LEAD: f32 = 3.0;
 
+/// How often its debris is worked out again, s of real time: reading its
+/// particles back makes the GPU finish its work first.
+const DEBRIS_EVERY: f64 = 2.0;
+
+/// From how many times the first piece's return on the fallback's power is
+/// estimated: by then the law's own correction for how dM/dE curves is
+/// down to about 2% (see `docs/physics/disruption.md`).
+pub const LATE: f64 = 30.0;
+
+/// A body's debris (step 4.4): each piece's orbit around what tore it, as
+/// if alone with it from now on.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Debris {
+    /// What tore it, by name.
+    pub by: String,
+    /// The share of its mass bound to that body.
+    pub bound: f64,
+    /// When each bound piece comes back, s after the closest approach, in
+    /// order: its orbit's period.
+    pub times: Vec<f64>,
+    /// The share of its mass each piece carries.
+    pub share: f64,
+    /// Whether it is set: worked out far enough out that the pieces'
+    /// orbits no longer change.
+    pub set: bool,
+}
+
+impl Debris {
+    /// The rate it comes back at, in shares of its mass a second, in bins
+    /// a quarter of a decade wide from the first piece's return: each
+    /// bin's middle (geometric) and rate.
+    pub fn rates(&self) -> Vec<(f64, f64)> {
+        let (Some(&first), Some(&last)) = (self.times.first(), self.times.last()) else {
+            return Vec::new();
+        };
+        let width = 10f64.powf(0.25);
+        let mut rates = Vec::new();
+        let mut edge = first;
+        let mut k = 0;
+        while edge <= last {
+            let next = edge * width;
+            let start = k;
+            while k < self.times.len() && self.times[k] < next {
+                k += 1;
+            }
+            if k > start {
+                let rate = (k - start) as f64 * self.share / (next - edge);
+                rates.push(((edge * next).sqrt(), rate));
+            }
+            edge = next;
+        }
+        rates
+    }
+
+    /// The power α of t^(−α) the rate falls as, from [`LATE`] times the
+    /// first piece's return on, and its standard error (see
+    /// `tides::fallback_power`): if at least 30 pieces come back then.
+    pub fn power(&self) -> Option<(f64, f64)> {
+        let from = LATE * self.times.first()?;
+        let later = self.times.iter().filter(|&&t| t > from).count();
+        (later >= 30)
+            .then(|| fallback_power(&self.times, from))
+            .flatten()
+    }
+}
+
 /// A body modeled as a fluid.
 pub struct FluidBody {
     /// The body it models.
@@ -294,6 +364,13 @@ pub struct FluidBody {
     pub by_hand: bool,
     /// The internal energy drawn mid-scale.
     pub energy: f32,
+    /// Its closest approach so far to what pulls it hardest: that body's
+    /// name, and the simulation's time (s) and distance (m) then.
+    pub closest: Option<(String, f64, f64)>,
+    /// Its debris, once it has torn and passed its closest approach, and
+    /// when that was last worked out.
+    pub debris: Option<Debris>,
+    measured: Option<Instant>,
 }
 
 impl FluidBody {
@@ -320,7 +397,70 @@ impl FluidBody {
             since,
             by_hand,
             energy,
+            closest: None,
+            debris: None,
+            measured: None,
         }
+    }
+
+    /// Notes that it is `distance` (m) from `by`, what pulls it hardest, at
+    /// the simulation's time `now`. Returns whether it has passed its
+    /// closest approach to it.
+    pub fn track(&mut self, by: &str, now: f64, distance: f64) -> bool {
+        match &mut self.closest {
+            Some((name, when, nearest)) if name == by => {
+                if distance < *nearest {
+                    (*when, *nearest) = (now, distance);
+                }
+                distance > *nearest
+            }
+            _ => {
+                self.closest = Some((by.to_string(), now, distance));
+                false
+            }
+        }
+    }
+
+    /// Works out its debris again, if it hasn't for a while (or if it is
+    /// `set` now): each piece's orbit around `by` (its name and
+    /// gravitational parameter), it being at `relative` and moving at
+    /// `motion` relative to that body (m, m/s). Reads its particles back,
+    /// waiting for the GPU.
+    pub fn measure_debris(
+        &mut self,
+        state: &RenderState,
+        (by, gm): (&str, f64),
+        relative: DVec3,
+        motion: DVec3,
+        set: bool,
+    ) {
+        if !set
+            && self
+                .measured
+                .is_some_and(|t| t.elapsed().as_secs_f64() < DEBRIS_EVERY)
+        {
+            return;
+        }
+        self.measured = Some(Instant::now());
+        let (particles, _) = self.fluid.read(&state.device, &state.queue);
+        let (l, t) = (self.units.length, self.units.time);
+        let mut times: Vec<f64> = particles
+            .iter()
+            .filter_map(|p| {
+                let r = relative + p.position.as_dvec3() * l;
+                let v = motion + p.velocity.as_dvec3() * (l / t);
+                return_time(gm, 0.5 * v.length_squared() - gm / r.length())
+            })
+            .collect();
+        times.sort_by(f64::total_cmp);
+        let share = 1.0 / particles.len().max(1) as f64;
+        self.debris = Some(Debris {
+            by: by.to_string(),
+            bound: times.len() as f64 * share,
+            times,
+            share,
+            set,
+        });
     }
 
     pub fn fluid(&self) -> &Fluid {
@@ -374,6 +514,29 @@ mod tests {
         let g =
             worldline_core::constants::G * units.mass * units.time.powi(2) / units.length.powi(3);
         assert!((g - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn debris_coming_back_as_t_to_the_minus_five_thirds_shows_so() {
+        // Pieces of equal mass back at the quantiles of a rate ∝ t^(−5/3)
+        // from 1 s on: the rates fall by 10^(5/3·¼) a bin, and the power
+        // is 5/3.
+        let n = 4000;
+        let times: Vec<f64> = (0..n)
+            .map(|k| (1.0 - (k as f64 + 0.5) / n as f64).powf(-1.5))
+            .collect();
+        let debris = Debris {
+            by: "Hole".into(),
+            bound: 0.5,
+            times,
+            share: 0.5 / n as f64,
+            set: true,
+        };
+        let rates = debris.rates();
+        let slope = (rates[6].1 / rates[2].1).log10() / (rates[6].0 / rates[2].0).log10();
+        assert!((slope + 5.0 / 3.0).abs() < 0.02, "{slope}");
+        let (power, _) = debris.power().unwrap();
+        assert!((power - 5.0 / 3.0).abs() < 0.01, "{power}");
     }
 
     #[test]

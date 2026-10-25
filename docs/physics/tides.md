@@ -67,7 +67,7 @@ Every n = 1 polytrope is the same in its own units (G = R = M = 1). So the app s
 - **Newtonian tides.** Fine where tides matter for a planet: 8 million km from a black hole of 9.6 Suns, GM/rc² = 2 × 10⁻⁶.
 - **The orbit doesn't feel the shape.** A stretched body pulls back on what stretches it a little differently from a point. That changes its orbit by order (R/D)² of the pull, and is left out. So is the orbital energy that goes into the body's tidal oscillations (tidal capture).
 - **What it keeps when it turns back.** A body that turns back into a point keeps its mass, radius and motion. The tidal heating and oscillations it picked up as a fluid are lost.
-- **Torn bodies stay fluids.** A body that loses mass stays a fluid, and time stays at its pace. Tidal disruption itself is step 4.4.
+- **Torn bodies stay fluids.** A body that loses mass stays a fluid, and time stays at its pace. What is torn away, and when its debris comes back, is step 4.4's (see [disruption.md](disruption.md)).
 - **Spin.** It starts at rest, not spinning, so its rotational flattening is left out: 6.5% for Jupiter, more than the 1% that switches it.
 - **Up to 4 bodies' tides.** Those of the rest are left out, as are those of bodies in another region.
 - **Collisions.** A fluid whose point collides or is swallowed goes with it.

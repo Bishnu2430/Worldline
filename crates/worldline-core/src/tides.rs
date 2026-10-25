@@ -15,6 +15,12 @@
 //! `regime.rs`): approximate while it is under 1%, beyond after. So a body
 //! becomes a fluid where its tides would stretch it by 1%, and turns back
 //! into a point once they fall to half that.
+//!
+//! Torn apart (step 4.4, `docs/physics/disruption.md`), its debris goes
+//! round what tore it on orbits of every energy E; the bound ones come
+//! back after a period 2πGM/(−2E)^(3/2). Where dM/dE is smooth through
+//! E = 0, as it is when a body is torn right through, the rate they come
+//! back at falls as t^(−5/3) (Rees 1988; Phinney 1989).
 
 use std::f64::consts::PI;
 
@@ -74,6 +80,32 @@ pub fn hill_radius(distance: f64, gm: f64, gm_other: f64) -> f64 {
 /// close, are left out.
 pub fn time_to_close(distance: f64, stop: f64, speed: f64, gm: f64) -> f64 {
     (distance - stop).max(0.0) / (speed + (2.0 * gm / stop).sqrt())
+}
+
+/// When debris of specific orbital energy `energy` (J/kg) around a body of
+/// `gm` comes back to where it was, after its pericenter: its orbit's
+/// period, 2πGM/(−2E)^(3/2). None if it is unbound.
+pub fn return_time(gm: f64, energy: f64) -> Option<f64> {
+    (energy < 0.0).then(|| 2.0 * PI * gm / (-2.0 * energy).powf(1.5))
+}
+
+/// The power α of a rate falling as t^(−α), from the times `times` that
+/// equal masses come back, counting those from `from` on: the maximum
+/// likelihood estimate (Hill 1975), α − 1 = n/Σ ln(t/from), and its
+/// standard error from their number, (α − 1)/√n. None if none come back
+/// after `from`.
+pub fn fallback_power(times: &[f64], from: f64) -> Option<(f64, f64)> {
+    let logs: Vec<f64> = times
+        .iter()
+        .filter(|&&t| t > from)
+        .map(|t| (t / from).ln())
+        .collect();
+    let n = logs.len() as f64;
+    let sum: f64 = logs.iter().sum();
+    (sum > 0.0).then(|| {
+        let index = n / sum;
+        (1.0 + index, index / n.sqrt())
+    })
 }
 
 /// Whether a body of `gm` is a giant planet, whose bulk is fluid: from 10
@@ -161,6 +193,29 @@ mod tests {
         assert!(giant_planet(gm(14.54)) && giant_planet(gm(17.15)));
         assert!(giant_planet(gm(95.16)) && giant_planet(GM_JUPITER_NOMINAL));
         assert!(!giant_planet(20.0 * GM_JUPITER_NOMINAL));
+    }
+
+    #[test]
+    fn debris_comes_back_after_its_period() {
+        // Earth's orbit: a = 1 AU, E = −GM/2a, back after a year.
+        let (gm, au) = (1.327_124_4e20, 1.495_978_707e11);
+        let year = return_time(gm, -gm / (2.0 * au)).unwrap();
+        assert!((year / (2.0 * PI * (au.powi(3) / gm).sqrt()) - 1.0).abs() < 1e-15);
+        assert_eq!(return_time(gm, 0.0), None);
+    }
+
+    #[test]
+    fn the_estimate_finds_the_power_of_a_rate() {
+        // Times spread as a rate ∝ t^(−5/3) from 1 on spreads them:
+        // equal masses at the quantiles, t = (1 − F)^(−3/2).
+        let n = 10_000;
+        let times: Vec<f64> = (0..n)
+            .map(|k| (1.0 - (k as f64 + 0.5) / n as f64).powf(-1.5))
+            .collect();
+        let (power, error) = fallback_power(&times, 1.0).unwrap();
+        assert!((power - 5.0 / 3.0).abs() < 2e-3, "{power}");
+        assert!((error - (2.0 / 3.0) / 100.0).abs() < 1e-4, "{error}");
+        assert_eq!(fallback_power(&times, 1e9), None);
     }
 
     #[test]

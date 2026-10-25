@@ -141,7 +141,7 @@ struct ParticleDraw {
     up: [f32; 3],
     size: f32,
     sun: [f32; 3],
-    _padding: f32,
+    largest: f32,
 }
 
 /// Matches `Instance` in bodies.wgsl, including WGSL's padding rules: each
@@ -620,7 +620,7 @@ impl Renderer {
                     up: view.up.normalize().to_array(),
                     size: 0.5,
                     sun: f.sun_direction.to_array(),
-                    _padding: 0.0,
+                    largest: 0.25,
                 };
                 let buffer = device.create_buffer(&wgpu::BufferDescriptor {
                     label: Some("particles draw"),

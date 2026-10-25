@@ -1,6 +1,8 @@
 // Draws a fluid's SPH particles (see fluid.wgsl) straight from the buffer
 // the GPU steps them in: each as a small sphere facing the camera, of
-// radius half its smoothing length, so neighbours just touch; lit by the
+// radius half its smoothing length, so neighbours just touch (but no more
+// than `largest`: torn-off debris, sparse, has smoothing lengths of many
+// radii); lit by the
 // Sun and colored by its internal energy, cool dark red to hot
 // yellow-white. The half nearer the camera is cut away, to show the
 // inside. Positions are relative to the camera, as in bodies.wgsl.
@@ -20,9 +22,10 @@ struct Draw {
     // The camera's up, and each sphere's radius in smoothing lengths.
     up: vec3<f32>,
     size: f32,
-    // Unit vector toward the Sun.
+    // Unit vector toward the Sun, and the largest radius a sphere is drawn
+    // at, in the fluid's units.
     sun: vec3<f32>,
-    _padding: f32,
+    largest: f32,
 };
 
 struct Particle {
@@ -70,7 +73,7 @@ fn vs_particle(
     );
     let corner = corners[vertex];
     let p = particles[index];
-    let radius = draw.size * p.fields.x * draw.scale;
+    let radius = min(draw.size * p.fields.x, draw.largest) * draw.scale;
     let world = draw.center + p.position.xyz * draw.scale
         + (draw.right * corner.x + draw.up * corner.y) * radius;
     var out: Out;
