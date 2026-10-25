@@ -63,7 +63,7 @@ Added 2026-10-05, before steps 1.6 and 1.7. Detail follows focus: see [SCOPE.md]
 
 | # | Step | How you verify it | Status |
 |---|---|---|---|
-| 4.1 | SPH self-gravitating fluid on the CPU | A star or planet left alone stays in equilibrium | ⬜ |
+| 4.1 | SPH self-gravitating fluid on the CPU | A star or planet left alone stays in equilibrium | ✅ |
 | 4.2 | SPH on the GPU for tens of thousands of particles | Smooth playback at the particle budget set for your GPU | ⬜ |
 | 4.3 | Automatic switching between point body and fluid body when tides matter | A planet stays a point until it nears the tidal radius, then becomes a fluid | ⬜ |
 | 4.4 | Tidal disruption scenarios | Disruption begins near r_t ≈ R(M/m)^(1/3). Debris falls back at a rate ∝ t^(−5/3). | ⬜ |

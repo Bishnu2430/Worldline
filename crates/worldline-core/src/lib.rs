@@ -27,6 +27,7 @@ pub mod orbit;
 pub mod regime;
 pub mod rotation;
 pub mod solar_wind;
+pub mod sph;
 pub mod sunlight;
 pub mod swarm;
 pub mod system;
