@@ -73,7 +73,7 @@ SPH represents a fluid as particles. Each carries a mass, a velocity, an interna
 - **Equations of state:** only an ideal gas so far. Rock and iron (the Tillotson equation of state) come with giant impacts in 6.4.
 - **Gravity is Newtonian,** and computed directly, pair by pair, so its cost grows as N². Thousands of particles are fine on the CPU; on the GPU it is what limits the count (see [the budget](#the-particle-budget)).
 - **Single precision on the GPU.** About 7 digits: the GPU's densities and forces agree with the CPU's to the GPU's Newton tolerance (see the validation below), and its energy is kept as well as the CPU's over ten dynamical times. Positions are in the fluid's own units, relative to its center, so the precision is spent on the body, not on where it is.
-- **In the app by hand.** A body becomes a fluid when you ask (step 4.2), on its own when tides matter in step 4.3. Until then the fluid keeps its own time, a step a frame, and nothing outside it pulls on it: no spin, no tides.
+- **In the app.** A giant planet becomes a fluid on its own when tides matter, and any body by hand (see [tides.md](tides.md)). The fluid feels the tides of the 4 bodies pulling on it hardest, and the simulation's time follows its own. It doesn't spin.
 
 ## On the GPU (step 4.2)
 
@@ -84,7 +84,7 @@ The GPU steps the same equations as `sph.rs`, in single precision, for many more
 2. **Sort by cell.** Space is cut into cubes, each twice the smallest smoothing length across (or half the largest, if that is more), and each cube is hashed into a table of 262,144 buckets. The particles are counted into the buckets, the counts summed into starting places (a prefix sum, in three passes), and each particle given its place. What a neighbour needs of each particle (position, smoothing length, density, velocity, pressure) is then copied out in that order, so neighbours sit together in memory.
 3. **Density:** each particle's smoothing length and density together, by Newton's method as on the CPU, to 10⁻⁵ of h (single precision's rounding allows no tighter), searching the cells its own 2h reaches.
 4. **Gravity, as from points:** every particle's pull on every other, the particles shared in tiles of 128, two particles to a thread.
-5. **Forces:** pressure, viscosity with its switch, and heating, from every particle within 2 max(h_a, h_b). The cells searched reach twice the largest h, but a cell whose largest h can't reach is skipped. Between neighbours close enough for each other's kernels, the point pull from pass 4 is replaced by the kernel-softened one, as on the CPU.
+5. **Forces:** pressure, viscosity with its switch, and heating, from every particle within 2 max(h_a, h_b). The cells searched reach twice the largest h, but a cell whose largest h can't reach is skipped. Between neighbours close enough for each other's kernels, the point pull from pass 4 is replaced by the kernel-softened one, as on the CPU. Then the tides of up to 4 bodies outside it (step 4.3, see [tides.md](tides.md)).
 6. **The second half kick,** then the clock, the next time step (the smallest over the particles, found with atomic minima) and the next grid.
 
 **Settling** is the CPU's: five dynamical times with damping and the entropy set, then at rest and let go.
@@ -95,20 +95,26 @@ The GPU steps the same equations as `sph.rs`, in single precision, for many more
 
 ### The particle budget
 
-"Smooth playback" is taken as 30 frames a second or more. What a frame costs depends on everything else the app draws and computes, not just the fluid, so the app finds its budget by trying. The first time a body is made a fluid, the app runs it at 4,096 particles, then 8,192, 16,384 and so on, stepped once a frame and drawn. Each count runs for 2 seconds: the first half second is let go by, and the frames of the rest are counted. The largest count that kept 30 frames a second is the budget. The trials wait until the app has run for 2 seconds and the camera's flight is over: before then, frames come several times slower.
+"Smooth playback" is taken as 30 frames a second or more. What a frame costs depends on everything else the app draws and computes, not just the fluid, so the app finds its budget by trying.
+- **The trials.** The first time a body needs a fluid, the app runs it at 4,096 particles, then 8,192, 16,384 and so on, stepped once a frame and drawn. Each count runs for 2 seconds: the first half second is let go by, and the frames of the rest are counted.
+- **The rule.** Since step 4.3 time waits during the trials, so they run without the physics; once time runs, the physics may take its budget of 12 ms of each frame. So the budget is the largest count that kept frames under 1/30 s − 12 ms = 21.3 ms, 47 frames a second.
+- **When.** The trials wait until the app has run for 2 seconds and the camera's flight is over: before then, frames come several times slower.
 
 On the Intel Iris Xe this was built on (Vulkan, 1618 × 1047 window, Jupiter in view, 1 month per second):
 
-| Particles | Frames a second, with the fluid stepped and drawn | GPU time a step, alone (`validation_fluid_gpu`) |
+| Particles | Frames a second in the trials, stepped and drawn while time waits | GPU time a step, alone (`validation_fluid_gpu`) |
 |---|---|---|
-| 2,008 | | 4.3 ms |
-| 4,032 | 56 | 6.1 ms |
-| 8,144 | 55 | 9.3 ms |
-| 16,368 | 27 | 21.8 ms |
-| 32,752 | | 54 ms |
-| 65,752 | | 184 ms |
+| 2,008 | | 4.1 ms |
+| 4,032 | 60 | 5.5 ms |
+| 8,144 | 58–60 | 9.2 ms |
+| 16,368 | 37–43 | 21.4 ms |
+| 32,752 | | 53 ms |
+| 65,752 | | 191 ms |
 
-So this GPU's budget is 8,144 particles. A frame takes a whole number of the screen's refreshes (16.7 ms at 60 Hz): the app's own drawing and the 16k fluid's step together need just over two, so frames come every three, 20 to 27 a second. Gravity's N² sets the steep rise past 16,000. A discrete GPU, with ten or more times the Iris Xe's arithmetic, reaches tens of thousands.
+So this GPU's budget is 8,144 particles. With time running, a Jupiter-mass planet as a fluid passing the Sun plays at 36 to 44 frames a second.
+- **Why 16,000 is too many.** A frame takes a whole number of the screen's refreshes (16.7 ms at 60 Hz). The app's own drawing, the physics and the 16k fluid's step together need just over two, so frames come every three, 20 to 27 a second.
+- **Where the cost comes from.** Gravity's N² sets the steep rise past 16,000. A discrete GPU, with ten or more times the Iris Xe's arithmetic, reaches tens of thousands.
+- **When the physics overruns.** One physics step can't be split, and some take more than the physics' 12 ms. Then frames come slower whatever the fluid: with a black hole that has torn Jupiter's moons away, 26 to 29 a second.
 
 ## Validation (`cargo test`)
 

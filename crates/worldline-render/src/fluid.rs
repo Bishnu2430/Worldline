@@ -50,6 +50,24 @@ struct GpuParticle {
     extra: [f32; 4],
 }
 
+/// The most bodies whose tides a fluid feels.
+pub const MAX_TIDAL_BODIES: usize = 4;
+
+/// A body raising tides on a fluid, in the fluid's units, relative to its
+/// center: where it is, how fast it moves and accelerates (at the time
+/// given with it), and its mass.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TidalBody {
+    /// Position.
+    pub position: Vec3,
+    /// Velocity.
+    pub velocity: Vec3,
+    /// Acceleration.
+    pub acceleration: Vec3,
+    /// Mass.
+    pub mass: f32,
+}
+
 /// Matches `Params` in fluid.wgsl.
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -60,7 +78,13 @@ struct Params {
     settling: f32,
     entropy: f32,
     damping: f32,
-    _padding: [f32; 2],
+    tide_time: f32,
+    outside: f32,
+    tide_bodies: u32,
+    _padding: [f32; 3],
+    tide_position: [[f32; 4]; MAX_TIDAL_BODIES],
+    tide_velocity: [[f32; 4]; MAX_TIDAL_BODIES],
+    tide_acceleration: [[f32; 4]; MAX_TIDAL_BODIES],
 }
 
 /// Matches `State` in fluid.wgsl.
@@ -70,11 +94,11 @@ struct State {
     time: f32,
     dt: f32,
     cell: f32,
-    _padding: f32,
+    outside: u32,
     dt_next: u32,
     h_max: u32,
     h_min: u32,
-    _padding1: u32,
+    outside_next: u32,
 }
 
 /// The fluid's clock, as last read back.
@@ -84,7 +108,13 @@ pub struct FluidClock {
     pub time: f32,
     /// The next step.
     pub dt: f32,
+    /// Particles farther from its center than [`Fluid::set_tides`]'s
+    /// `outside`, at the last step.
+    pub outside: u32,
 }
+
+/// What of `State` the clock copies back: up to `outside`.
+const CLOCK_BYTES: u64 = 16;
 
 /// The passes of one step, in order.
 const STEP: [&str; 15] = [
@@ -196,7 +226,13 @@ impl Fluid {
             settling: 0.0,
             entropy: 0.0,
             damping: 0.0,
-            _padding: [0.0; 2],
+            tide_time: 0.0,
+            outside: f32::MAX,
+            tide_bodies: 0,
+            _padding: [0.0; 3],
+            tide_position: [[0.0; 4]; MAX_TIDAL_BODIES],
+            tide_velocity: [[0.0; 4]; MAX_TIDAL_BODIES],
+            tide_acceleration: [[0.0; 4]; MAX_TIDAL_BODIES],
         };
         let buffer = |label, size: u64, usage| {
             device.create_buffer(&wgpu::BufferDescriptor {
@@ -288,16 +324,16 @@ impl Fluid {
                 time: 0.0,
                 dt: 0.0,
                 cell: 2.0 * h_min.max(0.25 * h_max),
-                _padding: 0.0,
+                outside: 0,
                 dt_next: f32::MAX.to_bits(),
                 h_max: 0,
                 h_min: f32::MAX.to_bits(),
-                _padding1: 0,
+                outside_next: 0,
             }),
         );
         let clock = buffer(
             "fluid clock",
-            size_of::<FluidClock>() as u64,
+            CLOCK_BYTES,
             wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
         );
         let fluid = Self {
@@ -388,6 +424,30 @@ impl Fluid {
         queue.write_buffer(&self.params_buffer, 0, bytemuck::bytes_of(&self.params));
     }
 
+    /// The tides of `bodies` (at most [`MAX_TIDAL_BODIES`]), given at the
+    /// fluid's time `time`, and the distance from its center beyond which
+    /// particles are counted (in [`FluidClock::outside`]). They apply from
+    /// the next step on.
+    pub fn set_tides(
+        &mut self,
+        queue: &wgpu::Queue,
+        time: f32,
+        bodies: &[TidalBody],
+        outside: f32,
+    ) {
+        let bodies = &bodies[..bodies.len().min(MAX_TIDAL_BODIES)];
+        self.params.tide_time = time;
+        self.params.outside = outside;
+        self.params.tide_bodies = bodies.len() as u32;
+        for (k, b) in bodies.iter().enumerate() {
+            self.params.tide_position[k] = [b.position.x, b.position.y, b.position.z, b.mass];
+            self.params.tide_velocity[k] = [b.velocity.x, b.velocity.y, b.velocity.z, 0.0];
+            self.params.tide_acceleration[k] =
+                [b.acceleration.x, b.acceleration.y, b.acceleration.z, 0.0];
+        }
+        queue.write_buffer(&self.params_buffer, 0, bytemuck::bytes_of(&self.params));
+    }
+
     /// Sets every particle at rest, and works out its forces there.
     pub fn halt(&self, device: &wgpu::Device, queue: &wgpu::Queue) {
         self.run(device, queue, 1, &["rest"]);
@@ -404,13 +464,7 @@ impl Fluid {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("fluid clock"),
         });
-        encoder.copy_buffer_to_buffer(
-            &self.state,
-            0,
-            &self.clock,
-            0,
-            size_of::<FluidClock>() as u64,
-        );
+        encoder.copy_buffer_to_buffer(&self.state, 0, &self.clock, 0, CLOCK_BYTES);
         queue.submit([encoder.finish()]);
         let ready = Arc::clone(&self.clock_ready);
         self.clock.map_async(wgpu::MapMode::Read, .., move |_| {
@@ -432,8 +486,9 @@ impl Fluid {
         }
         // Nothing to read if the mapping failed (the device lost, say).
         let clock = self.clock.get_mapped_range(..).ok().map(|view| {
-            let [time, dt]: [f32; 2] = bytemuck::pod_read_unaligned(&view[..]);
-            FluidClock { time, dt }
+            let [time, dt, _]: [f32; 3] = bytemuck::pod_read_unaligned(&view[..12]);
+            let outside: u32 = bytemuck::pod_read_unaligned(&view[12..16]);
+            FluidClock { time, dt, outside }
         });
         if clock.is_some() {
             self.clock.unmap();
@@ -490,6 +545,7 @@ impl Fluid {
             FluidClock {
                 time: state.time,
                 dt: state.dt,
+                outside: state.outside,
             },
         )
     }

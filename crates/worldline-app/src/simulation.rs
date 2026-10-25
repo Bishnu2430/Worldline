@@ -25,6 +25,7 @@ use worldline_core::regime::{Regime, Validity};
 use worldline_core::rotation::RotationModel;
 use worldline_core::solar_wind::{Heliosphere, ParkerSpiral};
 use worldline_core::swarm::{Particle, Swarm};
+use worldline_core::tides::time_to_close;
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DMat3, DVec3};
 use worldline_data::{
@@ -258,6 +259,30 @@ pub enum Removal {
     GalacticCenter,
 }
 
+/// Two bodies that an update must not bring closer than `distance`: it
+/// stops when they reach it (step 4.3: where a planet's tides make it a
+/// fluid).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Approach {
+    /// The body, and the one it nears, by name.
+    pub body: String,
+    pub by: String,
+    /// m.
+    pub distance: f64,
+}
+
+/// How far an update may go: approaches it stops at, and a time it must
+/// not pass.
+#[derive(Debug, Clone, Default)]
+pub struct Limits {
+    pub approaches: Vec<Approach>,
+    /// s since the start (a fluid's clock).
+    pub until: Option<f64>,
+}
+
+/// How close to an approach's distance counts as reaching it: 1%.
+const REACHED: f64 = 0.01;
+
 /// The solar system running live.
 pub struct Simulation {
     /// Every body: the Sun and planets (each planet with moons in place of
@@ -277,6 +302,9 @@ pub struct Simulation {
     /// Fraction of the requested speed the last update achieved: 1.0 when
     /// physics kept up, less when it ran out of time.
     pub achieved: f64,
+    /// The approach that slowed the last update, if one did (see
+    /// [`Limits`]).
+    pub slowed_by: Option<usize>,
     /// The body each one closely orbits (a moon's planet), if any.
     parents: Vec<Option<usize>>,
     sources: Vec<Source>,
@@ -359,6 +387,7 @@ impl Simulation {
             speed,
             paused: false,
             achieved: 1.0,
+            slowed_by: None,
             parents: Vec::new(),
             sources: Vec::new(),
             small,
@@ -1105,26 +1134,69 @@ impl Simulation {
     }
 
     /// Advances the simulation to match `real_dt` seconds of real time,
-    /// spending at most `budget` of computer time on it.
-    pub fn update(&mut self, real_dt: f64, budget: Duration) {
+    /// spending at most `budget` of computer time on it, within `limits`:
+    /// never past `until`, and stopping where two bodies of an approach
+    /// come within 1% of its distance. Returns that approach, if one was
+    /// reached.
+    ///
+    /// Each step goes no further than the two of every approach could
+    /// close to its distance in the time ([`time_to_close`]), so they
+    /// reach it in ever shorter steps without passing it.
+    pub fn update(&mut self, real_dt: f64, budget: Duration, limits: &Limits) -> Option<usize> {
+        self.slowed_by = None;
         let requested = if self.paused {
             0.0
         } else {
             self.speed * real_dt
         };
-        if requested <= 0.0 {
-            self.achieved = 1.0;
-            return;
-        }
         let start = self.time();
-        let target = start + requested;
-        let clock = Instant::now();
-        while self.time() < target && clock.elapsed() < budget {
-            self.step_toward(target);
+        let target = limits
+            .until
+            .map_or(start + requested, |until| until.min(start + requested));
+        if requested <= 0.0 || target <= start {
+            self.achieved = 1.0;
+            return None;
         }
-        self.achieved = (self.time() - start) / requested;
+        let clock = Instant::now();
+        let mut reached = None;
+        while self.time() < target && clock.elapsed() < budget {
+            let mut next = target;
+            for (k, approach) in limits.approaches.iter().enumerate() {
+                let (Some(a), Some(b)) =
+                    (self.index_of(&approach.body), self.index_of(&approach.by))
+                else {
+                    continue;
+                };
+                let (a, b) = (&self.bodies[a], &self.bodies[b]);
+                let distance = (a.position - b.position).length();
+                if distance <= approach.distance * (1.0 + REACHED) {
+                    reached = Some(k);
+                    break;
+                }
+                let soon = time_to_close(
+                    distance,
+                    approach.distance,
+                    (a.velocity - b.velocity).length(),
+                    a.gm + b.gm,
+                );
+                if self.time() + soon < next {
+                    next = self.time() + soon;
+                    self.slowed_by = Some(k);
+                }
+            }
+            if reached.is_some() {
+                break;
+            }
+            self.step_toward(next);
+        }
+        self.achieved = if limits.until.is_some() || reached.is_some() {
+            1.0
+        } else {
+            (self.time() - start) / requested
+        };
         self.catch_up_galaxy();
         self.refresh_small_moons();
+        reached
     }
 
     /// One step of the whole hierarchy, landing exactly on `target` if it
@@ -1136,6 +1208,11 @@ impl Simulation {
             self.hierarchy.set_time(target);
         }
 
+        // The list is rebuilt once, after every change below: a moon
+        // system torn apart frees its small moons in the same step, and
+        // the list can't be rebuilt while its small moons are still listed
+        // under a system that is gone.
+        let mut changed = false;
         // Small moons freed (before their systems' lists go): name them.
         let freed = self.hierarchy.take_freed_moons();
         if !freed.is_empty() {
@@ -1172,7 +1249,7 @@ impl Simulation {
                     ),
                 });
             }
-            self.reindex();
+            changed = true;
         }
         for swallowed in self.hierarchy.take_swallowed() {
             let moons: Vec<String> = self
@@ -1192,7 +1269,7 @@ impl Simulation {
             self.notices
                 .push(format!("{} swallowed {}", swallowed.by, what.join(", ")));
             self.freed.retain(|m| !swallowed.ids.contains(&m.id));
-            self.reindex();
+            changed = true;
         }
         for unbound in self.hierarchy.take_unbound() {
             self.notices.push(format!(
@@ -1207,6 +1284,9 @@ impl Simulation {
                 Some(d) if d > unbound.system => Some(d - 1),
                 other => other,
             };
+            changed = true;
+        }
+        if changed {
             self.reindex();
         }
         let collisions = self.hierarchy.take_collisions();
@@ -1671,9 +1751,75 @@ mod tests {
     const GENEROUS: Duration = Duration::from_secs(10);
 
     #[test]
+    fn a_giant_planet_stays_a_point_until_its_tides_reach_one_percent() {
+        // Step 4.3's check, the point's side: Jupiter falls toward a black
+        // hole of 9.62 Suns (Gaia BH1's mass) on an ellipse whose closest
+        // approach is 3 tidal radii. Updates stop it where the hole's tides
+        // would stretch it by 1%, 5.34 tidal radii, within 1% beyond, and
+        // never let it closer before.
+        use worldline_core::tides::{
+            FLUID_STRETCH, distance_for, polytrope_love_number, tidal_radius,
+        };
+        let mut sim = Simulation::solar_system(DAY);
+        let jupiter = sim.index_of("Jupiter").unwrap();
+        let (gm, radius) = (sim.bodies[jupiter].gm, sim.bodies[jupiter].radius);
+        let gm_hole = 9.62 * GM_SUN;
+        let rt = tidal_radius(radius, gm, gm_hole);
+        let fluid = distance_for(1.0 + polytrope_love_number(), rt, FLUID_STRETCH);
+        // From three times that, at the speed of an ellipse's far end.
+        let (far, near) = (3.0 * fluid, 3.0 * rt);
+        let mu = gm + gm_hole;
+        let speed = (mu / far).sqrt() * (2.0 * near / (far + near)).sqrt();
+        let relative = DVec3::Y * speed;
+        let here = &sim.bodies[jupiter];
+        let hole = Body::new("Hole", gm_hole, schwarzschild_radius(gm_hole))
+            .at(here.position + DVec3::X * far)
+            .moving(here.velocity - relative * (gm / mu));
+        sim.shift_velocity(jupiter, relative * (gm_hole / mu) - relative);
+        sim.add_body(hole, "test");
+        let limits = Limits {
+            approaches: vec![Approach {
+                body: "Jupiter".into(),
+                by: "Hole".into(),
+                distance: fluid,
+            }],
+            until: None,
+        };
+        let separation = |sim: &Simulation| {
+            let (a, b) = (
+                sim.index_of("Jupiter").unwrap(),
+                sim.index_of("Hole").unwrap(),
+            );
+            (sim.bodies[a].position - sim.bodies[b].position).length()
+        };
+        let mut closest = f64::INFINITY;
+        let mut frames = 0;
+        let reached = loop {
+            let reached = sim.update(1.0 / 60.0, GENEROUS, &limits);
+            closest = closest.min(separation(&sim));
+            frames += 1;
+            if reached.is_some() || frames == 1000 {
+                break reached;
+            }
+        };
+        let stopped = separation(&sim);
+        println!(
+            "r_t = {:.0} km; stopped after {frames} frames ({:.1} h) at {:.4} of 5.34 r_t ({:.0} km), never closer than {:.4} of it",
+            rt / 1e3,
+            sim.time() / 3600.0,
+            stopped / fluid,
+            fluid / 1e3,
+            closest / fluid
+        );
+        assert_eq!(reached, Some(0));
+        assert!(stopped >= fluid && stopped <= fluid * (1.0 + REACHED));
+        assert!(closest >= fluid);
+    }
+
+    #[test]
     fn one_real_second_advances_by_the_speed() {
         let mut sim = Simulation::solar_system(DAY);
-        sim.update(1.0, GENEROUS);
+        sim.update(1.0, GENEROUS, &Limits::default());
         assert_eq!(sim.time(), DAY);
         assert_eq!(sim.achieved, 1.0);
         assert_eq!(sim.julian_date(), sim.epoch_jd_tdb + 1.0);
@@ -1683,14 +1829,14 @@ mod tests {
     fn paused_means_no_time_passes() {
         let mut sim = Simulation::solar_system(DAY);
         sim.paused = true;
-        sim.update(1.0, GENEROUS);
+        sim.update(1.0, GENEROUS, &Limits::default());
         assert_eq!(sim.time(), 0.0);
     }
 
     #[test]
     fn running_out_of_budget_is_reported() {
         let mut sim = Simulation::solar_system(1000.0 * DAY);
-        sim.update(1.0, Duration::ZERO);
+        sim.update(1.0, Duration::ZERO, &Limits::default());
         assert!(sim.achieved < 1.0);
     }
 
@@ -1733,7 +1879,7 @@ mod tests {
             (distance / 133_584e3 - 1.0).abs() < 0.01,
             "Pan at {distance} m"
         );
-        sim.update(1.0, GENEROUS);
+        sim.update(1.0, GENEROUS, &Limits::default());
         sim.focus_detail_on(io);
         assert!(!sim.is_detailed(pan));
     }
@@ -1780,7 +1926,7 @@ mod tests {
                 .all(|p| p.is_finite())
         );
         let before: Vec<DVec3> = sim.belts.iter().map(|b| b.positions[0]).collect();
-        sim.update(1.0, GENEROUS);
+        sim.update(1.0, GENEROUS, &Limits::default());
         for (belt, before) in sim.belts.iter().zip(before) {
             assert_ne!(belt.positions[0], before);
         }
@@ -1850,7 +1996,7 @@ mod tests {
         // Saturn's moons still belong to Saturn, and everything still runs.
         let saturn = sim.index_of("Saturn").unwrap();
         assert_eq!(sim.parent(sim.index_of("Titan").unwrap()), Some(saturn));
-        sim.update(1.0, GENEROUS);
+        sim.update(1.0, GENEROUS, &Limits::default());
         assert_eq!(sim.time(), DAY);
     }
 
@@ -1860,7 +2006,7 @@ mod tests {
         sim.add_body(intruder(&sim), "copy:Jupiter");
         sim.remove(sim.index_of("Mars").unwrap());
         sim.focus_detail_on(sim.index_of("Saturn").unwrap());
-        sim.update(1.0, GENEROUS);
+        sim.update(1.0, GENEROUS, &Limits::default());
         let text = sim.save();
         // Every number loads back bit for bit.
         let mut loaded = Simulation::load(&text, DAY).unwrap();
@@ -1869,8 +2015,8 @@ mod tests {
         // Two loads of the same save run identically.
         let mut a = Simulation::load(&text, 10.0 * DAY).unwrap();
         let mut b = Simulation::load(&text, 10.0 * DAY).unwrap();
-        a.update(1.0, GENEROUS);
-        b.update(1.0, GENEROUS);
+        a.update(1.0, GENEROUS, &Limits::default());
+        b.update(1.0, GENEROUS, &Limits::default());
         assert_eq!(a.save(), b.save());
         assert!(Simulation::load("not a save", DAY).is_err());
     }
@@ -2177,7 +2323,7 @@ mod tests {
             .moving(sim.bodies[sgr].velocity);
         let new = sim.add_body_near(planet, "copy:Earth", sgr);
         assert!(sim.is_galactic(new));
-        sim.update(30.0, GENEROUS);
+        sim.update(30.0, GENEROUS, &Limits::default());
         assert_ne!(sim.bodies[s2].position, before);
         let new = sim.index_of("New planet 1").unwrap();
         let toward = (sim.bodies[sgr].position - sim.bodies[new].position).normalize();
@@ -2237,7 +2383,7 @@ mod tests {
             .moving(earth.velocity - toward.normalize() * 1e4);
         sim.add_body(impactor, "copy:Earth");
         let before = sim.bodies.len();
-        sim.update(1.0, GENEROUS);
+        sim.update(1.0, GENEROUS, &Limits::default());
         let collision = sim.events.first().expect("they collided");
         // Equal masses: the earlier body, Earth, survives.
         assert_eq!(

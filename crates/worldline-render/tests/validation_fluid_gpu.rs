@@ -1,12 +1,14 @@
 //! Validation: the GPU's SPH fluid (step 4.2) against worldline-core's
 //! double-precision one, and how many particles this GPU can step
-//! smoothly. It needs a GPU, so it is ignored by default; run it with
-//! `cargo test --release -p worldline-render --test validation_fluid_gpu -- --ignored --nocapture`.
+//! smoothly; and the tides it feels (step 4.3). It needs a GPU, so it is
+//! ignored by default; run it with
+//! `cargo test --release -p worldline-render --test validation_fluid_gpu -- --ignored --nocapture --test-threads=1`.
 
-use glam::Vec3;
+use glam::{DVec3, Vec3};
 use worldline_core::constants::G;
 use worldline_core::sph::{Fluid as CoreFluid, Particle, polytrope, polytrope_particles};
-use worldline_render::{Fluid, FluidParticle};
+use worldline_core::tides::{FLUID_STRETCH, distance_for, polytrope_love_number};
+use worldline_render::{Fluid, FluidParticle, TidalBody};
 
 /// Jupiter's mass and radius (IAU 2015 nominal), as in step 4.1's test.
 const MASS: f64 = 1.266_865_3e17 / G;
@@ -200,4 +202,132 @@ fn the_clock_comes_back_without_waiting() {
         clock.time, waited.time, clock.dt
     );
     assert!(clock.time > 0.0 && clock == waited);
+}
+
+#[test]
+#[ignore = "needs a GPU"]
+fn the_tides_on_the_gpu_are_newtons() {
+    // A body of 1,000 times the fluid's mass, 10 of its radii away, moving
+    // and accelerating: the GPU follows it 0.1 of the fluid's time units
+    // on from where it was given, and pulls each particle by its pull
+    // there less its pull on the center. Against that worked out in
+    // double precision, within 10⁻⁴ of the largest pull, the GPU's Newton
+    // tolerance (as in the forces check: nothing else changes between the
+    // two GPU runs).
+    let (device, queue, name) = gpu();
+    let (core, _) = polytrope(MASS, RADIUS, 1000);
+    let mut fluid = Fluid::new(&device, &queue, &to_gpu(&core.particles), 2.0);
+    let (before, _) = fluid.read(&device, &queue);
+    let body = TidalBody {
+        position: Vec3::new(8.0, 6.0, 0.5),
+        velocity: Vec3::new(-3.0, 1.0, 0.2),
+        acceleration: Vec3::new(5.0, -2.0, 1.0),
+        mass: 1000.0,
+    };
+    fluid.set_tides(&queue, -0.1, &[body], f32::MAX);
+    fluid.halt(&device, &queue);
+    let (after, _) = fluid.read(&device, &queue);
+    let tau = 0.1;
+    let at = body.position.as_dvec3()
+        + body.velocity.as_dvec3() * tau
+        + 0.5 * body.acceleration.as_dvec3() * tau * tau;
+    let pull = |x: DVec3| {
+        let e = at - x;
+        f64::from(body.mass) * (e / e.length().powi(3) - at / at.length().powi(3))
+    };
+    let largest = after
+        .iter()
+        .map(|p| pull(p.position.as_dvec3()).length())
+        .fold(0.0, f64::max);
+    let worst = before
+        .iter()
+        .zip(&after)
+        .map(|(b, a)| {
+            let gpu = (a.acceleration - b.acceleration).as_dvec3();
+            (gpu - pull(a.position.as_dvec3())).length() / largest
+        })
+        .fold(0.0, f64::max);
+    println!(
+        "{name}: tides on {} particles off Newton's by {worst:.1e} of the largest (limit 1e-4)",
+        after.len()
+    );
+    assert!(worst < 1e-4);
+}
+
+/// The quadrupole moment Σ m (x x − r²/3) along x of `particles`, about
+/// their center of mass.
+fn quadrupole(particles: &[FluidParticle]) -> f64 {
+    let mass: f64 = particles.iter().map(|p| f64::from(p.mass)).sum();
+    let center = particles
+        .iter()
+        .map(|p| p.position.as_dvec3() * f64::from(p.mass))
+        .sum::<DVec3>()
+        / mass;
+    particles
+        .iter()
+        .map(|p| {
+            let x = p.position.as_dvec3() - center;
+            f64::from(p.mass) * (x.x * x.x - x.length_squared() / 3.0)
+        })
+        .sum()
+}
+
+#[test]
+#[ignore = "needs a GPU"]
+fn a_fluid_planet_stretches_by_its_love_number() {
+    // Jupiter as an n = 1 polytrope, settled alone, then settled again in
+    // the steady tide of a body 1,000 times its mass (r_t = 10 R) along x,
+    // at 5.34 r_t, where its tides stretch it by 1% and it becomes a
+    // fluid. It stretches along x: its quadrupole moment grows by
+    // Q = (2/3) k₂ (r_t/D)³ (Hinderer 2008, with k₂ = 15/π² − 1). The
+    // overdamped stretch takes about 2.3 dynamical times to settle, so it
+    // is given 15, then its quadrupole averaged over 10 more. Against Q,
+    // at two resolutions, within its mean smoothing length over its
+    // radius, as SPH resolves its structure no finer. (The tide's own next
+    // order, (r_t/D)³ = 0.7%, is well under that.)
+    let (device, queue, name) = gpu();
+    let (l, m, t) = units();
+    let h2 = 1.0 + polytrope_love_number();
+    let (rt, mass): (f64, f64) = (10.0, 1000.0);
+    let distance = distance_for(h2, rt, FLUID_STRETCH);
+    let expected = 2.0 / 3.0 * polytrope_love_number() * (rt / distance).powi(3);
+    let settle = |fluid: &mut Fluid, until: f32| {
+        while fluid.read(&device, &queue).1.time < until {
+            fluid.step(&device, &queue, 10);
+        }
+    };
+    for count in [1000, 8000] {
+        let (particles, k) = polytrope_particles(MASS, RADIUS, count);
+        let mut fluid = Fluid::new(&device, &queue, &to_gpu(&particles), 2.0);
+        let entropy = (k * m * t * t / l.powi(5)) as f32;
+        fluid.set_settling(&queue, Some((entropy, 1.0 / 0.3)));
+        settle(&mut fluid, 5.0);
+        let (alone, _) = fluid.read(&device, &queue);
+        let tide = TidalBody {
+            position: Vec3::new(distance as f32, 0.0, 0.0),
+            velocity: Vec3::ZERO,
+            acceleration: Vec3::ZERO,
+            mass: mass as f32,
+        };
+        fluid.set_tides(&queue, 0.0, &[tide], f32::MAX);
+        settle(&mut fluid, 20.0);
+        let mut grown = 0.0;
+        for k in 1..=10 {
+            settle(&mut fluid, 20.0 + k as f32);
+            grown += (quadrupole(&fluid.read(&device, &queue).0) - quadrupole(&alone)) / 10.0;
+        }
+        let love = 1.5 * grown * (distance / rt).powi(3);
+        let (stretched, _) = fluid.read(&device, &queue);
+        let h = stretched.iter().map(|p| f64::from(p.h)).sum::<f64>() / stretched.len() as f64;
+        let error = (love / polytrope_love_number() - 1.0).abs();
+        println!(
+            "{name}: {} particles, mean h = {h:.3} R, at {:.2} r_t: quadrupole grew by {grown:.4e} (expected {expected:.4e}); k2 = {love:.4} against {:.4}, {:.1}% off (limit {:.1}%)",
+            stretched.len(),
+            distance / rt,
+            polytrope_love_number(),
+            100.0 * error,
+            100.0 * h
+        );
+        assert!(error < h);
+    }
 }

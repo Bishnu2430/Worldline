@@ -22,6 +22,7 @@
 //                the largest h, skipping those whose largest h can't reach;
 //                and gravity: the pull as from points, softened between
 //                neighbours, close enough for each other's kernels;
+//                and the tides of up to four bodies outside it (step 4.3);
 //   kick         the other half kick (and, while settling, damping and
 //                the entropy set);
 //   finish       the clock, the next step and the next grid.
@@ -50,21 +51,34 @@ struct Params {
     settling: f32,
     entropy: f32,
     damping: f32,
+    // Tides: up to four bodies raising them, each one's place (and mass),
+    // velocity and acceleration relative to the fluid's center at the time
+    // `tide_time`, followed from there along a parabola. Particles farther
+    // than `outside` from the center are counted.
+    tide_time: f32,
+    outside: f32,
+    tide_bodies: u32,
     _padding0: f32,
     _padding1: f32,
+    _padding2: f32,
+    tide_position: array<vec4<f32>, 4>,
+    tide_velocity: array<vec4<f32>, 4>,
+    tide_acceleration: array<vec4<f32>, 4>,
 }
 
 struct State {
     time: f32,
     dt: f32,
     cell: f32,
-    _padding: f32,
+    // Particles farther than `outside` from the center, at the last step.
+    outside: u32,
     // The next step and the largest and smallest smoothing lengths, as
-    // bits: for positive floats their order is their bits'.
+    // bits: for positive floats their order is their bits'; and the
+    // particles outside, being counted.
     dt_next: atomic<u32>,
     h_max: atomic<u32>,
     h_min: atomic<u32>,
-    _padding1: u32,
+    outside_next: atomic<u32>,
 }
 
 struct Particle {
@@ -493,6 +507,24 @@ fn forces(@builtin(global_invocation_id) id: vec3<u32>) {
         }
     }
     {
+        // Tides: each body's pull here less its pull on the center, which
+        // the fluid's frame falls with. These positions are the step's
+        // end's.
+        let tau = state.time + state.dt - params.tide_time;
+        for (var k = 0u; k < params.tide_bodies; k++) {
+            let body = params.tide_position[k];
+            let at = body.xyz + tau * params.tide_velocity[k].xyz
+                + (0.5 * tau * tau) * params.tide_acceleration[k].xyz;
+            let e = at - x;
+            let f = inverseSqrt(dot(e, e));
+            let g = inverseSqrt(dot(at, at));
+            acceleration += body.w * (e * (f * f * f) - at * (g * g * g));
+        }
+        if dot(x, x) > params.outside * params.outside {
+            atomicAdd(&state.outside_next, 1u);
+        }
+    }
+    {
         let a = sorted[i];
         let c = p.sound.x;
         let converging = max(compression / (p.fields.z * rho_a), 0.0);
@@ -536,6 +568,8 @@ fn finish() {
     let largest = bitcast<f32>(atomicLoad(&state.h_max));
     let smallest = bitcast<f32>(atomicLoad(&state.h_min));
     state.cell = 2.0 * max(smallest, 0.25 * largest);
+    state.outside = atomicLoad(&state.outside_next);
+    atomicStore(&state.outside_next, 0u);
     atomicStore(&state.dt_next, 0x7f7fffffu);
     atomicStore(&state.h_max, 0u);
     atomicStore(&state.h_min, 0x7f7fffffu);

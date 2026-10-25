@@ -30,17 +30,19 @@ pub struct Launch {
     pub around: usize,
     /// Where the drag has reached, on the same plane as `position`.
     pub drag: DVec3,
-    /// Start at rest relative to `around` (it falls straight in), instead
-    /// of circling it.
-    pub at_rest: bool,
+    /// The share of the circular speed it starts with: 1 circles `around`,
+    /// 0 starts at rest relative to it (it falls straight in), and in
+    /// between it falls in on an ellipse whose far end is where it starts.
+    pub circling: f64,
 }
 
 impl Launch {
     /// Its velocity. Placed without a drag, it circles `around`:
     /// prograde, in the ecliptic, at √(G(M + m)/r) relative to it, which
-    /// for two bodies is exactly circular; or, `at_rest`, it starts still
-    /// relative to it. Dragging adds velocity along the drag: one circular
-    /// speed for every quarter of the camera's distance.
+    /// for two bodies is exactly circular; or the share `circling` of that
+    /// speed (0 starts it still relative to it). Dragging adds velocity
+    /// along the drag: one circular speed for every quarter of the
+    /// camera's distance.
     pub fn velocity(&self, simulation: &Simulation, camera_distance: f64, gm: f64) -> DVec3 {
         let center = &simulation.bodies[self.around];
         let r = self.position - center.position;
@@ -59,8 +61,8 @@ impl Launch {
             0.0
         };
         let radius = boyer_lindquist_radius(mu, spin, r) / m;
-        let circular = if !self.at_rest && radius > innermost_stable_orbit(spin, true) {
-            DVec3::Z.cross(r) * (C / m / (radius.powf(1.5) + spin))
+        let circular = if self.circling > 0.0 && radius > innermost_stable_orbit(spin, true) {
+            DVec3::Z.cross(r) * (self.circling * C / m / (radius.powf(1.5) + spin))
         } else {
             DVec3::ZERO
         };
