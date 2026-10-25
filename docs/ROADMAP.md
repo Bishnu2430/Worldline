@@ -65,7 +65,7 @@ Added 2026-10-05, before steps 1.6 and 1.7. Detail follows focus: see [SCOPE.md]
 |---|---|---|---|
 | 4.1 | SPH self-gravitating fluid on the CPU | A star or planet left alone stays in equilibrium | ✅ |
 | 4.2 | SPH on the GPU for tens of thousands of particles | Smooth playback at the particle budget set for your GPU | ✅ |
-| 4.3 | Automatic switching between point body and fluid body when tides matter | A planet stays a point until it nears the tidal radius, then becomes a fluid | ⬜ |
+| 4.3 | Automatic switching between point body and fluid body when tides matter | A planet stays a point until it nears the tidal radius, then becomes a fluid | ✅ |
 | 4.4 | Tidal disruption scenarios | Disruption begins near r_t ≈ R(M/m)^(1/3). Debris falls back at a rate ∝ t^(−5/3). | ⬜ |
 
 **4.2's budget on the Intel Iris Xe** is 8,144 particles at 30 frames a second or more: tens of thousands need a discrete GPU. What limits it is gravity computed pair by pair, whose cost grows as N². A tree code (Barnes–Hut) would raise it; that is not planned yet. See [physics/sph.md](physics/sph.md#the-particle-budget).

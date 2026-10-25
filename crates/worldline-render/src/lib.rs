@@ -14,7 +14,7 @@ mod mipmap;
 mod renderer;
 mod sky;
 
-pub use fluid::{Fluid, FluidClock, FluidParticle};
+pub use fluid::{Fluid, FluidClock, FluidParticle, MAX_TIDAL_BODIES, TidalBody};
 pub use renderer::{
     Atmosphere, FluidDraw, Image, Material, MaterialImages, Renderer, Rings, SphereDraw, View,
 };

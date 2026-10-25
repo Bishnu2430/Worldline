@@ -20,6 +20,8 @@
 //! - `--add "Gaia BH1:3"` drops a catalogue body on a circular orbit 3 AU
 //!   from the Sun; `--add "TON 618:6600@Sagittarius A*"`, 6,600 AU from
 //!   Sagittarius A*.
+//! - `--launch 0.5` starts the body `--add` adds at half the circular
+//!   speed, so it falls in on an ellipse (0 drops it from rest).
 //! - `--fluid Jupiter` models Jupiter as a self-gravitating fluid of SPH
 //!   particles on the GPU, as many as it steps smoothly.
 
@@ -65,6 +67,8 @@ pub struct StartOptions {
     pub add: Option<(String, f64)>,
     /// What the added body circles, if not the Sun.
     pub around: Option<String>,
+    /// The share of the circular speed the added body starts with.
+    pub launch: Option<f64>,
     /// Open the gravitational-wave window for the focused body's pair.
     pub waves: bool,
     /// Overlays to start with.
@@ -81,6 +85,12 @@ impl StartOptions {
             match arg.as_str() {
                 "--focus" => options.focus = args.next(),
                 "--fluid" => options.fluid = args.next(),
+                "--launch" => match args.next().and_then(|f| f.parse::<f64>().ok()) {
+                    Some(share) if share >= 0.0 => options.launch = Some(share),
+                    _ => eprintln!(
+                        "worldline: --launch needs a share of the circular speed, 0 or more"
+                    ),
+                },
                 "--paused" => options.paused = true,
                 "--catalogue" => options.catalogue = true,
                 "--waves" => options.waves = true,
@@ -193,6 +203,8 @@ mod tests {
             "--waves",
             "--fluid",
             "Jupiter",
+            "--launch",
+            "0.58",
         ]
         .map(String::from)
         .into_iter();
@@ -215,6 +227,7 @@ mod tests {
                 around: Some("Sagittarius A*".into()),
                 waves: true,
                 fluid: Some("Jupiter".into()),
+                launch: Some(0.58),
             }
         );
         assert_eq!(

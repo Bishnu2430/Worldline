@@ -25,18 +25,23 @@ use crate::calendar::DateTime;
 use crate::camera::Camera;
 use crate::catalogue::{self, Entry, Group, length, light_years, measured_suns, significant};
 use crate::details;
-use crate::fluid::{Budget, FluidBody};
+use crate::fluid::{FluidBody, Lab};
 use crate::gpu::{Globe, GpuGlobes, GpuSky};
 use crate::overlays::{self, Overlays};
 use crate::sandbox::{self, Launch};
 use crate::simulation::Simulation;
-use crate::simulation::{Computed, Removal};
+use crate::simulation::{Approach, Computed, Limits, Removal};
 use crate::theme;
 use crate::view::{self, OnScreen, ViewOptions};
 use crate::waves;
 use worldline_core::compact::{gravitational_redshift, horizon_spin, is_black_hole};
 use worldline_core::regime::Validity;
+use worldline_core::tides::{
+    FLUID_STRETCH, POINT_STRETCH, distance_for, giant_planet, hill_radius, polytrope_love_number,
+    stretch, tidal_radius,
+};
 use worldline_data::{Distance, ObjectKind, RadiusBasis, SmallBodyKind};
+use worldline_render::TidalBody;
 
 /// Simulation speeds the user can pick: simulated time per real second.
 const SPEEDS: [(&str, f64); 7] = [
@@ -52,7 +57,7 @@ const DEFAULT_SPEED: usize = 3;
 
 /// Most computer time physics may take per frame. If a high speed needs
 /// more, the simulation runs slower than requested and says so.
-const PHYSICS_BUDGET: Duration = Duration::from_millis(12);
+pub(crate) const PHYSICS_BUDGET: Duration = Duration::from_millis(12);
 
 /// How long after starting the app waits before finding the GPU's particle
 /// budget.
@@ -64,6 +69,19 @@ pub const GM_EARTH: f64 = 3.986_004_355_070_227e14;
 /// A label in an inspector grid: what the value on its right is.
 fn key(text: &str) -> RichText {
     RichText::new(text).color(theme::MUTED)
+}
+
+/// A fraction as a percentage, to two significant figures: "0.42%".
+fn percent(fraction: f64) -> String {
+    let value = 100.0 * fraction;
+    if value >= 10.0 {
+        format!("{value:.0}%")
+    } else if value >= 1e-3 {
+        let decimals = (1.0 - value.log10().floor()) as usize;
+        format!("{value:.decimals$}%")
+    } else {
+        format!("{value:.1e}%")
+    }
 }
 
 /// A count with its thousands set apart: "16,384".
@@ -407,16 +425,17 @@ pub struct WorldlineApp {
     audio: Option<(rodio::OutputStream, rodio::Sink)>,
     /// The body modeled as a fluid, if any (see `fluid.rs`).
     fluid: Option<FluidBody>,
-    /// The body to model as a fluid once this GPU's particle budget is
-    /// timed.
-    fluid_wanted: Option<String>,
-    /// How many particles this GPU steps smoothly, once found.
-    budget: Budget,
-    /// The particle count the fluid is being tried at, while the budget is
-    /// found.
-    trial: Option<usize>,
+    /// The body to model as a fluid once the fluid is ready, and whether
+    /// by hand (not because tides matter). Time waits for it.
+    pending: Option<(String, bool)>,
+    /// Readies the fluid bodies are made from (see `fluid.rs`).
+    lab: Lab,
+    /// The approach that slowed the last update: the body, and the one
+    /// whose tides it nears.
+    slowed: Option<(String, String)>,
     /// A running mean of the time between frames, s.
     frame_seconds: f64,
+
     /// The GPU and the graphics interface it's driven through.
     gpu_name: String,
     /// When the app started.
@@ -472,9 +491,9 @@ impl WorldlineApp {
             waves: None,
             audio: None,
             fluid: None,
-            fluid_wanted: None,
-            budget: Budget::default(),
-            trial: None,
+            pending: None,
+            lab: Lab::default(),
+            slowed: None,
             frame_seconds: 1.0 / 60.0,
             gpu_name: String::new(),
             started: Instant::now(),
@@ -497,7 +516,7 @@ impl WorldlineApp {
                 }),
                 None => SUN,
             };
-            app.add_on_circle(kind, *au, around);
+            app.add_on_circle(kind, *au, around, start.launch.unwrap_or(1.0));
         }
         let names = app.attended_names();
         app.simulation.advance_by(start.advance_years * JULIAN_YEAR);
@@ -510,7 +529,7 @@ impl WorldlineApp {
         }
         if let Some(name) = &start.fluid {
             match app.simulation.index_of(name) {
-                Some(i) if app.can_be_fluid(i) => app.fluid_wanted = Some(name.clone()),
+                Some(i) if app.can_be_fluid(i) => app.pending = Some((name.clone(), true)),
                 Some(_) => eprintln!("worldline: `{name}` can't be modeled as a fluid"),
                 None => eprintln!("worldline: no body named `{name}` to model as a fluid"),
             }
@@ -530,6 +549,14 @@ impl WorldlineApp {
         self.camera = initial_camera();
         self.focus = SUN;
         self.flight = None;
+        self.drop_fluid();
+    }
+
+    /// Lets go of any fluid, and any body waiting to become one: a new or
+    /// loaded simulation starts with every body a point.
+    fn drop_fluid(&mut self) {
+        self.fluid = None;
+        self.pending = None;
     }
 
     /// Makes the camera follow a body, flying in close to it.
@@ -622,15 +649,9 @@ impl WorldlineApp {
             ui.separator();
             let date = DateTime::from_julian_date(self.simulation.julian_date());
             ui.label(RichText::new(format!("{date} TDB")).monospace().size(15.0));
-            if !self.simulation.paused && self.simulation.achieved < 0.99 {
+            if let Some(note) = self.time_note() {
                 ui.separator();
-                ui.colored_label(
-                    Color32::from_rgb(255, 170, 60),
-                    format!(
-                        "Physics running at {:.0}% of the requested speed",
-                        self.simulation.achieved * 100.0
-                    ),
-                );
+                ui.colored_label(Color32::from_rgb(255, 170, 60), note);
             }
         });
     }
@@ -1184,9 +1205,123 @@ impl WorldlineApp {
         body.gm > 0.0 && body.radius > 0.0 && !is_black_hole(body)
     }
 
-    /// The selected body as a fluid: the button that makes it one, or back
-    /// into a point; while it is one, its particles, its clock and how fast
-    /// the GPU steps it (see `fluid.rs`).
+    /// The bodies whose tides stretch body `index`, strongest first: each
+    /// one's index and how much it stretches it, h₂ (r_t/D)³ with an n = 1
+    /// polytrope's h₂, as a fraction of its radius. Only bodies in its own
+    /// region, with mass.
+    fn tides_on(&self, index: usize) -> Vec<(usize, f64)> {
+        let bodies = &self.simulation.bodies;
+        let body = &bodies[index];
+        if body.gm <= 0.0 || body.radius <= 0.0 {
+            return Vec::new();
+        }
+        let h2 = 1.0 + polytrope_love_number();
+        let galactic = self.simulation.is_galactic(index);
+        let mut tides: Vec<(usize, f64)> = (0..bodies.len())
+            .filter(|&j| j != index && bodies[j].gm > 0.0)
+            .filter(|&j| self.simulation.is_galactic(j) == galactic)
+            .map(|j| {
+                let rt = tidal_radius(body.radius, body.gm, bodies[j].gm);
+                let d = (bodies[j].position - body.position).length();
+                (j, stretch(h2, rt, d))
+            })
+            .collect();
+        tides.sort_by(|a, b| b.1.total_cmp(&a.1));
+        tides
+    }
+
+    /// Whether body `index` turns into a fluid by itself when tides matter:
+    /// a giant planet (its bulk is fluid, and an n = 1 polytrope models
+    /// it), with a measured radius.
+    fn becomes_fluid(&self, index: usize) -> bool {
+        let body = &self.simulation.bodies[index];
+        giant_planet(body.gm) && body.radius > 0.0 && !is_black_hole(body)
+    }
+
+    /// Where each giant planet must stop to become a fluid: for each body
+    /// whose tides could stretch it by 1% before the two touch, that
+    /// distance. None while a body is a fluid: one at a time.
+    fn approaches(&self) -> Vec<Approach> {
+        if self.fluid.is_some() {
+            return Vec::new();
+        }
+        let bodies = &self.simulation.bodies;
+        let h2 = 1.0 + polytrope_love_number();
+        let mut approaches = Vec::new();
+        for i in (0..bodies.len()).filter(|&i| self.becomes_fluid(i)) {
+            let galactic = self.simulation.is_galactic(i);
+            for j in (0..bodies.len()).filter(|&j| j != i && bodies[j].gm > 0.0) {
+                if self.simulation.is_galactic(j) != galactic {
+                    continue;
+                }
+                let (a, b) = (&bodies[i], &bodies[j]);
+                let rt = tidal_radius(a.radius, a.gm, b.gm);
+                let distance = distance_for(h2, rt, FLUID_STRETCH);
+                if distance <= a.radius + b.radius {
+                    continue;
+                }
+                approaches.push(Approach {
+                    body: a.name.clone(),
+                    by: b.name.clone(),
+                    distance,
+                });
+            }
+        }
+        approaches
+    }
+
+    /// How far this frame's update may go: no further than the fluid's
+    /// clock while a body is one, nowhere while one waits to become one,
+    /// and otherwise up to where a giant planet's tides would make it one.
+    fn limits(&self) -> Limits {
+        if let Some(fluid) = &self.fluid {
+            Limits {
+                approaches: Vec::new(),
+                until: Some(fluid.reached()),
+            }
+        } else if self.pending.is_some() {
+            Limits {
+                approaches: Vec::new(),
+                until: Some(self.simulation.time()),
+            }
+        } else {
+            Limits {
+                approaches: self.approaches(),
+                until: None,
+            }
+        }
+    }
+
+    /// What the top bar says about time, if it isn't running as asked.
+    fn time_note(&self) -> Option<String> {
+        if let Some((name, _)) = &self.pending {
+            let doing = self.lab.status().unwrap_or_else(|| "starting".into());
+            return Some(format!("{name} is becoming a fluid: {doing}"));
+        }
+        if let Some(fluid) = &self.fluid {
+            let pace = f64::from(fluid.clock.dt) * fluid.units.time / self.frame_seconds;
+            return Some(format!(
+                "{} is a fluid: time runs at its pace, {} a second",
+                fluid.name,
+                duration(pace)
+            ));
+        }
+        if self.simulation.paused || self.simulation.achieved >= 0.99 {
+            return None;
+        }
+        Some(match &self.slowed {
+            Some((body, by)) => format!("Slowed down: {body} nearing {by}'s tides"),
+            None => format!(
+                "Physics running at {:.0}% of the requested speed",
+                self.simulation.achieved * 100.0
+            ),
+        })
+    }
+
+    /// The selected body as a fluid: how much tides stretch it, the button
+    /// that makes it one (or back into a point), and while it is one, its
+    /// particles, its clock and how fast the GPU steps it (see
+    /// `fluid.rs`).
     fn fluid_rows(&mut self, ui: &mut egui::Ui) {
         if !self.can_be_fluid(self.selected) {
             return;
@@ -1198,33 +1333,55 @@ impl WorldlineApp {
                 ui.label(RichText::new(what).small());
             });
         };
-        let trying = self
-            .budget
-            .trying()
-            .filter(|_| self.fluid_wanted.as_ref() == Some(&name));
-        if let Some(count) = trying {
-            ui.label(
-                RichText::new(format!(
-                    "Finding this GPU's particle budget: trying {} particles",
-                    grouped(count)
-                ))
-                .weak(),
-            );
+        let giant = self.becomes_fluid(self.selected);
+        let tides = self.tides_on(self.selected);
+        let fluid = self.fluid.as_ref().filter(|f| f.name == name);
+        // How much tides stretch it, for a giant planet, or any body they
+        // stretch by 1% or more.
+        if let Some(&(by, stretched)) = tides.first()
+            && (giant || stretched >= FLUID_STRETCH)
+        {
+            egui::Grid::new("tides").num_columns(2).show(ui, |ui| {
+                ui.label(key("Tides stretch it"));
+                ui.label(format!(
+                    "by {} of its radius ({})",
+                    percent(stretched),
+                    self.simulation.bodies[by].name
+                ));
+                ui.end_row();
+            });
+            let note = if !giant {
+                "A point can't show that, and its matter has no fluid model yet: rock comes with step 6.4"
+            } else if fluid.is_some_and(|f| !f.by_hand) {
+                "It stays a fluid until tides stretch it by under 0.5%, with none of it torn away"
+            } else if fluid.is_some() || self.fluid.is_none() {
+                "Over 1% it becomes a fluid"
+            } else {
+                "Over 1% it would become a fluid, but another body is one: one at a time"
+            };
+            ui.label(RichText::new(note).small().color(theme::MUTED));
         }
-        let Some(fluid) = self.fluid.as_ref().filter(|f| f.name == name) else {
-            if trying.is_none() && ui
-                .button("Model as a fluid (SPH)")
-                .on_hover_text(
-                    "Replace its globe with a self-gravitating fluid of as many particles as this GPU steps smoothly",
-                )
-                .clicked()
+        if self.pending.as_ref().is_some_and(|(n, _)| *n == name) {
+            let doing = self.lab.status().unwrap_or_else(|| "starting".into());
+            ui.label(RichText::new(format!("Becoming a fluid: {doing}")).weak());
+            return;
+        }
+        let Some(fluid) = fluid else {
+            if self.pending.is_none()
+                && ui
+                    .button("Model as a fluid (SPH)")
+                    .on_hover_text(
+                        "Replace its globe with a self-gravitating fluid of as many particles as this GPU steps smoothly; time runs at its pace while it is one",
+                    )
+                    .clicked()
             {
-                self.fluid_wanted = Some(name);
+                self.fluid = None;
+                self.pending = Some((name, true));
             }
             return;
         };
         let t = fluid.units.time;
-        let now = f64::from(fluid.clock.time);
+        let since = f64::from(fluid.clock.time);
         egui::Grid::new("fluid").num_columns(2).show(ui, |ui| {
             ui.label(key("As a fluid"));
             ui.label(format!(
@@ -1232,18 +1389,22 @@ impl WorldlineApp {
                 grouped(fluid.fluid().len())
             ));
             ui.end_row();
+            let by: Vec<&str> = tides
+                .iter()
+                .take(worldline_render::MAX_TIDAL_BODIES)
+                .map(|&(j, _)| self.simulation.bodies[j].name.as_str())
+                .collect();
+            ui.label(key("In the tides of"));
+            ui.label(by.join(", "));
+            ui.end_row();
             ui.label(key("Dynamical time"));
             ui.label(format!("{} (√(R³/GM))", duration(t)));
             ui.end_row();
-            ui.label(key("Fluid time"));
-            ui.label(match fluid.freed_at {
-                None => format!("settling: {now:.2} of 5 dynamical times"),
-                Some(freed) => format!(
-                    "free for {:.2} dynamical times ({})",
-                    now - f64::from(freed),
-                    duration((now - f64::from(freed)) * t)
-                ),
-            });
+            ui.label(key("A fluid for"));
+            ui.label(format!(
+                "{since:.2} dynamical times ({})",
+                duration(since * t)
+            ));
             ui.end_row();
             ui.label(key("Each step"));
             ui.label(format!(
@@ -1257,6 +1418,7 @@ impl WorldlineApp {
             ui.end_row();
         });
         let trials: Vec<String> = self
+            .lab
             .budget
             .trials
             .iter()
@@ -1265,8 +1427,10 @@ impl WorldlineApp {
         if !trials.is_empty() {
             ui.label(
                 RichText::new(format!(
-                    "This GPU's budget ({}) is the most particles stepped and drawn at {} frames a second or more, a step a frame. Frames a second: {}",
+                    "This GPU's budget ({}) is the most particles stepped and drawn at {:.0} frames a second or more while time waits, leaving the physics its {} ms of a frame at {}. Frames a second: {}",
                     self.gpu_name,
+                    crate::fluid::trial_rate(),
+                    PHYSICS_BUDGET.as_millis(),
                     crate::fluid::SMOOTH,
                     trials.join(" · ")
                 ))
@@ -1277,26 +1441,30 @@ impl WorldlineApp {
         tag(
             ui,
             details::Kind::Model,
-            "An n = 1 polytrope (P = Kρ², γ = 2): close to Jupiter's structure, a stand-in for other bodies'. Newtonian self-gravity, ideal gas, no spin or tides yet",
+            "An n = 1 polytrope (P = Kρ², γ = 2): close to Jupiter's and Saturn's structure, a stand-in for other bodies'. Newtonian self-gravity, ideal gas, no spin",
         );
         tag(
             ui,
             details::Kind::Model,
-            "Its time runs on its own, a step a frame, not at the simulation's speed",
+            "Newtonian tides of the 4 bodies pulling hardest. Its center moves as the point did; what its shape does to its orbit is left out",
+        );
+        tag(
+            ui,
+            details::Kind::Model,
+            "Time runs at the fluid's pace, a step a frame, while it is one",
         );
         tag(
             ui,
             details::Kind::Visual,
             "Each particle drawn as a sphere of half its smoothing length, colored by its internal energy (dark red cool, yellow-white hot); the half facing you cut away to show the inside",
         );
-        if ui
-            .button("Back to a point body")
-            .on_hover_text("Draw it as its globe again")
-            .clicked()
+        if fluid.by_hand
+            && ui
+                .button("Back to a point body")
+                .on_hover_text("Draw it as its globe again, and let time run as asked")
+                .clicked()
         {
             self.fluid = None;
-            self.fluid_wanted = None;
-            self.trial = None;
         }
     }
 
@@ -1781,11 +1949,19 @@ impl WorldlineApp {
         self.reveal = true;
     }
 
+    /// The share of the circular speed bodies added start with: none at
+    /// rest, all circling.
+    fn circling(&self) -> f64 {
+        if self.start_at_rest { 0.0 } else { 1.0 }
+    }
+
     /// Adds a body from the command line: `kind` ("earth", "jupiter",
-    /// "sun", or any catalogue entry's name, like "Sagittarius A*") on a
-    /// circular orbit `au` from body `around` (the Sun, usually), in the
-    /// ecliptic, on the far side of it from where the x axis points.
-    fn add_on_circle(&mut self, kind: &str, au: f64, around: usize) {
+    /// "sun", or any catalogue entry's name, like "Sagittarius A*") `au`
+    /// from body `around` (the Sun, usually), in the ecliptic, on the far
+    /// side of it from where the x axis points, moving at the share
+    /// `circling` of the circular speed there: on a circle at 1, on an
+    /// ellipse falling in below.
+    fn add_on_circle(&mut self, kind: &str, au: f64, around: usize, circling: f64) {
         let key = match kind {
             "earth" => "copy:Earth".to_string(),
             "jupiter" => "copy:Jupiter".to_string(),
@@ -1806,7 +1982,7 @@ impl WorldlineApp {
             position,
             around,
             drag: position,
-            at_rest: self.start_at_rest,
+            circling,
         });
     }
 
@@ -1867,6 +2043,7 @@ impl WorldlineApp {
                 let names = self.attended_names();
                 simulation.paused = self.simulation.paused;
                 self.simulation = simulation;
+                self.drop_fluid();
                 self.flight = None;
                 self.launch = None;
                 self.reattend(names);
@@ -2196,7 +2373,7 @@ impl WorldlineApp {
                 position,
                 around,
                 drag: position,
-                at_rest: self.start_at_rest,
+                circling: self.circling(),
             });
         }
         if response.dragged()
@@ -2217,7 +2394,7 @@ impl WorldlineApp {
                 position,
                 around,
                 drag: position,
-                at_rest: self.start_at_rest,
+                circling: self.circling(),
             });
         }
     }
@@ -2250,7 +2427,7 @@ impl WorldlineApp {
             position,
             around,
             drag: position,
-            at_rest: self.start_at_rest,
+            circling: self.circling(),
         };
         if let Some(entry) = response.dnd_hover_payload::<&'static Entry>() {
             launch(*entry).draw(painter, &self.camera, viewport, &self.simulation);
@@ -2695,62 +2872,103 @@ impl WorldlineApp {
 
     /// Draws the bodies that are big enough on screen as textured, lit,
     /// rotating globes on the GPU.
-    /// The fluid's part of a frame that took `seconds`. While this GPU's
-    /// particle budget isn't known, the wanted body is tried at ever more
-    /// particles (see `fluid::Budget`); then it is built at the budget. The
-    /// fluid steps while time runs (and through the trials). A fluid whose
-    /// body is gone goes with it.
+    /// The fluid's part of a frame that took `seconds`. The fluid bodies
+    /// are made from is readied when first needed (see `fluid::Lab`); a
+    /// body waiting to become a fluid becomes one once it is ready. The
+    /// fluid feels the tides of the 4 bodies pulling hardest and steps
+    /// while time runs. A giant planet made a fluid by tides turns back
+    /// into a point once they stretch it by under 0.5%, if none of it is
+    /// beyond its Hill sphere. A fluid whose body is gone goes with it.
     fn update_fluid(&mut self, state: &RenderState, ctx: &egui::Context, seconds: f64) {
         if let Some(fluid) = &self.fluid
             && self.simulation.index_of(&fluid.name).is_none()
         {
             self.fluid = None;
         }
-        if let Some(name) = self.fluid_wanted.clone() {
-            let Some(i) = self.simulation.index_of(&name) else {
-                self.fluid_wanted = None;
-                return;
-            };
-            let (gm, radius) = (
-                self.simulation.bodies[i].gm,
-                self.simulation.bodies[i].radius,
-            );
-            match self.budget.trying() {
-                // The trials wait for the app to settle: in its first
-                // seconds (loading, the GPU clocking up) and during the
-                // camera's flight, frames come slower.
-                Some(_) if self.flight.is_some() || self.started.elapsed() < STARTUP => {
-                    ctx.request_repaint();
-                    return;
-                }
-                Some(count) => {
-                    let on_trial = self.trial == Some(count)
-                        && self.fluid.as_ref().is_some_and(|f| f.name == name);
-                    if !on_trial {
-                        let info = state.adapter.get_info();
-                        self.gpu_name = format!("{}, {:?}", info.name, info.backend);
-                        self.fluid = Some(FluidBody::new(state, &name, gm, radius, count));
-                        self.trial = Some(count);
-                        self.budget.restart();
-                    } else if self.budget.frame(count, seconds) {
-                        self.trial = None;
+        if self.gpu_name.is_empty() {
+            let info = state.adapter.get_info();
+            self.gpu_name = format!("{}, {:?}", info.name, info.backend);
+        }
+        // The trials wait for the app to settle: in its first seconds
+        // (loading, the GPU clocking up) and during the camera's flight,
+        // frames come slower.
+        let settled = self.flight.is_none() && self.started.elapsed() > STARTUP;
+        self.lab.advance(state, seconds, settled);
+        if self.lab.busy() {
+            ctx.request_repaint();
+        }
+        if let Some((name, by_hand)) = self.pending.clone() {
+            self.lab.start();
+            match self.simulation.index_of(&name) {
+                None => self.pending = None,
+                Some(i) => {
+                    if let Some(template) = self.lab.template() {
+                        let body = &self.simulation.bodies[i];
+                        self.fluid = Some(FluidBody::new(
+                            state,
+                            &name,
+                            (body.gm, body.radius),
+                            template,
+                            self.simulation.time(),
+                            by_hand,
+                        ));
+                        self.pending = None;
                     }
-                    ctx.request_repaint();
-                }
-                None => {
-                    if let Some(count) = self.budget.chosen() {
-                        self.fluid = Some(FluidBody::new(state, &name, gm, radius, count));
-                    }
-                    self.fluid_wanted = None;
-                    self.trial = None;
                 }
             }
         }
-        if let Some(fluid) = &mut self.fluid
-            && (!self.simulation.paused || self.trial.is_some())
+        let Some(i) = self
+            .fluid
+            .as_ref()
+            .and_then(|f| self.simulation.index_of(&f.name))
+        else {
+            return;
+        };
+        let tides = self.tides_on(i);
+        let bodies = &self.simulation.bodies;
+        let body = &bodies[i];
+        let strongest = tides.first().copied();
+        let fluid = self.fluid.as_mut().expect("the fluid");
+        let (l, t) = (fluid.units.length, fluid.units.time);
+        // Its Hill sphere around what pulls it hardest, in its radii.
+        let outside = strongest.map_or(f32::MAX, |(j, _)| {
+            let d = (bodies[j].position - body.position).length();
+            (hill_radius(d, body.gm, bodies[j].gm) / l) as f32
+        });
+        if !fluid.by_hand
+            && strongest.is_none_or(|(_, s)| s < POINT_STRETCH)
+            && fluid.clock.outside == 0
         {
-            fluid.advance(state);
+            self.status = Some((
+                format!("{}'s tides have eased: it is a point again", body.name),
+                Instant::now(),
+            ));
+            self.fluid = None;
+            return;
         }
+        let pulls: Vec<TidalBody> = tides
+            .iter()
+            .take(worldline_render::MAX_TIDAL_BODIES)
+            .map(|&(j, _)| {
+                let other = &bodies[j];
+                let d = other.position - body.position;
+                // Relative to it, the two pull each other together.
+                let a = -d * ((other.gm + body.gm) / d.length().powi(3));
+                TidalBody {
+                    position: (d / l).as_vec3(),
+                    velocity: ((other.velocity - body.velocity) * (t / l)).as_vec3(),
+                    acceleration: (a * (t * t / l)).as_vec3(),
+                    mass: (other.gm / body.gm) as f32,
+                }
+            })
+            .collect();
+        fluid.advance(
+            state,
+            self.simulation.time(),
+            &pulls,
+            outside,
+            !self.simulation.paused,
+        );
     }
 
     fn draw_globes(
@@ -2771,22 +2989,28 @@ impl WorldlineApp {
             })
         };
         // The body modeled as a fluid is drawn as its particles instead of
-        // its globe.
-        let fluid_index = self
-            .fluid
-            .as_ref()
-            .and_then(|f| self.simulation.index_of(&f.name));
+        // its globe; so is a body waiting to become one, as the fluid being
+        // readied for it.
+        let drawn: Option<(&str, &worldline_render::Fluid, f32)> = match &self.fluid {
+            Some(fluid) => Some((&fluid.name, fluid.fluid(), fluid.energy)),
+            None => self
+                .pending
+                .as_ref()
+                .zip(self.lab.showing())
+                .map(|((name, _), (fluid, energy))| (name.as_str(), fluid, energy)),
+        };
+        let fluid_index = drawn.and_then(|(name, ..)| self.simulation.index_of(name));
         let fluids: Vec<FluidDraw<'_>> = layout
             .iter()
             .filter(|item| item.globe && Some(item.index) == fluid_index)
             .filter_map(|item| {
-                let fluid = self.fluid.as_ref()?;
+                let (_, fluid, energy) = drawn?;
                 let body = &bodies[item.index];
                 Some(FluidDraw {
-                    fluid: fluid.fluid(),
+                    fluid,
                     center: (body.position - eye).as_vec3(),
-                    scale: fluid.units.length as f32,
-                    energy: fluid.energy,
+                    scale: body.radius as f32,
+                    energy,
                     sun_direction: sun_direction(body),
                 })
             })
@@ -2880,7 +3104,23 @@ impl eframe::App for WorldlineApp {
             self.update_fluid(state, ui.ctx(), elapsed);
         }
         let names = self.attended_names();
-        self.simulation.update(real_dt, PHYSICS_BUDGET);
+        let limits = self.limits();
+        let reached = self.simulation.update(real_dt, PHYSICS_BUDGET, &limits);
+        self.slowed = self.simulation.slowed_by.map(|k| {
+            let approach = &limits.approaches[k];
+            (approach.body.clone(), approach.by.clone())
+        });
+        if let Some(k) = reached {
+            let approach = &limits.approaches[k];
+            self.pending = Some((approach.body.clone(), false));
+            self.status = Some((
+                format!(
+                    "{}'s tides stretch {} by 1%: it becomes a fluid",
+                    approach.by, approach.body
+                ),
+                Instant::now(),
+            ));
+        }
         // Detail follows focus, and the focus can drift into a planet's
         // neighborhood (or out of it) as it moves.
         self.simulation.focus_detail_on(self.focus);
@@ -2922,6 +3162,14 @@ fn initial_camera() -> Camera {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn percentages_keep_two_figures() {
+        assert_eq!(percent(0.009713), "0.97%");
+        assert_eq!(percent(0.04739), "4.7%");
+        assert_eq!(percent(0.000_042), "0.0042%");
+        assert_eq!(percent(0.15), "15%");
+    }
 
     #[test]
     fn counts_have_their_thousands_set_apart() {

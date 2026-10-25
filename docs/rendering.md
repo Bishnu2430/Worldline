@@ -108,7 +108,7 @@ Each body's inspector panel lists what's shown and what kind of knowledge it is:
 
 ## Fluids
 
-A body modeled as a fluid (step 4.2, see [physics/sph.md](physics/sph.md)) is drawn as its particles in place of its globe, its rings and its atmosphere. The particles are drawn straight from the buffer the GPU steps them in, so they never travel to the CPU and back. `particles.wgsl`:
+A body modeled as a fluid (steps 4.2 and 4.3, see [physics/sph.md](physics/sph.md) and [physics/tides.md](physics/tides.md)) is drawn as its particles in place of its globe, its rings and its atmosphere; so is a body waiting to become one, as the fluid being readied for it. The particles are drawn straight from the buffer the GPU steps them in, so they never travel to the CPU and back. `particles.wgsl`:
 - **Each particle** is a square facing the camera, six vertices made in the vertex shader from the particle's index, trimmed to a disk and shaded as a sphere lit by the Sun. Its radius is half its smoothing length, so neighbours just touch.
 - **Its color** is its internal energy per unit mass, on a logarithmic scale from dark red (cool) through orange to yellow-white (hot), a factor of ten either side of the fluid's median at the start. It shows temperature's pattern, not a color the planet would have.
 - **Cut open.** The half of the fluid nearer the camera isn't drawn, so the cut face shows the inside: the hot, dense core and the cooler envelope. It follows the camera as it moves.

@@ -1,18 +1,24 @@
-//! A body modeled as a self-gravitating fluid (step 4.2): an n = 1
-//! polytrope of its mass and radius, as many SPH particles as this GPU
-//! steps smoothly, stepped and drawn on the GPU (worldline-render's
-//! `Fluid`), with the equations of worldline-core's `sph.rs`.
-//!
-//! The fluid keeps its own time, a step a frame: a planet's dynamical time
-//! is tens of minutes, and the simulation's speeds run days to centuries a
-//! second. Step 4.3 couples the two.
+//! A body modeled as a self-gravitating fluid: an n = 1 polytrope of its
+//! mass and radius, as many SPH particles as this GPU steps smoothly,
+//! stepped and drawn on the GPU (worldline-render's `Fluid`), with the
+//! equations of worldline-core's `sph.rs` (step 4.2). It feels the tides
+//! of the bodies around it, and the simulation's time follows its own, a
+//! step a frame (step 4.3).
 
 use eframe::egui_wgpu::RenderState;
 use worldline_core::sph::{Particle, polytrope_particles};
-use worldline_render::{Fluid, FluidClock, FluidParticle};
+use worldline_render::{Fluid, FluidClock, FluidParticle, TidalBody};
 
 /// Frames a second taken as smooth playback.
 pub const SMOOTH: f64 = 30.0;
+
+/// The frame rate a trial must keep. The budget's trials run while time
+/// waits for the fluid, without the physics; once time runs, the physics
+/// may take its budget of each frame, 12 ms. So a trial's frames must
+/// leave that of a 30th of a second: 21.3 ms, 47 frames a second.
+pub fn trial_rate() -> f64 {
+    1.0 / (1.0 / SMOOTH - crate::app::PHYSICS_BUDGET.as_secs_f64())
+}
 
 /// The particle counts tried for the budget, smallest first; the largest
 /// is what the grid's hash table was sized for.
@@ -75,7 +81,8 @@ impl Units {
 
 /// How many particles this GPU steps smoothly: found by running the app
 /// with ever larger fluids, a step a frame and drawn, until frames come
-/// slower than [`SMOOTH`]. That counts everything else a frame does too.
+/// slower than [`trial_rate`]. That counts everything else a frame does
+/// too.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Budget {
     /// Particles and frames a second, for each fluid tried so far.
@@ -117,7 +124,7 @@ impl Budget {
         let rate = f64::from(*frames) / *timed;
         self.trials.push((count, rate));
         self.clock = (0.0, 0, 0.0);
-        self.done = rate < SMOOTH || self.trials.len() == TRIALS.len();
+        self.done = rate < trial_rate() || self.trials.len() == TRIALS.len();
         true
     }
 
@@ -127,10 +134,151 @@ impl Budget {
         if !self.done {
             return None;
         }
-        let smooth = self.trials.iter().rfind(|(_, rate)| *rate >= SMOOTH);
+        let smooth = self.trials.iter().rfind(|(_, rate)| *rate >= trial_rate());
         smooth.or(self.trials.first()).map(|(count, _)| *count)
     }
 }
+
+/// The fluid every body is made from: an n = 1 polytrope of this GPU's
+/// budget of particles, settled once in its own units (G = R = M = 1), in
+/// which every n = 1 polytrope is the same. Readied the first time a body
+/// needs it: the budget's trials first, then the settling, each drawn as
+/// that body (the trials time drawing too).
+#[derive(Default)]
+pub struct Lab {
+    pub budget: Budget,
+    stage: Stage,
+}
+
+#[derive(Default)]
+enum Stage {
+    /// Not needed yet.
+    #[default]
+    Idle,
+    /// Asked for, nothing built yet.
+    Asked,
+    /// Finding the budget: the fluid on trial, its particle count and
+    /// median internal energy.
+    Trial(usize, Fluid, f32),
+    /// Settling the budget's fluid, and its median internal energy.
+    Settling(Fluid, f32),
+    /// Settled, read back: its particles, and the median internal energy.
+    Ready(Vec<FluidParticle>, f32),
+}
+
+/// Steps a frame while settling: two, as the frame rate while it settles
+/// is not the fluid's to keep.
+const SETTLING_STEPS: u32 = 2;
+
+impl Lab {
+    /// Starts readying the fluid, if it isn't already.
+    pub fn start(&mut self) {
+        if matches!(self.stage, Stage::Idle) {
+            self.stage = Stage::Asked;
+        }
+    }
+
+    /// Whether it has been asked for and isn't ready yet.
+    pub fn busy(&self) -> bool {
+        matches!(
+            self.stage,
+            Stage::Asked | Stage::Trial(..) | Stage::Settling(..)
+        )
+    }
+
+    /// The settled fluid, once ready: its particles and median energy.
+    pub fn template(&self) -> Option<(&[FluidParticle], f32)> {
+        match &self.stage {
+            Stage::Ready(particles, energy) => Some((particles, *energy)),
+            _ => None,
+        }
+    }
+
+    /// The fluid being tried or settled, and its median energy, to draw
+    /// as the body waiting for it.
+    pub fn showing(&self) -> Option<(&Fluid, f32)> {
+        match &self.stage {
+            Stage::Trial(_, fluid, energy) | Stage::Settling(fluid, energy) => {
+                Some((fluid, *energy))
+            }
+            _ => None,
+        }
+    }
+
+    /// What it is doing, in words, while busy.
+    pub fn status(&self) -> Option<String> {
+        match &self.stage {
+            Stage::Asked | Stage::Trial(..) => self.budget.trying().map(|count| {
+                format!("finding this GPU's particle budget: trying {count} particles")
+            }),
+            Stage::Settling(..) => Some("settling the fluid".to_string()),
+            _ => None,
+        }
+    }
+
+    /// The part of a frame that took `seconds` spent readying it, if
+    /// `allowed` (the trials' frame rates mean nothing while the app is
+    /// starting or the camera flying).
+    pub fn advance(&mut self, state: &RenderState, seconds: f64, allowed: bool) {
+        let (device, queue) = (&state.device, &state.queue);
+        if matches!(self.stage, Stage::Asked | Stage::Trial(..)) {
+            let Some(trying) = self.budget.trying() else {
+                let count = self.budget.chosen().unwrap_or(TRIALS[0]);
+                let (fluid, energy) = polytrope(state, count);
+                self.stage = Stage::Settling(fluid, energy);
+                return;
+            };
+            if !allowed {
+                return;
+            }
+            match &mut self.stage {
+                Stage::Trial(count, fluid, _) if *count == trying => {
+                    self.budget.frame(trying, seconds);
+                    fluid.step(device, queue, 1);
+                }
+                _ => {
+                    let (fluid, energy) = polytrope(state, trying);
+                    self.stage = Stage::Trial(trying, fluid, energy);
+                    self.budget.restart();
+                }
+            }
+            return;
+        }
+        if let Stage::Settling(fluid, _) = &mut self.stage {
+            if let Some(clock) = fluid.poll_clock(device)
+                && clock.time >= SETTLE
+            {
+                fluid.set_settling(queue, None);
+                fluid.halt(device, queue);
+                let (particles, _) = fluid.read(device, queue);
+                let mut energies: Vec<f32> = particles.iter().map(|p| p.energy).collect();
+                energies.sort_by(f32::total_cmp);
+                let energy = energies[energies.len() / 2];
+                self.stage = Stage::Ready(particles, energy);
+                return;
+            }
+            fluid.step(device, queue, SETTLING_STEPS);
+            fluid.request_clock(device, queue);
+        }
+    }
+}
+
+/// An n = 1 polytrope of about `count` particles in its own units,
+/// settling, and its median internal energy.
+fn polytrope(state: &RenderState, count: usize) -> (Fluid, f32) {
+    let units = Units::new(1.0, 1.0);
+    let (particles, k) = polytrope_particles(units.mass, units.length, count);
+    let particles: Vec<FluidParticle> = particles.iter().map(|p| units.particle(p)).collect();
+    let mut energies: Vec<f32> = particles.iter().map(|p| p.energy).collect();
+    energies.sort_by(f32::total_cmp);
+    let mut fluid = Fluid::new(&state.device, &state.queue, &particles, 2.0);
+    fluid.set_settling(&state.queue, Some((units.entropy(k), 1.0 / DAMPING_TIME)));
+    (fluid, energies[energies.len() / 2])
+}
+
+/// How far the fluid may run ahead of the simulation, in its steps: as
+/// far as its clock comes back late, a frame or two.
+const LEAD: f32 = 3.0;
 
 /// A body modeled as a fluid.
 pub struct FluidBody {
@@ -140,31 +288,37 @@ pub struct FluidBody {
     fluid: Fluid,
     /// The fluid's clock, as last read back (in dynamical times).
     pub clock: FluidClock,
-    /// When it stopped settling and went free, in dynamical times.
-    pub freed_at: Option<f32>,
-    /// The internal energy drawn mid-scale: the median particle's at the
-    /// start.
+    /// The simulation's time when it became a fluid, s.
+    pub since: f64,
+    /// Made a fluid by hand: it stays one until made a point again.
+    pub by_hand: bool,
+    /// The internal energy drawn mid-scale.
     pub energy: f32,
 }
 
 impl FluidBody {
-    /// Builds the body, of gravitational parameter `gm` and `radius`, as
-    /// about `count` particles, and starts it settling.
-    pub fn new(state: &RenderState, name: &str, gm: f64, radius: f64, count: usize) -> Self {
-        let units = Units::new(gm, radius);
-        let (particles, k) = polytrope_particles(units.mass, units.length, count);
-        let particles: Vec<FluidParticle> = particles.iter().map(|p| units.particle(p)).collect();
-        let mut energies: Vec<f32> = particles.iter().map(|p| p.energy).collect();
-        energies.sort_by(f32::total_cmp);
-        let energy = energies.get(energies.len() / 2).copied().unwrap_or(1.0);
-        let mut fluid = Fluid::new(&state.device, &state.queue, &particles, 2.0);
-        fluid.set_settling(&state.queue, Some((units.entropy(k), 1.0 / DAMPING_TIME)));
+    /// The body, of gravitational parameter `gm` and `radius`, as the
+    /// settled `template` (scaled to it by its units), from the
+    /// simulation's time `since`.
+    pub fn new(
+        state: &RenderState,
+        name: &str,
+        (gm, radius): (f64, f64),
+        (template, energy): (&[FluidParticle], f32),
+        since: f64,
+        by_hand: bool,
+    ) -> Self {
         Self {
             name: name.to_string(),
-            units,
-            fluid,
-            clock: FluidClock { time: 0.0, dt: 0.0 },
-            freed_at: None,
+            units: Units::new(gm, radius),
+            fluid: Fluid::new(&state.device, &state.queue, template, 2.0),
+            clock: FluidClock {
+                time: 0.0,
+                dt: 0.0,
+                outside: 0,
+            },
+            since,
+            by_hand,
             energy,
         }
     }
@@ -173,26 +327,34 @@ impl FluidBody {
         &self.fluid
     }
 
-    /// Whether it is still relaxing toward equilibrium.
-    pub fn settling(&self) -> bool {
-        self.freed_at.is_none()
+    /// How far the simulation may go: the fluid's time as last read back.
+    pub fn reached(&self) -> f64 {
+        self.since + f64::from(self.clock.time) * self.units.time
     }
 
-    /// One frame's step. The clock comes back a frame or so later, without
-    /// waiting for the GPU; once it shows the fluid has settled, it is set
-    /// at rest and let go.
-    pub fn advance(&mut self, state: &RenderState) {
+    /// One frame: the tides of `bodies` (relative to it, in its units, at
+    /// the simulation's time `now`), particles counted beyond `outside`
+    /// (in its radii), and a step if `step` and the simulation has kept up.
+    /// The clock comes back a frame or so later, without waiting for the
+    /// GPU.
+    pub fn advance(
+        &mut self,
+        state: &RenderState,
+        now: f64,
+        bodies: &[TidalBody],
+        outside: f32,
+        step: bool,
+    ) {
         let (device, queue) = (&state.device, &state.queue);
         if let Some(clock) = self.fluid.poll_clock(device) {
             self.clock = clock;
-            if self.settling() && clock.time >= SETTLE {
-                self.fluid.set_settling(queue, None);
-                self.fluid.halt(device, queue);
-                self.freed_at = Some(clock.time);
-            }
         }
-        self.fluid.step(device, queue, 1);
-        self.fluid.request_clock(device, queue);
+        let then = ((now - self.since) / self.units.time) as f32;
+        self.fluid.set_tides(queue, then, bodies, outside);
+        if step && self.clock.time - then <= LEAD * self.clock.dt {
+            self.fluid.step(device, queue, 1);
+            self.fluid.request_clock(device, queue);
+        }
     }
 }
 
@@ -216,6 +378,8 @@ mod tests {
 
     #[test]
     fn the_budget_is_the_largest_fluid_that_ran_smoothly() {
+        // Trials must leave the physics its 12 ms of a 30th of a second.
+        assert!((trial_rate() - 46.875).abs() < 1e-9, "{}", trial_rate());
         let mut budget = Budget::default();
         // 4,096 particles at 60 frames a second: smooth, on to 8,192.
         assert_eq!(budget.trying(), Some(4096));
@@ -225,11 +389,11 @@ mod tests {
         // The warm-up's slow frames don't count.
         assert_eq!(budget.trying(), Some(8192));
         budget.frame(8192, 0.4);
-        while !budget.frame(8192, 1.0 / 31.0) {}
-        assert!((budget.trials[1].1 - 31.0).abs() < 1e-9);
+        while !budget.frame(8192, 1.0 / 50.0) {}
+        assert!((budget.trials[1].1 - 50.0).abs() < 1e-9);
         assert_eq!(budget.chosen(), None);
-        // 16,384 at 20 frames a second: too slow, so the budget is 8,192.
-        while !budget.frame(16384, 1.0 / 20.0) {}
+        // 16,384 at 43 frames a second: too slow, so the budget is 8,192.
+        while !budget.frame(16384, 1.0 / 43.0) {}
         assert!(budget.done);
         assert_eq!(budget.trying(), None);
         assert_eq!(budget.chosen(), Some(8192));
