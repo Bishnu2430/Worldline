@@ -172,6 +172,7 @@ fn sun_is_overhead_in_the_right_place_on_new_years_day() {
     println!("Sun overhead at latitude {latitude:.2}°, longitude {longitude:.2}°");
     assert!((latitude - -23.0).abs() < 0.2, "latitude {latitude}°");
     // The IAU Earth model is a simple one (see docs/physics/rotation.md),
-    // good to a few tenths of a degree.
+    // good to a few tenths of a degree. The app turns Earth by the IERS's
+    // UT1 instead, 15 times closer to JPL (validation_time.rs).
     assert!((longitude - -179.0).abs() < 0.5, "longitude {longitude}°");
 }

@@ -43,6 +43,24 @@ impl DateTime {
     }
 }
 
+/// A Julian Date as a date and time to the nearest second, as
+/// "2026-10-28 14:03:27".
+pub fn to_the_second(jd: f64) -> String {
+    let seconds = ((jd + 0.5) * 86_400.0).round() as i64;
+    let (day, of_day) = (seconds.div_euclid(86_400), seconds.rem_euclid(86_400));
+    // The day's own midnight, then the time into it.
+    let date = DateTime::from_julian_date(day as f64 - 0.5);
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+        date.year,
+        date.month,
+        date.day,
+        of_day / 3600,
+        of_day / 60 % 60,
+        of_day % 60
+    )
+}
+
 impl fmt::Display for DateTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -73,6 +91,21 @@ mod tests {
                 "JD {jd}"
             );
         }
+    }
+
+    #[test]
+    fn to_the_second_too() {
+        assert_eq!(to_the_second(2_451_545.0), "2000-01-01 12:00:00");
+        // TT on Worldline's first day, 69.184 s after midnight UTC.
+        assert_eq!(
+            to_the_second(2_460_676.5 + 69.184 / 86_400.0),
+            "2025-01-01 00:01:09"
+        );
+        // 23:59:59.6 rounds into the next day.
+        assert_eq!(
+            to_the_second(2_460_677.5 - 0.4 / 86_400.0),
+            "2025-01-02 00:00:00"
+        );
     }
 
     #[test]

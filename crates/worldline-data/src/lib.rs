@@ -17,6 +17,7 @@ mod small_bodies;
 mod small_moons;
 mod snapshot;
 mod stars;
+mod time;
 
 pub use atmosphere::{Atmosphere, atmosphere};
 pub use belts::{Belt, BeltKind, BeltSample, belt_particles, belt_samples, belts};
@@ -51,6 +52,7 @@ pub use small_moons::{
 };
 pub use snapshot::{ParseError, Snapshot};
 pub use stars::{BrightStar, bright_stars};
+pub use time::{sun_overhead, time_scales};
 
 /// The solar system at 2025-01-01 00:00:00 TDB: the Sun, the eight planets,
 /// the Moon and Pluto, from NASA JPL Horizons (ephemeris DE441) with JPL
@@ -58,4 +60,12 @@ pub use stars::{BrightStar, bright_stars};
 pub fn solar_system() -> Snapshot {
     Snapshot::parse(include_str!("../data/solar-system-2025-01-01.csv"))
         .expect("bundled solar-system data is valid")
+}
+
+/// Where JPL puts the Sun, planets (their own centers), the Moon and Pluto
+/// on 2026-10-28 00:00 TDB, the day step 5.1 was built: the reference for
+/// the simulation run from its 2025 snapshot to then.
+pub fn planets_2026_10_28() -> Snapshot {
+    Snapshot::parse(include_str!("../data/planets-2026-10-28.csv"))
+        .expect("bundled planet data is valid")
 }

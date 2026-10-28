@@ -29,6 +29,8 @@ Models are loaded for the Sun, the planets, Pluto, the Moon and the 21 major moo
 
 These are mean models, built for maps and pointing at the 0.01°–0.1° level. Earth's model is the simplest: it leaves out the detailed precession and nutation that the IERS tracks. It's accurate enough for rendering and for the checks below, but not for navigating spacecraft.
 
+Since step 5.1 the app turns Earth by its measured rotation instead: the IERS's Earth Rotation Angle from UT1, with the IAU model's pole. That puts the overhead Sun 0.006° from JPL's, against 0.09° for the model alone (see [time.md](time.md)). The check below is the model alone.
+
 ## Validation
 
 `crates/worldline-data/tests/validation_rotation.rs` and unit tests, run by `cargo test`:

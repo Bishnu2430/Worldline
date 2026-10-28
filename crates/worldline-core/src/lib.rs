@@ -32,6 +32,7 @@ pub mod sunlight;
 pub mod swarm;
 pub mod system;
 pub mod tides;
+pub mod timescales;
 pub mod white_dwarf;
 pub mod zodiacal;
 
