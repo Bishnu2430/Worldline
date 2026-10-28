@@ -1,0 +1,7 @@
+# Where the Sun is overhead on Earth, by NASA JPL Horizons (Earth orientation from the IERS). Regenerate with: python tools/fetch_today.py
+# fetched 2026-10-28
+# sun_ra_deg, sun_dec_deg: the Sun's geocentric apparent right ascension and declination, of date
+# gast_hours: Greenwich apparent sidereal time (local apparent sidereal time at site 000, Greenwich)
+epoch_jd_tt,sun_ra_deg,sun_dec_deg,gast_hours
+2460676.5,281.759209436,-22.998274222,6.7073886609
+2461341.5,212.312710067,-13.047025625,2.4045228171

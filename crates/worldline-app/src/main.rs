@@ -13,8 +13,11 @@
 //! - `--overlays tides,clocks` starts with those overlays on: any of
 //!   models, clocks, tides, embedding, waves and time (proper time).
 //! - `--paused` starts with time stopped.
-//! - `--speed hour` runs at one hour per second (also day, week, month,
-//!   year, decade and century; month is the default).
+//! - `--speed hour` runs at one hour per second (also real, for real
+//!   time, and day, week, month, year, decade and century; month is the
+//!   default).
+//! - `--now` starts with the solar system as it is right now, running in
+//!   real time with the computer's clock.
 //! - `--advance 7` runs the physics 7 years past the 2025-01-01 snapshot
 //!   before showing anything.
 //! - `--add "Gaia BH1:3"` drops a catalogue body on a circular orbit 3 AU
@@ -72,6 +75,8 @@ pub struct StartOptions {
     pub pitch_degrees: Option<f64>,
     /// Start with time stopped.
     pub paused: bool,
+    /// Start now, in real time.
+    pub now: bool,
     /// How fast to start: which of the speeds, slowest first.
     pub speed: Option<usize>,
     /// Start with the catalogue window open.
@@ -106,6 +111,7 @@ impl StartOptions {
                     ),
                 },
                 "--paused" => options.paused = true,
+                "--now" => options.now = true,
                 "--catalogue" => options.catalogue = true,
                 "--waves" => options.waves = true,
                 "--zoom" => match args.next().and_then(|r| r.parse::<f64>().ok()) {
@@ -129,7 +135,9 @@ impl StartOptions {
                     }
                 }
                 "--speed" => {
-                    let names = ["hour", "day", "week", "month", "year", "decade", "century"];
+                    let names = [
+                        "real", "hour", "day", "week", "month", "year", "decade", "century",
+                    ];
                     let name = args.next().unwrap_or_default();
                     match names.iter().position(|n| *n == name) {
                         Some(i) => options.speed = Some(i),
@@ -209,6 +217,7 @@ mod tests {
             "--overlays",
             "tides,waves",
             "--paused",
+            "--now",
             "--speed",
             "hour",
             "--advance",
@@ -238,7 +247,8 @@ mod tests {
                     ..Default::default()
                 },
                 paused: true,
-                speed: Some(0),
+                now: true,
+                speed: Some(1),
                 advance_years: 7.5,
                 catalogue: true,
                 adds: vec![

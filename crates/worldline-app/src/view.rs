@@ -434,10 +434,10 @@ fn draw_galactic_path(
 fn draw_solar_wind(painter: &Painter, camera: &Camera, viewport: Rect, simulation: &Simulation) {
     const LINES: usize = 12;
     const REACH: f64 = 10.0 * AU;
-    let Some(model) = simulation.rotation(0) else {
+    let Some(orientation) = simulation.orientation(0) else {
         return;
     };
-    let frame = model.orientation(simulation.julian_date()).body_to_ecliptic;
+    let frame = orientation.body_to_ecliptic;
     let sun = simulation.bodies[0].position;
     let wind = &simulation.wind;
     // A step of 2° of lag, but no more than 5% of the distance.
@@ -519,10 +519,10 @@ fn draw_magnetosphere(
     }
     // Radiation belts: each drawn as its inner and outer field-line shells,
     // around the magnetic axis as it points now.
-    let Some(model) = simulation.rotation(planet) else {
+    let Some(orientation) = simulation.orientation(planet) else {
         return;
     };
-    let frame = model.orientation(simulation.julian_date()).body_to_ecliptic;
+    let frame = orientation.body_to_ecliptic;
     let axis = frame * dipole.moment_direction();
     let (x, y) = (
         axis.any_orthonormal_vector(),

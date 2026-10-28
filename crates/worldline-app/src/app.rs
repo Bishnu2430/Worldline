@@ -21,7 +21,7 @@ use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for
 use worldline_core::{Body, DVec3};
 use worldline_render::{Atmosphere, FluidDraw, KerrDisk, KerrLens, Lens, Rings, SkyView, View};
 
-use crate::calendar::DateTime;
+use crate::calendar::{DateTime, to_the_second};
 use crate::camera::Camera;
 use crate::catalogue::{self, Entry, Group, length, light_years, measured_suns, significant};
 use crate::details;
@@ -44,7 +44,8 @@ use worldline_data::{Distance, ObjectKind, RadiusBasis, SmallBodyKind};
 use worldline_render::TidalBody;
 
 /// Simulation speeds the user can pick: simulated time per real second.
-const SPEEDS: [(&str, f64); 7] = [
+const SPEEDS: [(&str, f64); 8] = [
+    ("Real time", 1.0),
     ("1 hour per second", 3600.0),
     ("1 day per second", DAY),
     ("1 week per second", 7.0 * DAY),
@@ -53,7 +54,13 @@ const SPEEDS: [(&str, f64); 7] = [
     ("10 years per second", 10.0 * JULIAN_YEAR),
     ("100 years per second", 100.0 * JULIAN_YEAR),
 ];
-const DEFAULT_SPEED: usize = 3;
+const DEFAULT_SPEED: usize = 4;
+const REAL_TIME: usize = 0;
+
+/// Most computer time physics may take per frame while catching up to the
+/// present: the 2025 snapshot is 7 s of physics behind late 2026, so at
+/// 20 frames a second it takes about as long.
+const CATCH_UP_BUDGET: Duration = Duration::from_millis(50);
 
 /// Most computer time physics may take per frame. If a high speed needs
 /// more, the simulation runs slower than requested and says so.
@@ -514,6 +521,12 @@ pub struct WorldlineApp {
 
     /// The GPU and the graphics interface it's driven through.
     gpu_name: String,
+    /// Running with the computer's clock: the simulation's time is now's,
+    /// once it has caught up.
+    live: bool,
+    /// How far behind the computer's clock the simulation is, s, while
+    /// live.
+    behind: f64,
     /// When the app started.
     started: Instant,
 }
@@ -572,9 +585,14 @@ impl WorldlineApp {
             slowed: None,
             frame_seconds: 1.0 / 60.0,
             gpu_name: String::new(),
+            live: false,
+            behind: 0.0,
             started: Instant::now(),
         };
         app.simulation.paused = start.paused;
+        if start.now {
+            app.go_live();
+        }
         if let Some(speed) = start.speed {
             app.speed_index = speed;
             app.simulation.speed = SPEEDS[speed].1;
@@ -618,6 +636,27 @@ impl WorldlineApp {
             }
         }
         app
+    }
+
+    /// The solar system as it is now: from the 2025 snapshot, caught up to
+    /// the computer's clock, then running in real time with it.
+    fn go_live(&mut self) {
+        self.reset();
+        self.live = true;
+        self.speed_index = REAL_TIME;
+        self.simulation.speed = SPEEDS[REAL_TIME].1;
+        self.simulation.paused = false;
+    }
+
+    /// Where the computer's clock is, as the simulation's time (s since
+    /// its start): UTC, by the IERS's leap seconds, as TDB.
+    fn clock_time(&self) -> f64 {
+        let unix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0.0, |d| d.as_secs_f64());
+        let jd_utc = worldline_core::timescales::jd_from_unix(unix);
+        self.simulation
+            .time_at(self.simulation.time_scales().tdb(jd_utc))
     }
 
     fn reset(&mut self) {
@@ -708,7 +747,10 @@ impl WorldlineApp {
             };
             if ui.button(label).clicked() {
                 self.simulation.paused = !self.simulation.paused;
+                // Stopped, it no longer keeps up with the clock.
+                self.live &= !self.simulation.paused;
             }
+            let speed = self.speed_index;
             egui::ComboBox::from_id_salt("speed")
                 .selected_text(SPEEDS[self.speed_index].0)
                 .show_ui(ui, |ui| {
@@ -716,20 +758,66 @@ impl WorldlineApp {
                         ui.selectable_value(&mut self.speed_index, i, *name);
                     }
                 });
+            self.live &= self.speed_index == speed;
             self.simulation.speed = SPEEDS[self.speed_index].1;
             if ui.button("Reset").clicked() {
                 self.reset();
+                self.live = false;
+            }
+            if ui
+                .button("Now")
+                .on_hover_text(
+                    "The solar system as it is right now, running in real time with the computer's clock: from the 2025 snapshot, caught up to the present",
+                )
+                .clicked()
+            {
+                self.go_live();
             }
             ui.separator();
             self.sandbox_controls(ui);
             ui.separator();
-            let date = DateTime::from_julian_date(self.simulation.julian_date());
-            ui.label(RichText::new(format!("{date} TDB")).monospace().size(15.0));
+            self.clock(ui);
             if let Some(note) = self.time_note() {
                 ui.separator();
                 ui.colored_label(Color32::from_rgb(255, 170, 60), note);
             }
         });
+    }
+
+    /// The simulation's time in UTC, to the second, the time scale
+    /// people's clocks keep; TDB and how Earth's rotation stands on
+    /// hovering. Marked when it is the computer's clock's.
+    fn clock(&self, ui: &mut egui::Ui) {
+        let utc = self.simulation.julian_date_utc();
+        let scales = self.simulation.time_scales();
+        let (dut1, source) = scales.ut1_minus_utc(utc);
+        let (known, measured) = scales.ut1_known_until();
+        let source = match source {
+            worldline_core::timescales::Ut1Source::Measured => "measured".to_string(),
+            worldline_core::timescales::Ut1Source::Predicted => {
+                format!("predicted (measured to {})", &to_the_second(measured)[..10])
+            }
+            worldline_core::timescales::Ut1Source::Held => format!(
+                "held at its last value: the IERS's table runs {} to {}",
+                &to_the_second(scales.ut1_known_from())[..10],
+                &to_the_second(known)[..10]
+            ),
+        };
+        ui.label(
+            RichText::new(format!("{} UTC", to_the_second(utc)))
+                .monospace()
+                .size(15.0),
+        )
+        .on_hover_text(format!(
+            "{} TDB, the simulation's own time\nΔT = TT − UT1 = {:.3} s, UT1 − UTC = {dut1:+.4} s from the IERS, {source}\nLeap seconds: TAI − UTC = {:.0} s",
+            to_the_second(self.simulation.julian_date()),
+            scales.delta_t(utc),
+            scales.tai_minus_utc(utc)
+        ));
+        if self.live && self.behind < 1.0 {
+            ui.colored_label(theme::ACCENT, "live")
+                .on_hover_text("Running with the computer's clock");
+        }
     }
 
     /// The side panel: the bodies in a scrolling tree at the top, and below
@@ -1370,6 +1458,12 @@ impl WorldlineApp {
 
     /// What the top bar says about time, if it isn't running as asked.
     fn time_note(&self) -> Option<String> {
+        if self.live && self.behind >= 1.0 {
+            return Some(format!(
+                "Catching up to now: {}",
+                DateTime::from_julian_date(self.simulation.julian_date_utc())
+            ));
+        }
         if let Some((name, _)) = &self.pending {
             let doing = self.lab.status().unwrap_or_else(|| "starting".into());
             return Some(format!("{name} is becoming a fluid: {doing}"));
@@ -2175,6 +2269,7 @@ impl WorldlineApp {
                 simulation.paused = self.simulation.paused;
                 self.simulation = simulation;
                 self.drop_fluid();
+                self.live = false;
                 self.flight = None;
                 self.launch = None;
                 self.reattend(names);
@@ -3135,7 +3230,6 @@ impl WorldlineApp {
         layout: &[OnScreen],
     ) -> Option<TextureId> {
         let eye = self.camera.eye();
-        let jd = self.simulation.julian_date();
         let bodies = &self.simulation.bodies;
         let light = self.simulation.light_source();
         let sun_direction = |body: &Body| {
@@ -3181,10 +3275,8 @@ impl WorldlineApp {
                 let center = (body.position - eye).as_vec3();
                 let orientation = self
                     .simulation
-                    .rotation(item.index)
-                    .map_or(Mat3::IDENTITY, |m| {
-                        m.orientation(jd).body_to_ecliptic.as_mat3()
-                    });
+                    .orientation(item.index)
+                    .map_or(Mat3::IDENTITY, |o| o.body_to_ecliptic.as_mat3());
                 // True shape from the IAU models; mean radius if unknown.
                 let radii = worldline_data::triaxial_radii(&body.name)
                     .map_or(DVec3::splat(body.radius), DVec3::from_array)
@@ -3261,7 +3353,20 @@ impl eframe::App for WorldlineApp {
         }
         let names = self.attended_names();
         let limits = self.limits();
-        let reached = self.simulation.update(real_dt, PHYSICS_BUDGET, &limits);
+        let reached = if self.live && !self.simulation.paused {
+            let now = self.clock_time();
+            self.behind = now - self.simulation.time();
+            let budget = if self.behind > 1.0 {
+                CATCH_UP_BUDGET
+            } else {
+                PHYSICS_BUDGET
+            };
+            let reached = self.simulation.update_to(now, budget, &limits);
+            self.behind = now - self.simulation.time();
+            reached
+        } else {
+            self.simulation.update(real_dt, PHYSICS_BUDGET, &limits)
+        };
         self.slowed = self.simulation.slowed_by.map(|k| {
             let approach = &limits.approaches[k];
             (approach.body.clone(), approach.by.clone())

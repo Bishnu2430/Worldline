@@ -23,9 +23,11 @@ use worldline_core::milky_way::{GalacticOrbit, Survey, milky_way};
 use worldline_core::neutron_star::{sly_maximum, sly_radius, sly_threshold};
 use worldline_core::regime::{Regime, Validity};
 use worldline_core::rotation::RotationModel;
+use worldline_core::rotation::{Orientation, earth_prime_meridian};
 use worldline_core::solar_wind::{Heliosphere, ParkerSpiral};
 use worldline_core::swarm::{Particle, Swarm};
 use worldline_core::tides::time_to_close;
+use worldline_core::timescales::TimeScales;
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DMat3, DVec3};
 use worldline_data::{
@@ -353,6 +355,9 @@ pub struct Simulation {
     pub galaxy: Option<Region>,
     /// Each body's own clock, against a far-away one.
     pub clocks: Clocks,
+    /// Leap seconds and UT1 − UTC from the IERS: from the computer's
+    /// clock to the simulation's, and Earth's rotation.
+    time_scales: TimeScales,
     hierarchy: Hierarchy,
 }
 
@@ -412,6 +417,7 @@ impl Simulation {
             swarm_positions: Vec::new(),
             notices: Vec::new(),
             clocks: Clocks::default(),
+            time_scales: worldline_data::time_scales(),
             galaxy: {
                 let gc = worldline_data::galactic_center();
                 let frame = worldline_data::galactic_frame();
@@ -1102,6 +1108,38 @@ impl Simulation {
         self.rotations.get(index)?.as_ref()
     }
 
+    /// How body `index` is oriented now, if known. Earth turns as it
+    /// really does, by UT1 from the IERS: its Earth Rotation Angle, its
+    /// pole the IAU model's (see `docs/physics/time.md`); every other body
+    /// by its IAU model.
+    pub fn orientation(&self, index: usize) -> Option<Orientation> {
+        let model = self.rotation(index)?;
+        let jd = self.julian_date();
+        Some(
+            if self.bodies[index].name == "Earth" && !self.is_added(index) {
+                let meridian = earth_prime_meridian(self.time_scales.ut1(jd), model.pole(jd).0);
+                model.orientation_with_meridian(jd, meridian)
+            } else {
+                model.orientation(jd)
+            },
+        )
+    }
+
+    /// Leap seconds and UT1 − UTC, from the IERS.
+    pub fn time_scales(&self) -> &TimeScales {
+        &self.time_scales
+    }
+
+    /// The current moment as a Julian Date (UTC).
+    pub fn julian_date_utc(&self) -> f64 {
+        self.time_scales.utc(self.julian_date())
+    }
+
+    /// The simulation's time (s since its start) at Julian Date `jd_tdb`.
+    pub fn time_at(&self, jd_tdb: f64) -> f64 {
+        (jd_tdb - self.epoch_jd_tdb) * DAY
+    }
+
     /// The gravity model between the Sun and planets.
     pub fn gravity(&self) -> &dyn Gravity {
         self.hierarchy.gravity()
@@ -1143,16 +1181,22 @@ impl Simulation {
     /// close to its distance in the time ([`time_to_close`]), so they
     /// reach it in ever shorter steps without passing it.
     pub fn update(&mut self, real_dt: f64, budget: Duration, limits: &Limits) -> Option<usize> {
-        self.slowed_by = None;
         let requested = if self.paused {
             0.0
         } else {
             self.speed * real_dt
         };
+        self.update_to(self.time() + requested, budget, limits)
+    }
+
+    /// [`Simulation::update`], toward the time `target` (s since the
+    /// start) rather than as far as the speed asks: to keep up with the
+    /// computer's clock.
+    pub fn update_to(&mut self, target: f64, budget: Duration, limits: &Limits) -> Option<usize> {
+        self.slowed_by = None;
         let start = self.time();
-        let target = limits
-            .until
-            .map_or(start + requested, |until| until.min(start + requested));
+        let requested = target - start;
+        let target = limits.until.map_or(target, |until| until.min(target));
         if requested <= 0.0 || target <= start {
             self.achieved = 1.0;
             return None;
@@ -1749,6 +1793,65 @@ mod tests {
     use super::*;
 
     const GENEROUS: Duration = Duration::from_secs(10);
+
+    #[test]
+    #[ignore = "slow: runs the solar system for 22 months"]
+    fn the_planets_today_are_where_jpl_puts_them() {
+        // Step 5.1's check: the app's own simulation, everything in it,
+        // from JPL's 2025-01-01 state to 2026-10-28 00:00 TDB, the day this
+        // step was built, against where JPL puts each body's own center
+        // then. As closely as step 1.3's year: every body within 10 parts
+        // per million of its distance from the barycenter, Earth within 1
+        // part in 10,000 of an AU.
+        use worldline_core::constants::AU;
+        let reference = worldline_data::planets_2026_10_28();
+        let mut sim = Simulation::solar_system(DAY);
+        sim.advance_by(sim.time_at(reference.epoch_jd_tdb));
+        for expected in &reference.bodies {
+            let simulated = &sim.bodies[sim.index_of(&expected.name).unwrap()];
+            let error = (simulated.position - expected.position).length();
+            let distance = expected.position.length();
+            println!(
+                "{:<8} {:>9.1} km off, {:.1e} of its distance",
+                expected.name,
+                error / 1e3,
+                error / distance
+            );
+            assert!(error / distance < 1e-5, "{}", expected.name);
+            if expected.name == "Earth" {
+                assert!(error < 1e-4 * AU);
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "slow: catches up from 2025 to now"]
+    fn caught_up_its_clock_reads_the_computers() {
+        // Step 5.1's check: caught up to the computer's clock, the
+        // simulation's time, read in UTC, is the clock's to under a second.
+        use worldline_core::timescales::jd_from_unix;
+        let unix = || {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs_f64()
+        };
+        let mut sim = Simulation::solar_system(1.0);
+        let now = |sim: &Simulation| sim.time_at(sim.time_scales().tdb(jd_from_unix(unix())));
+        while now(&sim) - sim.time() > 1.0 {
+            let target = now(&sim);
+            sim.update_to(target, Duration::from_secs(60), &Limits::default());
+        }
+        let target = now(&sim);
+        sim.update_to(target, GENEROUS, &Limits::default());
+        let (simulated, clock) = (sim.julian_date_utc(), jd_from_unix(unix()));
+        let off = (clock - simulated) * DAY;
+        println!(
+            "the simulation reads {} UTC, {off:.3} s behind the computer's clock",
+            crate::calendar::to_the_second(simulated)
+        );
+        assert!(off.abs() < 1.0);
+    }
 
     #[test]
     fn a_giant_planet_stays_a_point_until_its_tides_reach_one_percent() {

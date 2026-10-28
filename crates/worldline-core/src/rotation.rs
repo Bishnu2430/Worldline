@@ -8,6 +8,18 @@
 use glam::{DMat3, DVec3};
 
 use crate::constants::{DAY, J2000_JD, OBLIQUITY_J2000};
+use crate::timescales::earth_rotation_angle;
+
+/// Earth's prime meridian W (degrees from the ascending node of its
+/// equator on the ICRF's) at Julian Date `jd_ut1` (UT1), its pole at right
+/// ascension `pole_ra` (degrees): the Earth Rotation Angle θ, which runs
+/// from the Celestial Intermediate Origin, less the node's 90° + α₀. The
+/// origin sits on Earth's equator at the ICRF's 0h, to under an arcsecond
+/// while the pole is within a degree of the ICRF's (a second-order
+/// offset), as it is for millennia around 2000.
+pub fn earth_prime_meridian(jd_ut1: f64, pole_ra: f64) -> f64 {
+    earth_rotation_angle(jd_ut1).to_degrees() - 90.0 - pole_ra
+}
 
 /// One periodic term: an angle that advances with time, and how strongly
 /// it moves the pole and the prime meridian.
@@ -55,29 +67,48 @@ impl Orientation {
     }
 }
 
+fn polynomial(c: &[f64], x: f64) -> f64 {
+    c.iter().rev().fold(0.0, |acc, &k| acc * x + k)
+}
+
 impl RotationModel {
     /// The body's orientation at Julian Date `jd_tdb`.
     pub fn orientation(&self, jd_tdb: f64) -> Orientation {
         let d = jd_tdb - J2000_JD;
         let t = d / 36_525.0;
-        let polynomial = |c: &[f64], x: f64| c.iter().rev().fold(0.0, |acc, &k| acc * x + k);
+        let mut w = polynomial(&self.prime_meridian, d);
+        for term in &self.terms {
+            w += term.pm * polynomial(&term.angle, t).to_radians().sin();
+        }
+        self.orientation_with_meridian(jd_tdb, w)
+    }
 
+    /// The right ascension and declination of the body's north pole at
+    /// Julian Date `jd_tdb`, degrees, in the equatorial J2000 frame.
+    pub fn pole(&self, jd_tdb: f64) -> (f64, f64) {
+        let t = (jd_tdb - J2000_JD) / 36_525.0;
         let mut ra = polynomial(&self.pole_ra, t);
         let mut dec = polynomial(&self.pole_dec, t);
-        let mut w = polynomial(&self.prime_meridian, d);
         for term in &self.terms {
             let (sin, cos) = polynomial(&term.angle, t).to_radians().sin_cos();
             ra += term.ra * sin;
             dec += term.dec * cos;
-            w += term.pm * sin;
         }
+        (ra, dec)
+    }
 
+    /// The body's orientation at Julian Date `jd_tdb`, its prime meridian
+    /// at `meridian` (degrees from the ascending node of its equator on
+    /// the ICRF's) instead of the model's: for Earth, from its measured
+    /// rotation ([`earth_prime_meridian`]).
+    pub fn orientation_with_meridian(&self, jd_tdb: f64, meridian: f64) -> Orientation {
+        let (ra, dec) = self.pole(jd_tdb);
         // Body-fixed → equatorial J2000: turn by W about the pole, tilt the
         // pole down to declination δ, then swing it round to right
         // ascension α (the equator's ascending node lies at α + 90°).
         let equatorial = DMat3::from_rotation_z((ra + 90.0).to_radians())
             * DMat3::from_rotation_x((90.0 - dec).to_radians())
-            * DMat3::from_rotation_z(w.rem_euclid(360.0).to_radians());
+            * DMat3::from_rotation_z(meridian.rem_euclid(360.0).to_radians());
         // Equatorial → ecliptic: tilt back by the obliquity.
         Orientation {
             body_to_ecliptic: DMat3::from_rotation_x(-OBLIQUITY_J2000) * equatorial,
