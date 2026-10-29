@@ -21,6 +21,7 @@
 **Sources:**
 - **The reference, and its definitions:** Espenak & Meeus, *Five Millennium Canon of Solar Eclipses: −1999 to +3000* (NASA/TP-2006-214141) and *Five Millennium Canon of Lunar Eclipses* (NASA/TP-2009-214172), and their catalogs on NASA's eclipse web site. These give, for each eclipse, the time of greatest eclipse in Terrestrial Dynamical Time, its type, γ and magnitudes.
 - **The shadow on the fundamental plane (Besselian elements):** Explanatory Supplement to the Astronomical Almanac (Seidelmann 1992), chapter 8; Meeus, *Elements of Solar Eclipses 1951–2200* (1989).
+- **The Sun's radius:** 959.63″ at 1 AU (Auwers), 695,990 km, as the canons and NASA's Besselian elements take it. Eclipses happen at the Sun's visible edge, a little beyond the photosphere's radius that the IAU's nominal 695,700 km is. With the IAU's radius the umbra of 2026 August 12 comes out 1% bigger than NASA's (step 5.3 found it).
 - **The Moon's radius:** k = 0.2724880 for the penumbra and 0.272281 for the umbra and antumbra (the solar canon, §1.5). NASA's Besselian elements for 2026 August 12 use the same pair.
 - **Earth's shadow, enlarged by its atmosphere:** Danjon's rule, as the lunar canon uses it (NASA, "Enlargement of Earth's Shadows").
 - **Earth's bulge:** RE and J2E to J5E from the header of JPL's planetary ephemeris DE440 (Park et al. 2021, *AJ* 161, 105).
@@ -47,7 +48,7 @@ They are measured on the **fundamental plane**, through Earth's center and acros
 - l₂: the umbra's, negative where the umbra itself reaches the plane;
 - tan f₁, tan f₂: how fast each widens or narrows.
 
-These are the Besselian elements. For the total eclipse of 2026 August 12 they agree with NASA's published ones: l₁ = 0.5379550, l₂ = −0.0081420.
+These are the Besselian elements. NASA publishes them for each eclipse: for the total eclipse of 2026 August 12, l₁ = 0.537954 and l₂ = −0.008142 at 18:00 TDT. Step 5.3 compares them with the simulation's.
 
 - **Greatest eclipse** is when the axis passes closest to Earth's center. **γ** is that least distance, positive north.
 - **The type** depends on what reaches Earth's surface, taken as flattened (ρ = √(1 − e² cos² d)). There, the shadow's radii are l − ζ tan f, ζ being the surface's height above the plane:
@@ -102,32 +103,32 @@ It must find all 24 and no others, each of the same type, at most a minute from 
 
 | Eclipse | Canon (TD) | Worldline − canon | γ (canon) | Magnitude (canon) |
 |---|---|---|---|---|
-| Annular solar | 2026-02-17 12:13:06 | +0.6 s | −0.9743 (−0.9743) | 0.9634 (0.9630) |
-| **Total solar** | **2026-08-12 17:47:06** | **+0.8 s** | **+0.8978 (+0.8977)** | **1.0391 (1.0386)** |
-| Annular solar | 2027-02-06 16:00:48 | +1.2 s | −0.2952 (−0.2952) | 0.9285 (0.9281) |
-| Total solar | 2027-08-02 10:07:50 | +1.9 s | +0.1421 (+0.1421) | 1.0795 (1.0790) |
-| Annular solar | 2028-01-26 15:08:59 | +1.8 s | +0.3901 (+0.3901) | 0.9212 (0.9208) |
-| Total solar | 2028-07-22 02:56:40 | +1.9 s | −0.6056 (−0.6056) | 1.0564 (1.0560) |
-| Partial solar | 2029-01-14 17:13:48 | +2.2 s | +1.0553 (+1.0553) | 0.8713 (0.8714) |
-| Partial solar | 2029-06-12 04:06:13 | +3.0 s | +1.2943 (+1.2943) | 0.4560 (0.4576) |
-| Partial solar | 2029-07-11 15:37:19 | +2.9 s | −1.4191 (−1.4191) | 0.2281 (0.2303) |
-| Partial solar | 2029-12-05 15:03:58 | +3.2 s | −1.0609 (−1.0609) | 0.8908 (0.8911) |
-| Annular solar | 2030-06-01 06:29:13 | +3.5 s | +0.5627 (+0.5626) | 0.9447 (0.9443) |
-| Total solar | 2030-11-25 06:51:37 | +3.8 s | −0.3867 (−0.3867) | 1.0473 (1.0468) |
-| Total lunar | 2026-03-03 11:34:52 | +0.2 s | −0.3765 (−0.3765) | umbral 1.1509 (1.1507) |
-| Partial lunar | 2026-08-28 04:14:04 | +2.6 s | +0.4964 (+0.4964) | umbral 0.9301 (0.9299) |
-| Penumbral lunar | 2027-02-20 23:14:06 | −3.1 s | −1.0480 (−1.0480) | penumbral 0.9264 (0.9266) |
-| Penumbral lunar | 2027-07-18 16:04:09 | +1.2 s | −1.5758 (−1.5758) | penumbral 0.0010 (0.0014) |
-| Penumbral lunar | 2027-08-17 07:14:59 | +3.4 s | +1.2796 (+1.2797) | penumbral 0.5453 (0.5456) |
-| Partial lunar | 2028-01-12 04:14:13 | +5.0 s | +0.9817 (+0.9817) | umbral 0.0663 (0.0662) |
-| Partial lunar | 2028-07-06 18:20:57 | −0.4 s | −0.7904 (−0.7903) | umbral 0.3894 (0.3892) |
-| Total lunar | 2028-12-31 16:53:15 | +3.4 s | +0.3258 (+0.3258) | umbral 1.2464 (1.2463) |
-| Total lunar | 2029-06-26 03:23:22 | +3.5 s | +0.0124 (+0.0124) | umbral 1.8438 (1.8436) |
-| Total lunar | 2029-12-20 22:43:12 | +3.7 s | −0.3811 (−0.3811) | umbral 1.1176 (1.1174) |
-| Partial lunar | 2030-06-15 18:34:34 | +2.1 s | +0.7534 (+0.7534) | umbral 0.5027 (0.5025) |
-| Penumbral lunar | 2030-12-09 22:28:51 | +3.5 s | −1.0731 (−1.0731) | penumbral 0.9413 (0.9416) |
+| Annular solar | 2026-02-17 12:13:06 | +0.6 s | −0.9743 (−0.9743) | 0.9630 (0.9630) |
+| **Total solar** | **2026-08-12 17:47:06** | **+0.8 s** | **+0.8978 (+0.8977)** | **1.0387 (1.0386)** |
+| Annular solar | 2027-02-06 16:00:48 | +1.2 s | −0.2952 (−0.2952) | 0.9281 (0.9281) |
+| Total solar | 2027-08-02 10:07:50 | +1.9 s | +0.1421 (+0.1421) | 1.0790 (1.0790) |
+| Annular solar | 2028-01-26 15:08:59 | +1.8 s | +0.3901 (+0.3901) | 0.9208 (0.9208) |
+| Total solar | 2028-07-22 02:56:40 | +1.9 s | −0.6056 (−0.6056) | 1.0560 (1.0560) |
+| Partial solar | 2029-01-14 17:13:48 | +2.2 s | +1.0553 (+1.0553) | 0.8711 (0.8714) |
+| Partial solar | 2029-06-12 04:06:13 | +3.0 s | +1.2943 (+1.2943) | 0.4561 (0.4576) |
+| Partial solar | 2029-07-11 15:37:19 | +2.9 s | −1.4191 (−1.4191) | 0.2282 (0.2303) |
+| Partial solar | 2029-12-05 15:03:58 | +3.2 s | −1.0609 (−1.0609) | 0.8907 (0.8911) |
+| Annular solar | 2030-06-01 06:29:13 | +3.5 s | +0.5627 (+0.5626) | 0.9443 (0.9443) |
+| Total solar | 2030-11-25 06:51:37 | +3.8 s | −0.3867 (−0.3867) | 1.0469 (1.0468) |
+| Total lunar | 2026-03-03 11:34:52 | +0.2 s | −0.3765 (−0.3765) | umbral 1.1506 (1.1507) |
+| Partial lunar | 2026-08-28 04:14:04 | +2.6 s | +0.4964 (+0.4964) | umbral 0.9299 (0.9299) |
+| Penumbral lunar | 2027-02-20 23:14:06 | −3.1 s | −1.0480 (−1.0480) | penumbral 0.9266 (0.9266) |
+| Penumbral lunar | 2027-07-18 16:04:09 | +1.2 s | −1.5758 (−1.5758) | penumbral 0.0012 (0.0014) |
+| Penumbral lunar | 2027-08-17 07:14:59 | +3.4 s | +1.2796 (+1.2797) | penumbral 0.5456 (0.5456) |
+| Partial lunar | 2028-01-12 04:14:13 | +5.0 s | +0.9817 (+0.9817) | umbral 0.0661 (0.0662) |
+| Partial lunar | 2028-07-06 18:20:57 | −0.4 s | −0.7904 (−0.7903) | umbral 0.3892 (0.3892) |
+| Total lunar | 2028-12-31 16:53:15 | +3.4 s | +0.3258 (+0.3258) | umbral 1.2462 (1.2463) |
+| Total lunar | 2029-06-26 03:23:22 | +3.5 s | +0.0124 (+0.0124) | umbral 1.8436 (1.8436) |
+| Total lunar | 2029-12-20 22:43:12 | +3.7 s | −0.3811 (−0.3811) | umbral 1.1174 (1.1174) |
+| Partial lunar | 2030-06-15 18:34:34 | +2.1 s | +0.7534 (+0.7534) | umbral 0.5025 (0.5025) |
+| Penumbral lunar | 2030-12-09 22:28:51 | +3.5 s | −1.0731 (−1.0731) | penumbral 0.9415 (0.9416) |
 
-**Result:** all 24 found, no others, every type right, **the worst 5.0 s** from the canon's time. γ agrees to the canon's last digit or one off, and the magnitudes to 0.002. The faintest, the penumbral eclipse of 2027 July 18, grazes the penumbra by 0.0014 of the Moon's diameter, and is found.
+**Result:** all 24 found, no others, every type right, **the worst 5.0 s** from the canon's time. γ agrees to the canon's last digit or one off. The magnitudes of central solar eclipses and of lunar eclipses agree to 0.0002; those of partial solar eclipses to 0.002, since Worldline measures how far the axis passes from Earth's flattened outline approximately (as a stretched circle). The faintest, the penumbral eclipse of 2027 July 18, grazes the penumbra by 0.0014 of the Moon's diameter, and is found.
 
 The timing differences grow by about a second a year, in step with the Moon's remaining drift from JPL's.
 
