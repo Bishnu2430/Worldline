@@ -4,6 +4,7 @@
 //! every body. The engine will pick a model per situation
 //! (see `docs/ARCHITECTURE.md`).
 
+mod bulges;
 mod eih;
 mod figure;
 pub mod kerr;
@@ -14,6 +15,7 @@ mod relativistic;
 mod tesseral;
 mod zonal;
 
+pub use bulges::{Bulge, WithBulges};
 pub use eih::EinsteinInfeldHoffmann;
 pub use figure::SynchronousFigure;
 pub use newtonian::Newtonian;

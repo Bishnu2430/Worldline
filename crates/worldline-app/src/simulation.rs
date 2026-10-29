@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use worldline_core::compact::horizon_spin;
 use worldline_core::compact::{is_black_hole, schwarzschild_radius};
 use worldline_core::constants::{AGE_OF_UNIVERSE, DAY, GM_SUN};
+use worldline_core::eclipses::{Ephemeris, State};
 use worldline_core::gravitational_waves::{merger_time, period_derivative};
 use worldline_core::gravity::kerr::plunge_time;
 use worldline_core::gravity::{Gravity, holding_hole, moves_in_spacetime_of, reaction_converges};
@@ -1135,6 +1136,36 @@ impl Simulation {
         self.time_scales.utc(self.julian_date())
     }
 
+    /// The Sun, Earth and Moon from now to `until` (s since the start),
+    /// sampled every `every` s: the simulation run on to `until` to get
+    /// them (on a copy, for looking ahead). For the eclipse finder.
+    pub fn ephemeris(&mut self, until: f64, every: f64) -> Ephemeris {
+        let mut ephemeris = Ephemeris::default();
+        loop {
+            let state = |name: &str| {
+                self.index_of(name).map_or(State::default(), |i| State {
+                    position: self.bodies[i].position,
+                    velocity: self.bodies[i].velocity,
+                })
+            };
+            ephemeris.times.push(self.time());
+            ephemeris
+                .states
+                .push([state("Sun"), state("Earth"), state("Moon")]);
+            if self.time() >= until {
+                self.catch_up_galaxy();
+                self.refresh_small_moons();
+                return ephemeris;
+            }
+            // Only what moves the Sun, Earth and Moon, sample by sample;
+            // the galactic center and small moons once, at the end.
+            let next = (self.time() + every).min(until);
+            while self.time() < next {
+                self.step_toward(next);
+            }
+        }
+    }
+
     /// The simulation's time (s since its start) at Julian Date `jd_tdb`.
     pub fn time_at(&self, jd_tdb: f64) -> f64 {
         (jd_tdb - self.epoch_jd_tdb) * DAY
@@ -1793,6 +1824,107 @@ mod tests {
     use super::*;
 
     const GENEROUS: Duration = Duration::from_secs(10);
+
+    #[test]
+    #[ignore = "slow: runs the solar system to 2031"]
+    fn every_eclipse_of_2026_to_2030_at_nasas_time() {
+        // Step 5.2's check: the eclipse finder on the app's own simulation,
+        // run from its 2025 snapshot through 2030, sampled every 6 hours,
+        // against the Five Millennium Canons (Espenak & Meeus): every
+        // eclipse found, of the same type, greatest within a minute of the
+        // canon's time (TD; TDB is within 2 ms of it), and no others.
+        use worldline_core::eclipses::{Eclipse, LunarKind, SolarKind};
+        use worldline_core::timescales::julian_date;
+        let mut sim = Simulation::solar_system(DAY);
+        let (from, to) = (julian_date(2026, 1, 1, 0.0), julian_date(2031, 1, 1, 0.0));
+        sim.advance_by(sim.time_at(from));
+        let clock = Instant::now();
+        let ephemeris = sim.ephemeris(sim.time_at(to), 6.0 * 3600.0);
+        let found = ephemeris.eclipses();
+        println!(
+            "{} samples in {:.1} s, {} eclipses found",
+            ephemeris.times.len(),
+            clock.elapsed().as_secs_f64(),
+            found.len()
+        );
+        let jd = |t: f64| sim.epoch_jd_tdb + t / DAY;
+        let canon: Vec<(bool, worldline_data::CanonEclipse)> =
+            worldline_data::solar_eclipses_2026_2030()
+                .into_iter()
+                .map(|e| (true, e))
+                .chain(
+                    worldline_data::lunar_eclipses_2026_2030()
+                        .into_iter()
+                        .map(|e| (false, e)),
+                )
+                .collect();
+        let mut worst: f64 = 0.0;
+        let mut missing = Vec::new();
+        for (solar, expected) in &canon {
+            let Some(ours) = found.iter().find(|e| {
+                matches!(e, Eclipse::Solar { .. }) == *solar
+                    && (jd(e.time()) - expected.jd_td).abs() < 1.0
+            }) else {
+                println!(
+                    "MISSING: {} {} {}",
+                    if *solar { "solar" } else { "lunar" },
+                    expected.kind,
+                    crate::calendar::to_the_second(expected.jd_td)
+                );
+                missing.push(expected.jd_td);
+                continue;
+            };
+            let (kind, gamma, magnitudes) = match *ours {
+                Eclipse::Solar {
+                    kind,
+                    gamma,
+                    magnitude,
+                    ..
+                } => (
+                    match kind {
+                        SolarKind::Total => "T",
+                        SolarKind::Annular => "A",
+                        SolarKind::Hybrid => "H",
+                        SolarKind::Partial => "P",
+                    },
+                    gamma,
+                    vec![magnitude],
+                ),
+                Eclipse::Lunar {
+                    kind,
+                    gamma,
+                    penumbral,
+                    umbral,
+                    ..
+                } => (
+                    match kind {
+                        LunarKind::Total => "T",
+                        LunarKind::Partial => "P",
+                        LunarKind::Penumbral => "N",
+                    },
+                    gamma,
+                    vec![penumbral, umbral],
+                ),
+            };
+            let off = (jd(ours.time()) - expected.jd_td) * DAY;
+            worst = worst.max(off.abs());
+            println!(
+                "{} {:<3} {} {:>+6.1} s  γ {:+.4} ({:+.4})  magnitudes {:.4?} ({:.4?})",
+                if *solar { "solar" } else { "lunar" },
+                expected.kind,
+                crate::calendar::to_the_second(expected.jd_td),
+                off,
+                gamma,
+                expected.gamma,
+                magnitudes,
+                expected.magnitudes
+            );
+            assert_eq!(kind, &expected.kind[..1]);
+            assert!(off.abs() < 60.0);
+        }
+        println!("worst: {worst:.1} s");
+        assert!(missing.is_empty() && found.len() == canon.len());
+    }
 
     #[test]
     #[ignore = "slow: runs the solar system for 22 months"]

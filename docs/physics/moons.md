@@ -22,7 +22,7 @@ Worldline has the 21 major moons:
 
 Putting moons in the same integration as the planets would force the whole solar system onto steps of minutes. Instead, the simulation has two levels.
 
-**The top level** holds the Sun, the planets, and each planetary system as one point at its barycenter. It runs as before: relativistic Einstein–Infeld–Hoffmann gravity with the IAS15 integrator.
+**The top level** holds the Sun, the planets, and each planetary system as one point at its barycenter. It runs as before: relativistic Einstein–Infeld–Hoffmann gravity with the IAS15 integrator. Earth's Moon is simulated there too, beside Earth, so since step 5.2 Earth's bulge (J₂ to J₅ from DE440) pulls on it there (see [eclipses.md](eclipses.md)).
 
 **Each moon system** holds a planet and its moons, in their own frame centered on the system's barycenter. After every top-level step, each moon system catches up over the same interval, with its own IAS15 taking as many small steps as it needs. Inside, bodies feel:
 - **each other** (Newtonian gravity);

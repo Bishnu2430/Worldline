@@ -6,6 +6,9 @@ use eframe::egui::{Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape, St
 use worldline_core::DVec3;
 use worldline_core::compact::{is_black_hole, shadow_radius};
 use worldline_core::constants::{AU, C};
+use worldline_core::eclipses::{
+    Cone, DANJON, EARTH_EQUATORIAL_RADIUS, K_PENUMBRA, K_UMBRA, State, apparent, shadow_cones,
+};
 use worldline_core::magnetosphere::{field_line_point, magnetopause_radius, shue_1998, standoff};
 use worldline_core::orbit::osculating_orbit;
 use worldline_core::solar_wind::ParkerSpiral;
@@ -28,6 +31,7 @@ pub struct ViewOptions {
     pub solar_wind: bool,
     pub heliosphere: bool,
     pub magnetospheres: bool,
+    pub shadows: bool,
     pub starfield: bool,
     pub accretion_disk: bool,
     pub overlays: crate::overlays::Overlays,
@@ -317,6 +321,9 @@ pub fn draw_under(
     if options.magnetospheres && sun_here {
         draw_magnetosphere(painter, camera, viewport, simulation, attention);
     }
+    if options.shadows && sun_here {
+        draw_shadows(painter, camera, viewport, simulation, focus);
+    }
     if options.heliosphere && sun_here {
         draw_heliosphere(
             painter,
@@ -425,6 +432,101 @@ fn draw_galactic_path(
             FontId::proportional(11.0),
             Color32::from_rgba_unmultiplied(235, 215, 160, 140),
         );
+    }
+}
+
+/// Draws the shadows of the Moon and Earth, with either in focus: each
+/// one's umbra and penumbra, the cones tangent to it and the Sun (see
+/// [`shadow_cones`]), from the apparent Sun and Moon the eclipse finder
+/// uses. The Moon's are cast by its limb as the solar canon takes it;
+/// Earth's by Earth enlarged 1% by its atmosphere, as Danjon's rule has it.
+/// Each cone is drawn from the body casting it out past the other, ringed
+/// where it passes the other's center: the plane a solar eclipse's
+/// shadow is measured on, or the Moon's distance from Earth.
+fn draw_shadows(
+    painter: &Painter,
+    camera: &Camera,
+    viewport: Rect,
+    simulation: &Simulation,
+    focus: usize,
+) {
+    let find = |name: &str| simulation.index_of(name);
+    let (Some(sun), Some(earth), Some(moon)) = (find("Sun"), find("Earth"), find("Moon")) else {
+        return;
+    };
+    if focus != earth && focus != moon {
+        return;
+    }
+    let state = |i: usize| State {
+        position: simulation.bodies[i].position,
+        velocity: simulation.bodies[i].velocity,
+    };
+    let (sun_seen, moon_seen) = apparent(state(sun), state(earth), state(moon));
+    let origin = simulation.bodies[earth].position;
+    let a = EARTH_EQUATORIAL_RADIUS;
+    let umbra_color = Color32::from_rgba_unmultiplied(255, 120, 90, 170);
+    let penumbra_color = Color32::from_rgba_unmultiplied(255, 205, 130, 90);
+    // (what casts it, its radius for each cone, the other body, how far
+    // past the other to draw).
+    let casts = [
+        (
+            moon_seen,
+            [K_PENUMBRA * a, K_UMBRA * a],
+            DVec3::ZERO,
+            2.0 * a,
+        ),
+        (
+            DVec3::ZERO,
+            [DANJON * a; 2],
+            moon_seen,
+            0.5 * moon_seen.length(),
+        ),
+    ];
+    for (body, radii, other, beyond) in casts {
+        let (penumbra, _) = shadow_cones(sun_seen, body, radii[0]);
+        let (_, umbra) = shadow_cones(sun_seen, body, radii[1]);
+        let axis = umbra.axis;
+        let start = body.dot(axis);
+        let end = other.dot(axis) + beyond;
+        // The umbra ends at its vertex, unless the other body lies beyond
+        // it: then on through the antumbra.
+        let umbra_end = umbra.vertex.dot(axis).max(other.dot(axis) + 0.1 * beyond);
+        let across = axis.any_orthonormal_vector();
+        let up = axis.cross(across);
+        let ring = |cone: &Cone, at: f64, points: usize| -> Vec<Option<Projection>> {
+            let center = body + axis * (at - start);
+            let radius = cone.radius(at - cone.vertex.dot(axis));
+            (0..=points)
+                .map(|k| {
+                    let angle = k as f64 / points as f64 * std::f64::consts::TAU;
+                    let offset = (across * angle.cos() + up * angle.sin()) * radius;
+                    screen(camera, viewport, origin + center + offset)
+                })
+                .collect()
+        };
+        for (cone, to, color) in [
+            (penumbra, end, penumbra_color),
+            (umbra, umbra_end, umbra_color),
+        ] {
+            let stroke = Stroke::new(1.2, color);
+            for k in 0..8 {
+                let angle = k as f64 / 8.0 * std::f64::consts::TAU;
+                let direction = across * angle.cos() + up * angle.sin();
+                let line: Vec<_> = (0..=64)
+                    .map(|j| {
+                        let at = start + (to - start) * j as f64 / 64.0;
+                        let radius = cone.radius(at - cone.vertex.dot(axis));
+                        screen(
+                            camera,
+                            viewport,
+                            origin + body + axis * (at - start) + direction * radius,
+                        )
+                    })
+                    .collect();
+                draw_path(painter, &line, stroke);
+            }
+            draw_path(painter, &ring(&cone, other.dot(axis), 128), stroke);
+        }
     }
 }
 

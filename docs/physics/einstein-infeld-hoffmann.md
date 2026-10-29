@@ -60,4 +60,4 @@ The Mercury test requires agreement within 0.01%, ten times tighter than the ±0
 Relativity was the main physics missing for the inner planets. What remains is physics Worldline doesn't model yet:
 - **asteroids,** whose pull matters most for Mars;
 - **the Sun's slight flattening;**
-- **for the Moon,** Earth's equatorial bulge and the tides between Earth and the Moon.
+- **for the Moon,** Earth's equatorial bulge and the tides between Earth and the Moon. Since step 5.2 the app adds Earth's bulge, which leaves the Moon 2.4 km from JPL's after 3.5 years instead of 63 km (see [eclipses.md](eclipses.md)). The table above is EIH alone.

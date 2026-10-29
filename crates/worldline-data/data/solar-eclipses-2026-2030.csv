@@ -1,0 +1,17 @@
+# NASA's solar eclipses of 2026-2030. Regenerate with: python tools/fetch_eclipses.py
+# source: Five Millennium Canon of Solar Eclipses (Espenak & Meeus 2006), catalog https://eclipse.gsfc.nasa.gov/SEcat5/SE2001-2100.html; fetched 2026-10-29
+# td: time of greatest eclipse, Terrestrial Dynamical Time; type: T total, A annular, H hybrid, P partial, then qualifiers
+# gamma: the shadow axis's least distance from Earth's center, Earth equatorial radii, + north; magnitude: of greatest eclipse
+date,td,delta_t_s,saros,type,gamma,magnitude
+2026-02-17,12:13:06,75,121,A,-0.9743,0.9630
+2026-08-12,17:47:06,75,126,T,0.8977,1.0386
+2027-02-06,16:00:48,76,131,A,-0.2952,0.9281
+2027-08-02,10:07:50,76,136,T,0.1421,1.0790
+2028-01-26,15:08:59,76,141,A,0.3901,0.9208
+2028-07-22,02:56:40,77,146,T,-0.6056,1.0560
+2029-01-14,17:13:48,77,151,P,1.0553,0.8714
+2029-06-12,04:06:13,77,118,P,1.2943,0.4576
+2029-07-11,15:37:19,77,156,P,-1.4191,0.2303
+2029-12-05,15:03:58,77,123,P,-1.0609,0.8911
+2030-06-01,06:29:13,78,128,A,0.5626,0.9443
+2030-11-25,06:51:37,78,133,T,-0.3867,1.0468

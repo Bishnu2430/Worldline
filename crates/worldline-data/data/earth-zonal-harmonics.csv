@@ -1,0 +1,8 @@
+# Earth's zonal gravity harmonics (unnormalized J_n) and their reference radius, as JPL's DE440 integrates them.
+# Regenerate with: python tools/fetch_earth_bulge.py
+# source: the DE440 header, constants RE and J2E to J5E (https://ssd.jpl.nasa.gov/ftp/eph/planets/ascii/de440/header.440); fetched 2026-10-29
+reference_radius_km,degree,j
+0.637813659999999982E+04,2,0.108262539000000000E-02
+0.637813659999999982E+04,3,-0.253240999999999995E-05
+0.637813659999999982E+04,4,-0.161989800000000010E-05
+0.637813659999999982E+04,5,-0.227734500000000007E-06

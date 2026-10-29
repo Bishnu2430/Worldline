@@ -155,7 +155,7 @@ The roadmap's bar was "returns in July 2061", a month-wide target. Worldline mat
 
 ## Limits
 
-- **Earth is a point.** Apophis passes 38,000 km from Earth's center on 13 April 2029. Earth's equatorial bulge and the Moon's exact pull at that range bend its path in ways JPL models and Worldline doesn't yet. After the flyby, Apophis's position is approximate.
+- **Earth is a point.** Apophis passes 38,000 km from Earth's center on 13 April 2029. Earth's equatorial bulge and the Moon's exact pull at that range bend its path in ways JPL models and Worldline doesn't yet. (Since step 5.2 Earth's bulge pulls on the Moon, at the top level, but not on the asteroids that follow it.) After the flyby, Apophis's position is approximate.
 - **22 perturbers, not 343.** DE440 integrates 343 asteroids, but NAIF's GM file publishes the masses of only the heaviest. Worldline includes those 22 bodies; the rest are followers.
 - **Comet models are fits.** A comet's outgassing changes from one pass to the next, and JPL fits it to the passes observed. Run far into the future, a comet's position grows less certain. That is true of JPL's predictions too.
 - **No breakups or collisions.** Fragments are excluded, and small bodies pass through each other (collisions arrive in step 1.7).

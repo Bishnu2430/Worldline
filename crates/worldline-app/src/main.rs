@@ -28,6 +28,7 @@
 //!   `--add` can be given more than once: `--add "Gaia BH1:40" --add
 //!   "jupiter:2@Gaia BH1" --launch 0.071` drops a Jupiter 2 AU from a
 //!   black hole 40 AU out, to fall past it at half its tidal radius.
+//! - `--eclipses` opens the eclipse finder, searching the next 5 years.
 //! - `--fluid Jupiter` models Jupiter as a self-gravitating fluid of SPH
 //!   particles on the GPU, as many as it steps smoothly.
 
@@ -37,6 +38,7 @@ mod camera;
 mod catalogue;
 mod clocks;
 mod details;
+mod eclipse_finder;
 mod fluid;
 mod gpu;
 mod overlays;
@@ -81,6 +83,8 @@ pub struct StartOptions {
     pub speed: Option<usize>,
     /// Start with the catalogue window open.
     pub catalogue: bool,
+    /// Start with the eclipse finder open, searching.
+    pub eclipses: bool,
     /// Years to simulate past the snapshot before starting.
     pub advance_years: f64,
     /// Bodies to add before starting, in order.
@@ -113,6 +117,7 @@ impl StartOptions {
                 "--paused" => options.paused = true,
                 "--now" => options.now = true,
                 "--catalogue" => options.catalogue = true,
+                "--eclipses" => options.eclipses = true,
                 "--waves" => options.waves = true,
                 "--zoom" => match args.next().and_then(|r| r.parse::<f64>().ok()) {
                     Some(radii) if radii > 1.0 => options.zoom_radii = Some(radii),
@@ -225,6 +230,7 @@ mod tests {
             "--add",
             "Gaia BH1:2.5@Sagittarius A*",
             "--catalogue",
+            "--eclipses",
             "--waves",
             "--fluid",
             "Jupiter",
@@ -251,6 +257,7 @@ mod tests {
                 speed: Some(1),
                 advance_years: 7.5,
                 catalogue: true,
+                eclipses: true,
                 adds: vec![
                     Addition {
                         kind: "Gaia BH1".into(),

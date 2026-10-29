@@ -9,6 +9,7 @@ pub mod collision;
 pub mod compact;
 pub mod constants;
 pub mod diagnostics;
+pub mod eclipses;
 pub mod fields;
 pub mod gravitational_waves;
 pub mod gravity;

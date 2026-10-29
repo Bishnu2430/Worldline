@@ -48,6 +48,6 @@ With Newtonian gravity alone, the errors followed relativity's signature: tens o
 What remains is physics JPL models that Worldline doesn't yet:
 - **asteroids,** whose pull matters most for Mars. Step 1b.6 added the 22 heaviest, which cut Mars's error from 0.19 to 0.11 km and Earth's from 0.41 to 0.21 km (see [small-bodies.md](small-bodies.md#validation));
 - **the Sun's slight flattening;**
-- **for the Moon,** Earth's equatorial bulge and the tides between Earth and the Moon. These explain why the Moon improves only 3×.
+- **for the Moon,** Earth's equatorial bulge and the tides between Earth and the Moon. These explain why the Moon improves only 3×. Step 5.2 adds Earth's bulge in the app (see [eclipses.md](eclipses.md)).
 
 See [einstein-infeld-hoffmann.md](einstein-infeld-hoffmann.md).

@@ -38,7 +38,7 @@ What connects the two regions is the galaxy's mass. The solar system's barycente
 ## Hierarchical integration
 
 Fast inner orbits shouldn't set the pace for everything. The solar system runs as a hierarchy (`worldline-core/src/hierarchy.rs`):
-- **The top level** holds the Sun, the planets, and each planetary system as one point at its barycenter. It uses relativistic gravity and its own IAS15 integrator.
+- **The top level** holds the Sun, the planets, and each planetary system as one point at its barycenter. It uses relativistic gravity and its own IAS15 integrator. Earth and the Moon are both there, so Earth's equatorial bulge pulls on the Moon there too (since step 5.2).
 - **Each moon system** holds a planet and its moons in their own barycentric frame. After each top-level step it catches up with its own IAS15, taking as many small steps as its moons need. Inside, bodies feel each other, the planet's gravity field (oblateness and, for Mars, its lumps), tidally locked moons' shapes, and the tides of the Sun and planets, interpolated across the step.
 
 This mirrors how JPL builds its ephemerides: planetary ephemerides for the barycenters, satellite ephemerides for the moons. See [physics/moons.md](physics/moons.md).
@@ -87,6 +87,8 @@ It uses them to pick a model:
 | Zodiacal dust | COBE DIRBE smooth-cloud density model | Kelsall et al. 1998 |
 | Bodies that touch | Perfectly inelastic merger: momentum conserved, volumes add (a black hole survives and its horizon grows with its mass); contact found along each step | [physics/collisions.md](physics/collisions.md) |
 | Black holes, neutron stars, white dwarfs (as point bodies) | Published masses and sizes; Kerr horizons; Buchdahl's limit tells a black hole from a star | [physics/compact-objects.md](physics/compact-objects.md); Buchdahl 1959 |
+| The Moon, beside Earth at the top level | Also Earth's zonal harmonics J₂ to J₅, as DE440 integrates them; the pull returned to Earth (step 5.2) | Park et al. 2021 (DE440); [physics/eclipses.md](physics/eclipses.md) |
+| Eclipses | Shadows from apparent positions (light-time and aberration), measured as the Five Millennium Canons do: the Moon's on the fundamental plane (Besselian elements), Earth's enlarged by Danjon's rule; greatest eclipse by golden-section search on the Sun, Earth and Moon sampled every 6 hours (step 5.2) | Espenak & Meeus 2006, 2009; Explanatory Supplement 1992; [physics/eclipses.md](physics/eclipses.md) |
 | A moon system meets an intruder | The moons join the top level once another body's tide on one passes 1/12 of the planet's pull (half the Hill radius, far away) | Domingos, Winter & Yokoyama 2006 |
 | Stars around Sagittarius A\* | Its Newtonian pull plus its first relativistic (Schwarzschild) term, from published orbits | GRAVITY Collaboration 2022; Gillessen et al. 2017; [physics/galactic-center.md](physics/galactic-center.md) |
 | The galaxy's mass, and the solar system's orbit around its center | McMillan's axisymmetric model (bulge, star and gas disks, NFW halo), its potential solved as his code solves it: the disks' thin layers analytically, the rest as multipoles to l = 80. The barycenter is a test body in it (IAS15), from its measured place and motion; smooth, labeled | McMillan 2017; Dehnen & Binney 1998; GRAVITY 2022; Reid & Brunthaler 2020; Schönrich, Binney & Dehnen 2010; Bennett & Bovy 2019; [physics/milky-way.md](physics/milky-way.md) |
