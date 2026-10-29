@@ -8,6 +8,7 @@ use eframe::egui::{self, Align2, Color32, FontId, Rect, RichText, Sense, Texture
 use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
 use worldline_core::constants::{AU, C, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSITY};
+use worldline_core::eclipses::{Eclipse, LunarKind, SolarKind};
 use worldline_core::gravity::kerr::innermost_stable_orbit;
 use worldline_core::hawking;
 use worldline_core::kerr_light::{self, circular, disk_temperature, photon_orbits};
@@ -25,6 +26,7 @@ use crate::calendar::{DateTime, to_the_second};
 use crate::camera::Camera;
 use crate::catalogue::{self, Entry, Group, length, light_years, measured_suns, significant};
 use crate::details;
+use crate::eclipse_finder::{self, Finder};
 use crate::fluid::{FluidBody, Lab};
 use crate::gpu::{Globe, GpuGlobes, GpuSky};
 use crate::overlays::{self, Overlays};
@@ -56,6 +58,7 @@ const SPEEDS: [(&str, f64); 8] = [
 ];
 const DEFAULT_SPEED: usize = 4;
 const REAL_TIME: usize = 0;
+const HOUR: usize = 1;
 
 /// Most computer time physics may take per frame while catching up to the
 /// present: the 2025 snapshot is 7 s of physics behind late 2026, so at
@@ -504,6 +507,9 @@ pub struct WorldlineApp {
     reveal: bool,
     /// The gravitational-wave window's recording, while it is open.
     waves: Option<WaveView>,
+    /// Whether the eclipse finder's window is open, and its search.
+    eclipses_open: bool,
+    finder: Option<Finder>,
     /// The sound output, once something has played.
     audio: Option<(rodio::OutputStream, rodio::Sink)>,
     /// The body modeled as a fluid, if any (see `fluid.rs`).
@@ -558,6 +564,7 @@ impl WorldlineApp {
                 solar_wind: true,
                 heliosphere: true,
                 magnetospheres: true,
+                shadows: true,
                 starfield: true,
                 accretion_disk: true,
                 overlays: Overlays::default(),
@@ -578,6 +585,8 @@ impl WorldlineApp {
             launch: None,
             status: None,
             waves: None,
+            eclipses_open: false,
+            finder: None,
             audio: None,
             fluid: None,
             pending: None,
@@ -627,6 +636,9 @@ impl WorldlineApp {
                 Some(_) => eprintln!("worldline: `{name}` can't be modeled as a fluid"),
                 None => eprintln!("worldline: no body named `{name}` to model as a fluid"),
             }
+        }
+        if start.eclipses {
+            app.open_eclipses();
         }
         if start.waves {
             if app.simulation.gravitational_waves(app.selected).is_some() {
@@ -772,6 +784,19 @@ impl WorldlineApp {
                 .clicked()
             {
                 self.go_live();
+            }
+            if ui
+                .selectable_label(self.eclipses_open, "Eclipses")
+                .on_hover_text(
+                    "Find every solar and lunar eclipse of the next 5 years, by running a copy of this simulation ahead",
+                )
+                .clicked()
+            {
+                if self.eclipses_open {
+                    self.eclipses_open = false;
+                } else {
+                    self.open_eclipses();
+                }
             }
             ui.separator();
             self.sandbox_controls(ui);
@@ -1130,6 +1155,12 @@ impl WorldlineApp {
             .on_hover_text(
                 "Around the planet in focus: its magnetopause, from pressure balance with \
              2025's average solar wind; Earth's radiation belts",
+            );
+        ui.checkbox(&mut self.options.shadows, "Shadows of the Moon and Earth")
+            .on_hover_text(
+                "With Earth or the Moon in focus: each one's umbra (red) and penumbra \
+             (amber), the cones tangent to it and the Sun, ringed where they pass the \
+             other; Earth's enlarged 1% by its atmosphere (Danjon)",
             );
         ui.add_space(4.0);
         ui.label(
@@ -2722,6 +2753,132 @@ impl WorldlineApp {
         }
     }
 
+    /// Opens the eclipse finder, searching from now if it isn't already.
+    fn open_eclipses(&mut self) {
+        self.eclipses_open = true;
+        if self.finder.is_none() {
+            self.finder = Some(Finder::start(&mut self.simulation));
+        }
+    }
+
+    /// The eclipse finder's window: the eclipses found ahead, as they are
+    /// found, each to go to.
+    fn eclipses_window(&mut self, ctx: &egui::Context) {
+        if !self.eclipses_open {
+            return;
+        }
+        let Some(finder) = &mut self.finder else {
+            return;
+        };
+        finder.poll();
+        if !finder.done {
+            ctx.request_repaint_after(Duration::from_millis(250));
+        }
+        let scales = self.simulation.time_scales();
+        let utc = |jd_tdb: f64| to_the_second(scales.utc(jd_tdb));
+        let (mut open, mut go, mut again) = (true, None, false);
+        egui::Window::new("Eclipses")
+            .open(&mut open)
+            .default_pos(pos2(340.0, 90.0))
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.label(
+                    RichText::new(format!(
+                        "Every solar and lunar eclipse of the {} years from {} UTC, found by running a copy of this simulation ahead: each greatest where the axis of the Moon's shadow passes closest to Earth's center, or the Moon closest to the axis of Earth's, as NASA's Five Millennium Canon (Espenak & Meeus) defines it. Checked against the canon for 2026–2030: all 24 found, of the same types, the worst 5 s from its times.",
+                        eclipse_finder::YEARS,
+                        &utc(finder.from)[..16]
+                    ))
+                    .small(),
+                );
+                ui.horizontal(|ui| {
+                    if finder.done {
+                        ui.label(format!("{} found", finder.found.len()));
+                    } else {
+                        let share = (finder.searched - finder.from) / (finder.until - finder.from);
+                        ui.add(egui::ProgressBar::new(share as f32).desired_width(120.0));
+                        ui.label(format!(
+                            "{} found; searched to {}",
+                            finder.found.len(),
+                            &utc(finder.searched)[..10]
+                        ));
+                    }
+                    if ui
+                        .button("Search again from now")
+                        .on_hover_text("For a simulation that has changed since the search began")
+                        .clicked()
+                    {
+                        again = true;
+                    }
+                });
+                ui.separator();
+                egui::ScrollArea::vertical().max_height(380.0).show(ui, |ui| {
+                    egui::Grid::new("eclipses").num_columns(5).striped(true).show(ui, |ui| {
+                        for heading in ["Greatest (UTC)", "Eclipse", "γ", "Magnitude", ""] {
+                            ui.label(key(heading));
+                        }
+                        ui.end_row();
+                        for (k, found) in finder.found.iter().enumerate() {
+                            let (kind, magnitude, detail) = eclipse_row(&found.eclipse);
+                            ui.label(RichText::new(utc(found.jd_tdb)).monospace())
+                                .on_hover_text(format!("{} TDB", to_the_second(found.jd_tdb)));
+                            ui.label(kind);
+                            ui.label(format!("{:+.4}", eclipse_gamma(&found.eclipse)))
+                                .on_hover_text("The least distance of the shadow's axis from Earth's center (solar), or of the Moon's center from the axis of Earth's shadow (lunar), in Earth's equatorial radii, positive north");
+                            ui.label(format!("{magnitude:.4}")).on_hover_text(detail);
+                            if ui.button("Go to").clicked() {
+                                go = Some(k);
+                            }
+                            ui.end_row();
+                        }
+                    });
+                });
+            });
+        self.eclipses_open = open;
+        if again {
+            self.finder = Some(Finder::start(&mut self.simulation));
+        }
+        if let Some(k) = go {
+            self.go_to_eclipse(k);
+        }
+    }
+
+    /// Goes to an eclipse the finder found, at its greatest: paused, an
+    /// hour a second once played, with the shadows on and the camera on
+    /// Earth (solar) or the Moon (lunar).
+    fn go_to_eclipse(&mut self, k: usize) {
+        let Some(found) = self.finder.as_ref().and_then(|f| f.found.get(k)) else {
+            return;
+        };
+        let solar = matches!(found.eclipse, Eclipse::Solar { .. });
+        let (kind, _, _) = eclipse_row(&found.eclipse);
+        let when = to_the_second(self.simulation.time_scales().utc(found.jd_tdb));
+        match Simulation::load(&found.save, SPEEDS[HOUR].1) {
+            Ok(mut simulation) => {
+                simulation.paused = true;
+                self.simulation = simulation;
+                self.speed_index = HOUR;
+                self.drop_fluid();
+                self.live = false;
+                self.flight = None;
+                self.launch = None;
+                self.options.shadows = true;
+                let (name, radii) = if solar {
+                    ("Earth", 8.0)
+                } else {
+                    ("Moon", 14.0)
+                };
+                if let Some(i) = self.simulation.index_of(name) {
+                    self.fly_to(i, radii);
+                }
+                self.status = Some((
+                    format!("{kind} eclipse at its greatest, {when} UTC"),
+                    Instant::now(),
+                ));
+            }
+            Err(e) => self.status = Some((format!("Couldn't go there: {e}"), Instant::now())),
+        }
+    }
+
     /// The window with a pair's gravitational waves: the strain at Earth
     /// over time, what it shows, and its sound.
     fn waves_window(&mut self, ctx: &egui::Context) {
@@ -3395,10 +3552,46 @@ impl eframe::App for WorldlineApp {
         egui::CentralPanel::no_frame().show(ui, |ui| self.scene(ui, frame));
         self.catalogue_window(ui.ctx());
         self.waves_window(ui.ctx());
+        self.eclipses_window(ui.ctx());
 
         if !self.simulation.paused || self.flight.is_some() {
             ui.ctx().request_repaint();
         }
+    }
+}
+
+/// An eclipse's kind in words, the magnitude to show (the umbral one for
+/// the Moon, unless only the penumbra touches it) and what it means.
+fn eclipse_row(eclipse: &Eclipse) -> (&'static str, f64, String) {
+    match *eclipse {
+        Eclipse::Solar { kind, magnitude, .. } => (
+            match kind {
+                SolarKind::Total => "Total solar",
+                SolarKind::Annular => "Annular solar",
+                SolarKind::Hybrid => "Hybrid solar",
+                SolarKind::Partial => "Partial solar",
+            },
+            magnitude,
+            "The share of the Sun's diameter the Moon covers where the eclipse is greatest; for a central one, the Moon's apparent diameter over the Sun's there".to_string(),
+        ),
+        Eclipse::Lunar { kind, penumbral, umbral, .. } => (
+            match kind {
+                LunarKind::Total => "Total lunar",
+                LunarKind::Partial => "Partial lunar",
+                LunarKind::Penumbral => "Penumbral lunar",
+            },
+            if kind == LunarKind::Penumbral { penumbral } else { umbral },
+            format!(
+                "The share of the Moon's diameter in Earth's umbra: {umbral:.4}; in its penumbra: {penumbral:.4}"
+            ),
+        ),
+    }
+}
+
+/// An eclipse's γ.
+fn eclipse_gamma(eclipse: &Eclipse) -> f64 {
+    match *eclipse {
+        Eclipse::Solar { gamma, .. } | Eclipse::Lunar { gamma, .. } => gamma,
     }
 }
 

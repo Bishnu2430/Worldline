@@ -5,6 +5,7 @@
 
 mod atmosphere;
 mod belts;
+mod eclipses;
 mod galactic_center;
 mod heliosphere;
 mod kernel;
@@ -21,6 +22,7 @@ mod time;
 
 pub use atmosphere::{Atmosphere, atmosphere};
 pub use belts::{Belt, BeltKind, BeltSample, belt_particles, belt_samples, belts};
+pub use eclipses::{CanonEclipse, lunar_eclipses_2026_2030, solar_eclipses_2026_2030};
 pub use galactic_center::{
     GalacticCenter, GalacticFrame, SStar, SunMotion, equatorial_to_galactic, galactic_center,
     galactic_frame, galactic_north_pole, kepler_state, s_stars, sgr_a_star_direction,
@@ -32,8 +34,8 @@ pub use heliosphere::{
 };
 pub use magnetospheres::{PlanetaryField, RadiationBelt, planetary_fields, radiation_belts};
 pub use moons::{
-    MoonSystemData, moon_figure, moon_systems, parse_moons, ring_mass, solar_system_with_moons,
-    tesseral_harmonics, zonal_harmonics,
+    MoonSystemData, earth_zonal_harmonics, moon_figure, moon_systems, parse_moons, ring_mass,
+    solar_system_with_moons, tesseral_harmonics, zonal_harmonics,
 };
 pub use notable::{
     BinaryOrbit, Distance, Measured, NotableObject, ObjectKind, RadiusBasis, binary_orbits,

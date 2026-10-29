@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use worldline_core::constants::DAY;
 use worldline_core::gravity::{
-    Relativistic, SynchronousFigure, TesseralField, TesseralTerm, ZonalField,
+    Bulge, Relativistic, SynchronousFigure, TesseralField, TesseralTerm, WithBulges, ZonalField,
 };
 use worldline_core::hierarchy::{Hierarchy, MoonSystem};
 use worldline_core::{Body, DVec3};
@@ -108,6 +108,22 @@ pub fn zonal_harmonics(planet: &str) -> Option<(f64, Vec<(u32, f64)>)> {
         }
     }
     Some((radius?, terms))
+}
+
+/// Earth's zonal gravity harmonics, as JPL's planetary ephemeris DE440
+/// integrates them: reference radius (m) and (degree, J_n) pairs.
+pub fn earth_zonal_harmonics() -> (f64, Vec<(u32, f64)>) {
+    let rows: Vec<(f64, u32, f64)> = include_str!("../data/earth-zonal-harmonics.csv")
+        .lines()
+        .filter(|l| !l.starts_with('#'))
+        .skip(1)
+        .map(|line| {
+            let fields: Vec<&str> = line.split(',').collect();
+            let number = |i: usize| fields[i].parse::<f64>().expect("bundled data is valid");
+            (number(0) * 1e3, number(1) as u32, number(2))
+        })
+        .collect();
+    (rows[0].0, rows.iter().map(|&(_, n, j)| (n, j)).collect())
 }
 
 /// A planet's tesseral gravity harmonics: reference radius (m) and (degree,
@@ -248,8 +264,31 @@ pub(crate) fn hierarchy_with_moons(top: worldline_core::System) -> Hierarchy {
         .collect();
     // Relativistic N-body gravity, with each pair's second-order and
     // gravitational-wave terms: below double precision for the solar
-    // system, decisive for a compact binary dropped into it.
-    Hierarchy::new(top, Box::new(Relativistic::default()), moon_systems)
+    // system, decisive for a compact binary dropped into it. And Earth's
+    // bulge, which the Moon beside it feels; its pole, like the planets',
+    // held at the epoch's.
+    let bulges = rotation_model("Earth")
+        .map(|rotation| {
+            let (radius, coefficients) = earth_zonal_harmonics();
+            Bulge {
+                body: "Earth".into(),
+                field: ZonalField {
+                    radius,
+                    coefficients,
+                    pole: rotation
+                        .orientation(snapshot.epoch_jd_tdb)
+                        .body_to_ecliptic
+                        .z_axis,
+                },
+            }
+        })
+        .into_iter()
+        .collect();
+    let gravity = WithBulges {
+        gravity: Relativistic::default(),
+        bulges,
+    };
+    Hierarchy::new(top, Box::new(gravity), moon_systems)
 }
 
 #[cfg(test)]

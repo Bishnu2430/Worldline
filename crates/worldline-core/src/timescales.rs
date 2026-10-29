@@ -26,6 +26,20 @@ pub const MJD_OFFSET: f64 = 2_400_000.5;
 /// The Julian Date (UTC) the computer's clock counts from, 1970-01-01 0h.
 pub const UNIX_EPOCH_JD: f64 = 2_440_587.5;
 
+/// The Julian Date of a Gregorian calendar date and `seconds` into it:
+/// Meeus, *Astronomical Algorithms*, 2nd ed., eq. 7.1.
+pub fn julian_date(year: i32, month: u32, day: u32, seconds: f64) -> f64 {
+    let (y, m) = if month <= 2 {
+        (f64::from(year - 1), f64::from(month + 12))
+    } else {
+        (f64::from(year), f64::from(month))
+    };
+    let a = (y / 100.0).floor();
+    let b = 2.0 - a + (a / 4.0).floor();
+    (365.25 * (y + 4716.0)).floor() + (30.6001 * (m + 1.0)).floor() + f64::from(day) + b - 1524.5
+        + seconds / DAY
+}
+
 /// The Julian Date (UTC) `seconds` after the computer's epoch: Unix time
 /// leaves leap seconds out, so it counts UTC days of 86,400 s.
 pub fn jd_from_unix(seconds: f64) -> f64 {
@@ -197,6 +211,14 @@ mod tests {
                 (new_year + 1.0, 0.57, true),
             ],
         )
+    }
+
+    #[test]
+    fn calendar_dates_to_julian_dates() {
+        // J2000.0, and Meeus's example 7.a: 1957 Oct 4.81 → 2436116.31.
+        assert_eq!(julian_date(2000, 1, 1, 43_200.0), J2000_JD);
+        assert!((julian_date(1957, 10, 4, 0.81 * DAY) - 2_436_116.31).abs() < 1e-9);
+        assert_eq!(julian_date(2025, 1, 1, 0.0), 2_460_676.5);
     }
 
     #[test]
