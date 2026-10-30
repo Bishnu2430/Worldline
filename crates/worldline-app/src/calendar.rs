@@ -43,6 +43,13 @@ impl DateTime {
     }
 }
 
+/// A Julian Date as "YYYY-MM-DD hh:mm", rounded to the nearest minute, as
+/// almanacs give rise and set times.
+pub fn to_the_minute(jd: f64) -> String {
+    let minutes = (jd * 1440.0).round() / 1440.0;
+    to_the_second(minutes)[..16].to_string()
+}
+
 /// A Julian Date as a date and time to the nearest second, as
 /// "2026-10-28 14:03:27".
 pub fn to_the_second(jd: f64) -> String {
@@ -74,6 +81,15 @@ impl fmt::Display for DateTime {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn minutes_round_rather_than_cut() {
+        use worldline_core::timescales::julian_date;
+        let at = |seconds: f64| julian_date(2026, 10, 31, 22.0 * 3600.0 + 8.0 * 60.0 + seconds);
+        assert_eq!(to_the_minute(at(29.0)), "2026-10-31 22:08");
+        assert_eq!(to_the_minute(at(31.0)), "2026-10-31 22:09");
+        assert_eq!(to_the_minute(at(57.0)), "2026-10-31 22:09");
+    }
 
     #[test]
     fn known_dates() {

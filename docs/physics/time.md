@@ -51,7 +51,7 @@ Earth's prime meridian is now turned by the **Earth Rotation Angle** θ(UT1), th
 
   W = θ(UT1) − 90° − α₀.
 
-**The pole** stays the IAU model's: precession, but not nutation, which moves it by up to 17″.
+**The pole** stays the IAU model's: precession, but not nutation, which moves it by up to 11″: its swing of 17″ along the ecliptic and 9″ across it make √(6.8² + 9.2²) = 11.4″ at the pole.
 
 **Against JPL.** Where the Sun is overhead lands 0.006° from Horizons' on 2025-01-01 and on 2026-10-28. With the IAU model in TDB it was 0.09° off. That matters for step 5.4: 0.09° is 22 seconds of sunrise.
 
@@ -70,7 +70,7 @@ Earth's prime meridian is now turned by the **Earth Rotation Angle** θ(UT1), th
 
 - **UT1 − UTC is the IERS's** from 2024-12-01, predicted from late October 2026 to 2027-10-29, with the IERS's own stated error growing to 0.025 s by then. Beyond, it is held at its last value. Earth's real rotation will drift from that by up to a second a year, which no one can predict.
 - **Leap seconds** are known until 2027-06-28 (none until then). Later ones aren't, so a UTC far in the future may be off by them.
-- **Earth's pole leaves out nutation** (up to 17″) and polar motion (under 1″). Where the Sun is overhead is also left without aberration (20.5″), which is why it lands 0.006° from JPL's.
+- **Earth's pole leaves out nutation** (up to 11″) and polar motion (under 1″). Where the Sun is overhead is also left without aberration (20.5″), which is why it lands 0.006° from JPL's.
 - **Only Earth** turns by UT1; every other body by its IAU model, which is in TDB, as it should be.
 
 ## Validation

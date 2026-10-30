@@ -96,6 +96,7 @@
 | Now: the computer's clock as the simulation's time, and today's planets | the clock read back in UTC within a second; the planets on 2026-10-28, run from the 2025 snapshot, as close to JPL as step 1.3's year; Earth turned by the IERS's UT1 | ✅ passing: 0.009 s; Earth under 0.1 km off and the Moon 1.2 km (since step 5.2 added Earth's bulge), every body within 4 × 10⁻⁷ of its distance; the overhead Sun 0.006° from JPL's |
 | Eclipses: every solar and lunar eclipse of 2026–2030, found in the app's own simulation run from its 2025 snapshot | all 24 of NASA's Five Millennium Canon (Espenak & Meeus) found, of the same types, at its times of greatest eclipse to the minute | ✅ passing: 24 of 24, no others, the worst 5.0 s off; γ to the canon's 4th decimal |
 | The Moon's shadow on Earth: the path of the total solar eclipse of 12 August 2026, in the app's own simulation run from its 2025 snapshot | the central line within a few km of NASA's tabulated path (F. Espenak), turning Earth by NASA's ΔT | ✅ passing: 0.07–0.50 km across it from Siberia to Spain, 2.37 km at sunset; l₁, l₂ and tan f match NASA's Besselian elements to 2 × 10⁻⁶ |
+| The sky from a place on Earth: rise and set of the Sun and Moon through 2026, in the app's own simulation run from its 2025 snapshot | every one of the U.S. Naval Observatory's tables for Washington and Sydney, to the minute; the planets' altitude and azimuth within 12.5″ of JPL's | ✅ passing: all 2,870, none extra, the worst 33 s from times rounded to the minute, 98% in the same minute; planets within 9.0″ |
 | Tidal disruption begins near r_t ≈ R(M/m)^(1/3), and the debris falls back at a rate ∝ t^(−5/3) | a Jupiter-like planet passing a star loses what Faber, Rasio & Willems's simulations found (0.58, 0.24, 0.027 and 0 at 1.2, 1.5, 1.8 and 2.2 r_t); torn right through, its debris comes back as t^(−5/3) | ✅ passing: 0.574, 0.235, 0.024, 0; t^(−1.676 ± 0.023) |
 | A planet stays a point until it nears its tidal radius, then becomes a fluid | a point until tides would stretch it by 1% (5.34 tidal radii for n = 1, never passed); as a fluid it stretches by the n = 1 polytrope's Love number, 15/π² − 1 = 0.520 | ✅ passing: Jupiter falling toward a black hole stops at 1.006 of that distance; the GPU fluid's Love number 0.517 with 8,000 particles; a Jupiter passing the Sun is a fluid at its closest and a point again after |
 | A clock near a black hole runs slow by the predicted factor (proper time) | on a circular orbit at 10 GM/c², √(1 − 3GM/rc²) = 0.836660; Earth's clock against the barycenter's, the IAU's L_C = 1.48082686741 × 10⁻⁸ | ✅ passing: 0.836660026534, carried round by the engine; Earth over 10 years 4 × 10⁻¹⁴ off L_C; GPS clocks gain 38.54 µs a day |
@@ -164,6 +165,12 @@ To see the total solar eclipse of 12 August 2026 at its greatest, with its path 
 cargo run --release -- --eclipse 7
 ```
 
+To stand in Reykjavík at totality on 12 August 2026 (or press **Sky** in the top bar to stand anywhere, and see when the Sun and Moon rise and set):
+
+```bash
+cargo run --release -- --stand 64.1466,-21.9426 --advance 1.611890 --paused --fov 4
+```
+
 To replay GW150914, the first black-hole merger heard (press **Play** in the top bar; after 15 to 50 seconds of computing its last orbits, the two holes merge into one):
 
 ```bash
@@ -193,6 +200,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 - [Fluids (SPH)](docs/physics/sph.md): planets and stars as self-gravitating fluids of particles, and Jupiter as a polytrope that holds itself up; on the GPU, as many particles as it steps smoothly
 - [Tides](docs/physics/tides.md): when a planet stops being a point and becomes a fluid, and the tides it feels as one
 - [Time](docs/physics/time.md): the computer's clock turned into the simulation's time, leap seconds, and Earth turning as it really does, from the IERS
+- [The sky from a place on Earth](docs/physics/sky-from-earth.md): altitude and azimuth, refraction, the horizon, and every rise and set of 2026 checked against the U.S. Naval Observatory
 - [Eclipses](docs/physics/eclipses.md): the shadows of the Moon and Earth, an eclipse finder checked against NASA's canon to the second, the path of totality checked against NASA's path, and Earth's bulge pulling on the Moon
 - [Tidal disruption](docs/physics/disruption.md): a planet torn apart by a black hole, how much it loses, and its debris falling back as t^(−5/3)
 - [Proper time](docs/physics/proper-time.md): every body's own clock, slow near a black hole by exactly what general relativity predicts, and Earth's against the solar system's barycenter

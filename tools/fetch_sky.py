@@ -1,98 +1,181 @@
-"""Fetch the sky behind everything: the bright stars and the Milky Way's glow.
+"""Fetch the references for the sky from a place on Earth (step 5.4).
 
-Writes:
+- Rise and set of the Sun and Moon in 2026, in Universal Time, for two
+  cities in opposite hemispheres: the U.S. Naval Observatory's one-year
+  tables, as published (to the minute). The tables are for places given to
+  the minute of arc, so these cities are asked for exactly that.
+- Where the Sun, Moon and planets stand from the same cities at a few
+  moments of 2026: NASA JPL Horizons' apparent azimuth and elevation, without
+  refraction ("airless"), from its observer tables.
 
-- crates/worldline-data/data/bright-stars.csv: every star of the Yale
-  Bright Star Catalogue, 5th revised edition (Hoffleit & Warren 1991),
-  from CDS catalog V/50: its J2000 position, galactic coordinates, V
-  magnitude and B-V color, digits as published. Entries without a position (removed from the
-  catalogue) are left out.
-- crates/worldline-app/assets/textures/gaia_edr3_sky_2k.png: "The colour of
-  the sky from Gaia's Early Data Release 3", equirectangular, in galactic
-  coordinates, 2000 x 1000. ESA/Gaia/DPAC, CC BY-SA 3.0 IGO;
-  acknowledgement: A. Moitinho. Stored unchanged.
-
-Credit is given in CREDITS.md.
+Writes rise-set-2026.csv and sky-from-earth-2026.csv under
+crates/worldline-data/data/.
 
 Run from anywhere:  python tools/fetch_sky.py
 Uses only the Python standard library.
 """
 
-import csv
-import gzip
-import io
+import json
+import re
+import urllib.parse
 import urllib.request
+from datetime import date
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / "crates" / "worldline-data" / "data"
-TEXTURES = ROOT / "crates" / "worldline-app" / "assets" / "textures"
+USNO = "https://aa.usno.navy.mil/calculated/rstt/year"
+DEFINITIONS = "https://aa.usno.navy.mil/faq/RST_defs"
+HORIZONS = "https://ssd.jpl.nasa.gov/api/horizons.api"
+OUT_DIR = Path(__file__).resolve().parent.parent / "crates" / "worldline-data" / "data"
+YEAR = 2026
 
-CATALOG = "https://cdsarc.cds.unistra.fr/ftp/V/50/catalog.gz"
-GAIA = (
-    "https://sci.esa.int/documents/33580/35361/Gaia_EDR3_flux_cartesian_2k.png/"
-    "09ea4802-8b67-3086-6c86-b64d5ca7911b?version=1.0&t=1606925449184&download=true"
-)
+# (key, name, latitude and longitude as degrees and minutes, signed).
+SITES = [
+    ("washington", "Washington, DC", (38, 53), (-77, 2)),
+    ("sydney", "Sydney", (-33, 52), (151, 12)),
+]
+TASKS = [("Sun", 0), ("Moon", 1)]
+MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+# Moments of 2026 for the azimuths and elevations: noon UT on the first of
+# every third month, Julian Dates (UT).
+MOMENTS = [2461042.0, 2461132.0, 2461223.0, 2461315.0]
+BODIES = [
+    ("Sun", 10),
+    ("Moon", 301),
+    ("Mercury", 199),
+    ("Venus", 299),
+    ("Mars", 499),
+    ("Jupiter", 599),
+    ("Saturn", 699),
+    ("Uranus", 799),
+    ("Neptune", 899),
+]
 
 
 def fetch(url):
-    request = urllib.request.Request(url, headers={"User-Agent": "Worldline data fetch (github.com/Bishnu2430/Worldline)"})
-    with urllib.request.urlopen(request, timeout=300) as response:
-        return response.read()
+    request = urllib.request.Request(url, headers={"User-Agent": "Worldline tools/fetch_sky.py"})
+    with urllib.request.urlopen(request, timeout=120) as response:
+        return response.read().decode(errors="replace")
 
 
-def field(line, first, last):
-    """Bytes first to last (1-based, inclusive) of a fixed-width line."""
-    return line[first - 1:last].strip()
+def degrees(pair):
+    d, m = pair
+    return (abs(d) + m / 60.0) * (1 if d >= 0 else -1)
 
 
-def bright_stars():
-    text = gzip.decompress(fetch(CATALOG)).decode("ascii")
+def rows_of(key, name, lat, lon, body, task):
+    """The year table's events: columns are fixed, 11 wide, one pair a month."""
+    params = {
+        "ID": "AA",
+        "year": YEAR,
+        "task": task,
+        "lat": f"{degrees(lat):.6f}",
+        "lon": f"{degrees(lon):.6f}",
+        "label": name,
+        "tz": 0,
+        "tz_sign": -1,
+        "submit": "Get Data",
+    }
+    text = fetch(USNO + "?" + urllib.parse.urlencode(params))
+    table = text.split("<pre")[1].split("</pre>")[0]
+    expected = f"{'N' if lat[0] >= 0 else 'S'}{abs(lat[0]):02d} {lat[1]:02d}"
+    assert expected in table, (expected, table[:300])
+    assert "Universal Time" in table
     rows = []
-    for line in text.splitlines():
-        line = line.ljust(197)
-        # Bytes as in the catalogue's ReadMe: the J2000 position (76-90),
-        # galactic longitude and latitude (91-102), Vmag (103-107), B-V
-        # (110-114) and the proper motion (149-160).
-        if not field(line, 76, 77):
+    for line in table.splitlines():
+        if not re.match(r"\d\d  ", line):
             continue
-        rows.append([
-            field(line, 1, 4),
-            field(line, 5, 14),
-            field(line, 76, 77), field(line, 78, 79), field(line, 80, 83),
-            field(line, 84, 84) or "+", field(line, 85, 86), field(line, 87, 88), field(line, 89, 90),
-            field(line, 91, 96), field(line, 97, 102),
-            field(line, 103, 107),
-            field(line, 110, 114),
-            field(line, 149, 154), field(line, 155, 160),
-        ])
-    out = io.StringIO()
-    out.write("# Worldline: the Yale Bright Star Catalogue, 5th revised edition (Hoffleit & Warren 1991), "
-              "CDS catalog V/50. Regenerate with: python tools/fetch_sky.py\n")
-    out.write("# Position: equinox and epoch J2000 (FK5). glon, glat: galactic longitude and latitude (deg). "
-              "vmag: visual magnitude; b_v: B-V color, empty if not measured. Stars removed from the "
-              "catalogue (no position) are left out. pm_ra (times cos dec), pm_dec: proper motion, arcsec/yr. "
-              "The galactic coordinates are for the positions of epoch 1950.\n")
-    writer = csv.writer(out, lineterminator="\n")
-    writer.writerow(["hr", "name", "ra_h", "ra_m", "ra_s", "dec_sign", "dec_deg", "dec_arcmin", "dec_arcsec",
-                     "glon", "glat", "vmag", "b_v", "pm_ra", "pm_dec"])
-    writer.writerows(rows)
-    path = DATA / "bright-stars.csv"
-    path.write_bytes(out.getvalue().encode("utf-8"))
-    print(f"Wrote {path} ({len(rows)} stars)")
+        day = int(line[:2])
+        line = line.ljust(4 + 11 * 12)
+        for month in range(12):
+            if day > MONTH_DAYS[month]:
+                continue
+            start = 4 + 11 * month
+            for event, field in (("rise", line[start:start + 4]), ("set", line[start + 5:start + 9])):
+                if field.strip():
+                    assert re.fullmatch(r"\d{4}", field), (line, field)
+                    rows.append(f"{key},{body},{event},{YEAR}-{month + 1:02d}-{day:02d},{field}")
+    return rows
 
 
-def gaia_map():
-    data = fetch(GAIA)
-    assert data[:8] == b"\x89PNG\r\n\x1a\n", "not a PNG"
-    path = TEXTURES / "gaia_edr3_sky_2k.png"
-    path.write_bytes(data)
-    print(f"Wrote {path} ({len(data) / 1e6:.1f} MB)")
+def rise_set():
+    rows = []
+    for key, name, lat, lon in SITES:
+        for body, task in TASKS:
+            found = rows_of(key, name, lat, lon, body, task)
+            print(f"{name}, {body}: {len(found)} events")
+            rows += found
+    header = [
+        "# The U.S. Naval Observatory's rise and set of the Sun and Moon in 2026, in Universal Time, to the minute. Regenerate with: python tools/fetch_sky.py",
+        f"# source: USNO Astronomical Applications Department, 'Sun or Moon Rise/Set Table for One Year' ({USNO}); fetched {date.today()}",
+        f"# definitions: {DEFINITIONS}: the Sun's center 90.8333 deg from the zenith; the Moon's 90.5666 deg + its apparent radius - its horizontal parallax",
+        "# time: hhmm, Universal Time, on the UT date given; a day without an event has no row",
+    ]
+    for key, name, lat, lon in SITES:
+        header.append(f"# site: {key}; {name}; latitude {lat[0]} {lat[1]}; longitude {lon[0]} {lon[1]}")
+    write("rise-set-2026.csv", header + ["site,body,event,date,time_ut"] + rows)
+
+
+def horizons(key, lat, lon, body, naif_id):
+    params = {
+        "format": "json",
+        "COMMAND": f"'{naif_id}'",
+        "OBJ_DATA": "'NO'",
+        "MAKE_EPHEM": "'YES'",
+        "EPHEM_TYPE": "'OBSERVER'",
+        "CENTER": "'coord@399'",
+        "COORD_TYPE": "'GEODETIC'",
+        "SITE_COORD": f"'{degrees(lon):.8f},{degrees(lat):.8f},0'",
+        "TLIST": " ".join(f"'{jd}'" for jd in MOMENTS),
+        "TIME_TYPE": "'UT'",
+        "QUANTITIES": "'4'",
+        "ANG_FORMAT": "'DEG'",
+        "APPARENT": "'AIRLESS'",
+        "EXTRA_PREC": "'YES'",
+        "CSV_FORMAT": "'YES'",
+    }
+    result = json.loads(fetch(HORIZONS + "?" + urllib.parse.urlencode(params)))["result"]
+    block = result.split("$$SOE")[1].split("$$EOE")[0].strip().splitlines()
+    assert len(block) == len(MOMENTS), result[:500]
+    source = re.search(r"Target body name: .*\{source: (\w+)\}", result).group(1)
+    rows = []
+    for jd, line in zip(MOMENTS, block):
+        f = [x.strip() for x in line.split(",")]
+        rows.append(f"{key},{jd},{body},{f[3]},{f[4]}")
+    return source, rows
+
+
+def sky():
+    rows, sources = [], set()
+    for key, name, lat, lon in SITES:
+        for body, naif_id in BODIES:
+            print(f"{name}, {body}...")
+            source, found = horizons(key, lat, lon, body, naif_id)
+            sources.add(source)
+            rows += found
+    write(
+        "sky-from-earth-2026.csv",
+        [
+            "# Where the Sun, Moon and planets stand from two cities, by NASA JPL Horizons. Regenerate with: python tools/fetch_sky.py",
+            f"# source: Horizons observer tables, quantity 4, ephemerides {', '.join(sorted(sources))}; fetched {date.today()}",
+            "# azimuth_deg, elevation_deg: apparent, topocentric, airless (no refraction); azimuth from north through east",
+            "# jd_ut: Julian Date, UT; the sites as in rise-set-2026.csv, at the ellipsoid's surface",
+            "site,jd_ut,body,azimuth_deg,elevation_deg",
+        ]
+        + rows,
+    )
+
+
+def write(name, lines):
+    path = OUT_DIR / name
+    with open(path, "w", encoding="utf-8", newline="\n") as file:
+        file.write("\n".join(lines) + "\n")
+    print(f"Wrote {path}: {len(lines)} lines")
 
 
 def main():
-    bright_stars()
-    gaia_map()
+    rise_set()
+    sky()
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ use std::f64::consts::FRAC_PI_2;
 
 use eframe::egui::{Pos2, Rect};
 use worldline_core::DVec3;
+use worldline_core::horizon::{Horizontal, LocalFrame};
 
 /// Where a point lands on screen.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -20,8 +21,21 @@ pub struct Projection {
     pub points_per_meter: f64,
 }
 
+/// A camera standing at a place on Earth, looking out at the sky. "Up" is
+/// the place's zenith.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Standing {
+    /// Where it stands, in m.
+    pub eye: DVec3,
+    /// The directions there.
+    pub frame: LocalFrame,
+    /// Where it looks.
+    pub look: Horizontal,
+}
+
 /// A perspective camera looking at `target` from a point on a sphere
-/// around it. "Up" is ecliptic north (+z).
+/// around it. "Up" is ecliptic north (+z). Or, if `standing`, looking out
+/// from a place on Earth.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Camera {
     /// The point the camera looks at and orbits, in m.
@@ -34,6 +48,8 @@ pub struct Camera {
     pub distance: f64,
     /// Vertical field of view, in radians.
     pub fov_y: f64,
+    /// Standing on Earth, if so.
+    pub standing: Option<Standing>,
 }
 
 impl Camera {
@@ -47,9 +63,19 @@ impl Camera {
     const ZOOM_SENSITIVITY: f64 = 0.002;
     /// Keeps the camera from flipping over the poles.
     const MAX_PITCH: f64 = FRAC_PI_2 - 0.01;
+    /// How narrow a view standing on Earth zooms to: 0.5°, the Moon across
+    /// the screen.
+    const MIN_FOV: f64 = 0.5 * std::f64::consts::PI / 180.0;
+    /// And how wide: 100°.
+    const MAX_FOV: f64 = 100.0 * std::f64::consts::PI / 180.0;
+    /// How far below the horizon it looks: 10°.
+    const LOWEST_LOOK: f64 = -10.0 * std::f64::consts::PI / 180.0;
 
     /// The camera's position, in m.
     pub fn eye(&self) -> DVec3 {
+        if let Some(standing) = &self.standing {
+            return standing.eye;
+        }
         let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
         let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
         self.target
@@ -58,6 +84,11 @@ impl Camera {
 
     /// Unit vectors pointing forward, right and up from the camera's view.
     pub fn basis(&self) -> (DVec3, DVec3, DVec3) {
+        if let Some(standing) = &self.standing {
+            let forward = standing.frame.direction(standing.look);
+            let right = forward.cross(standing.frame.zenith).normalize();
+            return (forward, right, right.cross(forward));
+        }
         let forward = (self.target - self.eye()).normalize();
         let right = forward.cross(DVec3::Z).normalize();
         let up = right.cross(forward);
@@ -114,6 +145,15 @@ impl Camera {
 
     /// Rotates the camera around its target by a drag of (dx, dy) points.
     pub fn orbit(&mut self, dx: f32, dy: f32) {
+        if let Some(standing) = &mut self.standing {
+            // Looking around, the sky follows the pointer at any zoom.
+            let scale = Self::DRAG_SENSITIVITY * self.fov_y;
+            standing.look.azimuth =
+                (standing.look.azimuth - f64::from(dx) * scale).rem_euclid(std::f64::consts::TAU);
+            standing.look.altitude = (standing.look.altitude + f64::from(dy) * scale)
+                .clamp(Self::LOWEST_LOOK, Self::MAX_PITCH);
+            return;
+        }
         self.yaw -= f64::from(dx) * Self::DRAG_SENSITIVITY;
         self.pitch = (self.pitch + f64::from(dy) * Self::DRAG_SENSITIVITY)
             .clamp(-Self::MAX_PITCH, Self::MAX_PITCH);
@@ -122,7 +162,12 @@ impl Camera {
     /// Moves the camera toward (positive `scroll`) or away from its target,
     /// staying at least `min_distance` away.
     pub fn zoom(&mut self, scroll: f32, min_distance: f64) {
-        self.distance *= (-f64::from(scroll) * Self::ZOOM_SENSITIVITY).exp();
+        let factor = (-f64::from(scroll) * Self::ZOOM_SENSITIVITY).exp();
+        if self.standing.is_some() {
+            self.fov_y = (self.fov_y * factor).clamp(Self::MIN_FOV, Self::MAX_FOV);
+            return;
+        }
+        self.distance *= factor;
         self.clamp_distance(min_distance);
     }
 
@@ -144,6 +189,7 @@ mod tests {
             pitch: 0.0,
             distance: 1e10,
             fov_y: 0.8,
+            standing: None,
         }
     }
 
@@ -225,6 +271,7 @@ mod tests {
             pitch: 0.5,
             distance: 4e11,
             fov_y: 0.8,
+            standing: None,
         };
         let viewport = Rect::from_min_size(Pos2::ZERO, vec2(1200.0, 800.0));
         let pointer = Pos2::new(830.0, 210.0);

@@ -15,6 +15,7 @@ pub mod gravitational_waves;
 pub mod gravity;
 pub mod hawking;
 pub mod hierarchy;
+pub mod horizon;
 pub mod integrator;
 pub mod kepler;
 pub mod kerr_light;

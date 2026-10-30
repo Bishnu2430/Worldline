@@ -950,7 +950,7 @@ pub fn corona_brightness(rho: f64) -> f64 {
 /// times fainter than the disk (that's why it's only seen in total
 /// eclipses), so brightness is shown on a log scale: a visual boost, with
 /// the shape of the falloff from the Baumbach model.
-fn draw_corona(painter: &Painter, center: Pos2, radius: f32) {
+pub fn draw_corona(painter: &Painter, center: Pos2, radius: f32) {
     const RINGS: usize = 24;
     const SEGMENTS: usize = 64;
     const OUTER: f64 = 3.0;
