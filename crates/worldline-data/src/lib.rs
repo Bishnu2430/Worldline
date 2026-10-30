@@ -22,7 +22,10 @@ mod time;
 
 pub use atmosphere::{Atmosphere, atmosphere};
 pub use belts::{Belt, BeltKind, BeltSample, belt_particles, belt_samples, belts};
-pub use eclipses::{CanonEclipse, lunar_eclipses_2026_2030, solar_eclipses_2026_2030};
+pub use eclipses::{
+    Besselian, CanonEclipse, CanonPath, LatLon, PathRow, eclipse_path_2026_08_12,
+    lunar_eclipses_2026_2030, solar_eclipses_2026_2030,
+};
 pub use galactic_center::{
     GalacticCenter, GalacticFrame, SStar, SunMotion, equatorial_to_galactic, galactic_center,
     galactic_frame, galactic_north_pole, kepler_state, s_stars, sgr_a_star_direction,

@@ -1,7 +1,8 @@
 //! The eclipse finder: a copy of the simulation run ahead on its own
 //! thread, its Sun, Earth and Moon sampled every 6 hours and searched for
 //! eclipses as it goes, each kept as a save of the moment it is greatest,
-//! to go to. See `docs/physics/eclipses.md`.
+//! to go to, and a solar eclipse's path across Earth. See
+//! `docs/physics/eclipses.md`.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -9,6 +10,7 @@ use std::sync::mpsc::{Receiver, channel};
 
 use worldline_core::constants::{DAY, JULIAN_YEAR};
 use worldline_core::eclipses::{Eclipse, Ephemeris};
+use worldline_core::shadow_on_earth::{self, Path};
 
 use crate::simulation::Simulation;
 
@@ -23,6 +25,10 @@ const EVERY: f64 = 6.0 * 3600.0;
 /// got.
 const CHUNK: f64 = 30.0 * DAY;
 
+/// How often a path across Earth is sampled: the umbra moves 0.5 to 2 km
+/// a second over the ground, so a point every few tens of km.
+const PATH_STEP: f64 = 30.0;
+
 /// An eclipse found ahead.
 pub struct Found {
     /// At its greatest, s on the simulation's clock.
@@ -31,6 +37,8 @@ pub struct Found {
     pub jd_tdb: f64,
     /// The simulation at that moment, as a save.
     pub save: String,
+    /// For a central solar eclipse, the umbra's path across Earth.
+    pub path: Option<Path>,
 }
 
 enum Message {
@@ -101,10 +109,21 @@ impl Finder {
                         continue;
                     };
                     replay.advance_by(t - replay.time());
+                    let earth_known = runner.earth_orientation(runner.julian_date()).is_some();
+                    let path = (matches!(eclipse, Eclipse::Solar { .. }) && earth_known)
+                        .then(|| {
+                            shadow_on_earth::path(&ephemeris, t, PATH_STEP, |s| {
+                                runner
+                                    .earth_orientation(jd(&runner, s))
+                                    .map_or(glam::DMat3::IDENTITY, |o| o.body_to_ecliptic)
+                            })
+                        })
+                        .filter(|path| !path.times.is_empty());
                     let found = Found {
                         eclipse,
                         jd_tdb: jd(&runner, t),
                         save: replay.save(),
+                        path,
                     };
                     if sender.send(Message::Found(found)).is_err() {
                         return;

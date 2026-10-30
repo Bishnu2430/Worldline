@@ -16,7 +16,7 @@
 //! the Moon's shadow at Earth by about 40 km, 40 s of an eclipse's time.)
 
 use crate::DVec3;
-use crate::constants::{C, OBLIQUITY_J2000};
+use crate::constants::{AU, C, OBLIQUITY_J2000};
 
 /// Earth's equatorial radius, m: IERS Conventions 2010, Table 1.2
 /// (GRS80).
@@ -38,8 +38,14 @@ pub const K_UMBRA: f64 = 0.272_281;
 /// the Moon's own size in lunar eclipses.
 pub const K_MEAN: f64 = 0.272_507_6;
 
-/// The Sun's radius, m: IAU 2015 Resolution B3's nominal value.
-pub const SUN_RADIUS: f64 = 695_700e3;
+/// The Sun's radius as eclipses see it, m: 959.63″ at 1 AU (Auwers),
+/// 695,990 km, as the canons and NASA's Besselian elements use it.
+/// Eclipses happen at the Sun's visible edge, a little beyond the
+/// photosphere's radius that the IAU's nominal 695,700 km is (2015
+/// Resolution B3). With the IAU's radius, the umbra of 2026 August 12
+/// comes out 1% bigger than NASA's; with this one, tan f₂ matches NASA's to
+/// 10⁻⁷ (step 5.3).
+pub const SUN_RADIUS: f64 = AU * (959.63 / 3600.0 * std::f64::consts::PI / 180.0);
 
 /// Danjon's enlargement of Earth's shadow by its atmosphere, which the
 /// lunar canon uses: Earth's parallax times 1 + 1/85 − 1/594 ≈ 1.01, the

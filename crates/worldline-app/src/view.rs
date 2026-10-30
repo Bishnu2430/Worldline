@@ -11,6 +11,7 @@ use worldline_core::eclipses::{
 };
 use worldline_core::magnetosphere::{field_line_point, magnetopause_radius, shue_1998, standoff};
 use worldline_core::orbit::osculating_orbit;
+use worldline_core::shadow_on_earth::{GroundShadow, Path, Place};
 use worldline_core::solar_wind::ParkerSpiral;
 use worldline_core::zodiacal::ZodiacalCloud;
 use worldline_data::BeltKind;
@@ -527,6 +528,86 @@ fn draw_shadows(
             }
             draw_path(painter, &ring(&cone, other.dot(axis), 128), stroke);
         }
+    }
+}
+
+/// Draws the Moon's shadow on Earth's globe, where it falls now: the umbra
+/// (or antumbra) filled dark and outlined, the penumbra's edge, and the
+/// path of totality if the eclipse finder has worked it out: its central
+/// line and limits. Each is drawn only on the side of the globe facing the
+/// camera, turning with Earth. Drawn over the globes, under everything
+/// else.
+pub fn draw_shadow_on_earth(
+    painter: &Painter,
+    viewport: Rect,
+    camera: &Camera,
+    simulation: &Simulation,
+    layout: &[OnScreen],
+    path: Option<&Path>,
+) {
+    let find = |name: &str| simulation.index_of(name);
+    let (Some(sun), Some(earth), Some(moon)) = (find("Sun"), find("Earth"), find("Moon")) else {
+        return;
+    };
+    if !layout.iter().any(|s| s.index == earth && s.globe) {
+        return;
+    }
+    let Some(orientation) = simulation.earth_orientation(simulation.julian_date()) else {
+        return;
+    };
+    let frame = orientation.body_to_ecliptic;
+    let center = simulation.bodies[earth].position;
+    let eye = camera.eye();
+    // A place on the ground, on screen, if it faces the camera.
+    let on_screen = |place: &Place| {
+        let p = frame * place.position();
+        (p.dot(eye - center - p) > 0.0)
+            .then(|| screen(camera, viewport, center + p))
+            .flatten()
+    };
+    let state = |i: usize| State {
+        position: simulation.bodies[i].position,
+        velocity: simulation.bodies[i].velocity,
+    };
+    let (sun_seen, moon_seen) = apparent(state(sun), state(earth), state(moon));
+    let umbra_color = Color32::from_rgba_unmultiplied(255, 120, 90, 230);
+    let penumbra_color = Color32::from_rgba_unmultiplied(255, 205, 130, 170);
+    if let Some(path) = path {
+        let line = |places: &mut dyn Iterator<Item = Option<Place>>, stroke: Stroke| {
+            let points: Vec<_> = places.map(|p| p.and_then(|p| on_screen(&p))).collect();
+            draw_path(painter, &points, stroke);
+        };
+        let limit = Stroke::new(1.5, umbra_color);
+        line(&mut path.limits.iter().map(|l| l[0]), limit);
+        line(&mut path.limits.iter().map(|l| l[1]), limit);
+        line(
+            &mut path.central.iter().map(|&p| Some(p)),
+            Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 235, 220, 200)),
+        );
+    }
+    // Only near a new moon: the Moon between Earth and the Sun.
+    if sun_seen.dot(moon_seen) <= 0.0 {
+        return;
+    }
+    let shadow = GroundShadow::new(sun_seen, moon_seen, frame, 180);
+    let edge = |places: &[Option<Place>]| -> Vec<Option<Projection>> {
+        places
+            .iter()
+            .map(|p| p.and_then(|p| on_screen(&p)))
+            .collect()
+    };
+    let penumbra = edge(&shadow.penumbra);
+    draw_path(painter, &penumbra, Stroke::new(1.5, penumbra_color));
+    let umbra = edge(&shadow.umbra);
+    if umbra.iter().all(Option::is_some) {
+        let points: Vec<Pos2> = umbra.iter().flatten().map(|p| p.position).collect();
+        painter.add(Shape::convex_polygon(
+            points,
+            Color32::from_rgba_unmultiplied(10, 0, 0, 200),
+            Stroke::new(1.5, umbra_color),
+        ));
+    } else {
+        draw_path(painter, &umbra, Stroke::new(1.5, umbra_color));
     }
 }
 
