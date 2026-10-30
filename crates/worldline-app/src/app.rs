@@ -8,7 +8,7 @@ use eframe::egui::{self, Align2, Color32, FontId, Rect, RichText, Sense, Texture
 use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
 use worldline_core::constants::{AU, C, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSITY};
-use worldline_core::eclipses::{Eclipse, LunarKind, SolarKind};
+use worldline_core::eclipses::{Eclipse, LunarKind, SolarKind, State, apparent};
 use worldline_core::gravity::kerr::innermost_stable_orbit;
 use worldline_core::hawking;
 use worldline_core::kerr_light::{self, circular, disk_temperature, photon_orbits};
@@ -17,6 +17,7 @@ use worldline_core::magnetosphere::standoff;
 use worldline_core::merger::ringdown;
 use worldline_core::milky_way::KILOPARSEC;
 use worldline_core::neutron_star::{sly_maximum, sly_radius};
+use worldline_core::shadow_on_earth::{Path, central_point};
 use worldline_core::sunlight::{irradiance, light_time};
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DVec3};
@@ -510,6 +511,8 @@ pub struct WorldlineApp {
     /// Whether the eclipse finder's window is open, and its search.
     eclipses_open: bool,
     finder: Option<Finder>,
+    /// The eclipse to go to once the finder finds it (0 the first).
+    go_to_when_found: Option<usize>,
     /// The sound output, once something has played.
     audio: Option<(rodio::OutputStream, rodio::Sink)>,
     /// The body modeled as a fluid, if any (see `fluid.rs`).
@@ -587,6 +590,7 @@ impl WorldlineApp {
             waves: None,
             eclipses_open: false,
             finder: None,
+            go_to_when_found: None,
             audio: None,
             fluid: None,
             pending: None,
@@ -639,6 +643,7 @@ impl WorldlineApp {
         }
         if start.eclipses {
             app.open_eclipses();
+            app.go_to_when_found = start.eclipse.map(|n| n - 1);
         }
         if start.waves {
             if app.simulation.gravitational_waves(app.selected).is_some() {
@@ -2536,6 +2541,16 @@ impl WorldlineApp {
             let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
             painter.image(texture, viewport, uv, Color32::WHITE);
         }
+        if self.options.shadows {
+            view::draw_shadow_on_earth(
+                &painter,
+                viewport,
+                &self.camera,
+                &self.simulation,
+                &layout,
+                self.eclipse_path(),
+            );
+        }
         let drawn = view::draw_over(
             &painter,
             viewport,
@@ -2753,6 +2768,18 @@ impl WorldlineApp {
         }
     }
 
+    /// The path across Earth of the solar eclipse under way, if the finder
+    /// has worked it out: from 3 hours before the umbra touches Earth to 3
+    /// hours after it leaves.
+    fn eclipse_path(&self) -> Option<&Path> {
+        let now = self.simulation.time();
+        self.finder.as_ref()?.found.iter().find_map(|found| {
+            let path = found.path.as_ref()?;
+            let (first, last) = (path.times.first()?, path.times.last()?);
+            (now > first - 3.0 * 3600.0 && now < last + 3.0 * 3600.0).then_some(path)
+        })
+    }
+
     /// Opens the eclipse finder, searching from now if it isn't already.
     fn open_eclipses(&mut self) {
         self.eclipses_open = true;
@@ -2774,6 +2801,16 @@ impl WorldlineApp {
         if !finder.done {
             ctx.request_repaint_after(Duration::from_millis(250));
         }
+        if let Some(k) = self.go_to_when_found
+            && (k < finder.found.len() || finder.done)
+        {
+            self.go_to_when_found = None;
+            self.go_to_eclipse(k);
+            return;
+        }
+        let Some(finder) = &self.finder else {
+            return;
+        };
         let scales = self.simulation.time_scales();
         let utc = |jd_tdb: f64| to_the_second(scales.utc(jd_tdb));
         let (mut open, mut go, mut again) = (true, None, false);
@@ -2863,13 +2900,39 @@ impl WorldlineApp {
                 self.launch = None;
                 self.options.shadows = true;
                 let (name, radii) = if solar {
-                    ("Earth", 8.0)
+                    ("Earth", 3.0)
                 } else {
                     ("Moon", 14.0)
                 };
                 if let Some(i) = self.simulation.index_of(name) {
                     self.fly_to(i, radii);
                 }
+                // For the Sun, look down on where the shadow's axis meets
+                // the ground, or else at Earth from the Moon's side.
+                let sim = &self.simulation;
+                let find = |name: &str| sim.index_of(name);
+                if solar
+                    && let (Some(sun), Some(earth), Some(moon)) =
+                        (find("Sun"), find("Earth"), find("Moon"))
+                {
+                    let state = |i: usize| State {
+                        position: sim.bodies[i].position,
+                        velocity: sim.bodies[i].velocity,
+                    };
+                    let (sun_seen, moon_seen) = apparent(state(sun), state(earth), state(moon));
+                    let toward = sim
+                        .earth_orientation(sim.julian_date())
+                        .and_then(|o| {
+                            let frame = o.body_to_ecliptic;
+                            central_point(sun_seen, moon_seen, frame).map(|p| frame * p.position())
+                        })
+                        .unwrap_or(moon_seen)
+                        .normalize();
+                    self.camera.yaw = toward.y.atan2(toward.x);
+                    self.camera.pitch = toward.z.asin();
+                }
+                // Out of the view's way; the finder keeps its list.
+                self.eclipses_open = false;
                 self.status = Some((
                     format!("{kind} eclipse at its greatest, {when} UTC"),
                     Instant::now(),

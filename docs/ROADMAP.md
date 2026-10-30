@@ -78,7 +78,7 @@ Added 2026-10-22 at the owner's request: the sky as it is at this moment, for ec
 |---|---|---|---|
 | 5.1 | **Now:** start at the present moment and run in real time. The computer's clock (UTC) turned into the simulation's time (TDB), with leap seconds and Earth's rotation (ΔT) from the IERS | The clock matches UTC to under a second; planets' positions for today match NASA JPL Horizons as closely as step 1.3's did | ✅ |
 | 5.2 | **Eclipses:** the shadow cones of the Moon and Earth (umbra and penumbra), and an eclipse finder | Every solar and lunar eclipse of 2026–2030 found, at the times of greatest eclipse in NASA's Five Millennium Canon (Espenak & Meeus), to the minute | ✅ |
-| 5.3 | **The Moon's shadow on Earth:** the path of totality and the penumbra drawn on the globe | The 12 August 2026 total eclipse's central line within a few km of NASA's tabulated path | ⬜ |
+| 5.3 | **The Moon's shadow on Earth:** the path of totality and the penumbra drawn on the globe | The 12 August 2026 total eclipse's central line within a few km of NASA's tabulated path | ✅ |
 | 5.4 | **The sky from a place on Earth:** the view from a latitude and longitude, with the horizon, Sun, Moon and planets | Rise and set times of the Sun and Moon for a city match the U.S. Naval Observatory's to the minute | ⬜ |
 
 ## M6: Collisions in full

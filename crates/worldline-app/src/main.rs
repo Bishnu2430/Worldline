@@ -28,7 +28,9 @@
 //!   `--add` can be given more than once: `--add "Gaia BH1:40" --add
 //!   "jupiter:2@Gaia BH1" --launch 0.071` drops a Jupiter 2 AU from a
 //!   black hole 40 AU out, to fall past it at half its tidal radius.
-//! - `--eclipses` opens the eclipse finder, searching the next 5 years.
+//! - `--eclipses` opens the eclipse finder, searching the next 5 years;
+//!   `--eclipse 7` goes to the 7th eclipse it finds, once found (from the
+//!   2025 snapshot, the total solar eclipse of 12 August 2026).
 //! - `--fluid Jupiter` models Jupiter as a self-gravitating fluid of SPH
 //!   particles on the GPU, as many as it steps smoothly.
 
@@ -85,6 +87,9 @@ pub struct StartOptions {
     pub catalogue: bool,
     /// Start with the eclipse finder open, searching.
     pub eclipses: bool,
+    /// Go to the eclipse the finder finds in this place (1 the first),
+    /// once found.
+    pub eclipse: Option<usize>,
     /// Years to simulate past the snapshot before starting.
     pub advance_years: f64,
     /// Bodies to add before starting, in order.
@@ -118,6 +123,13 @@ impl StartOptions {
                 "--now" => options.now = true,
                 "--catalogue" => options.catalogue = true,
                 "--eclipses" => options.eclipses = true,
+                "--eclipse" => match args.next().and_then(|n| n.parse::<usize>().ok()) {
+                    Some(n) if n >= 1 => {
+                        options.eclipses = true;
+                        options.eclipse = Some(n);
+                    }
+                    _ => eprintln!("worldline: --eclipse needs which eclipse ahead, 1 or more"),
+                },
                 "--waves" => options.waves = true,
                 "--zoom" => match args.next().and_then(|r| r.parse::<f64>().ok()) {
                     Some(radii) if radii > 1.0 => options.zoom_radii = Some(radii),
@@ -230,7 +242,8 @@ mod tests {
             "--add",
             "Gaia BH1:2.5@Sagittarius A*",
             "--catalogue",
-            "--eclipses",
+            "--eclipse",
+            "7",
             "--waves",
             "--fluid",
             "Jupiter",
@@ -258,6 +271,7 @@ mod tests {
                 advance_years: 7.5,
                 catalogue: true,
                 eclipses: true,
+                eclipse: Some(7),
                 adds: vec![
                     Addition {
                         kind: "Gaia BH1".into(),

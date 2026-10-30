@@ -1116,14 +1116,19 @@ impl Simulation {
     pub fn orientation(&self, index: usize) -> Option<Orientation> {
         let model = self.rotation(index)?;
         let jd = self.julian_date();
-        Some(
-            if self.bodies[index].name == "Earth" && !self.is_added(index) {
-                let meridian = earth_prime_meridian(self.time_scales.ut1(jd), model.pole(jd).0);
-                model.orientation_with_meridian(jd, meridian)
-            } else {
-                model.orientation(jd)
-            },
-        )
+        if self.bodies[index].name == "Earth" && !self.is_added(index) {
+            return self.earth_orientation(jd);
+        }
+        Some(model.orientation(jd))
+    }
+
+    /// How Earth is oriented at Julian Date `jd_tdb`: turned by UT1 from
+    /// the IERS, its pole the IAU model's.
+    pub fn earth_orientation(&self, jd_tdb: f64) -> Option<Orientation> {
+        let earth = self.index_of("Earth")?;
+        let model = self.rotation(earth)?;
+        let meridian = earth_prime_meridian(self.time_scales.ut1(jd_tdb), model.pole(jd_tdb).0);
+        Some(model.orientation_with_meridian(jd_tdb, meridian))
     }
 
     /// Leap seconds and UT1 − UTC, from the IERS.
@@ -1924,6 +1929,121 @@ mod tests {
         }
         println!("worst: {worst:.1} s");
         assert!(missing.is_empty() && found.len() == canon.len());
+    }
+
+    #[test]
+    #[ignore = "slow: runs the solar system to August 2026"]
+    fn the_august_2026_eclipse_path_is_nasas() {
+        // Step 5.3's check: the path of the total solar eclipse of 2026
+        // August 12 in the app's own simulation, run from its 2025
+        // snapshot, against NASA's path table (F. Espenak), every 2
+        // minutes. Earth is turned as the table turns it, by its ΔT (UT1 =
+        // TD − 71.4 s), so the two differ only in where the shadow falls.
+        // The roadmap asks for the central line within a few km of NASA's.
+        use worldline_core::eclipses::MoonShadow;
+        use worldline_core::shadow_on_earth::{Place, moment};
+        use worldline_core::timescales::julian_date;
+        use worldline_data::PathRow;
+        let table = worldline_data::eclipse_path_2026_08_12();
+        let mut sim = Simulation::solar_system(DAY);
+        let (from, to) = (
+            julian_date(2026, 8, 12, 12.0 * 3600.0),
+            julian_date(2026, 8, 13, 0.0),
+        );
+        sim.advance_by(sim.time_at(from));
+        let ephemeris = sim.ephemeris(sim.time_at(to), 6.0 * 3600.0);
+        let model = sim
+            .rotation(sim.index_of("Earth").unwrap())
+            .unwrap()
+            .clone();
+        let epoch = sim.epoch_jd_tdb;
+        let delta_t = table.delta_t / DAY;
+        let earth = |t: f64| {
+            let jd = epoch + t / DAY;
+            let meridian = earth_prime_meridian(jd - delta_t, model.pole(jd).0);
+            model
+                .orientation_with_meridian(jd, meridian)
+                .body_to_ecliptic
+        };
+        let place = |(lat, lon): (f64, f64)| Place {
+            latitude: lat.to_radians(),
+            longitude: lon.to_radians(),
+        };
+        // The shadow on the fundamental plane at the elements' t0, against
+        // NASA's (x and y aside: NASA's plane takes north from the true
+        // pole of date, Worldline's from the pole of J2000).
+        let b = table.besselian;
+        let (sun, moon) = ephemeris.apparent(sim.time_at(b.jd_td));
+        let shadow = MoonShadow::new(sun, moon);
+        println!(
+            "at t0: l1 {:.6} ({:.6}), l2 {:.6} ({:.6}), tan f1 {:.7} ({:.7}), tan f2 {:.7} ({:.7}), distance of the axis {:.6} ({:.6})",
+            shadow.l1,
+            b.l1,
+            shadow.l2,
+            b.l2,
+            shadow.tan_f1,
+            b.tan_f1,
+            shadow.tan_f2,
+            b.tan_f2,
+            shadow.gamma(),
+            b.x.hypot(b.y)
+        );
+        let rows = &table.rows;
+        let (mut worst_across, mut worst_limit) = (0.0f64, 0.0f64);
+        for (k, row) in rows.iter().enumerate() {
+            let t = sim.time_at(row.jd_ut + delta_t);
+            let (central, limits) = moment(&ephemeris, t, &earth).expect("the axis meets Earth");
+            let nasa = place(row.central);
+            // Across NASA's central line and along it, in the plane of the
+            // ground there: along it as time, by the shadow's speed.
+            let (before, after) = (
+                &rows[k.saturating_sub(1)],
+                &rows[(k + 1).min(rows.len() - 1)],
+            );
+            let way = place(after.central).position() - place(before.central).position();
+            let speed = way.length() / ((after.jd_ut - before.jd_ut) * DAY);
+            let off = central.position() - nasa.position();
+            let along = off.dot(way.normalize());
+            let across = (off - way.normalize() * along).length();
+            worst_across = worst_across.max(across);
+            // Each limit likewise across NASA's: the distance from its
+            // line, along the ground.
+            let limit_offs: Vec<String> = [|r: &PathRow| r.north, |r: &PathRow| r.south]
+                .iter()
+                .zip(limits)
+                .map(|(side, ours)| match (side(row), ours) {
+                    (Some(n), Some(o)) => {
+                        let ahead = side(after).or(side(row)).unwrap();
+                        let behind = side(before).or(side(row)).unwrap();
+                        let way = (place(ahead).position() - place(behind).position())
+                            .normalize_or_zero();
+                        let off = o.position() - place(n).position();
+                        let d = (off - way * off.dot(way)).length();
+                        worst_limit = worst_limit.max(d);
+                        format!("{:5.2} km", d / 1e3)
+                    }
+                    (None, None) => "  none  ".to_string(),
+                    (n, o) => format!("NASA {} ours {}", n.is_some(), o.is_some()),
+                })
+                .collect();
+            println!(
+                "{}  central {:6.3}°N {:8.3}°E: {:5.2} km across, {:+6.2} km along ({:+5.1} s)  limits N {} S {}",
+                &crate::calendar::to_the_second(row.jd_ut)[11..16],
+                central.latitude.to_degrees(),
+                central.longitude.to_degrees(),
+                across / 1e3,
+                along / 1e3,
+                along / speed,
+                limit_offs[0],
+                limit_offs[1],
+            );
+        }
+        println!(
+            "worst: central line {:.2} km across; limits {:.2} km",
+            worst_across / 1e3,
+            worst_limit / 1e3
+        );
+        assert!(worst_across < 3e3);
     }
 
     #[test]

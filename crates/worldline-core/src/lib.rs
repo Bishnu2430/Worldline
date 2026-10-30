@@ -27,6 +27,7 @@ pub mod neutron_star;
 pub mod orbit;
 pub mod regime;
 pub mod rotation;
+pub mod shadow_on_earth;
 pub mod solar_wind;
 pub mod sph;
 pub mod sunlight;
