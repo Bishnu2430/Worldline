@@ -1932,6 +1932,143 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "slow: runs the solar system through 2026"]
+    fn the_sun_and_moon_rise_when_the_naval_observatory_says() {
+        // Step 5.4's check: every rise and set of the Sun and Moon in 2026,
+        // in the app's own simulation run from its 2025 snapshot, for a
+        // city in each hemisphere, against the U.S. Naval Observatory's
+        // tables, to the minute. Its times are rounded to the minute, so a
+        // perfect match is within 30 s of them; the roadmap's limit is a
+        // minute.
+        use worldline_core::horizon::{Luminary, rises_and_sets};
+        use worldline_core::shadow_on_earth::Place;
+        use worldline_core::timescales::julian_date;
+        let usno = worldline_data::rise_set_2026();
+        let mut sim = Simulation::solar_system(DAY);
+        let (from, to) = (julian_date(2025, 12, 31, 0.0), julian_date(2027, 1, 2, 0.0));
+        sim.advance_by(sim.time_at(from));
+        let ephemeris = sim.ephemeris(sim.time_at(to), 6.0 * 3600.0);
+        let epoch = sim.epoch_jd_tdb;
+        let earth = |t: f64| {
+            let orientation = sim.earth_orientation(epoch + t / DAY).unwrap();
+            orientation.body_to_ecliptic
+        };
+        let (year_from, year_to) = (julian_date(2026, 1, 1, 0.0), julian_date(2027, 1, 1, 0.0));
+        let mut worst: f64 = 0.0;
+        for site in worldline_data::sky_sites() {
+            let place = Place {
+                latitude: site.latitude.to_radians(),
+                longitude: site.longitude.to_radians(),
+            };
+            for (name, luminary) in [("Sun", Luminary::Sun), ("Moon", Luminary::Moon)] {
+                let ours: Vec<(f64, bool)> = rises_and_sets(&ephemeris, place, luminary, earth)
+                    .iter()
+                    .map(|c| (sim.time_scales().utc(epoch + c.time / DAY), c.rising))
+                    .collect();
+                let theirs: Vec<_> = usno
+                    .iter()
+                    .filter(|e| e.site == site.key && e.body == name)
+                    .collect();
+                let (mut same_minute, mut within_half, mut largest) = (0, 0, 0.0f64);
+                for event in &theirs {
+                    let (nearest, off) = ours
+                        .iter()
+                        .filter(|o| o.1 == event.rising)
+                        .map(|o| (o.0, (o.0 - event.jd_ut) * DAY))
+                        .min_by(|a, b| a.1.abs().total_cmp(&b.1.abs()))
+                        .expect("an event");
+                    let rounded = |jd: f64| (jd * 1440.0 + 0.5).floor();
+                    same_minute += usize::from(rounded(nearest) == rounded(event.jd_ut));
+                    within_half += usize::from(off.abs() <= 30.0);
+                    largest = largest.max(off.abs());
+                }
+                // None of ours may be missing from theirs, either.
+                let in_year = ours
+                    .iter()
+                    .filter(|o| o.0 >= year_from + 60.0 / DAY && o.0 < year_to - 60.0 / DAY)
+                    .count();
+                println!(
+                    "{:<15} {:<4}  {} events (ours {in_year}): {same_minute} in the same minute, {within_half} within 30 s, largest {largest:.1} s",
+                    site.name,
+                    name,
+                    theirs.len(),
+                );
+                assert!(in_year.abs_diff(theirs.len()) <= 1);
+                worst = worst.max(largest);
+            }
+        }
+        println!("worst: {worst:.1} s");
+        assert!(worst < 60.0);
+    }
+
+    #[test]
+    #[ignore = "slow: runs the solar system through 2026"]
+    fn the_sky_from_a_city_is_jpls() {
+        // Where the Sun, Moon and planets stand from two cities at four
+        // moments of 2026, on the app's simulation as the sky view works it
+        // out, against JPL Horizons without refraction. What Worldline
+        // leaves out sets the limit: nutation moves Earth's pole by at most
+        // √(6.8² + 9.2²) = 11.4″, and polar motion, diurnal aberration and
+        // the Moon's error add under 1″ between them.
+        use worldline_core::eclipses::{State, seen_from};
+        use worldline_core::horizon::LocalFrame;
+        use worldline_core::shadow_on_earth::Place;
+        let points = worldline_data::sky_from_earth_2026();
+        let sites = worldline_data::sky_sites();
+        let mut moments: Vec<f64> = points.iter().map(|p| p.jd_ut).collect();
+        moments.dedup();
+        moments.sort_by(f64::total_cmp);
+        moments.dedup();
+        let mut sim = Simulation::solar_system(DAY);
+        let (mut worst, mut worst_at) = (0.0f64, String::new());
+        for jd_ut in moments {
+            let jd = sim.time_scales().tdb(jd_ut);
+            sim.advance_by(sim.time_at(jd) - sim.time());
+            let frame = sim
+                .earth_orientation(sim.julian_date())
+                .unwrap()
+                .body_to_ecliptic;
+            let earth = &sim.bodies[sim.index_of("Earth").unwrap()];
+            let state = |b: &Body| State {
+                position: b.position,
+                velocity: b.velocity,
+            };
+            for point in points.iter().filter(|p| p.jd_ut == jd_ut) {
+                let site = sites.iter().find(|s| s.key == point.site).unwrap();
+                let place = Place {
+                    latitude: site.latitude.to_radians(),
+                    longitude: site.longitude.to_radians(),
+                };
+                let observer = State {
+                    position: earth.position + frame * place.position(),
+                    velocity: earth.velocity,
+                };
+                let body = &sim.bodies[sim.index_of(&point.body).unwrap()];
+                let ours =
+                    LocalFrame::new(place, frame).horizontal(seen_from(observer, state(body)));
+                let (altitude, azimuth) = (ours.altitude.to_degrees(), ours.azimuth.to_degrees());
+                let turned = (azimuth - point.azimuth + 180.0).rem_euclid(360.0) - 180.0;
+                let across = turned * point.elevation.to_radians().cos();
+                let off = (altitude - point.elevation).hypot(across) * 3600.0;
+                println!(
+                    "{} {} {:<8} elevation {:+8.3}° azimuth {:7.3}°: {off:5.1}″ off",
+                    point.site,
+                    &crate::calendar::to_the_second(jd_ut)[..10],
+                    point.body,
+                    point.elevation,
+                    point.azimuth
+                );
+                if off > worst {
+                    worst = off;
+                    worst_at = format!("{} from {}", point.body, point.site);
+                }
+            }
+        }
+        println!("worst: {worst:.1}″, {worst_at}");
+        assert!(worst < 12.5);
+    }
+
+    #[test]
     #[ignore = "slow: runs the solar system to August 2026"]
     fn the_august_2026_eclipse_path_is_nasas() {
         // Step 5.3's check: the path of the total solar eclipse of 2026

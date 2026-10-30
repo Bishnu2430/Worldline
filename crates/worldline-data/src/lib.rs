@@ -14,6 +14,7 @@ mod moons;
 mod notable;
 mod rings;
 mod rotation;
+mod sky;
 mod small_bodies;
 mod small_moons;
 mod snapshot;
@@ -46,6 +47,7 @@ pub use notable::{
 };
 pub use rings::{RingFeature, RingProfile, saturn_ring_features, saturn_rings};
 pub use rotation::{rotation_model, triaxial_radii};
+pub use sky::{RiseSet, Site, SkyPoint, rise_set_2026, sky_from_earth_2026, sky_sites};
 pub use small_bodies::{
     SmallBody, SmallBodyKind, full_solar_system, jpl_halley_perihelion_jd, small_bodies,
     small_bodies_one_year_on,

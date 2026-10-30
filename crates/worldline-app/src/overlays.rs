@@ -766,6 +766,7 @@ mod tests {
             pitch: 0.5,
             distance: radii * body.radius,
             fov_y: 0.8,
+            standing: None,
         }
     }
 

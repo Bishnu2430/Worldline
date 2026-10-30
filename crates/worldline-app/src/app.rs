@@ -11,25 +11,27 @@ use worldline_core::constants::{AU, C, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSIT
 use worldline_core::eclipses::{Eclipse, LunarKind, SolarKind, State, apparent};
 use worldline_core::gravity::kerr::innermost_stable_orbit;
 use worldline_core::hawking;
+use worldline_core::horizon::{Horizontal, Luminary};
 use worldline_core::kerr_light::{self, circular, disk_temperature, photon_orbits};
 use worldline_core::lensing::BendTable;
 use worldline_core::magnetosphere::standoff;
 use worldline_core::merger::ringdown;
 use worldline_core::milky_way::KILOPARSEC;
 use worldline_core::neutron_star::{sly_maximum, sly_radius};
-use worldline_core::shadow_on_earth::{Path, central_point};
+use worldline_core::shadow_on_earth::{Path, Place, central_point};
 use worldline_core::sunlight::{irradiance, light_time};
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DVec3};
 use worldline_render::{Atmosphere, FluidDraw, KerrDisk, KerrLens, Lens, Rings, SkyView, View};
 
-use crate::calendar::{DateTime, to_the_second};
-use crate::camera::Camera;
+use crate::calendar::{DateTime, to_the_minute, to_the_second};
+use crate::camera::{Camera, Standing};
 use crate::catalogue::{self, Entry, Group, length, light_years, measured_suns, significant};
 use crate::details;
 use crate::eclipse_finder::{self, Finder};
 use crate::fluid::{FluidBody, Lab};
 use crate::gpu::{Globe, GpuGlobes, GpuSky};
+use crate::ground::{self, Ahead, PLACES};
 use crate::overlays::{self, Overlays};
 use crate::sandbox::{self, Launch};
 use crate::simulation::Simulation;
@@ -513,6 +515,16 @@ pub struct WorldlineApp {
     finder: Option<Finder>,
     /// The eclipse to go to once the finder finds it (0 the first).
     go_to_when_found: Option<usize>,
+    /// Whether the sky window is open, and the latitude and longitude in
+    /// it, degrees.
+    sky_open: bool,
+    sky_place: (f64, f64),
+    /// Where the camera stands on Earth, if it does, and the camera to go
+    /// back to.
+    standing: Option<Place>,
+    space_camera: Option<Camera>,
+    /// The next rises and sets at the place in the sky window.
+    ahead: Option<Ahead>,
     /// The sound output, once something has played.
     audio: Option<(rodio::OutputStream, rodio::Sink)>,
     /// The body modeled as a fluid, if any (see `fluid.rs`).
@@ -591,6 +603,11 @@ impl WorldlineApp {
             eclipses_open: false,
             finder: None,
             go_to_when_found: None,
+            sky_open: false,
+            sky_place: (PLACES[0].1, PLACES[0].2),
+            standing: None,
+            space_camera: None,
+            ahead: None,
             audio: None,
             fluid: None,
             pending: None,
@@ -641,6 +658,22 @@ impl WorldlineApp {
                 None => eprintln!("worldline: no body named `{name}` to model as a fluid"),
             }
         }
+        app.sky_open = start.sky;
+        if let Some(place) = start.stand {
+            app.sky_place = place;
+            app.stand_at(place);
+            if let (Some((azimuth, altitude)), Some(standing)) =
+                (start.look, app.camera.standing.as_mut())
+            {
+                standing.look = Horizontal {
+                    altitude: altitude.to_radians(),
+                    azimuth: azimuth.to_radians(),
+                };
+            }
+            if let Some(fov) = start.fov {
+                app.camera.fov_y = fov.to_radians();
+            }
+        }
         if start.eclipses {
             app.open_eclipses();
             app.go_to_when_found = start.eclipse.map(|n| n - 1);
@@ -679,6 +712,8 @@ impl WorldlineApp {
     fn reset(&mut self) {
         self.simulation = Simulation::solar_system(SPEEDS[self.speed_index].1);
         self.camera = initial_camera();
+        self.standing = None;
+        self.space_camera = None;
         self.focus = SUN;
         self.flight = None;
         self.drop_fluid();
@@ -691,6 +726,63 @@ impl WorldlineApp {
         self.pending = None;
     }
 
+    /// Stands on Earth at a latitude and longitude (degrees), looking at
+    /// the Sun if it's up, or else toward the equator, a little up.
+    fn stand_at(&mut self, (latitude, longitude): (f64, f64)) {
+        let place = Place {
+            latitude: latitude.to_radians(),
+            longitude: longitude.to_radians(),
+        };
+        let Some(sky) = ground::sky_from(&self.simulation, place) else {
+            return;
+        };
+        let sun = sky.bodies.first().map(|b| b.true_place);
+        let look = sun.filter(|s| s.altitude > 0.0).unwrap_or(Horizontal {
+            altitude: 20f64.to_radians(),
+            azimuth: if latitude >= 0.0 { PI } else { 0.0 },
+        });
+        if self.space_camera.is_none() {
+            self.space_camera = Some(self.camera.clone());
+        }
+        self.flight = None;
+        self.camera.fov_y = 70f64.to_radians();
+        self.camera.standing = Some(Standing {
+            eye: sky.eye,
+            frame: sky.frame,
+            look,
+        });
+        self.standing = Some(place);
+        if let Some(earth) = self.simulation.index_of("Earth") {
+            self.focus = earth;
+            self.selected = earth;
+        }
+    }
+
+    /// Back to space, to the camera as it was.
+    fn leave_ground(&mut self) {
+        self.standing = None;
+        self.camera.standing = None;
+        if let Some(camera) = self.space_camera.take() {
+            self.camera = camera;
+        }
+    }
+
+    /// Keeps the camera on its place on the turning, moving Earth: or takes
+    /// it off, if Earth is gone.
+    fn keep_standing(&mut self) {
+        let here = self
+            .standing
+            .and_then(|place| ground::stand(&self.simulation, place));
+        match (here, self.camera.standing.as_mut()) {
+            (Some((observer, frame)), Some(standing)) => {
+                standing.eye = observer.position;
+                standing.frame = frame;
+                self.camera.target = observer.position;
+            }
+            _ => self.leave_ground(),
+        }
+    }
+
     /// Makes the camera follow a body, flying in close to it.
     fn focus_on(&mut self, index: usize) {
         self.fly_to(index, FOCUS_DISTANCE_RADII);
@@ -700,6 +792,7 @@ impl WorldlineApp {
     /// Sagittarius A* is framed with the stars around it: its horizon is
     /// tiny next to their orbits.
     fn fly_to(&mut self, index: usize, radii: f64) {
+        self.leave_ground();
         let radius = self.simulation.bodies[index].radius;
         let to_distance = if let Some(reach) = self.simulation.cluster_reach(index) {
             reach
@@ -732,6 +825,10 @@ impl WorldlineApp {
     /// Points the camera at the focused body, partway along a flight if one
     /// is under way.
     fn aim_camera(&mut self) {
+        if self.standing.is_some() {
+            self.keep_standing();
+            return;
+        }
         let target = self.simulation.bodies[self.focus].position;
         let Some(flight) = &self.flight else {
             self.camera.target = target;
@@ -802,6 +899,15 @@ impl WorldlineApp {
                 } else {
                     self.open_eclipses();
                 }
+            }
+            if ui
+                .selectable_label(self.sky_open, "Sky")
+                .on_hover_text(
+                    "Stand at a place on Earth and look at the sky: the horizon, Sun, Moon and planets, and when the Sun and Moon rise and set",
+                )
+                .clicked()
+            {
+                self.sky_open = !self.sky_open;
             }
             ui.separator();
             self.sandbox_controls(ui);
@@ -2507,6 +2613,25 @@ impl WorldlineApp {
         }
         self.camera.clamp_distance(min_distance);
 
+        if let Some(place) = self.standing {
+            ground::draw(
+                &painter,
+                viewport,
+                &self.camera,
+                &self.simulation,
+                place,
+                self.options.labels,
+            );
+            painter.text(
+                viewport.left_bottom() + vec2(10.0, -10.0),
+                Align2::LEFT_BOTTOM,
+                "Drag to look around · scroll to zoom · refraction included; the sky's color is visual, and the planets are dots",
+                FontId::proportional(12.0),
+                Color32::from_gray(190),
+            );
+            return;
+        }
+
         let globes_allowed = self.options.globes && render_state.is_some();
         let attention = view::Attention {
             focus: self.focus,
@@ -2768,6 +2893,131 @@ impl WorldlineApp {
         }
     }
 
+    /// The sky window: a place on Earth, what stands in its sky now, and
+    /// when the Sun and Moon next rise and set there.
+    fn sky_window(&mut self, ctx: &egui::Context) {
+        if !self.sky_open {
+            return;
+        }
+        let place = Place {
+            latitude: self.sky_place.0.to_radians(),
+            longitude: self.sky_place.1.to_radians(),
+        };
+        // The next rises and sets, from a copy run a week ahead: only while
+        // time goes slowly enough for them to mean anything.
+        let now = self.simulation.julian_date();
+        if let Some(ahead) = &mut self.ahead {
+            ahead.poll();
+        }
+        let wanted = self
+            .ahead
+            .as_ref()
+            .is_none_or(|a| a.place != place || (a.stale(now) && self.simulation.speed <= DAY));
+        if wanted {
+            self.ahead = Some(Ahead::start(&mut self.simulation, place));
+        }
+        if self.ahead.as_ref().is_some_and(|a| a.times.is_none()) {
+            ctx.request_repaint_after(Duration::from_millis(250));
+        }
+        let sky = ground::sky_from(&self.simulation, place);
+        let scales = self.simulation.time_scales();
+        let (mut open, mut stand, mut leave) = (true, false, false);
+        let mut picked = self.sky_place;
+        let standing = self.standing.is_some();
+        let ahead = self.ahead.as_ref();
+        let bodies = &self.simulation.bodies;
+        egui::Window::new("Sky from a place")
+            .open(&mut open)
+            .default_pos(pos2(340.0, 90.0))
+            .default_width(400.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    for (name, latitude, longitude) in PLACES {
+                        if ui.button(name).clicked() {
+                            picked = (latitude, longitude);
+                        }
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label(key("Latitude"));
+                    ui.add(
+                        egui::DragValue::new(&mut picked.0)
+                            .range(-90.0..=90.0)
+                            .speed(0.1)
+                            .max_decimals(4)
+                            .suffix("°"),
+                    );
+                    ui.label(key("Longitude"));
+                    ui.add(
+                        egui::DragValue::new(&mut picked.1)
+                            .range(-180.0..=180.0)
+                            .speed(0.1)
+                            .max_decimals(4)
+                            .suffix("°"),
+                    );
+                });
+                ui.horizontal(|ui| {
+                    if ui.button("Stand here").clicked() {
+                        stand = true;
+                    }
+                    if standing && ui.button("Back to space").clicked() {
+                        leave = true;
+                    }
+                });
+                ui.separator();
+                egui::Grid::new("sky bodies").num_columns(3).show(ui, |ui| {
+                    ui.label(key(""));
+                    ui.label(key("Altitude")).on_hover_text("Above the horizon, as the air lifts it");
+                    ui.label(key("Azimuth")).on_hover_text("From north, through east");
+                    ui.end_row();
+                    for body in sky.iter().flat_map(|s| &s.bodies) {
+                        ui.label(bodies[body.index].name.as_str());
+                        ui.label(format!("{:+.1}°", body.shown.altitude.to_degrees()));
+                        ui.label(format!(
+                            "{:.1}° {}",
+                            body.shown.azimuth.to_degrees(),
+                            ground::compass(body.shown.azimuth)
+                        ));
+                        ui.end_row();
+                    }
+                });
+                ui.separator();
+                let next = |luminary: Luminary, rising: bool| match ahead {
+                    Some(a) if a.times.is_some() => a.next(luminary, rising, now).map_or_else(
+                        || "none in the week ahead".to_string(),
+                        |jd| format!("{} UTC", to_the_minute(scales.utc(jd))),
+                    ),
+                    _ => "working it out…".to_string(),
+                };
+                egui::Grid::new("sky times").num_columns(2).show(ui, |ui| {
+                    for (name, luminary, rising) in [
+                        ("Sunrise", Luminary::Sun, true),
+                        ("Sunset", Luminary::Sun, false),
+                        ("Moonrise", Luminary::Moon, true),
+                        ("Moonset", Luminary::Moon, false),
+                    ] {
+                        ui.label(key(name));
+                        ui.label(next(luminary, rising));
+                        ui.end_row();
+                    }
+                });
+                ui.label(
+                    RichText::new(
+                        "Next rises and sets, as the U.S. Naval Observatory defines them, for a level horizon at sea level. Checked against its tables for 2026: all 2,870 in two cities, within 34 s of its times, which are rounded to the minute. The real air shifts them by a minute or more.",
+                    )
+                    .small(),
+                );
+            });
+        self.sky_open = open;
+        self.sky_place = picked;
+        if stand {
+            self.stand_at(picked);
+        }
+        if leave {
+            self.leave_ground();
+        }
+    }
+
     /// The path across Earth of the solar eclipse under way, if the finder
     /// has worked it out: from 3 hours before the umbra touches Earth to 3
     /// hours after it leaves.
@@ -2899,12 +3149,16 @@ impl WorldlineApp {
                 self.flight = None;
                 self.launch = None;
                 self.options.shadows = true;
+                // Standing on Earth, stay there and look.
+                let stay = self.standing.is_some();
                 let (name, radii) = if solar {
                     ("Earth", 3.0)
                 } else {
                     ("Moon", 14.0)
                 };
-                if let Some(i) = self.simulation.index_of(name) {
+                if let Some(i) = self.simulation.index_of(name)
+                    && !stay
+                {
                     self.fly_to(i, radii);
                 }
                 // For the Sun, look down on where the shadow's axis meets
@@ -2912,6 +3166,7 @@ impl WorldlineApp {
                 let sim = &self.simulation;
                 let find = |name: &str| sim.index_of(name);
                 if solar
+                    && !stay
                     && let (Some(sun), Some(earth), Some(moon)) =
                         (find("Sun"), find("Earth"), find("Moon"))
                 {
@@ -3616,6 +3871,7 @@ impl eframe::App for WorldlineApp {
         self.catalogue_window(ui.ctx());
         self.waves_window(ui.ctx());
         self.eclipses_window(ui.ctx());
+        self.sky_window(ui.ctx());
 
         if !self.simulation.paused || self.flight.is_some() {
             ui.ctx().request_repaint();
@@ -3673,6 +3929,7 @@ fn initial_camera() -> Camera {
         pitch: 0.6,
         distance: 4.0 * AU,
         fov_y: 0.8,
+        standing: None,
     }
 }
 

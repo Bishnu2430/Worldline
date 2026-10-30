@@ -75,14 +75,40 @@ fn north() -> DVec3 {
 /// Earth's motion, u' = u + v/c − u(u·v/c), to first order in v/c (the next
 /// order is 10⁻⁸ rad).
 pub fn apparent(sun: State, earth: State, moon: State) -> (DVec3, DVec3) {
-    let seen = |body: State| {
-        let light_time = (body.position - earth.position).length() / C;
-        let then = body.position - body.velocity * light_time - earth.position;
-        let u = then.normalize();
-        let beta = earth.velocity / C;
-        (u + beta - u * u.dot(beta)).normalize() * then.length()
-    };
-    (seen(sun), seen(moon))
+    (seen_from(earth, sun), seen_from(earth, moon))
+}
+
+/// Where `body` appears from `observer`: the vector to it, as [`apparent`]
+/// works it out.
+pub fn seen_from(observer: State, body: State) -> DVec3 {
+    let light_time = (body.position - observer.position).length() / C;
+    let then = body.position - body.velocity * light_time - observer.position;
+    let u = then.normalize();
+    let beta = observer.velocity / C;
+    (u + beta - u * u.dot(beta)).normalize() * then.length()
+}
+
+/// The share of the Sun's disk the Moon's covers, 0 to 1: disks of angular
+/// radii `sun` and `moon`, their centers `separation` apart (all radians;
+/// small enough to take as flat circles).
+pub fn share_of_sun_covered(separation: f64, sun: f64, moon: f64) -> f64 {
+    let d = separation;
+    if d >= sun + moon {
+        return 0.0;
+    }
+    if d <= (moon - sun).abs() {
+        return if moon >= sun {
+            1.0
+        } else {
+            (moon / sun) * (moon / sun)
+        };
+    }
+    // The lens two overlapping circles make: a sector of each, less the
+    // kite between their centers and the points where they cross.
+    let half_angle = |r: f64, other: f64| ((d * d + r * r - other * other) / (2.0 * d * r)).acos();
+    let (a, b) = (half_angle(sun, moon), half_angle(moon, sun));
+    let kite = sun * a.sin() * d;
+    (sun * sun * a + moon * moon * b - kite) / (std::f64::consts::PI * sun * sun)
 }
 
 /// The kind of a solar eclipse, as the canon names them.
@@ -533,6 +559,24 @@ mod tests {
         // Danjon: the umbra's radius 1.01 × 57′ − 16′ + 9″, about 41.6′.
         let arcmin = shadow.umbra.to_degrees() * 60.0;
         assert!((arcmin - 41.6).abs() < 0.3, "{arcmin}");
+    }
+
+    #[test]
+    fn the_moon_covers_the_sun_by_the_area_they_share() {
+        let (sun, moon) = (0.00465, 0.0047);
+        assert_eq!(share_of_sun_covered(0.02, sun, moon), 0.0);
+        assert_eq!(share_of_sun_covered(0.0, sun, moon), 1.0);
+        // Annular: the Moon's area over the Sun's.
+        let small = 0.004;
+        let ratio = (small / sun) * (small / sun);
+        assert_eq!(share_of_sun_covered(0.0, sun, small), ratio);
+        // Equal disks, one radius apart: the textbook lens, 2/3 − √3/(2π)
+        // of a disk, about 0.391.
+        let share = share_of_sun_covered(sun, sun, sun);
+        let expected = 2.0 / 3.0 - 3f64.sqrt() / (2.0 * std::f64::consts::PI);
+        assert!((share - expected).abs() < 1e-12, "{share}");
+        // Just touching, the two formulas meet.
+        assert!(share_of_sun_covered(sun + moon - 1e-9, sun, moon) < 1e-6);
     }
 
     #[test]
