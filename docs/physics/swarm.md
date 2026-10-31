@@ -56,6 +56,8 @@ Small moons around a planet not in focus ride their mean orbits, which already i
 
 When a planet's major moons are torn away, or the planet is absorbed (see [collisions.md](collisions.md)), all its small moons are freed with them.
 
+**Fragments of collisions** fly as swarm particles too, in the same massless way. A ledger keeps the mass each carries, so that when one is swallowed, the body takes back its mass and momentum (see [debris.md](debris.md)).
+
 ## Validation (`cargo test`)
 
 `cargo test --release -p worldline-core --test validation_swarm -- --nocapture`:

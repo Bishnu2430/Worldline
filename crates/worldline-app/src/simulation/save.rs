@@ -4,9 +4,9 @@
 //! (relative to the solar system's barycenter), each moon system (relative
 //! to its barycenter) and the followers, plus which bodies were added in the
 //! sandbox and the catalogue entry each came from, how any black hole that
-//! formed in a merger formed, the swarm (every belt body and freed small
-//! moon, brought up to the same moment first), and where the solar system
-//! is on its way around the galaxy.
+//! formed in a merger formed, the swarm (every belt body, freed small moon
+//! and fragment of a collision, brought up to the same moment first), and
+//! where the solar system is on its way around the galaxy.
 //! Everything else (gravity fields, rotation, the data behind each body)
 //! comes from the bundled data when it loads. Numbers are written in their
 //! shortest exact form, so they load back bit for bit.
@@ -15,15 +15,17 @@ use std::fmt::Write;
 
 use super::*;
 
-/// The first line of every save. Version 5 records the solar system's
-/// place in the galaxy, version 4 black-hole mergers, version 3 the swarm,
-/// version 2 each added body's catalogue entry; older saves load too.
-const HEADER: &str = "worldline-save\t5";
-const OLDER: [&str; 4] = [
+/// The first line of every save. Version 6 records which swarm particles are
+/// fragments of collisions, version 5 the solar system's place in the
+/// galaxy, version 4 black-hole mergers, version 3 the swarm, version 2 each
+/// added body's catalogue entry; older saves load too.
+const HEADER: &str = "worldline-save\t6";
+const OLDER: [&str; 5] = [
     "worldline-save\t1",
     "worldline-save\t2",
     "worldline-save\t3",
     "worldline-save\t4",
+    "worldline-save\t5",
 ];
 
 fn body_line(kind: &str, prefix: &str, b: &Body) -> String {
@@ -141,6 +143,9 @@ impl Simulation {
                 p.id, r.x, r.y, r.z, v.x, v.y, v.z
             );
         }
+        for (id, gm) in h.debris() {
+            let _ = writeln!(out, "debris\t{id}\t{gm}");
+        }
         out
     }
 
@@ -158,6 +163,7 @@ impl Simulation {
         let (mut top, mut moons, mut followers, mut added) =
             (Vec::new(), Vec::new(), Vec::new(), Vec::new());
         let (mut freed, mut particles, mut merged) = (Vec::new(), Vec::new(), Vec::new());
+        let mut debris = std::collections::BTreeMap::new();
         let (mut gtop, mut gfollowers, mut galactic) = (Vec::new(), Vec::new(), None);
         for line in lines {
             let fields: Vec<&str> = line.split('\t').collect();
@@ -224,6 +230,13 @@ impl Simulation {
                         gm: n(5)?,
                         radius: n(6)?,
                     });
+                }
+                "debris" if fields.len() == 3 => {
+                    let bad = || format!("bad line `{line}`");
+                    debris.insert(
+                        fields[1].parse::<u32>().map_err(|_| bad())?,
+                        fields[2].parse::<f64>().map_err(|_| bad())?,
+                    );
                 }
                 "particle" if fields.len() == 8 => {
                     let n: Vec<f64> = fields[2..]
@@ -399,6 +412,9 @@ impl Simulation {
             swarm
         };
         h.set_swarm(swarm);
+        let labels = freed.iter().map(|m| m.id).chain(debris.keys().copied());
+        h.set_next_id(labels.max().map_or(0, |id| id + 1));
+        h.set_debris(debris);
         for moon in &freed {
             if let Some(moons) = h
                 .moon_systems
@@ -408,7 +424,6 @@ impl Simulation {
                 moons.mark_small_moon_free(moon.index);
             }
         }
-        h.set_next_freed_id(freed.iter().map(|m| m.id + 1).max().unwrap_or(0));
         sim.freed = freed;
         sim.added = added;
         sim.merged = merged;
