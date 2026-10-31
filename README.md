@@ -98,6 +98,7 @@
 | The Moon's shadow on Earth: the path of the total solar eclipse of 12 August 2026, in the app's own simulation run from its 2025 snapshot | the central line within a few km of NASA's tabulated path (F. Espenak), turning Earth by NASA's ΔT | ✅ passing: 0.07–0.50 km across it from Siberia to Spain, 2.37 km at sunset; l₁, l₂ and tan f match NASA's Besselian elements to 2 × 10⁻⁶ |
 | The sky from a place on Earth: rise and set of the Sun and Moon through 2026, in the app's own simulation run from its 2025 snapshot | every one of the U.S. Naval Observatory's tables for Washington and Sydney, to the minute; the planets' altitude and azimuth within 12.5″ of JPL's | ✅ passing: all 2,870, none extra, the worst 33 s from times rounded to the minute, 98% in the same minute; planets within 9.0″ |
 | What a collision leaves: Leinhardt & Stewart's (2012) scaling laws | their worked example; their predicted remnants to the printed digits; the disruption threshold within a factor of 2 of their fits; the largest remnant of all 189 simulations within their "about 10%" | ✅ passing: 5.33 J/kg and 14.1 m/s (5.3 and 14); all 39 definable rows; 7 of 8 thresholds, the eighth 2.08 off; median error 6.5% (8 rows of the paper's follow no stated rule, and aren't reproduced) |
+| What a collision throws off: the mass flies off as fragments, and the energy lost heats what's left | mass and momentum before and after equal to rounding (130 ε, or 2.9 × 10⁻¹⁴); energy accounted for to rounding | ✅ passing, in all five regimes: mass off by at most 6.0 × 10⁻¹⁵, momentum by 7.5 × 10⁻¹⁶, kinetic energy by 3.8 × 10⁻¹⁷ |
 | Tidal disruption begins near r_t ≈ R(M/m)^(1/3), and the debris falls back at a rate ∝ t^(−5/3) | a Jupiter-like planet passing a star loses what Faber, Rasio & Willems's simulations found (0.58, 0.24, 0.027 and 0 at 1.2, 1.5, 1.8 and 2.2 r_t); torn right through, its debris comes back as t^(−5/3) | ✅ passing: 0.574, 0.235, 0.024, 0; t^(−1.676 ± 0.023) |
 | A planet stays a point until it nears its tidal radius, then becomes a fluid | a point until tides would stretch it by 1% (5.34 tidal radii for n = 1, never passed); as a fluid it stretches by the n = 1 polytrope's Love number, 15/π² − 1 = 0.520 | ✅ passing: Jupiter falling toward a black hole stops at 1.006 of that distance; the GPU fluid's Love number 0.517 with 8,000 particles; a Jupiter passing the Sun is a fluid at its closest and a point again after |
 | A clock near a black hole runs slow by the predicted factor (proper time) | on a circular orbit at 10 GM/c², √(1 − 3GM/rc²) = 0.836660; Earth's clock against the barycenter's, the IAU's L_C = 1.48082686741 × 10⁻⁸ | ✅ passing: 0.836660026534, carried round by the engine; Earth over 10 years 4 × 10⁻¹⁴ off L_C; GPS clocks gain 38.54 µs a day |
@@ -140,6 +141,12 @@ To drop a Jupiter-mass planet between Earth and Mars and watch the orbits get di
 
 ```bash
 cargo run --release -- --add jupiter:1.5
+```
+
+To throw a second Earth at Earth at 30 km/s, a little off center, and watch what it leaves (`--aim` takes the speed on arrival and the impact parameter, from 0 for head-on to 1 for grazing):
+
+```bash
+cargo run --release -- --add earth:0.0003@Earth --aim 30,0.3 --focus Earth --zoom 330 --speed hour
 ```
 
 To see Saturn's rings tilted toward the Sun in 2032 (`--advance` simulates that many years before starting):
@@ -189,6 +196,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 - [Architecture](docs/ARCHITECTURE.md): how the engine picks physics models
 - [The desktop app](docs/app.md): frame loop, double-precision 3D view, camera, trails and the sandbox tools
 - [What a collision leaves](docs/physics/collision-outcomes.md): merging, partial accretion, hit-and-run and disruption, from Leinhardt & Stewart's scaling laws
+- [What a collision throws off](docs/physics/debris.md): the fragments, and where every joule goes
 - [Collisions and the model indicator](docs/physics/collisions.md): merging with momentum kept, catching fast impacts, and which physics applies where
 - [Black holes, neutron stars and white dwarfs](docs/physics/compact-objects.md): the notable-objects catalog, event horizons, and what happens when they meet the solar system
 - [Compact binaries and gravitational waves](docs/physics/post-newtonian.md): second-order relativity and radiation reaction for close pairs; the Hulse–Taylor orbit shrinking as measured; the chirp, seen and heard

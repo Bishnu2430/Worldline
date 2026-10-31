@@ -204,6 +204,11 @@ pub struct Swallowed {
     pub by: String,
     /// The particles' labels.
     pub ids: Vec<u32>,
+    /// Their velocities as the swarm's step began, m/s.
+    pub velocities: Vec<DVec3>,
+    /// How many of them were fragments of a collision (see
+    /// [`crate::debris`]), whose mass the body took back.
+    pub fragments: usize,
     /// When the swarm's step in which it happened ended.
     pub time: f64,
 }
@@ -379,22 +384,28 @@ impl Swarm {
             let outcomes = step_all(&self.particles, &context);
             let mut kept = Vec::with_capacity(self.particles.len());
             let mut centers = Vec::with_capacity(self.particles.len());
-            let mut eaten: Vec<(usize, u32)> = Vec::new();
+            let mut eaten: Vec<(usize, u32, DVec3)> = Vec::new();
             for (particle, outcome) in self.particles.iter().zip(outcomes) {
                 match outcome {
                     Outcome::Moved(moved, center) => {
                         kept.push(moved);
                         centers.push(center);
                     }
-                    Outcome::Swallowed(by) => eaten.push((by, particle.id)),
+                    Outcome::Swallowed(by) => eaten.push((by, particle.id, particle.velocity)),
                 }
             }
             for by in 0..set.names.len() {
-                let ids: Vec<u32> = eaten.iter().filter(|e| e.0 == by).map(|e| e.1).collect();
+                let (ids, velocities): (Vec<u32>, Vec<DVec3>) = eaten
+                    .iter()
+                    .filter(|e| e.0 == by)
+                    .map(|e| (e.1, e.2))
+                    .unzip();
                 if !ids.is_empty() {
                     swallowed.push(Swallowed {
                         by: set.names[by].clone(),
                         ids,
+                        velocities,
+                        fragments: 0,
                         time: t1,
                     });
                 }

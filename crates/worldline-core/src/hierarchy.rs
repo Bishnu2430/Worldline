@@ -37,11 +37,14 @@
 //! times the moons' share of the mass). See `docs/physics/moons.md` and
 //! `docs/physics/small-moons.md`.
 
+use std::collections::BTreeMap;
+
 use glam::DVec3;
 
 use crate::collision::{Touch, contact, first_survives, merge, predicted_outcome};
 use crate::compact::is_black_hole;
 use crate::constants::C;
+use crate::debris::{Aftermath, Fragment, aftermath};
 use crate::gravity::{
     Gravity, Newtonian, NonGravitational, SynchronousFigure, TesseralField, ZonalField,
     moves_in_spacetime_of, reaction_converges,
@@ -281,6 +284,10 @@ pub struct Hierarchy {
     next_id: u32,
     /// Small moons freed since the last [`Self::take_freed_moons`].
     freed_moons: Vec<FreedMoon>,
+    /// The swarm particles that are fragments of collisions: their labels
+    /// and gravitational parameters, m³/s². They fly as massless particles,
+    /// and this keeps the mass they carry.
+    debris: BTreeMap<u32, f64>,
 }
 
 /// A small moon set free: torn from its planet by another body's tides,
@@ -352,8 +359,18 @@ pub struct Collision {
     /// radiated and left, from numerical relativity.
     pub merger: Option<Merger>,
     /// What the scaling laws say the collision leaves, where they apply.
-    /// Worldline still merges the bodies: this is the prediction.
     pub outcome: Option<(Impact, Outcome)>,
+    /// What it left, where they apply: the remnants, the fragments and the
+    /// energy's accounts. In a hit-and-run `second` is set, and the body
+    /// named `absorbed` goes on.
+    pub aftermath: Option<Aftermath>,
+}
+
+impl Collision {
+    /// Whether the two bodies went on separately: a hit-and-run.
+    pub fn parted(&self) -> bool {
+        self.aftermath.as_ref().is_some_and(|a| a.second.is_some())
+    }
 }
 
 /// A black hole that evaporated completely by Hawking radiation.
@@ -414,6 +431,7 @@ impl Hierarchy {
             last_recorded: None,
             next_id: FREED_MOON_IDS,
             freed_moons: Vec::new(),
+            debris: BTreeMap::new(),
         }
     }
 
@@ -422,8 +440,9 @@ impl Hierarchy {
         std::mem::take(&mut self.freed_moons)
     }
 
-    /// Sets the next label for freed small moons, as when loading a save.
-    pub fn set_next_freed_id(&mut self, id: u32) {
+    /// Sets the next label for freed small moons and fragments, as when
+    /// loading a save.
+    pub fn set_next_id(&mut self, id: u32) {
         self.next_id = id.max(FREED_MOON_IDS);
     }
 
@@ -539,8 +558,65 @@ impl Hierarchy {
     /// Brings the swarm up to the top level's time.
     pub fn sync_swarm(&mut self) {
         let now = self.time();
-        let swallowed = self.swarm.advance(&mut self.field, now);
+        let mut swallowed = self.swarm.advance(&mut self.field, now);
+        for event in &mut swallowed {
+            self.take_back(event);
+        }
         self.swallowed.extend(swallowed);
+    }
+
+    /// A body that swallowed fragments takes back their mass and momentum.
+    fn take_back(&mut self, event: &mut Swallowed) {
+        let Some(k) = self.top.bodies.iter().position(|b| b.name == event.by) else {
+            return;
+        };
+        for (id, velocity) in event.ids.iter().zip(&event.velocities) {
+            let Some(gm) = self.debris.remove(id) else {
+                continue;
+            };
+            let body = &mut self.top.bodies[k];
+            let total = body.gm + gm;
+            body.velocity = (body.velocity * body.gm + *velocity * gm) / total;
+            body.gm = total;
+            if let Some(moons) = self.moon_systems.iter_mut().find(|m| m.host == k) {
+                moons.system.bodies[0].gm += gm;
+                moons.integrator = Ias15::new();
+            }
+            event.fragments += 1;
+        }
+        if event.fragments > 0 {
+            self.integrator = Ias15::new();
+            self.generation += 1;
+        }
+    }
+
+    /// Turns `fragments` into swarm particles, keeping the mass they carry.
+    pub fn add_debris(&mut self, fragments: &[Fragment]) {
+        let particles: Vec<Particle> = fragments
+            .iter()
+            .map(|fragment| {
+                let id = self.next_id;
+                self.next_id += 1;
+                self.debris.insert(id, fragment.gm);
+                Particle {
+                    position: fragment.position,
+                    velocity: fragment.velocity,
+                    id,
+                }
+            })
+            .collect();
+        self.add_particles(particles);
+    }
+
+    /// The swarm particles that are fragments, by label, with their
+    /// gravitational parameters.
+    pub fn debris(&self) -> &BTreeMap<u32, f64> {
+        &self.debris
+    }
+
+    /// Sets which swarm particles are fragments: for loading a save.
+    pub fn set_debris(&mut self, debris: BTreeMap<u32, f64>) {
+        self.debris = debris;
     }
 
     /// The swarm particles swallowed since the last call, oldest first.
@@ -848,6 +924,7 @@ impl Hierarchy {
                     freed: Vec::new(),
                     merger: None,
                     outcome: None,
+                    aftermath: None,
                 });
             }
         }
@@ -1016,7 +1093,7 @@ impl Hierarchy {
         if let Some((touch, i, j)) = first {
             let time = self.top.time() - (1.0 - touch.at) * h;
             let outcome = predicted_outcome(&self.top.bodies[i], &self.top.bodies[j], &touch);
-            self.merge_top(i, j, touch.speed, time, false, outcome);
+            self.merge_top(i, j, touch.speed, time, false, outcome.map(|o| (o, touch)));
         }
     }
 
@@ -1036,7 +1113,7 @@ impl Hierarchy {
         speed: f64,
         time: f64,
         inspiral: bool,
-        outcome: Option<(Impact, Outcome)>,
+        hit: Option<((Impact, Outcome), Touch)>,
     ) {
         let (s, a) = if first_survives(&self.top.bodies[i], &self.top.bodies[j]) {
             (i, j)
@@ -1056,6 +1133,38 @@ impl Hierarchy {
         };
         let absorbed = self.top.bodies[a].clone();
         let survivor = self.top.bodies[s].clone();
+        // Where the scaling laws apply, what they say happens. The touch was
+        // measured from body i to body j; the survivor is the target.
+        let outcome = hit.as_ref().map(|h| h.0);
+        let left = hit.as_ref().map(|((impact, outcome), touch)| {
+            let sign = if s == i { -1.0 } else { 1.0 };
+            aftermath(
+                &survivor,
+                &absorbed,
+                touch.separation * sign,
+                touch.velocity * sign,
+                outcome,
+                impact.impact_parameter,
+            )
+        });
+        if let Some(left) = left
+            .as_ref()
+            .filter(|l| l.second.is_some() || !l.fragments.is_empty())
+        {
+            self.carry_out(s, a, &survivor, left);
+            self.happened.push(Collision {
+                time,
+                survivor: survivor.name,
+                absorbed: absorbed.name,
+                speed,
+                dissolved_system,
+                freed,
+                merger: None,
+                outcome,
+                aftermath: left.clone().into(),
+            });
+            return;
+        }
         let (merged, merger) = if inspiral && is_black_hole(&survivor) && is_black_hole(&absorbed) {
             let (hole, merger) = merge_black_holes(&survivor, &absorbed);
             (hole, Some(merger))
@@ -1112,7 +1221,42 @@ impl Hierarchy {
             freed,
             merger,
             outcome,
+            aftermath: left,
         });
+    }
+
+    /// Puts what a collision left in place of top-level bodies `s` (the
+    /// target) and `a` (the projectile). A planet with moons takes the
+    /// change itself, and its moons keep their states.
+    fn carry_out(&mut self, s: usize, a: usize, survivor: &Body, left: &Aftermath) {
+        let largest = left.largest.clone();
+        if let Some(moons) = self.moon_systems.iter_mut().find(|m| m.host == s) {
+            for body in moons.system.bodies.iter_mut().skip(1) {
+                body.position += survivor.position - largest.position;
+                body.velocity += survivor.velocity - largest.velocity;
+            }
+            let gm = moons.system.bodies[0].gm + largest.gm - survivor.gm;
+            let around = &moons.system.bodies[1..];
+            let moment: DVec3 = around.iter().map(|b| b.position * b.gm).sum();
+            let momentum: DVec3 = around.iter().map(|b| b.velocity * b.gm).sum();
+            let planet = &mut moons.system.bodies[0];
+            planet.gm = gm;
+            planet.radius = largest.radius;
+            planet.position = -moment / gm;
+            planet.velocity = -momentum / gm;
+            moons.integrator = Ias15::new();
+            moons.clear_small_moons();
+        }
+        self.top.bodies[s] = largest;
+        match &left.second {
+            Some(second) => {
+                self.top.bodies[a] = second.clone();
+                self.integrator = Ias15::new();
+                self.generation += 1;
+            }
+            None => self.remove_body(a),
+        }
+        self.add_debris(&left.fragments);
     }
 
     /// Dissolves moon system `k`: its planet takes the host's place at the
@@ -1193,6 +1337,7 @@ impl Hierarchy {
                     freed: Vec::new(),
                     merger: None,
                     outcome: None,
+                    aftermath: None,
                 };
                 self.followers.remove(f);
                 self.happened.push(collision);

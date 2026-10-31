@@ -50,8 +50,9 @@ fn sun() -> Body {
 #[test]
 fn two_planets_collide_merge_and_keep_their_momentum() {
     // Two Earth-like planets on the same orbit, the one behind catching up
-    // at 10 km/s.
-    let (pa, va) = on_orbit(-2e8, 1e4);
+    // at 2 km/s: gentle enough to meet below their mutual escape speed, so
+    // they truly merge.
+    let (pa, va) = on_orbit(-2e8, 2e3);
     let (pb, vb) = on_orbit(0.0, 0.0);
     let a = Body::new("A", 6e14, 7.0e6).at(pa).moving(va);
     let b = Body::new("B", 4e14, 6.0e6).at(pb).moving(vb);
@@ -321,4 +322,208 @@ fn an_impact_is_measured_where_the_bodies_touch() {
         outcome.regime,
         Regime::Merging | Regime::PartialAccretion | Regime::HitAndRun
     ));
+}
+
+/// What a run holds: the top level's bodies and the fragments in the swarm,
+/// as (GM, position, velocity).
+fn everything(h: &mut Hierarchy) -> Vec<(f64, DVec3, DVec3)> {
+    h.sync_swarm();
+    let bodies = h.top.bodies.iter().map(|b| (b.gm, b.position, b.velocity));
+    let debris = h.debris();
+    let fragments = h
+        .swarm()
+        .particles
+        .iter()
+        .map(|p| (debris[&p.id], p.position, p.velocity));
+    bodies.chain(fragments).collect()
+}
+
+/// A Mars sent into an Earth, in a Newtonian run, as it was the moment
+/// before they touch: `b` is the impact parameter, `speed` the relative speed
+/// at that moment, 300 km apart.
+fn a_mars_into_an_earth(speed: f64, b: f64) -> Hierarchy {
+    use worldline_core::gravity::Newtonian;
+    let (r_earth, r_mars) = (6.371e6, 3.39e6);
+    let (sin, cos) = (b, (1.0 - b * b).sqrt());
+    let reach = (r_earth + r_mars) * 1.0003;
+    let top = System::new(vec![
+        Body::new("Earth", 3.986e14, r_earth),
+        Body::new("Mars", 4.283e13, r_mars)
+            .at(DVec3::new(-cos, sin, 0.0) * reach)
+            .moving(DVec3::new(speed, 0.0, 0.0)),
+    ]);
+    Hierarchy::new(top, Box::new(Newtonian), Vec::new())
+}
+
+#[test]
+fn a_collision_keeps_its_mass_momentum_and_energy() {
+    // Step 6.2's check, through the whole simulation. Everything is
+    // worked out again from what's really there before and after: the
+    // bodies and the swarm's particles, not the model's own figures. To
+    // rounding: 130 terms, each good to one part in 2⁵².
+    use worldline_core::constants::G;
+    use worldline_core::impact::Regime;
+    let rounding = 130.0 * f64::EPSILON;
+    let mut seen = Vec::new();
+    for (speed, b) in [
+        (9e3, 0.3),
+        (14e3, 0.3),
+        (40e3, 0.3),
+        (75e3, 0.3),
+        (16e3, 0.8),
+    ] {
+        let mut h = a_mars_into_an_earth(speed, b);
+        let before = everything(&mut h);
+        let collision = until_collision(&mut h, 1e4);
+        let after = everything(&mut h);
+        let mass = |all: &[(f64, DVec3, DVec3)]| all.iter().map(|x| x.0).sum::<f64>();
+        let momentum = |all: &[(f64, DVec3, DVec3)]| all.iter().map(|x| x.2 * x.0).sum::<DVec3>();
+        let scale: f64 = before.iter().map(|x| (x.2 * x.0).length()).sum();
+        let left = collision.aftermath.expect("the laws cover it");
+        let outcome = collision.outcome.expect("the laws cover it").1;
+        println!(
+            "{:>2.0} km/s, b {b}: {:?}, {} bodies and {} fragments; mass off by {:.1e}, momentum by {:.1e}; heat {:.3e} J of {:.3e} J of motion",
+            speed / 1e3,
+            outcome.regime,
+            h.top.bodies.len(),
+            left.fragments.len(),
+            (mass(&after) / mass(&before) - 1.0).abs(),
+            (momentum(&after) - momentum(&before)).length() / scale,
+            left.heat,
+            left.before.kinetic,
+        );
+        assert!((mass(&after) / mass(&before) - 1.0).abs() <= rounding);
+        assert!((momentum(&after) - momentum(&before)).length() <= rounding * scale);
+
+        // The energy, from what's there. The frame is the center of mass's,
+        // which hasn't moved, as the bodies are bound by nothing else.
+        let total = mass(&before);
+        let drift = momentum(&before) / total;
+        let kinetic: f64 = left
+            .fragments
+            .iter()
+            .map(|f| (f.gm, f.velocity))
+            .chain(
+                [Some(&left.largest), left.second.as_ref()]
+                    .into_iter()
+                    .flatten()
+                    .map(|b| (b.gm, b.velocity)),
+            )
+            .map(|(gm, v)| 0.5 * gm * (v - drift).length_squared() / G)
+            .sum();
+        let scale =
+            left.before.kinetic.abs() + left.before.potential.abs() + left.before.binding.abs();
+        // The kinetic energy of what's flying is what the accounts say.
+        println!(
+            "   kinetic off by {:.1e} of the energy's scale",
+            (kinetic - left.after.kinetic).abs() / scale
+        );
+        assert!(
+            (kinetic - left.after.kinetic).abs() <= rounding * scale,
+            "{kinetic}"
+        );
+        assert!(left.heat >= 0.0, "{}", left.heat);
+        let closes = left.before.total() - left.after.total() - left.heat;
+        assert!(closes.abs() <= rounding * scale);
+        seen.push(outcome.regime);
+    }
+    assert_eq!(
+        seen,
+        [
+            Regime::Merging,
+            Regime::PartialAccretion,
+            Regime::Erosion,
+            Regime::SuperCatastrophic,
+            Regime::HitAndRun
+        ]
+    );
+}
+
+#[test]
+fn a_hit_and_run_leaves_both_going_their_ways() {
+    let mut h = a_mars_into_an_earth(16e3, 0.8);
+    let collision = until_collision(&mut h, 1e4);
+    assert!(collision.parted());
+    assert_eq!(h.top.bodies.len(), 2);
+    assert_eq!(h.top.bodies[1].name, "Mars");
+    // They separate, and don't merge on the next step.
+    let apart = |h: &Hierarchy| (h.top.bodies[0].position - h.top.bodies[1].position).length();
+    let start = apart(&h);
+    for _ in 0..20 {
+        h.step(60.0);
+    }
+    assert!(h.take_collisions().is_empty());
+    assert!(apart(&h) > start, "{start}");
+}
+
+#[test]
+fn a_slow_hit_and_run_comes_back_and_merges() {
+    // Two Earths that only just have the speed to part: the velocity a
+    // hit-and-run loses leaves them bound, under their mutual escape speed
+    // of 11.2 km/s. They fall back together, as the paper says hit-and-runs
+    // make merging likelier, and however often they meet, each time slower,
+    // they end as one.
+    use worldline_core::gravity::Newtonian;
+    let (gm, radius, b) = (3.986e14, 6.371e6, 0.8f64);
+    let at = DVec3::new(-(1.0 - b * b).sqrt(), b, 0.0) * (2.0 * radius * 1.0003);
+    let top = System::new(vec![
+        Body::new("Earth", gm, radius),
+        Body::new("Second", gm, radius)
+            .at(at)
+            .moving(DVec3::X * 11.9e3),
+    ]);
+    let mut h = Hierarchy::new(top, Box::new(Newtonian), Vec::new());
+    let first = until_collision(&mut h, 1e4);
+    assert!(first.parted(), "{:?}", first.outcome);
+    let started = h.time();
+    let mut speeds = vec![first.speed];
+    let last = loop {
+        let next = until_collision(&mut h, 3e7);
+        speeds.push(next.speed);
+        if !next.parted() {
+            break next;
+        }
+        assert!(speeds.len() < 20, "{speeds:?}");
+    };
+    println!(
+        "met {} times, at {speeds:.0?} m/s, over {:.1} hours: {:?}",
+        speeds.len(),
+        (h.time() - started) / 3600.0,
+        last.outcome.map(|o| o.1.regime)
+    );
+    assert_eq!(h.top.bodies.len(), 1);
+    assert!(speeds.windows(2).all(|w| w[1] < w[0]), "{speeds:?}");
+}
+
+#[test]
+fn fragments_that_fall_back_give_back_their_mass() {
+    // A fragment dropped from just above a planet comes back down, and the
+    // planet takes back its mass and momentum.
+    use worldline_core::debris::Fragment;
+    use worldline_core::gravity::Newtonian;
+    let gm = 3.986e14;
+    let top = System::new(vec![
+        Body::new("Sun", GM_SUN, SOLAR_RADIUS).at(DVec3::X * AU),
+        Body::new("Earth", gm, 6.371e6),
+    ]);
+    let mut h = Hierarchy::new(top, Box::new(Newtonian), Vec::new());
+    let piece = Fragment {
+        position: DVec3::Y * 7e6,
+        velocity: -DVec3::Y * 100.0,
+        gm: 1e9,
+    };
+    h.add_debris(&[piece]);
+    assert_eq!(h.debris().len(), 1);
+    while h.time() < 2e4 {
+        h.step(600.0);
+    }
+    h.sync_swarm();
+    let swallowed = h.take_swallowed();
+    assert_eq!(swallowed.len(), 1, "{swallowed:?}");
+    assert_eq!(
+        (swallowed[0].by.as_str(), swallowed[0].fragments),
+        ("Earth", 1)
+    );
+    assert!(h.debris().is_empty());
+    assert_eq!(h.top.bodies[1].gm, gm + 1e9);
 }
