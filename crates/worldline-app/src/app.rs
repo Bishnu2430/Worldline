@@ -12,6 +12,7 @@ use worldline_core::eclipses::{Eclipse, LunarKind, SolarKind, State, apparent};
 use worldline_core::gravity::kerr::innermost_stable_orbit;
 use worldline_core::hawking;
 use worldline_core::horizon::{Horizontal, Luminary};
+use worldline_core::impact::{Impact, Outcome, Regime};
 use worldline_core::kerr_light::{self, circular, disk_temperature, photon_orbits};
 use worldline_core::lensing::BendTable;
 use worldline_core::magnetosphere::standoff;
@@ -508,6 +509,8 @@ pub struct WorldlineApp {
     /// Open the selected body's branch of the list and scroll to it, once
     /// it has been picked somewhere other than the list.
     reveal: bool,
+    /// The last impact the scaling laws cover.
+    last_impact: Option<LastImpact>,
     /// The gravitational-wave window's recording, while it is open.
     waves: Option<WaveView>,
     /// Whether the eclipse finder's window is open, and its search.
@@ -550,6 +553,16 @@ pub struct WorldlineApp {
     behind: f64,
     /// When the app started.
     started: Instant,
+}
+
+/// An impact, and what the scaling laws say it leaves.
+struct LastImpact {
+    /// The body that took it, by name.
+    survivor: String,
+    /// And what hit it.
+    with: String,
+    impact: Impact,
+    outcome: Outcome,
 }
 
 /// A pair's recorded gravitational waves, shown in their window.
@@ -599,6 +612,7 @@ impl WorldlineApp {
             start_at_rest: false,
             launch: None,
             status: None,
+            last_impact: None,
             waves: None,
             eclipses_open: false,
             finder: None,
@@ -915,9 +929,27 @@ impl WorldlineApp {
             self.clock(ui);
             if let Some(note) = self.time_note() {
                 ui.separator();
-                ui.colored_label(Color32::from_rgb(255, 170, 60), note);
+                let text = RichText::new(&note).color(Color32::from_rgb(255, 170, 60));
+                ui.add(egui::Label::new(text).truncate()).on_hover_text(note);
             }
+            self.status_message(ui);
         });
+    }
+
+    /// The last thing that happened, for a few seconds. It comes last in
+    /// the top bar and truncates to the room that's left, the rest on
+    /// hovering: a top bar wider than the window loses the side panel.
+    fn status_message(&mut self, ui: &mut egui::Ui) {
+        if let Some((message, since)) = &self.status {
+            if since.elapsed() < Duration::from_secs(6) {
+                ui.separator();
+                let text = RichText::new(message).small().color(theme::MUTED);
+                ui.add(egui::Label::new(text).truncate())
+                    .on_hover_text(message);
+            } else {
+                self.status = None;
+            }
+        }
     }
 
     /// The simulation's time in UTC, to the second, the time scale
@@ -1152,7 +1184,7 @@ impl WorldlineApp {
                 ("Rotation", "IAU models (NASA NAIF)"),
                 (
                     "Collisions",
-                    "bodies that touch merge: momentum kept, volumes add",
+                    "bodies that touch merge: momentum kept, volumes add. What they would really leave is predicted, by Leinhardt & Stewart's scaling laws",
                 ),
                 ("Surfaces", "Solar System Scope, CC BY 4.0"),
             ] {
@@ -1296,6 +1328,7 @@ impl WorldlineApp {
         let sun = &bodies[SUN];
         let parent = self.simulation.parent(self.selected);
         egui::Grid::new("selected").num_columns(2).show(ui, |ui| {
+            self.impact_rows(ui);
             ui.label(key("Mass"));
             if body.gm > 0.0 {
                 ui.label(format!("{:.4e} kg", body.mass()));
@@ -2239,13 +2272,6 @@ impl WorldlineApp {
                 }
             }
         });
-        if let Some((message, since)) = &self.status {
-            if since.elapsed() < Duration::from_secs(6) {
-                ui.label(RichText::new(message).small().color(theme::MUTED));
-            } else {
-                self.status = None;
-            }
-        }
     }
 
     /// The names of the followed and selected bodies, to find them again
@@ -2296,6 +2322,15 @@ impl WorldlineApp {
                     last.speed / 1e3
                 ),
             };
+            if let Some((impact, outcome)) = &last.outcome {
+                message += &format!(" (predicted: {})", regime_name(outcome.regime));
+                self.last_impact = Some(LastImpact {
+                    survivor: last.survivor.clone(),
+                    with: last.absorbed.clone(),
+                    impact: *impact,
+                    outcome: *outcome,
+                });
+            }
             if !last.freed.is_empty() {
                 message += &format!(", freeing {}", last.freed.join(", "));
             }
@@ -2425,6 +2460,76 @@ impl WorldlineApp {
             }
             Err(e) => self.status = Some((format!("Couldn't load: {e}"), Instant::now())),
         }
+    }
+
+    /// Inspector rows for the body that took the last impact: what the
+    /// scaling laws say that impact leaves. The bodies are still merged, so
+    /// this is labeled as the prediction it is.
+    fn impact_rows(&self, ui: &mut egui::Ui) {
+        let Some(last) = &self.last_impact else {
+            return;
+        };
+        if self.simulation.bodies[self.selected].name != last.survivor {
+            return;
+        }
+        let (impact, outcome) = (&last.impact, &last.outcome);
+        let total = impact.total_mass();
+        let speed = |v: f64| format!("{:.1} km/s", v / 1e3);
+        let angle = impact.impact_parameter.asin().to_degrees();
+        let rows = [
+            (
+                "Last impact".to_string(),
+                format!(
+                    "by {}, {}, {angle:.0}° off head-on",
+                    last.with,
+                    speed(impact.speed)
+                ),
+            ),
+            (
+                "Predicted".to_string(),
+                format!(
+                    "{}{}",
+                    regime_name(outcome.regime),
+                    if outcome.grazing { " (grazing)" } else { "" }
+                ),
+            ),
+            (
+                "Largest remnant".to_string(),
+                if outcome.second > 0.0 {
+                    format!(
+                        "{} of the mass, next {}",
+                        percent(outcome.largest / total),
+                        percent(outcome.second / total)
+                    )
+                } else {
+                    "all of the mass".to_string()
+                },
+            ),
+            (
+                "Impact energy".to_string(),
+                format!(
+                    "{} of what disperses half",
+                    percent(outcome.energy / outcome.threshold)
+                ),
+            ),
+            ("Merges below".to_string(), speed(outcome.merging_speed)),
+            ("Erodes above".to_string(), speed(outcome.erosion_speed)),
+            (
+                "Half dispersed at".to_string(),
+                speed(outcome.disruption_speed),
+            ),
+        ];
+        for (name, value) in rows {
+            ui.label(key(&name));
+            ui.label(value);
+            ui.end_row();
+        }
+        ui.label(key(""));
+        ui.label(RichText::new("A prediction: for now they still merge").small().color(theme::MUTED))
+            .on_hover_text(
+                "Leinhardt & Stewart's (2012) scaling laws for collisions between gravity-dominated bodies. Worldline doesn't yet act on them: the two merge, and no debris flies off.",
+            );
+        ui.end_row();
     }
 
     /// Inspector rows for the Sun: the solar system's orbit around the
@@ -3911,6 +4016,17 @@ fn eclipse_row(eclipse: &Eclipse) -> (&'static str, f64, String) {
 fn eclipse_gamma(eclipse: &Eclipse) -> f64 {
     match *eclipse {
         Eclipse::Solar { gamma, .. } | Eclipse::Lunar { gamma, .. } => gamma,
+    }
+}
+
+/// A collision regime's name.
+fn regime_name(regime: Regime) -> &'static str {
+    match regime {
+        Regime::Merging => "a true merger",
+        Regime::PartialAccretion => "partial accretion",
+        Regime::HitAndRun => "a hit-and-run",
+        Regime::Erosion => "erosion",
+        Regime::SuperCatastrophic => "super-catastrophic disruption",
     }
 }
 

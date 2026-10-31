@@ -39,7 +39,7 @@
 
 use glam::DVec3;
 
-use crate::collision::{contact, first_survives, merge};
+use crate::collision::{Touch, contact, first_survives, merge, predicted_outcome};
 use crate::compact::is_black_hole;
 use crate::constants::C;
 use crate::gravity::{
@@ -47,6 +47,7 @@ use crate::gravity::{
     moves_in_spacetime_of, reaction_converges,
 };
 use crate::hawking;
+use crate::impact::{Impact, Outcome};
 use crate::integrator::{Ias15, Integrator, advance};
 use crate::kepler::drift;
 use crate::mean_elements::MeanElements;
@@ -350,6 +351,9 @@ pub struct Collision {
     /// For two black holes that spiraled together: what the merger
     /// radiated and left, from numerical relativity.
     pub merger: Option<Merger>,
+    /// What the scaling laws say the collision leaves, where they apply.
+    /// Worldline still merges the bodies: this is the prediction.
+    pub outcome: Option<(Impact, Outcome)>,
 }
 
 /// A black hole that evaporated completely by Hawking radiation.
@@ -843,6 +847,7 @@ impl Hierarchy {
                     dissolved_system: None,
                     freed: Vec::new(),
                     merger: None,
+                    outcome: None,
                 });
             }
         }
@@ -993,24 +998,25 @@ impl Hierarchy {
         let now = |b: &Body| (b.position, b.velocity);
         let relative = |a: (DVec3, DVec3), b: (DVec3, DVec3)| (a.0 - b.0, a.1 - b.1);
         let n = self.top.bodies.len();
-        let mut first: Option<(f64, usize, usize, f64)> = None;
+        let mut first: Option<(Touch, usize, usize)> = None;
         for i in 0..n {
             for j in i + 1..n {
                 let (a, b) = (&self.top.bodies[i], &self.top.bodies[j]);
-                if let Some((at, speed)) = contact(
+                if let Some(touch) = contact(
                     relative(before[i], before[j]),
                     relative(now(a), now(b)),
                     h,
                     a.radius + b.radius,
-                ) && first.is_none_or(|f| at < f.0)
+                ) && first.is_none_or(|f| touch.at < f.0.at)
                 {
-                    first = Some((at, i, j, speed));
+                    first = Some((touch, i, j));
                 }
             }
         }
-        if let Some((at, i, j, speed)) = first {
-            let time = self.top.time() - (1.0 - at) * h;
-            self.merge_top(i, j, speed, time, false);
+        if let Some((touch, i, j)) = first {
+            let time = self.top.time() - (1.0 - touch.at) * h;
+            let outcome = predicted_outcome(&self.top.bodies[i], &self.top.bodies[j], &touch);
+            self.merge_top(i, j, touch.speed, time, false, outcome);
         }
     }
 
@@ -1023,7 +1029,15 @@ impl Hierarchy {
     /// top-level bodies (its small moons go with it); a planet that survives
     /// keeps its moons. Whatever absorbs the Sun takes its place as body 0,
     /// which the followers' relativistic term is measured from.
-    fn merge_top(&mut self, i: usize, j: usize, speed: f64, time: f64, inspiral: bool) {
+    fn merge_top(
+        &mut self,
+        i: usize,
+        j: usize,
+        speed: f64,
+        time: f64,
+        inspiral: bool,
+        outcome: Option<(Impact, Outcome)>,
+    ) {
         let (s, a) = if first_survives(&self.top.bodies[i], &self.top.bodies[j]) {
             (i, j)
         } else {
@@ -1097,6 +1111,7 @@ impl Hierarchy {
             dissolved_system,
             freed,
             merger,
+            outcome,
         });
     }
 
@@ -1159,7 +1174,7 @@ impl Hierarchy {
             let (a, b) = (&self.top.bodies[i], &self.top.bodies[j]);
             let speed = (a.velocity - b.velocity).length();
             let inspiral = spiraled_in(a, b) && circling(a, b);
-            self.merge_top(i, j, speed, time, inspiral);
+            self.merge_top(i, j, speed, time, inspiral, None);
         }
         for f in (0..self.followers.len()).rev() {
             let body = &self.followers[f].system.bodies[0];
@@ -1177,6 +1192,7 @@ impl Hierarchy {
                     dissolved_system: None,
                     freed: Vec::new(),
                     merger: None,
+                    outcome: None,
                 };
                 self.followers.remove(f);
                 self.happened.push(collision);
@@ -1388,7 +1404,7 @@ fn follow(
         let end = (body.position, body.velocity);
         let (a, b) = (track.locate(start_time), track.locate(end_time));
         for (k, radius) in radii.iter().enumerate() {
-            if let Some((at, speed)) = contact(
+            if let Some(touch) = contact(
                 (
                     start.0 - track.position(a, k),
                     start.1 - track.velocity(a, k),
@@ -1397,7 +1413,8 @@ fn follow(
                 end_time - start_time,
                 radius + body.radius,
             ) {
-                return Some((k, speed, start_time + at * (end_time - start_time)));
+                let when = start_time + touch.at * (end_time - start_time);
+                return Some((k, touch.speed, when));
             }
         }
     }

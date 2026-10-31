@@ -87,7 +87,7 @@ Added 2026-10-22 at the owner's request: what really happens when bodies collide
 
 | # | Step | How you verify it | Status |
 |---|---|---|---|
-| 6.1 | **What a collision leaves:** merging, partial accretion, hit-and-run or disruption, by Leinhardt & Stewart's (2012) scaling laws for the largest remnant | Their catastrophic-disruption threshold and largest remnants reproduced for their published cases | ⬜ |
+| 6.1 | **What a collision leaves:** merging, partial accretion, hit-and-run or disruption, by Leinhardt & Stewart's (2012) scaling laws for the largest remnant | Their catastrophic-disruption threshold and largest remnants reproduced for their published cases | ✅ |
 | 6.2 | **Debris:** the mass a collision throws off flies off as fragments; the energy lost heats what's left | Mass and momentum before and after equal to rounding; energy accounted for to rounding | ⬜ |
 | 6.3 | **Craters and small impacts:** crater sizes from impact scaling laws (Holsapple 1993), drawn on the globe | Meteor Crater and Chicxulub from their estimated impactors, within the published scaling's spread | ⬜ |
 | 6.4 | **Giant impacts as fluids:** planets in SPH with rock and iron (the Tillotson equation of state); the Moon-forming impact | The canonical giant impact (Canup 2004) leaves a disk of debris around Earth of the mass its published simulations find | ⬜ |

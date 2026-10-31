@@ -5,6 +5,8 @@ use glam::DVec3;
 
 use crate::Body;
 use crate::compact::is_black_hole;
+use crate::constants::G;
+use crate::impact::{Impact, Material, Outcome, combined_radius};
 
 /// Two bodies merged as one, perfectly inelastically: the masses add, the
 /// merged body sits at their center of mass and moves with their combined
@@ -68,18 +70,24 @@ fn hermite(start: (DVec3, DVec3), end: (DVec3, DVec3), s: f64, h: f64) -> (DVec3
     (position, velocity)
 }
 
+/// Two bodies touching.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Touch {
+    /// When, as a fraction of the step.
+    pub at: f64,
+    /// Their relative speed then, m/s.
+    pub speed: f64,
+    /// The sine of the angle between the line of their centers and their
+    /// relative velocity then: 0 head-on, 1 grazing.
+    pub impact_parameter: f64,
+}
+
 /// Whether two bodies touch during a step of `h` seconds, given their
 /// relative position and velocity at its start and end: the first moment
-/// their distance is within `reach` (the sum of their radii), as the
-/// fraction of the step, and their relative speed then. Checking only the
-/// ends of steps would miss a fast body that passes right through another
-/// between them.
-pub fn contact(
-    start: (DVec3, DVec3),
-    end: (DVec3, DVec3),
-    h: f64,
-    reach: f64,
-) -> Option<(f64, f64)> {
+/// their distance is within `reach` (the sum of their radii). Checking only
+/// the ends of steps would miss a fast body that passes right through
+/// another between them.
+pub fn contact(start: (DVec3, DVec3), end: (DVec3, DVec3), h: f64, reach: f64) -> Option<Touch> {
     const SAMPLES: usize = 64;
     // The curve lies within the convex hull of its Bézier control points,
     // so within any ball that holds them: if that ball stays out of reach,
@@ -149,7 +157,40 @@ pub fn contact(
     } else {
         high = 0.0;
     }
-    Some((high, hermite(start, end, high, h).1.length()))
+    let (separation, velocity) = hermite(start, end, high, h);
+    let speed = velocity.length();
+    let impact_parameter = if speed > 0.0 {
+        (separation.cross(velocity).length() / (separation.length() * speed)).min(1.0)
+    } else {
+        0.0
+    };
+    Some(Touch {
+        at: high,
+        speed,
+        impact_parameter,
+    })
+}
+
+/// What Leinhardt & Stewart's scaling laws say a collision between two
+/// bodies leaves, if they cover it (see [`Impact::in_range`]): not with a
+/// black hole, and not with a massless follower.
+pub fn predicted_outcome(a: &Body, b: &Body, touch: &Touch) -> Option<(Impact, Outcome)> {
+    let (target, projectile) = if a.gm >= b.gm { (a, b) } else { (b, a) };
+    if is_black_hole(a) || is_black_hole(b) || projectile.gm <= 0.0 || projectile.radius <= 0.0 {
+        return None;
+    }
+    let impact = Impact {
+        target_mass: target.gm / G,
+        projectile_mass: projectile.gm / G,
+        target_radius: target.radius,
+        projectile_radius: projectile.radius,
+        speed: touch.speed,
+        impact_parameter: touch.impact_parameter,
+    };
+    impact.in_range().then(|| {
+        let material = Material::for_size(combined_radius(impact.total_mass()));
+        (impact, impact.outcome(material))
+    })
 }
 
 #[cfg(test)]
@@ -243,9 +284,10 @@ mod tests {
         let (v, h) = (DVec3::new(2.0e5, 0.0, 0.0), 1.0e4);
         let start = (DVec3::new(-1.0e9, 0.0, 0.0), v);
         let end = (DVec3::new(1.0e9, 0.0, 0.0), v);
-        let (at, speed) = contact(start, end, h, 1.0e7).expect("they touch");
-        assert!((at - 0.495).abs() < 1e-9, "{at}");
-        assert!((speed - 2.0e5).abs() < 1e-6);
+        let touch = contact(start, end, h, 1.0e7).expect("they touch");
+        assert!((touch.at - 0.495).abs() < 1e-9, "{touch:?}");
+        assert!((touch.speed - 2.0e5).abs() < 1e-6);
+        assert!(touch.impact_parameter.abs() < 1e-9);
         // A near miss stays a miss: 3 × 10⁷ m off to the side.
         let side = DVec3::new(0.0, 3.0e7, 0.0);
         assert!(contact((start.0 + side, v), (end.0 + side, v), h, 1.0e7).is_none());

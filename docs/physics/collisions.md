@@ -5,6 +5,8 @@
 
 ## Merging
 
+Since step 6.1 Worldline also predicts what a collision would really leave (see [collision-outcomes.md](collision-outcomes.md)). The bodies still merge as below until step 6.2.
+
 Two bodies that touch merge, **perfectly inelastically**:
 - **Mass:** the masses add.
 - **Position:** the merged body sits at their center of mass.
