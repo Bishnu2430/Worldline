@@ -8,6 +8,7 @@ mod belts;
 mod eclipses;
 mod galactic_center;
 mod heliosphere;
+mod impacts;
 mod kernel;
 mod magnetospheres;
 mod moons;
@@ -35,6 +36,10 @@ pub use galactic_center::{
 pub use heliosphere::{
     Boundary, SolarWindHour, VoyagerCrossing, heliosphere, mean_flow_pressure, parker_spiral,
     solar_wind_2025, voyager_crossings,
+};
+pub use impacts::{
+    ImpactRun, Printed, RUBBLE_PILE_DENSITY, RUBBLE_PILE_RADIUS, SelectedRun, impact_simulations,
+    selected_impact_simulations,
 };
 pub use magnetospheres::{PlanetaryField, RadiationBelt, planetary_fields, radiation_belts};
 pub use moons::{

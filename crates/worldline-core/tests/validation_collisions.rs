@@ -274,3 +274,51 @@ fn a_black_hole_that_hits_the_sun_takes_its_place() {
     h.advance(86_400.0);
     assert_eq!(h.follower_count(), 1);
 }
+
+#[test]
+fn an_impact_is_measured_where_the_bodies_touch() {
+    // A Mars sent past an Earth, aimed 8,000 km off center from 50,000 km.
+    // Gravity bends it inward, so it hits, more nearly head-on than it was
+    // aimed. Newton fixes both numbers at contact: its energy gives the
+    // speed there, and its angular momentum, unchanged, gives the impact
+    // parameter: b = (aim × v₀) / (R_sum × v). The interpolation across the
+    // step has to deliver them as finely as the scaling laws can use them:
+    // the paper's tables give b to ±0.005, and speeds to two digits.
+    use worldline_core::constants::G;
+    use worldline_core::impact::Regime;
+    let (gm_earth, gm_mars) = (3.986e14, 4.283e13);
+    let (r_earth, r_mars) = (6.371e6, 3.39e6);
+    let (reach, gm) = (r_earth + r_mars, gm_earth + gm_mars);
+    let (distance, aim, speed0): (f64, f64, f64) = (5e7, 8e6, 2e3);
+    let start = (distance * distance + aim * aim).sqrt();
+    let top = System::new(vec![
+        Body::new("Earth", gm_earth, r_earth),
+        Body::new("Mars", gm_mars, r_mars)
+            .at(DVec3::new(-distance, aim, 0.0))
+            .moving(DVec3::new(speed0, 0.0, 0.0)),
+    ]);
+    let mut h = Hierarchy::new(top, Box::new(Newtonian), Vec::new());
+    let collision = until_collision(&mut h, 1e6);
+    let speed = (speed0 * speed0 + 2.0 * gm * (1.0 / reach - 1.0 / start)).sqrt();
+    let b = aim * speed0 / (reach * speed);
+    let (impact, outcome) = collision.outcome.expect("the scaling laws cover it");
+    println!(
+        "{:.3} km/s ({:.3}), b {:.5} ({b:.5}): {:?}, largest remnant {:.4} of the mass, Q_R {:.3e} of Q′*_RD {:.3e} J/kg",
+        collision.speed / 1e3,
+        speed / 1e3,
+        impact.impact_parameter,
+        outcome.regime,
+        outcome.largest / impact.total_mass(),
+        outcome.energy,
+        outcome.threshold,
+    );
+    assert!((collision.speed / speed - 1.0).abs() < 0.005);
+    assert!((impact.impact_parameter - b).abs() < 0.005);
+    assert_eq!(impact.target_mass, gm_earth / G);
+    // It arrives just above the escape speed of the two: a slow, glancing
+    // blow between planets, so it stays together.
+    assert!(matches!(
+        outcome.regime,
+        Regime::Merging | Regime::PartialAccretion | Regime::HitAndRun
+    ));
+}
