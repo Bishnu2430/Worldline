@@ -104,7 +104,7 @@ cargo run --release -- --add earth:0.0003@Earth --aim 30,0.3 --focus Earth --zoo
 cargo run --release -- --add earth:0.0015@Earth --aim 16,0.8 --focus Earth --zoom 60 --speed hour
 ```
 
-![A second Earth grazing Earth at 16 km/s: both bodies live on, Earth at 1.000000 Earth masses, with the new planet still in the list and a heat of 10.81 MJ/kg](../images/hit-and-run-step-6.2.png)
+![A second Earth grazing Earth at 16 km/s: both bodies live on, Earth at 1.000000 Earth masses, with the new planet still in the list and a heat of 11.79 MJ/kg](../images/hit-and-run-step-6.2.png)
 
 ## Where it's valid
 

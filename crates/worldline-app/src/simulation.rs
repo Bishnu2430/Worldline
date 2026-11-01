@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use worldline_core::compact::horizon_spin;
 use worldline_core::compact::{is_black_hole, schwarzschild_radius};
 use worldline_core::constants::{AGE_OF_UNIVERSE, DAY, GM_SUN};
+use worldline_core::crater::{Crater, Strike};
 use worldline_core::eclipses::{Ephemeris, State};
 use worldline_core::gravitational_waves::{merger_time, period_derivative};
 use worldline_core::gravity::kerr::plunge_time;
@@ -119,6 +120,20 @@ pub struct BeltCloud {
     first_id: u32,
     /// Where its bodies are now (those not swallowed), in m.
     pub positions: Vec<DVec3>,
+}
+
+/// A crater on a body.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Scar {
+    /// The body it's on, by name.
+    pub body: String,
+    /// What dug it.
+    pub by: String,
+    /// From the body's center to the crater, a unit vector in the body's own
+    /// frame, so that it turns with the body.
+    pub at: DVec3,
+    pub crater: Crater,
+    pub strike: Strike,
 }
 
 /// A small moon torn from its planet: a swarm particle now.
@@ -332,6 +347,8 @@ pub struct Simulation {
     belts_time: f64,
     /// Small moons torn from their planets, in label order.
     freed: Vec<FreedMoon>,
+    /// The craters on every body, oldest first.
+    scars: Vec<Scar>,
     /// Where each swarm particle is now, in the swarm's order.
     swarm_positions: Vec<DVec3>,
     /// What happened to the swarm since the app last looked: sentences for
@@ -415,6 +432,7 @@ impl Simulation {
                 .collect(),
             belts_time: f64::NAN,
             freed: Vec::new(),
+            scars: Vec::new(),
             swarm_positions: Vec::new(),
             notices: Vec::new(),
             clocks: Clocks::default(),
@@ -1143,8 +1161,12 @@ impl Simulation {
     /// pole the IAU model's (see `docs/physics/time.md`); every other body
     /// by its IAU model.
     pub fn orientation(&self, index: usize) -> Option<Orientation> {
+        self.orientation_at(index, self.julian_date())
+    }
+
+    /// How body `index` is oriented at Julian Date `jd`, if known.
+    fn orientation_at(&self, index: usize, jd: f64) -> Option<Orientation> {
         let model = self.rotation(index)?;
-        let jd = self.julian_date();
         if self.bodies[index].name == "Earth" && !self.is_added(index) {
             return self.earth_orientation(jd);
         }
@@ -1516,6 +1538,9 @@ impl Simulation {
                 self.record_merger(c);
             }
             self.reindex();
+            for c in &collisions {
+                self.scar(c);
+            }
             self.settle_compact_stars(&collisions, &absorbed);
             self.events.extend(collisions);
         }
@@ -1525,6 +1550,40 @@ impl Simulation {
         }
         self.refresh();
         self.tick_clocks(true);
+    }
+
+    /// Keeps the craters up to date after a collision. A body that's gone
+    /// takes its craters with it, and an impact the size of those Leinhardt
+    /// & Stewart's laws cover leaves no old surface on either body:
+    /// Worldline's choice. A crater dug stays where it hit, turning with its
+    /// body.
+    fn scar(&mut self, collision: &Collision) {
+        let (survivor, absorbed) = (&collision.survivor, &collision.absorbed);
+        if !collision.parted() || collision.outcome.is_some() {
+            self.scars.retain(|s| &s.body != absorbed);
+        }
+        if collision.outcome.is_some() {
+            self.scars.retain(|s| &s.body != survivor);
+        }
+        let (Some(dug), Some(index)) = (&collision.crater, self.index_of(survivor)) else {
+            return;
+        };
+        let jd = self.epoch_jd_tdb + collision.time / DAY;
+        let frame = self
+            .orientation_at(index, jd)
+            .map_or(DMat3::IDENTITY, |o| o.body_to_ecliptic);
+        self.scars.push(Scar {
+            body: survivor.clone(),
+            by: absorbed.clone(),
+            at: frame.transpose() * dug.at,
+            crater: dug.crater,
+            strike: dug.strike,
+        });
+    }
+
+    /// The craters on the body named `name`, oldest first.
+    pub fn craters_on<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Scar> + 'a {
+        self.scars.iter().filter(move |s| s.body == name)
     }
 
     /// Brings the list of bodies up to date after collisions: a planet
@@ -1551,6 +1610,9 @@ impl Simulation {
             self.record_merger(collision);
         }
         self.reindex();
+        for collision in collisions {
+            self.scar(collision);
+        }
         self.settle_compact_stars(collisions, &absorbed);
         if let Some(system) = self.detailed {
             let moons = &self.hierarchy.moon_systems[system];
@@ -1977,6 +2039,51 @@ mod tests {
         }
         println!("worst: {worst:.1} s");
         assert!(missing.is_empty() && found.len() == canon.len());
+    }
+
+    #[test]
+    fn a_small_body_digs_a_crater_that_turns_with_its_planet() {
+        // The Chicxulub impactor sent at Earth in the real solar system.
+        let mut sim = Simulation::solar_system(3600.0);
+        let earth = sim.index_of("Earth").unwrap();
+        let at = sim.bodies[earth].position + DVec3::X * 1e8;
+        let gm = worldline_core::constants::G * 6.765e15;
+        let impactor = Body::new("Impactor", gm, 8.5e3).at(at);
+        let index = sim.add_body(impactor, "impactor:Chicxulub impactor");
+        sim.aim_at(index, earth, 12e3, 0.5);
+        sim.advance_by(6.0 * 3600.0);
+        let event = sim
+            .events
+            .iter()
+            .find(|e| e.absorbed == "Impactor")
+            .expect("it hit");
+        assert_eq!(event.survivor, "Earth");
+        let dug = event.crater.expect("a crater");
+        println!(
+            "{:.2} km/s, b {:.4}: {:.1} km across",
+            dug.strike.speed / 1e3,
+            dug.strike.impact_parameter,
+            2.0 * dug.crater.rim_radius / 1e3
+        );
+        // Aimed as asked, at Earth itself: not at its barycenter with the
+        // Moon, which would throw b off by up to 0.7.
+        assert!((dug.strike.speed / 12e3 - 1.0).abs() < 0.005);
+        assert!((dug.strike.impact_parameter - 0.5).abs() < 0.005);
+        assert!(dug.crater.complex);
+        let scar = sim.craters_on("Earth").next().expect("kept").clone();
+        assert_eq!(scar.crater, dug.crater);
+        // In Earth's own frame it stays put, so it turns with Earth: in
+        // inertial axes it moves about 15° an hour, but for its latitude.
+        let frame = |sim: &Simulation| sim.orientation(earth).unwrap().body_to_ecliptic;
+        let then = frame(&sim) * scar.at;
+        sim.advance_by(3600.0);
+        let turned = (frame(&sim) * scar.at).angle_between(then).to_degrees();
+        println!("turned {turned:.2}° in an hour");
+        assert!(turned > 1.0 && turned < 15.1, "{turned}");
+        // A save keeps it, to the last digit.
+        let text = sim.save();
+        let loaded = Simulation::load(&text, DAY).unwrap();
+        assert_eq!(loaded.craters_on("Earth").next(), Some(&scar));
     }
 
     #[test]

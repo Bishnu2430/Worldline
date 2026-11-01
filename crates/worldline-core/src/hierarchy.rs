@@ -41,7 +41,9 @@ use std::collections::BTreeMap;
 
 use glam::DVec3;
 
-use crate::collision::{Touch, contact, first_survives, merge, predicted_outcome};
+use crate::collision::{
+    Cratering, Touch, contact, crater_left, first_survives, merge, predicted_outcome,
+};
 use crate::compact::is_black_hole;
 use crate::constants::C;
 use crate::debris::{Aftermath, Fragment, aftermath};
@@ -364,6 +366,8 @@ pub struct Collision {
     /// energy's accounts. In a hit-and-run `second` is set, and the body
     /// named `absorbed` goes on.
     pub aftermath: Option<Aftermath>,
+    /// The crater a body too small for those laws left on its target.
+    pub crater: Option<Cratering>,
 }
 
 impl Collision {
@@ -868,11 +872,8 @@ impl Hierarchy {
                 Some((g, time, states)) if g == self.generation && time == t0 => states,
                 _ => self.field_states(),
             });
-        let before: Vec<(DVec3, DVec3)> = self
-            .top
-            .bodies
-            .iter()
-            .map(|b| (b.position, b.velocity))
+        let before: Vec<(DVec3, DVec3)> = (0..self.top.bodies.len())
+            .map(|k| self.surface_center(k))
             .collect();
         let track = (!self.followers.is_empty())
             .then(|| Track::starting_at(&self.top, self.gravity.as_ref()));
@@ -925,6 +926,7 @@ impl Hierarchy {
                     merger: None,
                     outcome: None,
                     aftermath: None,
+                    crater: None,
                 });
             }
         }
@@ -1063,16 +1065,50 @@ impl Hierarchy {
         std::mem::take(&mut self.evaporated)
     }
 
+    /// Where top-level body `k`'s surface is centered, and how it moves. The
+    /// top level follows a planet's system, whose barycenter lies off the
+    /// planet: 4,700 km off Earth's center, for one.
+    fn surface_center(&self, k: usize) -> (DVec3, DVec3) {
+        let body = &self.top.bodies[k];
+        match self.moon_systems.iter().find(|m| m.host == k) {
+            Some(moons) => {
+                let planet = &moons.system.bodies[0];
+                (
+                    body.position + planet.position,
+                    body.velocity + planet.velocity,
+                )
+            }
+            None => (body.position, body.velocity),
+        }
+    }
+
+    /// Top-level body `k` as what its surface belongs to: a planet alone,
+    /// without its moons.
+    fn surface_body(&self, k: usize) -> Body {
+        let body = &self.top.bodies[k];
+        let (position, velocity) = self.surface_center(k);
+        let gm = self
+            .moon_systems
+            .iter()
+            .find(|m| m.host == k)
+            .map_or(body.gm, |m| m.system.bodies[0].gm);
+        Body {
+            gm,
+            position,
+            velocity,
+            ..body.clone()
+        }
+    }
+
     /// Finds the top-level bodies that touched during the step just taken
-    /// (from their states at its start, `before`, and now) and merges the
-    /// first pair to touch; any others are found at the next step. Their
-    /// integrator shortens its steps as bodies close in, so the ends of a
-    /// step bracket the approach well.
+    /// (from their surfaces' centers at its start, `before`, and now) and
+    /// merges the first pair to touch; any others are found at the next
+    /// step. Their integrator shortens its steps as bodies close in, so the
+    /// ends of a step bracket the approach well.
     fn collide(&mut self, before: &[(DVec3, DVec3)], h: f64) {
         if h <= 0.0 {
             return;
         }
-        let now = |b: &Body| (b.position, b.velocity);
         let relative = |a: (DVec3, DVec3), b: (DVec3, DVec3)| (a.0 - b.0, a.1 - b.1);
         let n = self.top.bodies.len();
         let mut first: Option<(Touch, usize, usize)> = None;
@@ -1081,7 +1117,7 @@ impl Hierarchy {
                 let (a, b) = (&self.top.bodies[i], &self.top.bodies[j]);
                 if let Some(touch) = contact(
                     relative(before[i], before[j]),
-                    relative(now(a), now(b)),
+                    relative(self.surface_center(i), self.surface_center(j)),
                     h,
                     a.radius + b.radius,
                 ) && first.is_none_or(|f| touch.at < f.0.at)
@@ -1092,8 +1128,18 @@ impl Hierarchy {
         }
         if let Some((touch, i, j)) = first {
             let time = self.top.time() - (1.0 - touch.at) * h;
-            let outcome = predicted_outcome(&self.top.bodies[i], &self.top.bodies[j], &touch);
-            self.merge_top(i, j, touch.speed, time, false, outcome.map(|o| (o, touch)));
+            let (a, b) = (self.surface_body(i), self.surface_body(j));
+            let outcome = predicted_outcome(&a, &b, &touch);
+            let crater = outcome.is_none().then(|| crater_left(&a, &b, &touch));
+            self.merge_top(
+                i,
+                j,
+                touch.speed,
+                time,
+                false,
+                outcome.map(|o| (o, touch)),
+                crater.flatten(),
+            );
         }
     }
 
@@ -1106,6 +1152,7 @@ impl Hierarchy {
     /// top-level bodies (its small moons go with it); a planet that survives
     /// keeps its moons. Whatever absorbs the Sun takes its place as body 0,
     /// which the followers' relativistic term is measured from.
+    #[allow(clippy::too_many_arguments)]
     fn merge_top(
         &mut self,
         i: usize,
@@ -1114,6 +1161,7 @@ impl Hierarchy {
         time: f64,
         inspiral: bool,
         hit: Option<((Impact, Outcome), Touch)>,
+        crater: Option<Cratering>,
     ) {
         let (s, a) = if first_survives(&self.top.bodies[i], &self.top.bodies[j]) {
             (i, j)
@@ -1162,6 +1210,7 @@ impl Hierarchy {
                 merger: None,
                 outcome,
                 aftermath: left.clone().into(),
+                crater,
             });
             return;
         }
@@ -1222,6 +1271,7 @@ impl Hierarchy {
             merger,
             outcome,
             aftermath: left,
+            crater,
         });
     }
 
@@ -1312,13 +1362,14 @@ impl Hierarchy {
             .flat_map(|i| (i + 1..self.top.bodies.len()).map(move |j| (i, j)))
             .find(|&(i, j)| {
                 let (a, b) = (&self.top.bodies[i], &self.top.bodies[j]);
-                (a.position - b.position).length() <= a.radius + b.radius || spiraled_in(a, b)
+                let apart = self.surface_center(i).0 - self.surface_center(j).0;
+                apart.length() <= a.radius + b.radius || spiraled_in(a, b)
             })
         {
             let (a, b) = (&self.top.bodies[i], &self.top.bodies[j]);
             let speed = (a.velocity - b.velocity).length();
             let inspiral = spiraled_in(a, b) && circling(a, b);
-            self.merge_top(i, j, speed, time, inspiral, None);
+            self.merge_top(i, j, speed, time, inspiral, None, None);
         }
         for f in (0..self.followers.len()).rev() {
             let body = &self.followers[f].system.bodies[0];
@@ -1338,6 +1389,7 @@ impl Hierarchy {
                     merger: None,
                     outcome: None,
                     aftermath: None,
+                    crater: None,
                 };
                 self.followers.remove(f);
                 self.happened.push(collision);

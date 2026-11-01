@@ -6,6 +6,7 @@ use glam::DVec3;
 use crate::Body;
 use crate::compact::is_black_hole;
 use crate::constants::G;
+use crate::crater::{self, Crater, Ground, Strike};
 use crate::impact::{Impact, Material, Outcome, combined_radius};
 
 /// Two bodies merged as one, perfectly inelastically: the masses add, the
@@ -197,6 +198,64 @@ pub fn predicted_outcome(a: &Body, b: &Body, touch: &Touch) -> Option<(Impact, O
         let material = Material::for_size(combined_radius(impact.total_mass()));
         (impact, impact.outcome(material))
     })
+}
+
+/// The most massive body with a surface to dig: 10 Earth masses, as far as
+/// [`crate::impact`]'s data on solid bodies reach, in m³/s². Past it lie the
+/// giant planets and the stars. Earth's nominal GM⊕.
+const MOST_MASSIVE_SURFACE: f64 = 10.0 * 3.986_004e14;
+
+/// The widest excavation a surface keeps, over the body's radius. Past
+/// 1,500 km on Earth the crater collapses to an almost featureless surface
+/// (Collins et al. 2005); elsewhere Worldline scales that with the radius.
+const WIDEST_EXCAVATION: f64 = 1500e3 / 6.371e6;
+
+/// A crater, the strike that dug it, and where.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Cratering {
+    /// What it dug.
+    pub crater: Crater,
+    /// How it struck.
+    pub strike: Strike,
+    /// From the target's center toward the impact, as a unit vector.
+    pub at: DVec3,
+}
+
+/// The crater a body leaves on a much larger one, where the scaling laws of
+/// [`crate::crater`] apply: a body with a surface, hit too hard for the point
+/// source to fail, by something that leaves the crater room to fit. `touch`
+/// is from `a` to `b`.
+pub fn crater_left(a: &Body, b: &Body, touch: &Touch) -> Option<Cratering> {
+    let (target, projectile, sign) = if a.gm >= b.gm {
+        (a, b, -1.0)
+    } else {
+        (b, a, 1.0)
+    };
+    if is_black_hole(a)
+        || is_black_hole(b)
+        || projectile.gm <= 0.0
+        || target.radius <= 0.0
+        || target.gm > MOST_MASSIVE_SURFACE
+    {
+        return None;
+    }
+    let strike = Strike {
+        mass: projectile.gm / G,
+        speed: touch.speed,
+        impact_parameter: touch.impact_parameter,
+        gravity: target.gm / (target.radius * target.radius),
+    };
+    let volume = 4.0 / 3.0 * std::f64::consts::PI * target.radius.powi(3);
+    let ground = Ground::of_density(target.gm / G / volume);
+    let dug = crater::dig(&strike, &ground);
+    let at = (touch.separation * sign).try_normalize()?;
+    (strike.downward_speed() >= crater::SLOWEST
+        && 2.0 * dug.excavation_radius <= WIDEST_EXCAVATION * target.radius)
+        .then_some(Cratering {
+            crater: dug,
+            strike,
+            at,
+        })
 }
 
 #[cfg(test)]

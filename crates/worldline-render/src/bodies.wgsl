@@ -32,9 +32,25 @@ struct Instance {
     atmosphere_height: f32,
     scale_height: f32,
     rayleigh: vec3<f32>,
+    // Which of the pits below are this body's.
+    pit_first: u32,
+    pit_count: u32,
+};
+
+// A dent in a body's surface.
+struct Pit {
+    // Unit vector to its middle, in the body's frame.
+    at: vec3<f32>,
+    // Its rim's angular radius, radians.
+    radius: f32,
+    // Its depth over its rim's radius.
+    depth: f32,
+    // 1 for a flat floor and a central peak, 0 for a bowl.
+    flat: f32,
 };
 
 @group(0) @binding(0) var<uniform> globals: Globals;
+@group(0) @binding(1) var<uniform> pits: array<Pit, 256>;
 @group(1) @binding(0) var<uniform> instance: Instance;
 @group(2) @binding(0) var day_texture: texture_2d<f32>;
 @group(2) @binding(1) var night_texture: texture_2d<f32>;
@@ -71,6 +87,66 @@ fn blocked_by_body(point: vec3<f32>, direction: vec3<f32>) -> bool {
     let c = dot(o, o) - 1.0;
     // From outside (c > 0), both crossings lie ahead exactly when b < 0.
     return b * b - a * c > 0.0 && b < 0.0 && c > 0.0;
+}
+
+// How pits change a surface at point `p` (a unit vector in the body's frame).
+struct Scars {
+    // How far the surface tilts, in the body's frame, as a slope.
+    tilt: vec3<f32>,
+    // How much of the ground is bare rock: 1 inside a rim.
+    rock: f32,
+    // How much of it is thrown-out rock outside a rim.
+    ejecta: f32,
+    // How much of the rock is wall or peak, which show paler than the floor.
+    wall: f32,
+};
+
+// A rim's height over its radius: 0.07 (Holsapple 1993, eq. 22d).
+const RIM_HEIGHT: f32 = 0.07;
+// Where a flat floor ends and the wall begins, and the central peak's reach.
+// A visual approximation, as the whole profile is.
+const FLOOR_EDGE: f32 = 0.6;
+const PEAK_EDGE: f32 = 0.12;
+// How far out, in rim radii, thrown-out rock is drawn.
+const EJECTA_EDGE: f32 = 3.0;
+
+// `pixel` is how much of a unit vector one pixel spans.
+fn scars_at(p: vec3<f32>, pixel: f32) -> Scars {
+    var out = Scars(vec3<f32>(0.0), 0.0, 0.0, 0.0);
+    for (var i = instance.pit_first; i < instance.pit_first + instance.pit_count; i += 1u) {
+        let pit = pits[i];
+        let along = dot(p, pit.at);
+        let offset = p - pit.at * along;
+        let sine = length(offset);
+        let x = sine / pit.radius;
+        if along <= 0.0 || x >= EJECTA_EDGE || sine == 0.0 {
+            continue;
+        }
+        // The slope of the ground, rising outward. The depth and the rim's
+        // height are the crater's; between them the profile is a sketch: a
+        // bowl, or a flat floor, a straight wall and a peak. Outside the rim
+        // it falls as the distance cubed, as ejecta thin out (Collins et al.
+        // 2005, eq. 43).
+        var slope = 0.0;
+        if x >= 1.0 {
+            slope = -3.0 * RIM_HEIGHT / (x * x * x * x);
+        } else if pit.flat < 0.5 {
+            slope = 2.0 * pit.depth * x;
+        } else if x >= FLOOR_EDGE {
+            slope = pit.depth / (1.0 - FLOOR_EDGE);
+        } else if x < PEAK_EDGE {
+            slope = -pit.depth / PEAK_EDGE;
+        }
+        // A pit under a pixel has no slope to see.
+        let seen = clamp(pit.radius / pixel - 1.0, 0.0, 1.0);
+        out.tilt -= offset / sine * slope * seen;
+        out.rock = max(out.rock, 1.0 - smoothstep(0.97, 1.0, x));
+        let peak = (1.0 - smoothstep(0.0, PEAK_EDGE, x)) * pit.flat;
+        out.wall = max(out.wall, max(smoothstep(0.5, 0.9, x), peak));
+        let thin = (1.0 - smoothstep(0.6 * EJECTA_EDGE, EJECTA_EDGE, x)) / (x * x * x);
+        out.ejecta = max(out.ejecta, min(thin, 1.0));
+    }
+    return out;
 }
 
 // ---------------------------------------------------------------- globes
@@ -137,6 +213,7 @@ fn fs_globe(in: GlobeOut) -> @location(0) vec4<f32> {
     let ring_du = vec2<f32>(dpdx(ring_u), dpdy(ring_u));
     let ring_through = textureSampleGrad(ring_texture, ring_sampler, vec2<f32>(ring_u, 0.5), vec2<f32>(ring_du.x, 0.0), vec2<f32>(ring_du.y, 0.0)).r;
 
+    let scars = scars_at(p, length(fwidth(p)));
     let n = normalize(in.normal);
     if instance.emissive > 0.5 {
         // Limb darkening: near the Sun's edge we see higher, cooler gas, so
@@ -146,9 +223,11 @@ fn fs_globe(in: GlobeOut) -> @location(0) vec4<f32> {
         return vec4<f32>(surface * (0.4 + 0.6 * mu), 1.0);
     }
 
-    // Sunlight falls off with the cosine of the angle from overhead (Lambert).
+    // Sunlight falls off with the cosine of the angle from overhead (Lambert),
+    // measured on the ground as pits tilt it.
     let sunlight = dot(n, instance.sun_direction);
-    var light = max(sunlight, 0.0);
+    let ground = normalize(n + instance.orientation * scars.tilt);
+    var light = max(dot(ground, instance.sun_direction), 0.0) * step(0.0, sunlight);
     // Through the rings the beam travels a slanted path, so it keeps
     // e^(−τ/μ₀) = (e^(−τ))^(1/μ₀), where μ₀ is the Sun's height above the
     // ring plane.
@@ -156,11 +235,18 @@ fn fs_globe(in: GlobeOut) -> @location(0) vec4<f32> {
     let slant = 1.0 / max(abs(sun_body.z), 1e-3);
     light *= select(1.0, pow(max(ring_through, 1e-4), slant), under_rings);
 
-    var color = surface * (light + FILL_LIGHT);
+    // Pits show the rock under whatever covered it. These colors are a visual
+    // approximation.
+    let thrown = mix(surface, vec3<f32>(0.62, 0.58, 0.52), scars.ejecta);
+    let rock = mix(vec3<f32>(0.24, 0.22, 0.21), vec3<f32>(0.46, 0.42, 0.38), scars.wall);
+    let ground_color = mix(thrown, rock, scars.rock);
+    let scarred = max(scars.rock, scars.ejecta);
+
+    var color = ground_color * (light + FILL_LIGHT);
     // Clouds are white and lit like the ground; they hide what's below.
     color = mix(color, vec3<f32>(light + FILL_LIGHT), cloud);
     // Night lights fade in just past the terminator, and clouds dim them.
-    color += night * instance.night_glow * (1.0 - cloud) * (1.0 - smoothstep(-0.15, 0.05, sunlight));
+    color += night * instance.night_glow * (1.0 - cloud) * (1.0 - scarred) * (1.0 - smoothstep(-0.15, 0.05, sunlight));
     return vec4<f32>(color, 1.0);
 }
 

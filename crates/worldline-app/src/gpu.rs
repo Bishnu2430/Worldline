@@ -8,7 +8,7 @@ use eframe::egui_wgpu::RenderState;
 use eframe::wgpu;
 use glam::{Mat3, Vec3};
 use worldline_render::{
-    Atmosphere, FluidDraw, Image, Material, MaterialImages, Renderer, Rings, Sky, SkyView,
+    Atmosphere, FluidDraw, Image, Material, MaterialImages, Pit, Renderer, Rings, Sky, SkyView,
     SphereDraw, View,
 };
 
@@ -36,6 +36,8 @@ pub struct Globe {
     pub rings: Option<Rings>,
     /// A clear atmosphere, if any.
     pub atmosphere: Option<Atmosphere>,
+    /// Craters on its surface.
+    pub pits: Vec<Pit>,
 }
 
 /// Owns the GPU renderer and the uploaded textures.
@@ -86,6 +88,7 @@ impl GpuGlobes {
                     clouds: *clouds,
                     rings: g.rings,
                     atmosphere: g.atmosphere,
+                    pits: &g.pits,
                     material,
                 }
             })

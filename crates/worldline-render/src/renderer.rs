@@ -120,8 +120,37 @@ pub struct SphereDraw<'a> {
     pub rings: Option<Rings>,
     /// Atmosphere, if any.
     pub atmosphere: Option<Atmosphere>,
+    /// Dents in its surface.
+    pub pits: &'a [Pit],
     /// The body's textures.
     pub material: &'a Material,
+}
+
+/// A dent in a globe, lit with its surface.
+#[derive(Debug, Clone, Copy)]
+pub struct Pit {
+    /// Unit vector from the center to its middle, in the body's frame.
+    pub at: Vec3,
+    /// Its rim's angular radius, radians.
+    pub radius: f32,
+    /// Its depth over its rim's radius.
+    pub depth: f32,
+    /// Whether it has a flat floor and a central peak, not a bowl.
+    pub flat: bool,
+}
+
+/// How many pits can be drawn at once.
+pub const MAX_PITS: usize = 256;
+
+/// Matches `Pit` in bodies.wgsl.
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+struct PitUniform {
+    at: [f32; 3],
+    radius: f32,
+    depth: f32,
+    flat: f32,
+    _padding: [f32; 2],
 }
 
 #[repr(C)]
@@ -161,7 +190,9 @@ struct InstanceUniform {
     atmosphere_height: f32,
     scale_height: f32,
     rayleigh: [f32; 3],
-    _padding: f32,
+    pit_first: u32,
+    pit_count: u32,
+    _padding: [u32; 3],
 }
 
 /// One drawing layer: its pipeline, its mesh, and which bodies it draws.
@@ -212,6 +243,7 @@ pub struct Renderer {
     ring_pipeline: wgpu::RenderPipeline,
     globals: wgpu::Buffer,
     globals_group: wgpu::BindGroup,
+    pits: wgpu::Buffer,
     instances: wgpu::Buffer,
     instance_group: wgpu::BindGroup,
     instance_stride: u64,
@@ -233,8 +265,8 @@ impl Renderer {
             source: wgpu::ShaderSource::Wgsl(include_str!("bodies.wgsl").into()),
         });
 
-        let uniform_entry = |dynamic: bool, size: usize| wgpu::BindGroupLayoutEntry {
-            binding: 0,
+        let uniform_at = |binding, dynamic: bool, size: usize| wgpu::BindGroupLayoutEntry {
+            binding,
             visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Uniform,
@@ -245,11 +277,14 @@ impl Renderer {
         };
         let globals_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("globals layout"),
-            entries: &[uniform_entry(false, size_of::<Globals>())],
+            entries: &[
+                uniform_at(0, false, size_of::<Globals>()),
+                uniform_at(1, false, size_of::<[PitUniform; MAX_PITS]>()),
+            ],
         });
         let instance_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("instance layout"),
-            entries: &[uniform_entry(true, size_of::<InstanceUniform>())],
+            entries: &[uniform_at(0, true, size_of::<InstanceUniform>())],
         });
         let texture_entry = |binding| wgpu::BindGroupLayoutEntry {
             binding,
@@ -437,13 +472,25 @@ impl Renderer {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        let pits = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("pits"),
+            size: size_of::<[PitUniform; MAX_PITS]>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
         let globals_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("globals"),
             layout: &globals_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: globals.as_entire_binding(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: globals.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: pits.as_entire_binding(),
+                },
+            ],
         });
 
         // Each body's uniforms sit at a stride the GPU can bind at.
@@ -499,6 +546,7 @@ impl Renderer {
             ring_pipeline,
             globals,
             globals_group,
+            pits,
             instances,
             instance_group,
             instance_stride,
@@ -596,14 +644,31 @@ impl Renderer {
 
         let bodies = &bodies[..bodies.len().min(MAX_BODIES)];
         let mut instance_bytes = vec![0u8; self.instance_stride as usize * bodies.len()];
+        let mut pits: Vec<PitUniform> = Vec::new();
         for (i, body) in bodies.iter().enumerate() {
-            let uniform = instance_uniform(body);
+            let first = pits.len();
+            let room = MAX_PITS - first;
+            pits.extend(body.pits.iter().take(room).map(|p| PitUniform {
+                at: p.at.to_array(),
+                radius: p.radius,
+                depth: p.depth,
+                flat: if p.flat { 1.0 } else { 0.0 },
+                _padding: [0.0; 2],
+            }));
+            let uniform = InstanceUniform {
+                pit_first: first as u32,
+                pit_count: (pits.len() - first) as u32,
+                ..instance_uniform(body)
+            };
             let start = i * self.instance_stride as usize;
             instance_bytes[start..start + size_of::<InstanceUniform>()]
                 .copy_from_slice(bytemuck::bytes_of(&uniform));
         }
         if !instance_bytes.is_empty() {
             queue.write_buffer(&self.instances, 0, &instance_bytes);
+        }
+        if !pits.is_empty() {
+            queue.write_buffer(&self.pits, 0, bytemuck::cast_slice(&pits));
         }
 
         // Each fluid's uniforms and particles, bound together.
@@ -736,7 +801,9 @@ fn instance_uniform(body: &SphereDraw<'_>) -> InstanceUniform {
         atmosphere_height: air.height,
         scale_height: air.scale_height,
         rayleigh: air.rayleigh.to_array(),
-        _padding: 0.0,
+        pit_first: 0,
+        pit_count: 0,
+        _padding: [0; 3],
     }
 }
 
@@ -921,8 +988,11 @@ mod tests {
     #[test]
     fn uniform_layouts_match_the_shader() {
         // WGSL pads each mat3x3 column and each vec3 to 16 bytes.
-        assert_eq!(size_of::<InstanceUniform>(), 128);
+        assert_eq!(size_of::<InstanceUniform>(), 144);
         assert_eq!(size_of::<Globals>(), 64);
+        assert_eq!(size_of::<PitUniform>(), 32);
+        let array = format!("array<Pit, {MAX_PITS}>");
+        assert!(include_str!("bodies.wgsl").contains(&array));
     }
 
     #[test]
