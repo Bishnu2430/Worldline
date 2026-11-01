@@ -80,6 +80,10 @@ pub struct Touch {
     /// The sine of the angle between the line of their centers and their
     /// relative velocity then: 0 head-on, 1 grazing.
     pub impact_parameter: f64,
+    /// The first body's position relative to the second's then, m.
+    pub separation: DVec3,
+    /// And its velocity, m/s.
+    pub velocity: DVec3,
 }
 
 /// Whether two bodies touch during a step of `h` seconds, given their
@@ -168,6 +172,8 @@ pub fn contact(start: (DVec3, DVec3), end: (DVec3, DVec3), h: f64, reach: f64) -
         at: high,
         speed,
         impact_parameter,
+        separation,
+        velocity,
     })
 }
 

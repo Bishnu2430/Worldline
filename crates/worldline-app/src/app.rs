@@ -11,6 +11,7 @@ use worldline_core::constants::{AU, C, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSIT
 use worldline_core::eclipses::{Eclipse, LunarKind, SolarKind, State, apparent};
 use worldline_core::gravity::kerr::innermost_stable_orbit;
 use worldline_core::hawking;
+use worldline_core::hierarchy::Collision;
 use worldline_core::horizon::{Horizontal, Luminary};
 use worldline_core::impact::{Impact, Outcome, Regime};
 use worldline_core::kerr_light::{self, circular, disk_temperature, photon_orbits};
@@ -563,6 +564,14 @@ struct LastImpact {
     with: String,
     impact: Impact,
     outcome: Outcome,
+    /// How many fragments it threw off.
+    fragments: usize,
+    /// Their mass, kg.
+    thrown_off: f64,
+    /// The energy that became heat, J.
+    heat: f64,
+    /// The mass left in the largest remnant, kg.
+    left_mass: f64,
 }
 
 /// A pair's recorded gravitational waves, shown in their window.
@@ -655,6 +664,9 @@ impl WorldlineApp {
                 None => SUN,
             };
             app.add_on_circle(&added.kind, added.au, around, added.launch.unwrap_or(1.0));
+            if let Some((speed, b)) = added.aim {
+                app.simulation.aim_at(app.selected, around, speed * 1e3, b);
+            }
         }
         let names = app.attended_names();
         app.simulation.advance_by(start.advance_years * JULIAN_YEAR);
@@ -1184,7 +1196,7 @@ impl WorldlineApp {
                 ("Rotation", "IAU models (NASA NAIF)"),
                 (
                     "Collisions",
-                    "bodies that touch merge: momentum kept, volumes add. What they would really leave is predicted, by Leinhardt & Stewart's scaling laws",
+                    "planets and smaller: what Leinhardt & Stewart's scaling laws say they leave, with mass, momentum and energy kept; stars and black holes merge",
                 ),
                 ("Surfaces", "Solar System Scope, CC BY 4.0"),
             ] {
@@ -2296,7 +2308,7 @@ impl WorldlineApp {
         }
         let survivor = |name: String| {
             events.iter().fold(name, |n, e| {
-                if n == e.absorbed {
+                if n == e.absorbed && !e.parted() {
                     e.survivor.clone()
                 } else {
                     n
@@ -2315,20 +2327,19 @@ impl WorldlineApp {
                     m.spin,
                     significant(m.kick.length() / 1e3)
                 ),
-                None => format!(
-                    "{} hit {} at {:.1} km/s and merged",
-                    last.absorbed,
-                    last.survivor,
-                    last.speed / 1e3
-                ),
+                None => impact_message(last),
             };
-            if let Some((impact, outcome)) = &last.outcome {
-                message += &format!(" (predicted: {})", regime_name(outcome.regime));
+            if let (Some((impact, outcome)), Some(left)) = (&last.outcome, &last.aftermath) {
                 self.last_impact = Some(LastImpact {
                     survivor: last.survivor.clone(),
                     with: last.absorbed.clone(),
                     impact: *impact,
                     outcome: *outcome,
+                    fragments: left.fragments.len(),
+                    thrown_off: left.fragments.iter().map(|f| f.gm).sum::<f64>()
+                        / worldline_core::constants::G,
+                    heat: left.heat,
+                    left_mass: left.largest.gm / worldline_core::constants::G,
                 });
             }
             if !last.freed.is_empty() {
@@ -2462,9 +2473,8 @@ impl WorldlineApp {
         }
     }
 
-    /// Inspector rows for the body that took the last impact: what the
-    /// scaling laws say that impact leaves. The bodies are still merged, so
-    /// this is labeled as the prediction it is.
+    /// Inspector rows for the body that took the last impact: what it left,
+    /// and where the energy went.
     fn impact_rows(&self, ui: &mut egui::Ui) {
         let Some(last) = &self.last_impact else {
             return;
@@ -2476,7 +2486,7 @@ impl WorldlineApp {
         let total = impact.total_mass();
         let speed = |v: f64| format!("{:.1} km/s", v / 1e3);
         let angle = impact.impact_parameter.asin().to_degrees();
-        let rows = [
+        let mut rows = vec![
             (
                 "Last impact".to_string(),
                 format!(
@@ -2486,7 +2496,7 @@ impl WorldlineApp {
                 ),
             ),
             (
-                "Predicted".to_string(),
+                "It was".to_string(),
                 format!(
                     "{}{}",
                     regime_name(outcome.regime),
@@ -2495,14 +2505,30 @@ impl WorldlineApp {
             ),
             (
                 "Largest remnant".to_string(),
-                if outcome.second > 0.0 {
+                format!("{} of the mass", percent(last.left_mass / total)),
+            ),
+        ];
+        if last.fragments > 0 {
+            rows.push((
+                "Thrown off".to_string(),
+                format!(
+                    "{} of the mass, as {} fragments",
+                    percent(last.thrown_off / total),
+                    last.fragments
+                ),
+            ));
+        }
+        rows.extend([
+            (
+                "Heat".to_string(),
+                if last.heat > 0.0 {
                     format!(
-                        "{} of the mass, next {}",
-                        percent(outcome.largest / total),
-                        percent(outcome.second / total)
+                        "{} J, {} MJ/kg of what's left",
+                        significant(last.heat),
+                        significant(last.heat / last.left_mass / 1e6)
                     )
                 } else {
-                    "all of the mass".to_string()
+                    "none: the motion took it all".to_string()
                 },
             ),
             (
@@ -2518,16 +2544,16 @@ impl WorldlineApp {
                 "Half dispersed at".to_string(),
                 speed(outcome.disruption_speed),
             ),
-        ];
+        ]);
         for (name, value) in rows {
             ui.label(key(&name));
             ui.label(value);
             ui.end_row();
         }
         ui.label(key(""));
-        ui.label(RichText::new("A prediction: for now they still merge").small().color(theme::MUTED))
+        ui.label(RichText::new("Leinhardt & Stewart's scaling laws").small().color(theme::MUTED))
             .on_hover_text(
-                "Leinhardt & Stewart's (2012) scaling laws for collisions between gravity-dominated bodies. Worldline doesn't yet act on them: the two merge, and no debris flies off.",
+                "The remnants come from Leinhardt & Stewart's (2012) scaling laws. The fragments are equal in size and fly off slightly above the escape speed, a simplification from N-body planet-formation codes (Chambers 2013). A hit-and-run slows both bodies by 10%, the one figure the paper gives. Fragments are shown one by one, and carry mass, but don't pull on anything.",
             );
         ui.end_row();
     }
@@ -4016,6 +4042,27 @@ fn eclipse_row(eclipse: &Eclipse) -> (&'static str, f64, String) {
 fn eclipse_gamma(eclipse: &Eclipse) -> f64 {
     match *eclipse {
         Eclipse::Solar { gamma, .. } | Eclipse::Lunar { gamma, .. } => gamma,
+    }
+}
+
+/// What happened in a collision, in a line.
+fn impact_message(collision: &Collision) -> String {
+    let (hit, by) = (&collision.survivor, &collision.absorbed);
+    let speed = collision.speed / 1e3;
+    let (Some((_, outcome)), Some(left)) = (&collision.outcome, &collision.aftermath) else {
+        return format!("{by} hit {hit} at {speed:.1} km/s and merged");
+    };
+    let mass = |gm: f64| gm / worldline_core::constants::G;
+    let thrown: f64 = left.fragments.iter().map(|f| mass(f.gm)).sum();
+    let share = percent(thrown / (thrown + mass(left.largest.gm)));
+    match outcome.regime {
+        Regime::Merging => format!("{by} hit {hit} at {speed:.1} km/s and merged"),
+        Regime::PartialAccretion => {
+            format!("{by} hit {hit} at {speed:.1} km/s: {share} of the mass thrown off")
+        }
+        Regime::HitAndRun => format!("{by} grazed {hit} at {speed:.1} km/s and flew on"),
+        Regime::Erosion => format!("{by} hit {hit} at {speed:.1} km/s, eroding it"),
+        Regime::SuperCatastrophic => format!("{by} and {hit} shattered at {speed:.1} km/s"),
     }
 }
 

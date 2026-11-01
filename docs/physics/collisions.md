@@ -1,13 +1,13 @@
 # Collisions and the physics-model indicator
 
-**Code:** `crates/worldline-core/src/collision.rs`, `crates/worldline-core/src/hierarchy.rs` (detection and merging), `crates/worldline-core/src/regime.rs` (the indicator's numbers), `crates/worldline-app/src/app.rs` (the indicator)
+**Code:** `crates/worldline-core/src/collision.rs`, `crates/worldline-core/src/hierarchy.rs` (detection, merging and carrying out what a collision leaves), `crates/worldline-core/src/regime.rs` (the indicator's numbers), `crates/worldline-app/src/app.rs` (the indicator)
 **Tests:** `crates/worldline-core/tests/validation_collisions.rs`, `crates/worldline-data/tests/validation_sandbox.rs`, plus unit tests
 
 ## Merging
 
-Since step 6.1 Worldline also predicts what a collision would really leave (see [collision-outcomes.md](collision-outcomes.md)). The bodies still merge as below until step 6.2.
+Since step 6.2 a collision leaves what Leinhardt & Stewart's scaling laws say it does, which may be remnants and fragments (see [collision-outcomes.md](collision-outcomes.md) and [debris.md](debris.md)). Two bodies merge as below when those laws say they do, and whenever the laws don't cover them, as for stars and black holes.
 
-Two bodies that touch merge, **perfectly inelastically**:
+A merger is **perfectly inelastic**:
 - **Mass:** the masses add.
 - **Position:** the merged body sits at their center of mass.
 - **Velocity:** it moves with their combined momentum, so **momentum is conserved exactly**.
@@ -41,7 +41,7 @@ With Newtonian gravity, total momentum is conserved exactly, so before and after
 
 | Collision | Momentum before vs. after | Other checks |
 |---|---|---|
-| Two Earth-like planets, one catching up at 10 km/s | 1.1 × 10⁻¹⁶ of its scale | they meet at 15.6 km/s (sped up by their pull); mass adds; radius (7³ + 6³)^(1/3) |
+| Two Earth-like planets, one catching up at 2 km/s | 0 of its scale | they meet at 12.16 km/s (sped up by their pull), slow enough to truly merge; mass adds; radius (7³ + 6³)^(1/3) |
 | A heavy impactor absorbs a planet with a moon | 1.2 × 10⁻¹⁹ | its tides free the moon first |
 | A light impactor (10⁻⁵ of the planet's mass) hits a planet with a moon | 1.7 × 10⁻¹⁶ | the planet keeps its moon, still 4.0 × 10⁵ km out |
 | A black hole of 10 Suns falls into the Sun from 0.1 AU | 4 × 10⁻¹⁷ | it survives as a black hole of 11 Suns, horizon 32.49 km, in the Sun's place |
@@ -60,7 +60,7 @@ With Newtonian gravity, total momentum is conserved exactly, so before and after
 ## Not handled yet
 
 - **Collisions inside moon systems** (a moon hitting its planet or another moon, with nothing else near) aren't detected. When a massive body is inside a moon system without tearing its moons away, the indicator says so.
-- **Fragmentation, cratering and rebounds:** every touch is a merger. Debris from giant impacts needs the fluid simulation of milestone 4.
+- **Craters** are step 6.3, and **giant impacts as fluids** are step 6.4.
 - **The merged body's spin:** it keeps the survivor's rotation model. The impact's angular momentum isn't added to its spin yet.
 
 ## The physics-model indicator (first version)

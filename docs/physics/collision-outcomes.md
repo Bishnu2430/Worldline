@@ -3,7 +3,7 @@
 **Code:**
 - `crates/worldline-core/src/impact.rs`: the scaling laws: `Impact`, `Material`, `Outcome`, `Regime`;
 - `crates/worldline-core/src/collision.rs`: `contact` (now the angle too) and `predicted_outcome`;
-- `crates/worldline-core/src/hierarchy.rs`: each `Collision` carries its prediction;
+- `crates/worldline-core/src/hierarchy.rs`: each `Collision` carries its outcome;
 - `crates/worldline-app/src/app.rs`: the message and the inspector's rows (`impact_rows`).
 
 **Data:** `crates/worldline-data/data/impact-simulations-selected.csv` and `impact-simulations-all.csv`, from `tools/fetch_impacts.py`.
@@ -17,11 +17,11 @@
 
 ## Why it matters
 
-Until now, two bodies that touched simply merged ([collisions.md](collisions.md)). Real collisions do much more. A slow, head-on one merges. A faster one throws some of the mass off. A glancing one can leave both bodies flying on, nearly intact. A fast one can tear the target apart. Which of these happens decides how planets grow, and it is what the rest of milestone 6 builds on.
+Two bodies that touched used to simply merge ([collisions.md](collisions.md)). Real collisions do much more. A slow, head-on one merges. A faster one throws some of the mass off. A glancing one can leave both bodies flying on, nearly intact. A fast one can tear the target apart. Which of these happens decides how planets grow, and it is what the rest of milestone 6 builds on.
 
-## This step predicts; it doesn't act yet
+## From a prediction to what happens
 
-**The bodies still merge.** This step works out what a collision *would* leave and reports it. Acting on that needs somewhere for the lost mass to go, which is step 6.2. Until then the simulation conserves momentum and merges as before, and the app labels the outcome "predicted".
+This step works out what a collision leaves. Step 6.1 only reported it, as acting on it needs somewhere for the lost mass to go. Since step 6.2 the simulation carries it out: see [debris.md](debris.md).
 
 ## The scaling laws
 
@@ -130,23 +130,27 @@ The medians hide a long tail: a tenth of the runs are off by 24% of the total ma
 
 ## In the app
 
-- **The message** at the end of the top bar says what happened and what's predicted: "New planet 1 hit Earth at 10.9 km/s and merged (predicted: a true merger)". Hovering shows the whole of it.
-- **The inspector,** for the body that took the impact, shows at the top: the impact's speed and angle, the regime, the remnants, the energy against the threshold, the speeds at which it would merge, erode and disperse half, and a note that it's a prediction.
+- **The message** at the end of the top bar says what happened: "New planet 1 and Earth shattered at 40.0 km/s". Hovering shows the whole of it.
+- **The inspector,** for the body that took the impact, shows at the top: the impact's speed and angle, the regime, what it left, the heat, the energy against the threshold, and the speeds at which it would merge, erode and disperse half.
 - **The Physics panel** says the same.
 
-Collisions the laws don't cover show no prediction: black holes, bodies past 10 Earth masses, and so on.
+Collisions the laws don't cover merge and show none of this: black holes, bodies past 10 Earth masses, and so on.
 
-A body falling onto another arrives at about their escape speed, so it merges. The start flags can't aim a faster shot, so seeing other regimes in the app takes **Add a body** and a drag to launch.
+A body falling onto another arrives at about their escape speed, so it merges. To see the other regimes, `--aim` sends a body in faster, or **Add a body** and a drag to launch:
 
-![Earth after a body fell onto it at 10.9 km/s: the message at the end of the top bar, and the inspector's rows for the impact, predicted a true merger](../images/impact-step-6.1.png)
+```bash
+cargo run --release -- --add earth:0.0015@Earth --aim 40,0.3 --focus Earth --zoom 40 --speed hour
+```
+
+![A second Earth struck Earth at 40 km/s: the inspector's rows show a super-catastrophic disruption that left 5.8% of the mass](../images/impact-step-6.2.png)
 
 ## Where it's valid
 
-- **Range.** The target's radius from 1 km, its mass to 10 Earth masses, mass ratios to 1 : 45,000, and speeds to 80 km/s. That is where the paper's data reach. Outside it, Worldline gives no prediction.
+- **Range.** The target's radius from 1 km, its mass to 10 Earth masses, mass ratios to 1 : 45,000, and speeds to 80 km/s. That is where the paper's data reach. Outside it, the bodies merge as before.
 - **Gravity-dominated bodies.** Smaller bodies are held together by strength, a different regime. So are craters on a large body from a small impactor, which are step 6.3.
 - **Bulk density.** Bodies are taken as one uniform density. Composition isn't tracked, so a mantle stripped from a core isn't followed.
 - **No spin.** The paper ran bodies without spin before impact, and says collision spin lowers the threshold for equal masses. Worldline doesn't correct for it.
-- **Graze-and-merge** is a part of the hit-and-run regime that the paper doesn't define, so a hit-and-run may in reality end in a merger on a second encounter.
+- **Graze-and-merge** is a part of the hit-and-run regime that the paper doesn't define. Worldline doesn't call it out either, but a slow hit-and-run can end in a merger on a second encounter, as [debris.md](debris.md) shows.
 - **The reverse impact is an estimate.** The paper calls the mass involved "of order". Its eq. 48 gives it as a volume, so Worldline takes it at the target's density.
 - **Small-body and planet constants** switch abruptly at R_C1 = 1,000 km, Worldline's choice.
 - **Spreads.** c* is known to ±40% for small bodies. Predictions near a boundary between regimes could fall either side.

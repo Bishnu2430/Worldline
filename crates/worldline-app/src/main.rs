@@ -35,6 +35,9 @@
 //! - `--stand 38.88,-77.03` stands on Earth at that latitude and longitude,
 //!   looking at the sky; `--look 120,30` faces azimuth 120°, 30° up, and
 //!   `--fov 3` narrows the view to 3° across.
+//! - `--aim 30,0.8` sends the body the last `--add` adds straight at what
+//!   it circles, to arrive at 30 km/s with impact parameter 0.8 (0 head-on,
+//!   1 grazing).
 //! - `--fluid Jupiter` models Jupiter as a self-gravitating fluid of SPH
 //!   particles on the GPU, as many as it steps smoothly.
 
@@ -71,6 +74,9 @@ pub struct Addition {
     pub around: Option<String>,
     /// The share of the circular speed it starts with, if not 1.
     pub launch: Option<f64>,
+    /// Sent at what it circles instead, to arrive at this speed (km/s) and
+    /// impact parameter.
+    pub aim: Option<(f64, f64)>,
 }
 
 /// Options from the command line.
@@ -151,6 +157,14 @@ impl StartOptions {
                         "worldline: --launch needs a share of the circular speed, 0 or more, after an --add"
                     ),
                 },
+                "--aim" => match (args.next().and_then(|a| pair(&a)), options.adds.last_mut()) {
+                    (Some(aim), Some(added)) if aim.0 >= 0.0 && aim.1.abs() <= 1.0 => {
+                        added.aim = Some(aim);
+                    }
+                    _ => eprintln!(
+                        "worldline: --aim needs a speed in km/s and an impact parameter from 0 to 1, after an --add"
+                    ),
+                },
                 "--paused" => options.paused = true,
                 "--now" => options.now = true,
                 "--catalogue" => options.catalogue = true,
@@ -215,6 +229,7 @@ impl StartOptions {
                         au,
                         around,
                         launch: None,
+                        aim: None,
                     })
                 }) {
                     Some(added) => options.adds.push(added),
@@ -317,12 +332,14 @@ mod tests {
                         au: 2.5,
                         around: Some("Sagittarius A*".into()),
                         launch: None,
+                        aim: None,
                     },
                     Addition {
                         kind: "jupiter".into(),
                         au: 2.0,
                         around: Some("Gaia BH1".into()),
                         launch: Some(0.071),
+                        aim: None,
                     },
                 ],
                 waves: true,

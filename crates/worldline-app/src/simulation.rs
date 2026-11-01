@@ -636,6 +636,35 @@ impl Simulation {
     /// either region), a planet with moons (its whole system moves), or a
     /// moon (its system's barycenter takes its share). Other bodies don't
     /// change, and moons followed in detail stay followed.
+    /// Sends top-level body `index` at top-level body `around`, from where
+    /// it is, to arrive at `speed` (m/s) with impact parameter `b`: fast
+    /// enough, and enough off center, that gravity's pull on the way in
+    /// makes up the rest. Angular momentum and energy fix both. A `speed`
+    /// below what gravity alone would give it is met at rest.
+    pub fn aim_at(&mut self, index: usize, around: usize, speed: f64, b: f64) {
+        let (body, target) = (self.bodies[index].clone(), self.bodies[around].clone());
+        let reach = body.radius + target.radius;
+        let distance = (target.position - body.position).length();
+        let gm = body.gm + target.gm;
+        let gained = 2.0 * gm * (1.0 / reach - 1.0 / distance);
+        let start = (speed * speed - gained).max(0.0).sqrt();
+        let arrives = (start * start + gained).sqrt();
+        let off = if start > 0.0 {
+            b * reach * arrives / start
+        } else {
+            0.0
+        };
+        let way = (target.position - body.position).normalize();
+        let side = way.any_orthonormal_vector();
+        let at =
+            target.position - way * (distance * distance - off * off).max(0.0).sqrt() + side * off;
+        if let Source::Top(k) = self.sources[index] {
+            self.hierarchy.top.bodies[k].position = at;
+            self.bodies[index].position = at;
+        }
+        self.shift_velocity(index, target.velocity + way * start - body.velocity);
+    }
+
     pub fn shift_velocity(&mut self, index: usize, dv: DVec3) {
         match self.sources[index] {
             Source::Top(k) => {
@@ -1141,6 +1170,17 @@ impl Simulation {
         self.time_scales.utc(self.julian_date())
     }
 
+    /// Where the fragments of collisions are now.
+    pub fn debris_positions(&self) -> impl Iterator<Item = DVec3> + '_ {
+        let debris = self.hierarchy.debris();
+        let particles = &self.hierarchy.swarm().particles;
+        particles
+            .iter()
+            .zip(&self.swarm_positions)
+            .filter(move |(p, _)| debris.contains_key(&p.id))
+            .map(|(_, position)| *position)
+    }
+
     /// The Sun, Earth and Moon from now to `until` (s since the start),
     /// sampled every `every` s: the simulation run on to `until` to get
     /// them (on a copy, for looking ahead). For the eclipse finder.
@@ -1338,8 +1378,13 @@ impl Simulation {
                 .filter(|m| swallowed.ids.contains(&m.id))
                 .map(|m| m.name.clone())
                 .collect();
-            let others = swallowed.ids.len() - moons.len();
+            let others = swallowed.ids.len() - moons.len() - swallowed.fragments;
             let mut what = Vec::new();
+            match swallowed.fragments {
+                0 => {}
+                1 => what.push("a fragment".to_string()),
+                n => what.push(format!("{n} fragments")),
+            }
             match others {
                 0 => {}
                 1 => what.push("a belt body".to_string()),
@@ -1499,7 +1544,10 @@ impl Simulation {
                     other => other,
                 };
             }
-            self.added.retain(|(name, _)| name != &collision.absorbed);
+            // A hit-and-run's projectile goes on.
+            if !collision.parted() {
+                self.added.retain(|(name, _)| name != &collision.absorbed);
+            }
             self.record_merger(collision);
         }
         self.reindex();
@@ -1929,6 +1977,59 @@ mod tests {
         }
         println!("worst: {worst:.1} s");
         assert!(missing.is_empty() && found.len() == canon.len());
+    }
+
+    #[test]
+    fn a_collision_throws_off_fragments_that_save_and_load() {
+        // A Mars sent at Earth in the real solar system, too fast to merge:
+        // the mass it throws off is kept, as fragments in the swarm, and a
+        // save keeps which are which.
+        let mut sim = Simulation::solar_system(3600.0);
+        let earth = sim.index_of("Earth").unwrap();
+        let at = sim.bodies[earth].position + DVec3::X * 1e8;
+        let impactor = Body::new("Impactor", 4.283e13, 3.39e6).at(at);
+        let index = sim.add_body(impactor, "copy:Earth");
+        sim.aim_at(index, earth, 40e3, 0.3);
+        let mass = |sim: &Simulation| {
+            let bodies: f64 = sim.hierarchy.top.bodies.iter().map(|b| b.gm).sum();
+            bodies + sim.hierarchy.debris().values().sum::<f64>()
+        };
+        let before = mass(&sim);
+        sim.advance_by(2.0 * 3600.0);
+        let (survivor, outcome) = sim
+            .events
+            .iter()
+            .find(|e| e.absorbed == "Impactor")
+            .map(|e| (e.survivor.clone(), e.outcome.expect("the laws cover it")))
+            .expect("they hit");
+        assert_eq!(survivor, "Earth");
+        let (impact, outcome) = outcome;
+        println!(
+            "{:.1} km/s, b {:.3}: {:?}",
+            impact.speed / 1e3,
+            impact.impact_parameter,
+            outcome.regime
+        );
+        // Aimed as asked, to what the paper's tables resolve.
+        assert!((impact.speed / 40e3 - 1.0).abs() < 0.005);
+        assert!((impact.impact_parameter - 0.3).abs() < 0.005);
+        let count = sim.hierarchy.debris().len();
+        assert_eq!(count, worldline_core::debris::FRAGMENTS);
+        assert_eq!(sim.debris_positions().count(), count);
+        assert!((mass(&sim) / before - 1.0).abs() <= 130.0 * f64::EPSILON);
+        let text = sim.save();
+        let mut loaded = Simulation::load(&text, DAY).unwrap();
+        assert_eq!(loaded.hierarchy.debris(), sim.hierarchy.debris());
+        assert_eq!(loaded.debris_positions().count(), count);
+        // What a later collision throws off gets labels of its own, rather
+        // than taking over those of the fragments already flying.
+        let next = worldline_core::debris::Fragment {
+            position: at,
+            velocity: DVec3::ZERO,
+            gm: 1.0,
+        };
+        loaded.hierarchy.add_debris(&[next]);
+        assert_eq!(loaded.hierarchy.debris().len(), count + 1);
     }
 
     #[test]

@@ -348,6 +348,7 @@ pub fn draw_under(
             draw_belts(painter, camera, viewport, simulation);
         }
     }
+    draw_debris(painter, camera, viewport, simulation);
 
     let bodies = &simulation.bodies;
     if options.trails {
@@ -849,6 +850,22 @@ fn draw_belts(painter: &Painter, camera: &Camera, viewport: Rect, simulation: &S
             {
                 mesh.add_colored_rect(Rect::from_center_size(p.position, size), color);
             }
+        }
+    }
+    painter.add(Shape::mesh(mesh));
+}
+
+/// Draws what collisions threw off, wherever the camera is: tiny against
+/// what they left, they would otherwise not be seen at all.
+fn draw_debris(painter: &Painter, camera: &Camera, viewport: Rect, simulation: &Simulation) {
+    let mut mesh = Mesh::default();
+    let size = vec2(2.5, 2.5);
+    let color = Color32::from_rgb(255, 150, 90);
+    for position in simulation.debris_positions() {
+        if let Some(p) = screen(camera, viewport, position)
+            && viewport.contains(p.position)
+        {
+            mesh.add_colored_rect(Rect::from_center_size(p.position, size), color);
         }
     }
     painter.add(Shape::mesh(mesh));
