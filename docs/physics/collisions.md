@@ -60,7 +60,7 @@ With Newtonian gravity, total momentum is conserved exactly, so before and after
 ## Not handled yet
 
 - **Collisions inside moon systems** (a moon hitting its planet or another moon, with nothing else near) aren't detected. When a massive body is inside a moon system without tearing its moons away, the indicator says so.
-- **Giant impacts as fluids** are step 6.4.
+- **Giant impacts as fluids** run in a window of their own (see [giant-impacts.md](giant-impacts.md)). A collision here always uses the scaling laws.
 - **The merged body's spin:** it keeps the survivor's rotation model. The impact's angular momentum isn't added to its spin yet.
 
 ## The physics-model indicator (first version)

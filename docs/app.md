@@ -99,6 +99,7 @@ See [physics/compact-objects.md](physics/compact-objects.md).
 - **Heavier than what it circles:** the two circle their common center of mass, rather than the new body dragging the other away.
 - **Around another body, from the command line:** `--add "TON 618:6600@Sagittarius A*"` puts it 6,600 AU from Sagittarius A\* instead of the Sun. `--add` can be given more than once, each around a body added before it, and `--launch` starts the last one added at a share of the circular speed.
 - **Into another body, from the command line:** `--aim 30,0.3` sends the last one added straight at what it circles, to arrive at 30 km/s with impact parameter 0.3, where 0 is head-on and 1 is grazing. `--yaw 180` turns the camera to look from that direction around the ecliptic, to see the side that was hit.
+- **The Moon-forming impact:** `--moon-impact 8000`, or **The Moon-forming impact** in Earth's inspector, runs Canup's (2004) impact as a fluid of rock and iron in a window of its own, with the disk it leaves measured beside her figures. See [physics/giant-impacts.md](physics/giant-impacts.md).
 
 **Remove.** **Remove** in the inspector, or the Delete key, takes the selected body out.
 - **A planet with moons** goes with them (the button says how many).

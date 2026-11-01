@@ -35,7 +35,7 @@ A body of mass m and radius R at distance D from a mass M is stretched toward it
 - **For example:** Jupiter's tidal radius is 710,000 km around the Sun (about the Sun's own radius), and 1.5 million km around a black hole of 9.6 Suns. It becomes a fluid 3.8 and 8.1 million km from them.
 
 **Which bodies.** Only giant planets turn into fluids by themselves: from 10 Earth masses, where planets hold hydrogen and helium envelopes, to 13 Jupiter masses, where brown dwarfs begin. Their bulk is fluid, and an n = 1 polytrope models Jupiter and Saturn well (Uranus and Neptune less so).
-- **Rocky bodies** need rock's equation of state (Tillotson, step 6.4). When tides stretch one by 1% or more, the inspector says a point can't show that.
+- **Rocky bodies** stay points: rock's equation of state (Tillotson, step 6.4) runs on the CPU, in the Moon-forming impact, and not in this GPU fluid. When tides stretch one by 1% or more, the inspector says a point can't show that.
 - **Stars** have no fluid model of their own yet.
 - **By hand,** any body with a measured mass and radius, except a black hole, can still be made a fluid (step 4.2's button).
 

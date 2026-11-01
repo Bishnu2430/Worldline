@@ -69,6 +69,7 @@ fn to_core(particles: &[FluidParticle]) -> CoreFluid {
             h: f64::from(p.h) * l,
             density: f64::from(p.density) * m / l.powi(3),
             viscosity: f64::from(p.viscosity),
+            material: 0,
         })
         .collect();
     CoreFluid::new(core, 2.0)

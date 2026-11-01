@@ -99,6 +99,7 @@
 | The sky from a place on Earth: rise and set of the Sun and Moon through 2026, in the app's own simulation run from its 2025 snapshot | every one of the U.S. Naval Observatory's tables for Washington and Sydney, to the minute; the planets' altitude and azimuth within 12.5″ of JPL's | ✅ passing: all 2,870, none extra, the worst 33 s from times rounded to the minute, 98% in the same minute; planets within 9.0″ |
 | What a collision leaves: Leinhardt & Stewart's (2012) scaling laws | their worked example; their predicted remnants to the printed digits; the disruption threshold within a factor of 2 of their fits; the largest remnant of all 189 simulations within their "about 10%" | ✅ passing: 5.33 J/kg and 14.1 m/s (5.3 and 14); all 39 definable rows; 7 of 8 thresholds, the eighth 2.08 off; median error 6.5% (8 rows of the paper's follow no stated rule, and aren't reproduced) |
 | What a collision throws off: the mass flies off as fragments, and the energy lost heats what's left | mass and momentum before and after equal to rounding (130 ε, or 2.9 × 10⁻¹⁴); energy accounted for to rounding | ✅ passing, in all five regimes: mass off by at most 6.0 × 10⁻¹⁵, momentum by 7.5 × 10⁻¹⁶, kinetic energy by 3.8 × 10⁻¹⁷ |
+| The Moon-forming impact, as planets of rock and iron in SPH | the canonical impact leaves a disk of the mass Canup's (2004) simulations find: 1.33 to 1.62 lunar masses, widened by the counting noise of the disk's particles | ✅ passing at 7,936 particles: 1.38 lunar masses. At 4,000 particles it fails, with 1.08, and convergence isn't shown |
 | Crater sizes from Holsapple's scaling laws, on the globe | Meteor Crater and Chicxulub from their estimated impactors, within the published scaling's spread (a factor of two in volume) | ✅ passing: 1,095 m against 1,186 m (−8%) and 143.6 km against 180 km (−20%). At the 200 km some give Chicxulub, it's 8% past the spread |
 | Tidal disruption begins near r_t ≈ R(M/m)^(1/3), and the debris falls back at a rate ∝ t^(−5/3) | a Jupiter-like planet passing a star loses what Faber, Rasio & Willems's simulations found (0.58, 0.24, 0.027 and 0 at 1.2, 1.5, 1.8 and 2.2 r_t); torn right through, its debris comes back as t^(−5/3) | ✅ passing: 0.574, 0.235, 0.024, 0; t^(−1.676 ± 0.023) |
 | A planet stays a point until it nears its tidal radius, then becomes a fluid | a point until tides would stretch it by 1% (5.34 tidal radii for n = 1, never passed); as a fluid it stretches by the n = 1 polytrope's Love number, 15/π² − 1 = 0.520 | ✅ passing: Jupiter falling toward a black hole stops at 1.006 of that distance; the GPU fluid's Love number 0.517 with 8,000 particles; a Jupiter passing the Sun is a fluid at its closest and a point again after |
@@ -148,6 +149,12 @@ To throw a second Earth at Earth at 30 km/s, a little off center, and watch what
 
 ```bash
 cargo run --release -- --add earth:0.0003@Earth --aim 30,0.3 --focus Earth --zoom 330 --speed hour
+```
+
+To watch the Moon-forming impact as a fluid of rock and iron, in a window of its own (about 20 minutes for its 27 hours; a smaller number is faster and coarser):
+
+```bash
+cargo run --release -- --moon-impact 8000 --paused
 ```
 
 To send Chicxulub's estimated impactor at Earth and see the crater it digs, 25 hours later in the noon Sun:
@@ -205,6 +212,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 - [What a collision leaves](docs/physics/collision-outcomes.md): merging, partial accretion, hit-and-run and disruption, from Leinhardt & Stewart's scaling laws
 - [What a collision throws off](docs/physics/debris.md): the fragments, and where every joule goes
 - [Craters](docs/physics/craters.md): what a small body digs, against Meteor Crater and Chicxulub
+- [Giant impacts](docs/physics/giant-impacts.md): planets of rock and iron as fluids, and the impact that left Earth a disk
 - [Collisions and the model indicator](docs/physics/collisions.md): merging with momentum kept, catching fast impacts, and which physics applies where
 - [Black holes, neutron stars and white dwarfs](docs/physics/compact-objects.md): the notable-objects catalog, event horizons, and what happens when they meet the solar system
 - [Compact binaries and gravitational waves](docs/physics/post-newtonian.md): second-order relativity and radiation reaction for close pairs; the Hulse–Taylor orbit shrinking as measured; the chirp, seen and heard
