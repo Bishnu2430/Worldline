@@ -24,7 +24,9 @@ use worldline_core::shadow_on_earth::{Path, Place, central_point};
 use worldline_core::sunlight::{irradiance, light_time};
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DVec3};
-use worldline_render::{Atmosphere, FluidDraw, KerrDisk, KerrLens, Lens, Rings, SkyView, View};
+use worldline_render::{
+    Atmosphere, FluidDraw, KerrDisk, KerrLens, Lens, Pit, Rings, SkyView, View,
+};
 
 use crate::calendar::{DateTime, to_the_minute, to_the_second};
 use crate::camera::{Camera, Standing};
@@ -654,6 +656,9 @@ impl WorldlineApp {
         app.options.overlays = start.overlays;
         if let Some(degrees) = start.pitch_degrees {
             app.camera.pitch = degrees.to_radians();
+        }
+        if let Some(degrees) = start.yaw_degrees {
+            app.camera.yaw = degrees.to_radians();
         }
         for added in &start.adds {
             let around = match &added.around {
@@ -1341,6 +1346,7 @@ impl WorldlineApp {
         let parent = self.simulation.parent(self.selected);
         egui::Grid::new("selected").num_columns(2).show(ui, |ui| {
             self.impact_rows(ui);
+            self.crater_rows(ui);
             ui.label(key("Mass"));
             if body.gm > 0.0 {
                 ui.label(format!("{:.4e} kg", body.mass()));
@@ -2554,6 +2560,69 @@ impl WorldlineApp {
         ui.label(RichText::new("Leinhardt & Stewart's scaling laws").small().color(theme::MUTED))
             .on_hover_text(
                 "The remnants come from Leinhardt & Stewart's (2012) scaling laws. The fragments are equal in size and fly off slightly above the escape speed, a simplification from N-body planet-formation codes (Chambers 2013). A hit-and-run slows both bodies by 10%, the one figure the paper gives. Fragments are shown one by one, and carry mass, but don't pull on anything.",
+            );
+        ui.end_row();
+    }
+
+    /// Inspector rows for a body with craters: how many, and the latest.
+    fn crater_rows(&self, ui: &mut egui::Ui) {
+        let body = &self.simulation.bodies[self.selected];
+        let scars: Vec<_> = self.simulation.craters_on(&body.name).collect();
+        let Some(last) = scars.last() else {
+            return;
+        };
+        let (crater, strike) = (&last.crater, &last.strike);
+        let across = 2.0 * crater.rim_radius;
+        let latitude = last.at.z.clamp(-1.0, 1.0).asin().to_degrees();
+        let longitude = last.at.y.atan2(last.at.x).to_degrees();
+        let mut rows = vec![
+            (
+                "Last crater".to_string(),
+                format!(
+                    "{} across, {} deep, {}",
+                    length(across),
+                    length(crater.depth),
+                    if crater.complex { "complex" } else { "simple" }
+                ),
+            ),
+            (
+                "Could be".to_string(),
+                format!(
+                    "{} to {} across, the law's spread",
+                    length(across / crater.spread()),
+                    length(across * crater.spread())
+                ),
+            ),
+            (
+                "Dug by".to_string(),
+                format!(
+                    "{}, {:.1} km/s, {:.0}° from overhead",
+                    last.by,
+                    strike.speed / 1e3,
+                    strike.impact_parameter.asin().to_degrees()
+                ),
+            ),
+            (
+                "Dug out".to_string(),
+                format!("{} km³", significant(crater.volume / 1e9)),
+            ),
+            (
+                "Where".to_string(),
+                format!("{latitude:.1}°, {longitude:.1}°"),
+            ),
+        ];
+        if scars.len() > 1 {
+            rows.insert(0, ("Craters".to_string(), scars.len().to_string()));
+        }
+        for (name, value) in rows {
+            ui.label(key(&name));
+            ui.label(value);
+            ui.end_row();
+        }
+        ui.label(key(""));
+        ui.label(RichText::new("Holsapple's scaling laws").small().color(theme::MUTED))
+            .on_hover_text(
+                "The size comes from Holsapple's (1993) scaling laws, known to a factor of about two in volume. The ground is taken as hard rock, or ice on a light body, even under the sea, and there is no atmosphere to slow or break up what falls. The crater's shape as drawn, and its colors, are a visual approximation. It is drawn to scale, with a ring around it when it's too small to see.",
             );
         ui.end_row();
     }
@@ -3899,6 +3968,16 @@ impl WorldlineApp {
                     scale_height: a.scale_height as f32,
                     rayleigh: DVec3::from_array(a.rayleigh).as_vec3(),
                 });
+                let pits = self
+                    .simulation
+                    .craters_on(&body.name)
+                    .map(|scar| Pit {
+                        at: scar.at.as_vec3(),
+                        radius: (scar.crater.rim_radius / body.radius) as f32,
+                        depth: (scar.crater.depth / scar.crater.rim_radius) as f32,
+                        flat: scar.crater.complex,
+                    })
+                    .collect();
                 Globe {
                     name: body.name.clone(),
                     color: view::color(&self.simulation, item.index),
@@ -3910,6 +3989,7 @@ impl WorldlineApp {
                     night_glow: if body.name == "Earth" { 1.0 } else { 0.0 },
                     rings,
                     atmosphere,
+                    pits,
                 }
             })
             .collect();
@@ -4049,6 +4129,10 @@ fn eclipse_gamma(eclipse: &Eclipse) -> f64 {
 fn impact_message(collision: &Collision) -> String {
     let (hit, by) = (&collision.survivor, &collision.absorbed);
     let speed = collision.speed / 1e3;
+    if let Some(dug) = &collision.crater {
+        let across = length(2.0 * dug.crater.rim_radius);
+        return format!("{by} hit {hit} at {speed:.1} km/s, digging a crater {across} across");
+    }
     let (Some((_, outcome)), Some(left)) = (&collision.outcome, &collision.aftermath) else {
         return format!("{by} hit {hit} at {speed:.1} km/s and merged");
     };

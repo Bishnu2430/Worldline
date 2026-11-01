@@ -3,7 +3,6 @@
 //! for bodies too small to see, spin axes and labels on top.
 
 use eframe::egui::{Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape, Stroke, vec2};
-use worldline_core::DVec3;
 use worldline_core::compact::{is_black_hole, shadow_radius};
 use worldline_core::constants::{AU, C};
 use worldline_core::eclipses::{
@@ -14,6 +13,7 @@ use worldline_core::orbit::osculating_orbit;
 use worldline_core::shadow_on_earth::{GroundShadow, Path, Place};
 use worldline_core::solar_wind::ParkerSpiral;
 use worldline_core::zodiacal::ZodiacalCloud;
+use worldline_core::{DMat3, DVec3};
 use worldline_data::BeltKind;
 
 use crate::camera::{Camera, Projection};
@@ -871,6 +871,44 @@ fn draw_debris(painter: &Painter, camera: &Camera, viewport: Rect, simulation: &
     painter.add(Shape::mesh(mesh));
 }
 
+/// Rings the craters too small to see on the side of a body facing the camera,
+/// and names their size. Those large enough are drawn on the globe itself.
+fn draw_small_craters(painter: &Painter, camera: &Camera, viewport: Rect, simulation: &Simulation) {
+    /// Below this many points across, a crater gets a ring.
+    const TOO_SMALL: f32 = 14.0;
+    let color = Color32::from_rgb(255, 150, 90);
+    let eye = camera.eye();
+    for (index, body) in simulation.bodies.iter().enumerate() {
+        let frame = simulation
+            .orientation(index)
+            .map_or(DMat3::IDENTITY, |o| o.body_to_ecliptic);
+        for scar in simulation.craters_on(&body.name) {
+            let up = frame * scar.at;
+            let spot = body.position + up * body.radius;
+            if up.dot(eye - spot) <= 0.0 {
+                continue;
+            }
+            let Some(p) = screen(camera, viewport, spot) else {
+                continue;
+            };
+            let across = (2.0 * scar.crater.rim_radius * p.points_per_meter) as f32;
+            if viewport.contains(p.position) && across < TOO_SMALL {
+                painter.circle_stroke(p.position, 8.0, Stroke::new(1.0, color));
+                painter.text(
+                    p.position + vec2(11.0, 0.0),
+                    Align2::LEFT_CENTER,
+                    format!(
+                        "crater, {} across",
+                        crate::catalogue::length(2.0 * scar.crater.rim_radius)
+                    ),
+                    FontId::proportional(11.0),
+                    color,
+                );
+            }
+        }
+    }
+}
+
 /// Inside this distance from the Sun, Helios didn't measure how the
 /// zodiacal light brightens (it reached 0.3 AU). The dust goes on inward
 /// (it is seen as the Sun's F-corona), but rather than extrapolate the
@@ -1011,6 +1049,7 @@ pub fn draw_over(
     layout: &[OnScreen],
     attention: Attention,
 ) -> Vec<DrawnBody> {
+    draw_small_craters(painter, camera, viewport, simulation);
     let selected = attention.selected;
     let bodies = &simulation.bodies;
     let mut drawn = Vec::with_capacity(layout.len());

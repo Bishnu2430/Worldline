@@ -10,6 +10,8 @@
 //!   (default 4), for example to see Jupiter with its moons.
 //! - `--pitch 8` looks from 8° above the ecliptic plane (default 34°),
 //!   for example to see a black hole's disk nearly edge on.
+//! - `--yaw 180` looks from that direction around the ecliptic, measured
+//!   from the x axis, for example to see the side of a planet that was hit.
 //! - `--overlays tides,clocks` starts with those overlays on: any of
 //!   models, clocks, tides, embedding, waves and time (proper time).
 //! - `--paused` starts with time stopped.
@@ -88,6 +90,8 @@ pub struct StartOptions {
     pub zoom_radii: Option<f64>,
     /// Camera height above the ecliptic plane, as an angle in degrees.
     pub pitch_degrees: Option<f64>,
+    /// Camera direction around the ecliptic plane, as an angle in degrees.
+    pub yaw_degrees: Option<f64>,
     /// Start with time stopped.
     pub paused: bool,
     /// Start now, in real time.
@@ -213,6 +217,10 @@ impl StartOptions {
                         eprintln!("worldline: --pitch needs an angle in degrees between -90 and 90")
                     }
                 },
+                "--yaw" => match args.next().and_then(|d| d.parse::<f64>().ok()) {
+                    Some(degrees) => options.yaw_degrees = Some(degrees),
+                    None => eprintln!("worldline: --yaw needs an angle in degrees"),
+                },
                 "--advance" => match args.next().and_then(|y| y.parse::<f64>().ok()) {
                     Some(years) if years >= 0.0 => options.advance_years = years,
                     _ => eprintln!("worldline: --advance needs a number of years, 0 or more"),
@@ -278,6 +286,8 @@ mod tests {
             "30",
             "--pitch",
             "-8",
+            "--yaw",
+            "20",
             "--overlays",
             "tides,waves",
             "--paused",
@@ -314,6 +324,7 @@ mod tests {
                 focus: Some("Earth".into()),
                 zoom_radii: Some(30.0),
                 pitch_degrees: Some(-8.0),
+                yaw_degrees: Some(20.0),
                 overlays: overlays::Overlays {
                     tides: true,
                     waves: true,

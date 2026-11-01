@@ -5,8 +5,8 @@
 //! to its barycenter) and the followers, plus which bodies were added in the
 //! sandbox and the catalogue entry each came from, how any black hole that
 //! formed in a merger formed, the swarm (every belt body, freed small moon
-//! and fragment of a collision, brought up to the same moment first), and
-//! where the solar system is on its way around the galaxy.
+//! and fragment of a collision, brought up to the same moment first), the
+//! craters, and where the solar system is on its way around the galaxy.
 //! Everything else (gravity fields, rotation, the data behind each body)
 //! comes from the bundled data when it loads. Numbers are written in their
 //! shortest exact form, so they load back bit for bit.
@@ -15,17 +15,18 @@ use std::fmt::Write;
 
 use super::*;
 
-/// The first line of every save. Version 6 records which swarm particles are
-/// fragments of collisions, version 5 the solar system's place in the
-/// galaxy, version 4 black-hole mergers, version 3 the swarm, version 2 each
-/// added body's catalogue entry; older saves load too.
-const HEADER: &str = "worldline-save\t6";
-const OLDER: [&str; 5] = [
+/// The first line of every save. Version 7 records craters, version 6 which
+/// swarm particles are fragments of collisions, version 5 the solar system's
+/// place in the galaxy, version 4 black-hole mergers, version 3 the swarm,
+/// version 2 each added body's catalogue entry; older saves load too.
+const HEADER: &str = "worldline-save\t7";
+const OLDER: [&str; 6] = [
     "worldline-save\t1",
     "worldline-save\t2",
     "worldline-save\t3",
     "worldline-save\t4",
     "worldline-save\t5",
+    "worldline-save\t6",
 ];
 
 fn body_line(kind: &str, prefix: &str, b: &Body) -> String {
@@ -146,6 +147,28 @@ impl Simulation {
         for (id, gm) in h.debris() {
             let _ = writeln!(out, "debris\t{id}\t{gm}");
         }
+        for scar in &self.scars {
+            let (a, c, s) = (scar.at, &scar.crater, &scar.strike);
+            let _ = writeln!(
+                out,
+                "crater\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                scar.body,
+                scar.by,
+                a.x,
+                a.y,
+                a.z,
+                c.excavation_radius,
+                c.rim_radius,
+                c.depth,
+                c.volume,
+                c.complex,
+                c.strength_stopped,
+                s.mass,
+                s.speed,
+                s.impact_parameter,
+                s.gravity
+            );
+        }
         out
     }
 
@@ -164,6 +187,7 @@ impl Simulation {
             (Vec::new(), Vec::new(), Vec::new(), Vec::new());
         let (mut freed, mut particles, mut merged) = (Vec::new(), Vec::new(), Vec::new());
         let mut debris = std::collections::BTreeMap::new();
+        let mut scars = Vec::new();
         let (mut gtop, mut gfollowers, mut galactic) = (Vec::new(), Vec::new(), None);
         for line in lines {
             let fields: Vec<&str> = line.split('\t').collect();
@@ -237,6 +261,30 @@ impl Simulation {
                         fields[1].parse::<u32>().map_err(|_| bad())?,
                         fields[2].parse::<f64>().map_err(|_| bad())?,
                     );
+                }
+                "crater" if fields.len() == 16 => {
+                    let bad = || format!("bad line `{line}`");
+                    let n = |k: usize| fields[k].parse::<f64>().map_err(|_| bad());
+                    let yes = |k: usize| fields[k].parse::<bool>().map_err(|_| bad());
+                    scars.push(Scar {
+                        body: fields[1].to_string(),
+                        by: fields[2].to_string(),
+                        at: DVec3::new(n(3)?, n(4)?, n(5)?),
+                        crater: Crater {
+                            excavation_radius: n(6)?,
+                            rim_radius: n(7)?,
+                            depth: n(8)?,
+                            volume: n(9)?,
+                            complex: yes(10)?,
+                            strength_stopped: yes(11)?,
+                        },
+                        strike: Strike {
+                            mass: n(12)?,
+                            speed: n(13)?,
+                            impact_parameter: n(14)?,
+                            gravity: n(15)?,
+                        },
+                    });
                 }
                 "particle" if fields.len() == 8 => {
                     let n: Vec<f64> = fields[2..]
@@ -427,6 +475,7 @@ impl Simulation {
         sim.freed = freed;
         sim.added = added;
         sim.merged = merged;
+        sim.scars = scars;
         sim.detailed = None;
         sim.trails.clear();
         sim.bodies.clear();

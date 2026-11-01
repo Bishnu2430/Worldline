@@ -5,7 +5,7 @@
 
 ## Merging
 
-Since step 6.2 a collision leaves what Leinhardt & Stewart's scaling laws say it does, which may be remnants and fragments (see [collision-outcomes.md](collision-outcomes.md) and [debris.md](debris.md)). Two bodies merge as below when those laws say they do, and whenever the laws don't cover them, as for stars and black holes.
+Since step 6.2 a collision leaves what Leinhardt & Stewart's scaling laws say it does, which may be remnants and fragments (see [collision-outcomes.md](collision-outcomes.md) and [debris.md](debris.md)). Two bodies merge as below when those laws say they do, and whenever the laws don't cover them, as for stars and black holes. Since step 6.3 a body too small for those laws also digs a crater as it merges (see [craters.md](craters.md)).
 
 A merger is **perfectly inelastic**:
 - **Mass:** the masses add.
@@ -29,7 +29,7 @@ A merger is **perfectly inelastic**:
 ## Detecting contact
 
 Checking only the ends of steps would let a fast body pass straight through another in between. So contact is checked along each step:
-- **Each pair's relative motion** is interpolated between the step's ends, using a cubic Hermite curve through positions and velocities.
+- **Each pair's relative motion** is interpolated between the step's ends, using a cubic Hermite curve through positions and velocities. For a planet with moons it is the planet's own center that counts, not its system's center of mass, since step 6.3.
 - **The first moment** their distance comes within the sum of their radii is found by sampling, then bisection.
 - **Its speed** at that moment is recorded as the impact speed.
 - **For massive bodies,** the integrator shortens its steps as they close in, so each step's ends bracket the approach well.
@@ -60,7 +60,7 @@ With Newtonian gravity, total momentum is conserved exactly, so before and after
 ## Not handled yet
 
 - **Collisions inside moon systems** (a moon hitting its planet or another moon, with nothing else near) aren't detected. When a massive body is inside a moon system without tearing its moons away, the indicator says so.
-- **Craters** are step 6.3, and **giant impacts as fluids** are step 6.4.
+- **Giant impacts as fluids** are step 6.4.
 - **The merged body's spin:** it keeps the survivor's rotation model. The impact's angular momentum isn't added to its spin yet.
 
 ## The physics-model indicator (first version)

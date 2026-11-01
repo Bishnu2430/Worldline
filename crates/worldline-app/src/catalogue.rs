@@ -24,16 +24,18 @@ pub enum Group {
     NeutronStars,
     BlackHoles,
     Binaries,
+    Impactors,
 }
 
 impl Group {
-    pub const ALL: [Group; 6] = [
+    pub const ALL: [Group; 7] = [
         Group::Planets,
         Group::Stars,
         Group::WhiteDwarfs,
         Group::NeutronStars,
         Group::BlackHoles,
         Group::Binaries,
+        Group::Impactors,
     ];
 
     pub fn label(self) -> &'static str {
@@ -44,6 +46,7 @@ impl Group {
             Group::NeutronStars => "Neutron stars",
             Group::BlackHoles => "Black holes",
             Group::Binaries => "Binaries",
+            Group::Impactors => "Impactors",
         }
     }
 }
@@ -76,10 +79,35 @@ pub enum Template {
     /// by Hawking radiation within years: a primordial black hole, which
     /// may have formed in the early universe. None has been found.
     MiniBlackHole { mass: f64 },
+    /// What published estimates say dug a real crater: its name, `mass` in
+    /// kg and `radius` in m.
+    Impactor {
+        name: &'static str,
+        mass: f64,
+        radius: f64,
+    },
 }
 
 /// The mini black hole's mass, kg: 10⁸ kg evaporates in 2.7 years.
 const MINI_BLACK_HOLE: f64 = 1e8;
+
+/// Estimates of what dug real craters: name, mass in kg, radius in m, and
+/// a line on it. Meteor Crater's is Melosh & Collins (2005), and Chicxulub's
+/// Collins et al. (2020): 17 km across at 2630 kg/m³.
+const IMPACTORS: [(&str, f64, f64, &str); 2] = [
+    (
+        "Meteor Crater impactor",
+        3e8,
+        20.0,
+        "Estimated: 300,000 tons of iron, 40 m across",
+    ),
+    (
+        "Chicxulub impactor",
+        6.765e15,
+        8.5e3,
+        "Estimated: 6.8 trillion tonnes of rock, 17 km across",
+    ),
+];
 
 /// The gravitational-wave events the catalogue offers as merging pairs, by
 /// their two bodies' names in the catalog.
@@ -216,6 +244,15 @@ pub fn catalogue() -> &'static [Entry] {
                 mass: MINI_BLACK_HOLE,
             },
         });
+        for (name, mass, radius, summary) in IMPACTORS {
+            entries.push(Entry {
+                key: format!("impactor:{name}"),
+                label: name.to_string(),
+                group: Group::Impactors,
+                summary: summary.to_string(),
+                template: Template::Impactor { name, mass, radius },
+            });
+        }
         entries.sort_by_key(|e| Group::ALL.iter().position(|g| *g == e.group));
         entries
     })
@@ -343,7 +380,7 @@ impl Entry {
             Template::Binary { members, .. } | Template::Inspiral { members, .. } => {
                 members[0].gm() + members[1].gm()
             }
-            Template::MiniBlackHole { mass } => G * mass,
+            Template::MiniBlackHole { mass } | Template::Impactor { mass, .. } => G * mass,
         }
     }
 
@@ -355,7 +392,7 @@ impl Entry {
     /// What kind of object it is, for the catalog's own objects.
     pub fn kind(&self) -> Option<ObjectKind> {
         match &self.template {
-            Template::Copy { .. } => None,
+            Template::Copy { .. } | Template::Impactor { .. } => None,
             Template::Notable(o) => Some(o.kind),
             Template::Binary { members, .. } | Template::Inspiral { members, .. } => {
                 Some(members[0].kind)
@@ -455,6 +492,10 @@ impl Entry {
                 let gm = G * mass;
                 vec![Body::new(name, gm, 2.0 * gm / (C * C))]
             }
+            Template::Impactor { name, mass, radius } => {
+                let name = free(&[name]).remove(0);
+                vec![Body::new(name, G * mass, *radius)]
+            }
         }
     }
 }
@@ -506,8 +547,9 @@ mod tests {
     fn the_catalogue_offers_every_catalog_object() {
         let entries = catalogue();
         // 4 copies, 20 catalog objects, the Hulse–Taylor pair, the
-        // GW170817 and GW150914 pairs, and a hypothetical mini black hole.
-        assert_eq!(entries.len(), 28);
+        // GW170817 and GW150914 pairs, a hypothetical mini black hole, and
+        // two estimated impactors.
+        assert_eq!(entries.len(), 30);
         let groups: Vec<Group> = entries.iter().map(|e| e.group).collect();
         assert!(groups.windows(2).all(|w| {
             Group::ALL.iter().position(|g| *g == w[0]) <= Group::ALL.iter().position(|g| *g == w[1])

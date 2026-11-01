@@ -16,6 +16,6 @@ mod sky;
 
 pub use fluid::{Fluid, FluidClock, FluidParticle, MAX_TIDAL_BODIES, TidalBody};
 pub use renderer::{
-    Atmosphere, FluidDraw, Image, Material, MaterialImages, Renderer, Rings, SphereDraw, View,
+    Atmosphere, FluidDraw, Image, Material, MaterialImages, Pit, Renderer, Rings, SphereDraw, View,
 };
 pub use sky::{KerrDisk, KerrLens, Lens, Sky, SkyView, trace_rays};
