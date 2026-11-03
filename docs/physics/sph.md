@@ -5,7 +5,7 @@
 - `crates/worldline-render/src/fluid.rs` and `fluid.wgsl`: the same fluid on the GPU, in single precision (step 4.2);
 - `crates/worldline-app/src/fluid.rs`: a body modeled as a fluid in the app, and the GPU's particle budget.
 
-**Tests:** `crates/worldline-core/tests/validation_sph.rs` and `crates/worldline-render/tests/validation_fluid_gpu.rs`, plus unit tests in `sph.rs`, `fluid.rs` (both) and the shader's naga check
+**Tests:** `crates/worldline-core/tests/validation_sph.rs` and `crates/worldline-render/tests/validation_fluid_gpu.rs`, plus unit tests in `sph.rs`, `fluid.rs` (both) and the shader's naga check. Rock and iron have their own: see [giant-impacts.md](giant-impacts.md).
 
 **Sources:**
 - **The method:** Price (2012), *J. Comput. Phys.* 231, 759, "Smoothed particle hydrodynamics and magnetohydrodynamics":
@@ -39,7 +39,7 @@ SPH represents a fluid as particles. Each carries a mass, a velocity, an interna
 - **Kernel:** a particle's mass is spread out by a bell-shaped kernel W over 2h, the M4 cubic spline.
 - **Density:** a point's density is the sum of its neighbours' spread-out masses, ρ_a = Σ m_b W(r_ab, h_a).
 - **Smoothing length:** each particle's h follows its density, h = 1.2 (m/ρ)^(1/3). That gives about 58 neighbours everywhere, so dense regions get fine resolution and sparse ones coarse. Since ρ depends on h and h on ρ, the two are solved together by Newton's method, to 10⁻⁶ of h.
-- **Pressure:** the gas is ideal, P = (γ − 1)ρu.
+- **Pressure:** the gas is ideal, P = (γ − 1)ρu, or since step 6.4 each particle is rock or iron by the Tillotson equation of state (see [giant-impacts.md](giant-impacts.md)).
 - **Forces and heating:** the equations of motion and of internal energy are derived from a Lagrangian. So they keep momentum and angular momentum exactly, and energy to the time steps' error.
   - **Pressure:** dv_a/dt = −Σ_b m_b [P_a/(Ω_a ρ_a²) ∇W_ab(h_a) + P_b/(Ω_b ρ_b²) ∇W_ab(h_b)], where Ω corrects for h changing with density.
   - **Heating:** du_a/dt = P_a/(Ω_a ρ_a²) Σ_b m_b (v_a − v_b)·∇W_ab(h_a).
@@ -49,7 +49,8 @@ SPH represents a fluid as particles. Each carries a mass, a velocity, an interna
 - **Gravity:** every particle pulls on every other, its mass spread out as the kernel, so two never pull infinitely hard.
   - **Force:** particle b pulls on a with G m_b M(r/h)/r². M(q) is the share of the kernel's mass within q, averaged over the two particles' h so that momentum is kept.
   - **Potential:** −G m ψ(q)/h, with ψ(0) = 7/5.
-  - **How it's computed:** directly, pair by pair, on all the computer's cores. That is right for thousands of particles; 4.2 moves to the GPU for more.
+  - **How it's computed:** directly, pair by pair, on all the computer's cores. That is right for thousands of particles; 4.2 moves to the GPU for more. Every pair is first taken as two points, in a plain loop the compiler can speed up, and neighbours close enough for a kernel are then corrected, as on the GPU.
+- **Finding neighbours:** a k-d tree, whose boxes know the largest smoothing length in them (step 6.4). The grid it replaced needed cells as wide as the largest smoothing length anywhere, so one particle thrown far from a planet would have put all the others in one cell.
 - **Time steps:** leapfrog (kick–drift–kick), all particles together. Each step is the smallest over the particles of:
   - **sound crossing:** 0.3 h/(c + 1.2α(c + 2μ));
   - **force:** 0.25 √(h/|a|).
@@ -70,7 +71,7 @@ SPH represents a fluid as particles. Each carries a mass, a velocity, an interna
 
 - **Resolution:** SPH resolves nothing finer than a smoothing length. With 1,000 particles that is about a sixth of the radius, with 4,000 a ninth. A structure's errors shrink as h², faster in practice here.
 - **Noise:** its particles jiggle around their places by a fraction of a smoothing length. That is SPH's noise, about 10⁻⁴ of the binding energy in motion here.
-- **Equations of state:** only an ideal gas so far. Rock and iron (the Tillotson equation of state) come with giant impacts in 6.4.
+- **Equations of state:** an ideal gas, and on the CPU rock and iron (see [giant-impacts.md](giant-impacts.md)). The GPU's fluid is an ideal gas only.
 - **Gravity is Newtonian,** and computed directly, pair by pair, so its cost grows as N². Thousands of particles are fine on the CPU; on the GPU it is what limits the count (see [the budget](#the-particle-budget)).
 - **Single precision on the GPU.** About 7 digits: the GPU's densities and forces agree with the CPU's to the GPU's Newton tolerance (see the validation below), and its energy is kept as well as the CPU's over ten dynamical times. Positions are in the fluid's own units, relative to its center, so the precision is spent on the body, not on where it is.
 - **In the app.** A giant planet becomes a fluid on its own when tides matter, and any body by hand (see [tides.md](tides.md)). The fluid feels the tides of the 4 bodies pulling on it hardest, and the simulation's time follows its own. It doesn't spin.

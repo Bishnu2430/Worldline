@@ -36,6 +36,7 @@ use crate::eclipse_finder::{self, Finder};
 use crate::fluid::{FluidBody, Lab};
 use crate::gpu::{Globe, GpuGlobes, GpuSky};
 use crate::ground::{self, Ahead, PLACES};
+use crate::impact_lab::ImpactLab;
 use crate::overlays::{self, Overlays};
 use crate::sandbox::{self, Launch};
 use crate::simulation::Simulation;
@@ -75,6 +76,9 @@ const CATCH_UP_BUDGET: Duration = Duration::from_millis(50);
 /// Most computer time physics may take per frame. If a high speed needs
 /// more, the simulation runs slower than requested and says so.
 pub(crate) const PHYSICS_BUDGET: Duration = Duration::from_millis(12);
+
+/// Particles in the Moon-forming impact when it starts from the inspector.
+const MOON_IMPACT_PARTICLES: usize = 8000;
 
 /// How long after starting the app waits before finding the GPU's particle
 /// budget.
@@ -524,6 +528,8 @@ pub struct WorldlineApp {
     /// Whether the sky window is open, and the latitude and longitude in
     /// it, degrees.
     sky_open: bool,
+    /// The Moon-forming impact, if it's running or open.
+    impact_lab: Option<ImpactLab>,
     sky_place: (f64, f64),
     /// Where the camera stands on Earth, if it does, and the camera to go
     /// back to.
@@ -629,6 +635,7 @@ impl WorldlineApp {
             finder: None,
             go_to_when_found: None,
             sky_open: false,
+            impact_lab: None,
             sky_place: (PLACES[0].1, PLACES[0].2),
             standing: None,
             space_camera: None,
@@ -690,6 +697,7 @@ impl WorldlineApp {
             }
         }
         app.sky_open = start.sky;
+        app.impact_lab = start.moon_impact.map(ImpactLab::start);
         if let Some(place) = start.stand {
             app.sky_place = place;
             app.stand_at(place);
@@ -1697,6 +1705,17 @@ impl WorldlineApp {
             });
         };
         let giant = self.becomes_fluid(self.selected);
+        if name == "Earth"
+            && self.impact_lab.is_none()
+            && ui
+                .button("The Moon-forming impact")
+                .on_hover_text(
+                    "Canup's (2004) impact, as a fluid of rock and iron, in a window of its own: minutes of this computer's time for 27 hours of the impact's",
+                )
+                .clicked()
+        {
+            self.impact_lab = Some(ImpactLab::start(MOON_IMPACT_PARTICLES));
+        }
         let tides = self.tides_on(self.selected);
         let fluid = self.fluid.as_ref().filter(|f| f.name == name);
         // How much tides stretch it, for a giant planet, or any body they
@@ -1714,7 +1733,7 @@ impl WorldlineApp {
                 ui.end_row();
             });
             let note = if !giant {
-                "A point can't show that, and its matter has no fluid model yet: rock comes with step 6.4"
+                "A point can't show that: only giant planets become fluids here. Rock and iron run in the Moon-forming impact"
             } else if fluid.is_some_and(|f| f.debris.is_some()) {
                 "Torn apart, it stays a fluid: remove it to let time run as asked again"
             } else if fluid.is_some_and(|f| !f.by_hand) {
@@ -4083,6 +4102,13 @@ impl eframe::App for WorldlineApp {
         self.waves_window(ui.ctx());
         self.eclipses_window(ui.ctx());
         self.sky_window(ui.ctx());
+        if self
+            .impact_lab
+            .as_mut()
+            .is_some_and(|lab| !lab.show(ui.ctx()))
+        {
+            self.impact_lab = None;
+        }
 
         if !self.simulation.paused || self.flight.is_some() {
             ui.ctx().request_repaint();

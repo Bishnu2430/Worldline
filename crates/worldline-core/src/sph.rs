@@ -24,15 +24,16 @@
 //!   on a with G m_b M(r/h)/r², M(q) the kernel's mass within q, averaged
 //!   over the two smoothing lengths.
 //!
-//! The gas is ideal, P = (γ − 1) ρ u. Steps are leapfrog
+//! The gas is ideal, P = (γ − 1) ρ u, or each particle is rock or iron by
+//! the Tillotson equation of state (step 6.4). Steps are leapfrog
 //! (kick–drift–kick), all particles together.
 
-use std::collections::HashMap;
 use std::f64::consts::PI;
 
 use glam::DVec3;
 
 use crate::constants::G;
+use crate::tillotson::Tillotson;
 
 /// Smoothing length per mean particle spacing (Price 2012 recommends 1.2
 /// for the B-spline kernels).
@@ -120,6 +121,9 @@ pub struct Particle {
     pub density: f64,
     /// Its artificial viscosity parameter α.
     pub viscosity: f64,
+    /// What it's made of: its index in [`Fluid::materials`], if there are
+    /// any.
+    pub material: u8,
 }
 
 /// What the forces on one particle are.
@@ -140,8 +144,16 @@ struct Force {
 pub struct Fluid {
     /// Its particles.
     pub particles: Vec<Particle>,
-    /// The adiabatic index, P = (γ − 1) ρ u.
+    /// The adiabatic index, P = (γ − 1) ρ u, for a fluid with no
+    /// [`Self::materials`].
     pub gamma: f64,
+    /// The materials of its particles: none for an ideal gas.
+    pub materials: Vec<Tillotson>,
+    /// The most α can reach.
+    pub alpha_max: f64,
+    /// The largest a smoothing length can be, m. Past it a lone particle
+    /// keeps too few neighbours, and flies under gravity alone.
+    pub max_h: f64,
     /// Time, s.
     pub time: f64,
     /// Ω, the grad-h term, at each particle.
@@ -172,40 +184,112 @@ fn parallel<T: Send>(n: usize, f: impl Fn(usize) -> T + Sync) -> Vec<T> {
     })
 }
 
-/// The particles by cell of a grid, to find neighbours.
-struct Grid {
-    cell: f64,
-    cells: HashMap<(i64, i64, i64), Vec<usize>>,
+/// The most particles a leaf of the tree holds.
+const LEAF: usize = 16;
+
+/// A box of the tree: the particles `order[first..last]`.
+#[derive(Debug, Clone, Copy)]
+struct Node {
+    low: DVec3,
+    high: DVec3,
+    /// The largest smoothing length in it.
+    h: f64,
+    first: u32,
+    last: u32,
+    /// The second child; the first is the next node. None for a leaf.
+    second: Option<u32>,
 }
 
-impl Grid {
-    fn new(particles: &[Particle], cell: f64) -> Self {
-        let mut cells: HashMap<(i64, i64, i64), Vec<usize>> = HashMap::new();
-        for (i, p) in particles.iter().enumerate() {
-            cells
-                .entry(Self::key(p.position, cell))
-                .or_default()
-                .push(i);
+/// The particles in a k-d tree, to find neighbours. A grid's cells would
+/// have to be as wide as the largest smoothing length anywhere, so one
+/// particle thrown far from a planet would put all the rest in one cell.
+struct Tree {
+    order: Vec<u32>,
+    nodes: Vec<Node>,
+}
+
+impl Tree {
+    fn new(particles: &[Particle]) -> Self {
+        let mut tree = Self {
+            order: (0..particles.len() as u32).collect(),
+            nodes: Vec::with_capacity(particles.len() / 4 + 8),
+        };
+        tree.split(particles, 0, particles.len());
+        tree
+    }
+
+    /// Adds the node for `order[first..last]`, then its children.
+    fn split(&mut self, particles: &[Particle], first: usize, last: usize) {
+        let (mut low, mut high) = (DVec3::INFINITY, DVec3::NEG_INFINITY);
+        let mut h: f64 = 0.0;
+        for &a in &self.order[first..last] {
+            let p = &particles[a as usize];
+            low = low.min(p.position);
+            high = high.max(p.position);
+            h = h.max(p.h);
         }
-        Self { cell, cells }
+        let index = self.nodes.len();
+        self.nodes.push(Node {
+            low,
+            high,
+            h,
+            first: first as u32,
+            last: last as u32,
+            second: None,
+        });
+        if last - first <= LEAF {
+            return;
+        }
+        let size = high - low;
+        let axis = if size.x >= size.y && size.x >= size.z {
+            0
+        } else if size.y >= size.z {
+            1
+        } else {
+            2
+        };
+        let middle = (first + last) / 2;
+        self.order[first..last].select_nth_unstable_by(middle - first, |a, b| {
+            let along = |k: &u32| particles[*k as usize].position[axis];
+            along(a).total_cmp(&along(b))
+        });
+        self.split(particles, first, middle);
+        self.nodes[index].second = Some(self.nodes.len() as u32);
+        self.split(particles, middle, last);
     }
 
-    fn key(x: DVec3, cell: f64) -> (i64, i64, i64) {
-        let k = (x / cell).floor();
-        (k.x as i64, k.y as i64, k.z as i64)
-    }
-
-    /// Every particle in the 27 cells around `x`: all within one cell's
-    /// width of it, and more.
-    fn near(&self, x: DVec3) -> impl Iterator<Item = usize> + '_ {
-        let (i, j, k) = Self::key(x, self.cell);
-        (-1..=1)
-            .flat_map(move |a| {
-                (-1..=1).flat_map(move |b| (-1..=1).map(move |c| (i + a, j + b, k + c)))
-            })
-            .filter_map(|key| self.cells.get(&key))
-            .flatten()
-            .copied()
+    /// Calls `visit` with every particle within `reach` of `x`, and more;
+    /// with `theirs`, also every particle within twice its own smoothing
+    /// length of `x`.
+    fn near(&self, x: DVec3, reach: f64, theirs: bool, mut visit: impl FnMut(usize)) {
+        let mut stack = [0u32; 64];
+        let mut depth = 1;
+        while depth > 0 {
+            depth -= 1;
+            let index = stack[depth];
+            let node = &self.nodes[index as usize];
+            let gap = (node.low - x).max(x - node.high).max(DVec3::ZERO);
+            let limit = if theirs {
+                reach.max(2.0 * node.h)
+            } else {
+                reach
+            };
+            if gap.length_squared() > limit * limit {
+                continue;
+            }
+            match node.second {
+                Some(second) => {
+                    stack[depth] = second;
+                    stack[depth + 1] = index + 1;
+                    depth += 2;
+                }
+                None => {
+                    for &a in &self.order[node.first as usize..node.last as usize] {
+                        visit(a as usize);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -213,10 +297,34 @@ impl Fluid {
     /// A fluid of `particles` with adiabatic index `gamma`, its densities
     /// and forces worked out.
     pub fn new(particles: Vec<Particle>, gamma: f64) -> Self {
+        Self::of(particles, gamma, Vec::new(), ALPHA_MAX, f64::INFINITY)
+    }
+
+    /// A fluid of `particles` made of `materials`, its viscosity reaching
+    /// `alpha_max` and its smoothing lengths `max_h`.
+    pub fn of_materials(
+        particles: Vec<Particle>,
+        materials: Vec<Tillotson>,
+        alpha_max: f64,
+        max_h: f64,
+    ) -> Self {
+        Self::of(particles, 0.0, materials, alpha_max, max_h)
+    }
+
+    fn of(
+        particles: Vec<Particle>,
+        gamma: f64,
+        materials: Vec<Tillotson>,
+        alpha_max: f64,
+        max_h: f64,
+    ) -> Self {
         let n = particles.len();
         let mut fluid = Self {
             particles,
             gamma,
+            materials,
+            alpha_max,
+            max_h,
             time: 0.0,
             omega: vec![1.0; n],
             forces: vec![Force::default(); n],
@@ -227,106 +335,130 @@ impl Fluid {
         fluid
     }
 
-    /// The pressure of particle `a`.
-    pub fn pressure(&self, a: usize) -> f64 {
+    /// The pressure and sound speed of particle `a`: √(γP/ρ) for an ideal
+    /// gas.
+    fn state(&self, a: usize) -> (f64, f64) {
         let p = &self.particles[a];
-        (self.gamma - 1.0) * p.density * p.energy
+        match self.materials.get(p.material as usize) {
+            Some(material) => material.state(p.density, p.energy),
+            None => (
+                (self.gamma - 1.0) * p.density * p.energy,
+                (self.gamma * (self.gamma - 1.0) * p.energy).max(0.0).sqrt(),
+            ),
+        }
     }
 
-    /// The sound speed at particle `a`, √(γP/ρ).
+    /// The pressure of particle `a`.
+    pub fn pressure(&self, a: usize) -> f64 {
+        self.state(a).0
+    }
+
+    /// The sound speed at particle `a`.
     pub fn sound_speed(&self, a: usize) -> f64 {
-        (self.gamma * (self.gamma - 1.0) * self.particles[a].energy)
-            .max(0.0)
-            .sqrt()
+        self.state(a).1
     }
 
     /// Sets each particle's smoothing length and density together, h =
     /// η (m/ρ)^(1/3) with ρ the kernel sum at that h, by Newton's method
-    /// on f(h) = Σ m W(h) − m (η/h)³ to 10⁻⁶ of h; and its Ω.
+    /// on f(h) = Σ m W(h) − m (η/h)³ to 10⁻⁶ of h; and its Ω. A smoothing
+    /// length held at [`Self::max_h`] doesn't follow the density, so its Ω
+    /// is 1.
     pub fn update_density(&mut self) {
-        loop {
-            let reach = self.particles.iter().map(|p| p.h).fold(0.0, f64::max);
-            let grid = Grid::new(&self.particles, 2.0 * reach);
-            let particles = &self.particles;
-            let solved: Vec<(f64, f64, f64, bool)> = parallel(particles.len(), |a| {
-                let p = &particles[a];
-                let near: Vec<usize> = grid.near(p.position).collect();
-                let sums = |h: f64| {
-                    let (mut rho, mut dh) = (0.0, 0.0);
-                    for &b in &near {
-                        let q = (p.position - particles[b].position).length() / h;
-                        if q < 2.0 {
-                            let m = particles[b].mass;
-                            rho += m * kernel(q) / h.powi(3);
-                            dh -= m * (3.0 * kernel(q) + q * kernel_slope(q)) / h.powi(4);
-                        }
-                    }
-                    (rho, dh)
-                };
-                let mut h = p.h.min(reach);
-                for _ in 0..50 {
-                    let (rho, dh) = sums(h);
-                    let wanted = p.mass * (ETA / h).powi(3);
-                    let slope = dh + 3.0 * wanted / h;
-                    let next = (h - (rho - wanted) / slope)
-                        .clamp(0.5 * h, 2.0 * h)
-                        .min(reach);
-                    let done = (next - h).abs() < 1e-6 * h;
-                    h = next;
-                    if done {
-                        break;
+        let tree = Tree::new(&self.particles);
+        let max_h = self.max_h;
+        let particles = &self.particles;
+        let solved: Vec<(f64, f64, f64)> = parallel(particles.len(), |a| {
+            let p = &particles[a];
+            let mut near: Vec<usize> = Vec::new();
+            // How far the list of neighbours reaches.
+            let mut listed = 0.0;
+            let sums = |h: f64, near: &[usize]| {
+                let (mut rho, mut dh) = (0.0, 0.0);
+                for &b in near {
+                    let q = (p.position - particles[b].position).length() / h;
+                    if q < 2.0 {
+                        let m = particles[b].mass;
+                        rho += m * kernel(q) / h.powi(3);
+                        dh -= m * (3.0 * kernel(q) + q * kernel_slope(q)) / h.powi(4);
                     }
                 }
-                let (rho, dh) = sums(h);
-                // Held at the grid's reach with too little density for it:
-                // it wants to be larger.
-                let held = h >= reach * (1.0 - 1e-9) && rho < p.mass * (ETA / h).powi(3);
-                (h, rho, 1.0 + h / (3.0 * rho) * dh, held)
-            });
-            // Smoothing lengths that want to grow past the grid's reach are
-            // tried again, larger, on a coarser grid.
-            let grew = solved.iter().any(|s| s.3);
-            for (p, (h, rho, _, held)) in self.particles.iter_mut().zip(&solved) {
-                p.h = if *held { 1.5 * h } else { *h };
-                p.density = *rho;
+                (rho, dh)
+            };
+            let mut list = |h: f64, near: &mut Vec<usize>| {
+                if 2.0 * h > listed {
+                    listed = 2.5 * h;
+                    near.clear();
+                    tree.near(p.position, listed, false, |b| near.push(b));
+                }
+            };
+            let mut h = p.h.min(max_h);
+            for _ in 0..50 {
+                list(h, &mut near);
+                let (rho, dh) = sums(h, &near);
+                let wanted = p.mass * (ETA / h).powi(3);
+                let slope = dh + 3.0 * wanted / h;
+                let next = (h - (rho - wanted) / slope)
+                    .clamp(0.5 * h, 2.0 * h)
+                    .min(max_h);
+                let done = (next - h).abs() < 1e-6 * h;
+                h = next;
+                if done {
+                    break;
+                }
             }
-            if !grew {
-                self.omega = solved.iter().map(|s| s.2).collect();
-                return;
-            }
+            list(h, &mut near);
+            let (rho, dh) = sums(h, &near);
+            let omega = if h >= max_h {
+                1.0
+            } else {
+                1.0 + h / (3.0 * rho) * dh
+            };
+            (h, rho, omega)
+        });
+        for (p, (h, rho, _)) in self.particles.iter_mut().zip(&solved) {
+            p.h = *h;
+            p.density = *rho;
         }
+        self.omega = solved.iter().map(|s| s.2).collect();
     }
 
     /// Works out every particle's acceleration and heating, for velocities
     /// `velocities`: pressure (Price 2012 eq. 30), viscosity (eq. 98) and
     /// softened gravity; heating by eq. 35 and the viscosity's.
     fn update_forces(&mut self, velocities: &[DVec3]) {
-        let reach = self.particles.iter().map(|p| p.h).fold(0.0, f64::max);
-        let grid = Grid::new(&self.particles, 2.0 * reach);
+        let tree = Tree::new(&self.particles);
         let n = self.particles.len();
-        let pressure: Vec<f64> = (0..n).map(|a| self.pressure(a)).collect();
-        let sound: Vec<f64> = (0..n).map(|a| self.sound_speed(a)).collect();
+        let states: Vec<(f64, f64)> = (0..n).map(|a| self.state(a)).collect();
         let (particles, omega) = (&self.particles, &self.omega);
+        let (xs, ys, zs, ms) = (
+            particles.iter().map(|p| p.position.x).collect::<Vec<_>>(),
+            particles.iter().map(|p| p.position.y).collect::<Vec<_>>(),
+            particles.iter().map(|p| p.position.z).collect::<Vec<_>>(),
+            particles.iter().map(|p| p.mass).collect::<Vec<_>>(),
+        );
+        let alpha_max = self.alpha_max;
         self.forces = parallel(n, |a| {
             let p = &particles[a];
-            let own = pressure[a] / (omega[a] * p.density * p.density);
+            let (pressure, sound) = states[a];
+            let own = pressure / (omega[a] * p.density * p.density);
             let mut force = Force::default();
             // −∇·v times ρΩ: dρ/dt (Price 2012, from eq. 35).
             let mut compression = 0.0;
-            for b in grid.near(p.position) {
+            tree.near(p.position, 2.0 * p.h, true, |b| {
                 if b == a {
-                    continue;
+                    return;
                 }
                 let o = &particles[b];
                 let d = p.position - o.position;
                 let r = d.length();
                 if r >= 2.0 * p.h.max(o.h) {
-                    continue;
+                    return;
                 }
                 let unit = d / r;
                 let grad = |h: f64| unit * (kernel_slope(r / h) / h.powi(4));
                 let (ga, gb) = (grad(p.h), grad(o.h));
-                let theirs = pressure[b] / (omega[b] * o.density * o.density);
+                let (their_pressure, their_sound) = states[b];
+                let theirs = their_pressure / (omega[b] * o.density * o.density);
                 force.acceleration -= o.mass * (own * ga + theirs * gb);
                 let v = velocities[a] - velocities[b];
                 force.heating += own * o.mass * v.dot(ga);
@@ -337,7 +469,7 @@ impl Fluid {
                     let h = 0.5 * (p.h + o.h);
                     let mu = h * closing / (r * r + EPSILON * h * h);
                     let rho = 0.5 * (p.density + o.density);
-                    let c = 0.5 * (sound[a] + sound[b]);
+                    let c = 0.5 * (sound + their_sound);
                     let alpha = 0.5 * (p.viscosity + o.viscosity);
                     let pi = (-alpha * c * mu + 2.0 * alpha * mu * mu) / rho;
                     let mean = 0.5 * (ga + gb);
@@ -345,21 +477,30 @@ impl Fluid {
                     force.heating += 0.5 * o.mass * pi * v.dot(mean);
                     force.mu = force.mu.max(mu.abs());
                 }
-            }
-            // Gravity, from every particle.
-            for (b, o) in particles.iter().enumerate() {
-                if b == a {
-                    continue;
-                }
-                let d = p.position - o.position;
-                let r = d.length();
+                // Close enough for a kernel: the softened pull in place of
+                // the point's, below.
                 let inside = 0.5 * (kernel_mass(r / p.h) + kernel_mass(r / o.h));
-                force.acceleration -= d * (G * o.mass * inside / r.powi(3));
+                force.acceleration += d * (G * o.mass * (1.0 - inside) / r.powi(3));
+            });
+            // Gravity, from every particle as from a point. A particle's own
+            // pull comes out as zero, as its distance is: 10⁻³⁰ m² keeps the
+            // sum from dividing by it, and is far below rounding for any
+            // other pair.
+            let (x, y, z) = (p.position.x, p.position.y, p.position.z);
+            let (mut ax, mut ay, mut az) = (0.0, 0.0, 0.0);
+            for b in 0..n {
+                let (dx, dy, dz) = (x - xs[b], y - ys[b], z - zs[b]);
+                let r2 = dx * dx + dy * dy + dz * dz + 1e-30;
+                let pull = ms[b] / (r2 * r2.sqrt());
+                ax -= dx * pull;
+                ay -= dy * pull;
+                az -= dz * pull;
             }
+            force.acceleration += DVec3::new(ax, ay, az) * G;
             let converging = (compression / (omega[a] * p.density)).max(0.0);
-            let decay = SIGMA_DECAY * sound[a] / p.h;
+            let decay = SIGMA_DECAY * sound / p.h;
             force.switch =
-                -(p.viscosity - ALPHA_MIN) * decay + converging * (ALPHA_MAX - p.viscosity);
+                -(p.viscosity - ALPHA_MIN) * decay + converging * (alpha_max - p.viscosity);
             force
         });
     }
@@ -385,10 +526,11 @@ impl Fluid {
     pub fn step(&mut self) -> f64 {
         let dt = self.time_step();
         let half = 0.5 * dt;
+        let alpha_max = self.alpha_max;
         for (p, f) in self.particles.iter_mut().zip(&self.forces) {
             p.velocity += half * f.acceleration;
             p.energy = (p.energy + half * f.heating).max(0.0);
-            p.viscosity = (p.viscosity + half * f.switch).clamp(ALPHA_MIN, ALPHA_MAX);
+            p.viscosity = (p.viscosity + half * f.switch).clamp(ALPHA_MIN, alpha_max);
             p.position += dt * p.velocity;
         }
         self.update_density();
@@ -408,7 +550,7 @@ impl Fluid {
         for ((p, f), u) in self.particles.iter_mut().zip(&self.forces).zip(&energies) {
             p.velocity += half * f.acceleration;
             p.energy = (u + half * f.heating).max(0.0);
-            p.viscosity = (p.viscosity + half * f.switch).clamp(ALPHA_MIN, ALPHA_MAX);
+            p.viscosity = (p.viscosity + half * f.switch).clamp(ALPHA_MIN, alpha_max);
         }
         self.time += dt;
         dt
@@ -481,6 +623,28 @@ impl Fluid {
                 p.velocity *= keep;
             }
             isentropic(self);
+        }
+        for p in &mut self.particles {
+            p.velocity = DVec3::ZERO;
+        }
+        let velocities = vec![DVec3::ZERO; self.particles.len()];
+        self.update_forces(&velocities);
+    }
+
+    /// Lets a fluid of materials settle into equilibrium: for `duration` s,
+    /// its motion damped away with time constant `damping` and each
+    /// particle's energy held where it began, as it started on an isentrope.
+    /// Then it is set at rest.
+    pub fn relax(&mut self, duration: f64, damping: f64) {
+        let start = self.time;
+        let energies: Vec<f64> = self.particles.iter().map(|p| p.energy).collect();
+        while self.time - start < duration {
+            let dt = self.step();
+            let keep = (-dt / damping).exp();
+            for (p, u) in self.particles.iter_mut().zip(&energies) {
+                p.velocity *= keep;
+                p.energy = *u;
+            }
         }
         for p in &mut self.particles {
             p.velocity = DVec3::ZERO;
@@ -605,20 +769,7 @@ pub fn polytrope(mass: f64, radius: f64, count: usize) -> (Fluid, f64) {
 /// and forces (for a fluid stepped elsewhere, such as on the GPU).
 pub fn polytrope_particles(mass: f64, radius: f64, count: usize) -> (Vec<Particle>, f64) {
     let k = 2.0 * G * radius * radius / PI;
-    // The lattice spacing that puts about `count` points in a unit sphere.
-    let spacing = (4.0 * PI / (3.0 * count as f64)).cbrt();
-    let n = (1.0 / spacing).ceil() as i64 + 1;
-    let mut points = Vec::new();
-    for i in -n..=n {
-        for j in -n..=n {
-            for l in -n..=n {
-                let x = DVec3::new(i as f64 + 0.5, j as f64 + 0.5, l as f64 + 0.5) * spacing;
-                if x.length() < 1.0 {
-                    points.push(x);
-                }
-            }
-        }
-    }
+    let points = lattice(count);
     let m = mass / points.len() as f64;
     let particles = points
         .iter()
@@ -646,10 +797,30 @@ pub fn polytrope_particles(mass: f64, radius: f64, count: usize) -> (Vec<Particl
                 h: ETA * (m / rho).cbrt(),
                 density: rho,
                 viscosity: ALPHA_MIN,
+                material: 0,
             }
         })
         .collect();
     (particles, k)
+}
+
+/// About `count` points of a cubic lattice in a unit sphere.
+pub fn lattice(count: usize) -> Vec<DVec3> {
+    // The lattice spacing that puts about `count` points in a unit sphere.
+    let spacing = (4.0 * PI / (3.0 * count as f64)).cbrt();
+    let n = (1.0 / spacing).ceil() as i64 + 1;
+    let mut points = Vec::new();
+    for i in -n..=n {
+        for j in -n..=n {
+            for l in -n..=n {
+                let x = DVec3::new(i as f64 + 0.5, j as f64 + 0.5, l as f64 + 0.5) * spacing;
+                if x.length() < 1.0 {
+                    points.push(x);
+                }
+            }
+        }
+    }
+    points
 }
 
 #[cfg(test)]

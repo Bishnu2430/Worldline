@@ -12,6 +12,8 @@
 //!   for example to see a black hole's disk nearly edge on.
 //! - `--yaw 180` looks from that direction around the ecliptic, measured
 //!   from the x axis, for example to see the side of a planet that was hit.
+//! - `--moon-impact 8000` runs the Moon-forming impact with about that many
+//!   particles, in a window of its own.
 //! - `--overlays tides,clocks` starts with those overlays on: any of
 //!   models, clocks, tides, embedding, waves and time (proper time).
 //! - `--paused` starts with time stopped.
@@ -53,6 +55,7 @@ mod eclipse_finder;
 mod fluid;
 mod gpu;
 mod ground;
+mod impact_lab;
 mod overlays;
 mod sandbox;
 mod simulation;
@@ -92,6 +95,8 @@ pub struct StartOptions {
     pub pitch_degrees: Option<f64>,
     /// Camera direction around the ecliptic plane, as an angle in degrees.
     pub yaw_degrees: Option<f64>,
+    /// Run the Moon-forming impact with about this many particles.
+    pub moon_impact: Option<usize>,
     /// Start with time stopped.
     pub paused: bool,
     /// Start now, in real time.
@@ -217,6 +222,10 @@ impl StartOptions {
                         eprintln!("worldline: --pitch needs an angle in degrees between -90 and 90")
                     }
                 },
+                "--moon-impact" => match args.next().and_then(|n| n.parse::<usize>().ok()) {
+                    Some(count) if count >= 500 => options.moon_impact = Some(count),
+                    _ => eprintln!("worldline: --moon-impact needs 500 particles or more"),
+                },
                 "--yaw" => match args.next().and_then(|d| d.parse::<f64>().ok()) {
                     Some(degrees) => options.yaw_degrees = Some(degrees),
                     None => eprintln!("worldline: --yaw needs an angle in degrees"),
@@ -288,6 +297,8 @@ mod tests {
             "-8",
             "--yaw",
             "20",
+            "--moon-impact",
+            "2000",
             "--overlays",
             "tides,waves",
             "--paused",
@@ -325,6 +336,7 @@ mod tests {
                 zoom_radii: Some(30.0),
                 pitch_degrees: Some(-8.0),
                 yaw_degrees: Some(20.0),
+                moon_impact: Some(2000),
                 overlays: overlays::Overlays {
                     tides: true,
                     waves: true,

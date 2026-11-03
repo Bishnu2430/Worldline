@@ -119,6 +119,6 @@ Every range in [collision-outcomes.md](collision-outcomes.md) applies. Anything 
 - **10% in every hit-and-run** comes from the paper's b = 0.9 runs. It says b = 0.7 slows more, and a pass that barely touches must slow less.
 - **Heat is a number.** Nothing melts, expands or glows yet. All of it is counted against what's left, though fragments would really take a share.
 - **Uniform spheres.** Real planets are denser in the middle, and more tightly bound than the −(3/5) G m²/R used here.
-- **No composition.** Iron and rock aren't told apart, so a mantle stripped from a core isn't followed. Step 6.4 brings that.
+- **No composition.** Iron and rock aren't told apart, so a mantle stripped from a core isn't followed. The fluid of [giant-impacts.md](giant-impacts.md) does that, but only in its own window.
 - **No spin.** The impact's angular momentum isn't added to the remnants' spin, nor to the fragments' accounts.
 - **A hit-and-run projectile's moons** are set free.
