@@ -156,7 +156,7 @@ pub fn color(simulation: &Simulation, index: usize) -> Color32 {
             _ => Color32::from_gray(225),
         };
     }
-    if simulation.is_added(index) {
+    if simulation.is_added(index) || simulation.is_neighbor(index) {
         crate::catalogue::kind_color(simulation.kind(index))
     } else {
         body_color(&simulation.bodies[index].name)

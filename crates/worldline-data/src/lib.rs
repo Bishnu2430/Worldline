@@ -12,6 +12,7 @@ mod impacts;
 mod kernel;
 mod magnetospheres;
 mod moons;
+mod neighbors;
 mod notable;
 mod rings;
 mod rotation;
@@ -45,6 +46,10 @@ pub use magnetospheres::{PlanetaryField, RadiationBelt, planetary_fields, radiat
 pub use moons::{
     MoonSystemData, earth_zonal_harmonics, moon_figure, moon_systems, parse_moons, ring_mass,
     solar_system_with_moons, tesseral_harmonics, zonal_harmonics,
+};
+pub use neighbors::{
+    Neighbor, VisualOrbit, catalog_state, equatorial_to_ecliptic, julian_year, neighbor_orbit,
+    neighbors, sky_axes,
 };
 pub use notable::{
     BinaryOrbit, Distance, Measured, NotableObject, ObjectKind, RadiusBasis, binary_orbits,

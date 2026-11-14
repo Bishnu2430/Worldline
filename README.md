@@ -101,6 +101,7 @@
 | What a collision throws off: the mass flies off as fragments, and the energy lost heats what's left | mass and momentum before and after equal to rounding (130 ε, or 2.9 × 10⁻¹⁴); energy accounted for to rounding | ✅ passing, in all five regimes: mass off by at most 6.0 × 10⁻¹⁵, momentum by 7.5 × 10⁻¹⁶, kinetic energy by 3.8 × 10⁻¹⁷ |
 | The Moon-forming impact, as planets of rock and iron in SPH | the canonical impact leaves a disk of the mass Canup's (2004) simulations find: 1.33 to 1.62 lunar masses, widened by the counting noise of the disk's particles | ✅ passing at 7,936 particles: 1.38 lunar masses. At 4,000 particles it fails, with 1.08, and convergence isn't shown |
 | Crater sizes from Holsapple's scaling laws, on the globe | Meteor Crater and Chicxulub from their estimated impactors, within the published scaling's spread (a factor of two in volume) | ✅ passing: 1,095 m against 1,186 m (−8%) and 143.6 km against 180 km (−20%). At the 200 km some give Chicxulub, it's 8% past the spread |
+| The nearest and brightest stars as full bodies, at their measured places and motions | α Centauri A and B circle each other with their measured period; Barnard's Star crosses the sky at its measured rate | ✅ passing: 79.935 years against 79.929 ± 0.013 (limit 0.019, the period's uncertainty and the rounding of its fit's other digits); within 0.0001 mas a year of Gaia's 10,393.349 ± 0.036 |
 | Tidal disruption begins near r_t ≈ R(M/m)^(1/3), and the debris falls back at a rate ∝ t^(−5/3) | a Jupiter-like planet passing a star loses what Faber, Rasio & Willems's simulations found (0.58, 0.24, 0.027 and 0 at 1.2, 1.5, 1.8 and 2.2 r_t); torn right through, its debris comes back as t^(−5/3) | ✅ passing: 0.574, 0.235, 0.024, 0; t^(−1.676 ± 0.023) |
 | A planet stays a point until it nears its tidal radius, then becomes a fluid | a point until tides would stretch it by 1% (5.34 tidal radii for n = 1, never passed); as a fluid it stretches by the n = 1 polytrope's Love number, 15/π² − 1 = 0.520 | ✅ passing: Jupiter falling toward a black hole stops at 1.006 of that distance; the GPU fluid's Love number 0.517 with 8,000 particles; a Jupiter passing the Sun is a fluid at its closest and a point again after |
 | A clock near a black hole runs slow by the predicted factor (proper time) | on a circular orbit at 10 GM/c², √(1 − 3GM/rc²) = 0.836660; Earth's clock against the barycenter's, the IAU's L_C = 1.48082686741 × 10⁻⁸ | ✅ passing: 0.836660026534, carried round by the engine; Earth over 10 years 4 × 10⁻¹⁴ off L_C; GPS clocks gain 38.54 µs a day |
@@ -149,6 +150,12 @@ To throw a second Earth at Earth at 30 km/s, a little off center, and watch what
 
 ```bash
 cargo run --release -- --add earth:0.0003@Earth --aim 30,0.3 --focus Earth --zoom 330 --speed hour
+```
+
+To fly to α Centauri, 4.4 light-years away, and watch A and B move:
+
+```bash
+cargo run --release -- --focus "Alpha Centauri A" --zoom 4000 --pitch 85 --speed decade
 ```
 
 To watch the Moon-forming impact as a fluid of rock and iron, in a window of its own (about 20 minutes for its 27 hours; a smaller number is faster and coarser):
@@ -222,6 +229,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 - [White dwarfs](docs/physics/white-dwarfs.md): stars held up by quantum mechanics, the Chandrasekhar limit, and what happens past it
 - [Near a black hole](docs/physics/kerr.md): motion in a black hole's exact (Kerr) spacetime, the innermost stable orbit, and Sagittarius A\* spiraling into TON 618
 - [The swarm](docs/physics/swarm.md): the belts and freed small moons as live particles that feel every massive body
+- [The nearest and brightest stars](docs/physics/neighbors.md): nineteen stars at their measured places and motions, α Centauri and Sirius on their orbits
 - [The galactic center](docs/physics/galactic-center.md): Sagittarius A\* at its real place, and the stars that orbit it
 - [Fluids (SPH)](docs/physics/sph.md): planets and stars as self-gravitating fluids of particles, and Jupiter as a polytrope that holds itself up; on the GPU, as many particles as it steps smoothly
 - [Tides](docs/physics/tides.md): when a planet stops being a point and becomes a fluid, and the tides it feels as one

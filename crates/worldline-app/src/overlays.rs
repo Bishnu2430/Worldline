@@ -117,16 +117,16 @@ pub fn draw_readouts(painter: &Painter, viewport: Rect, readouts: &[Readout]) {
     }
 }
 
-/// The bodies with mass in the region of body `near` (the solar system's
-/// or the galactic center's), which shape the fields there: the regions
-/// don't feel each other, and the galaxy's pull is left out.
+/// The bodies with mass in the region of body `near` (the solar system's,
+/// the galactic center's or the nearby stars'), which shape the fields
+/// there: the regions don't feel each other, and the galaxy's pull is left
+/// out.
 fn massive(simulation: &Simulation, near: usize) -> (Vec<Body>, Vec<usize>) {
-    let region = simulation.is_galactic(near);
     simulation
         .bodies
         .iter()
         .enumerate()
-        .filter(|&(i, b)| b.gm > 0.0 && simulation.is_galactic(i) == region)
+        .filter(|&(i, b)| b.gm > 0.0 && simulation.same_region(near, i))
         .map(|(i, b)| (b.clone(), i))
         .unzip()
 }
@@ -143,6 +143,7 @@ fn model_name(simulation: &Simulation, index: usize) -> &'static str {
         Computed::SmallMoonOnMeanOrbit => "a mean orbit",
         Computed::Follower { .. } => "following the planets",
         Computed::GalacticStar => "following Sagittarius A*",
+        Computed::Neighbor => "among the nearby stars",
         Computed::Swarm => "the swarm",
     }
 }

@@ -1099,7 +1099,10 @@ impl WorldlineApp {
             // The planet whose branch holds the selection.
             let holder = simulation.parent(selected).unwrap_or(selected);
             for i in 0..simulation.bodies.len() {
-                if simulation.parent(i).is_some() || simulation.small_body(i).is_some() {
+                if simulation.parent(i).is_some()
+                    || simulation.small_body(i).is_some()
+                    || simulation.is_neighbor(i)
+                {
                     continue;
                 }
                 let (small, major): (Vec<usize>, Vec<usize>) = (0..simulation.bodies.len())
@@ -1158,6 +1161,20 @@ impl WorldlineApp {
                     });
             }
             ui.add_space(4.0);
+            // The nearest and brightest stars, in a fold of their own.
+            let stars: Vec<usize> = (0..simulation.bodies.len())
+                .filter(|&i| simulation.is_neighbor(i))
+                .collect();
+            let mut fold = egui::CollapsingHeader::new(format!("Nearby stars  ·  {}", stars.len()))
+                .id_salt("Nearby stars");
+            if reveal && stars.contains(&selected) {
+                fold = fold.open(Some(true));
+            }
+            fold.show(ui, |ui| {
+                for i in stars {
+                    entry(ui, i);
+                }
+            });
             // The dwarf planets, asteroids and comets, each kind in a fold.
             for (kind, label) in [
                 (SmallBodyKind::DwarfPlanet, "Dwarf planets"),
@@ -1409,6 +1426,17 @@ impl WorldlineApp {
                 ui.label(key(&format!("Distance from {}", sun.name)));
                 ui.label(light_years((body.position - sun.position).length()));
                 ui.end_row();
+            } else if self.simulation.is_neighbor(self.selected) {
+                ui.label(key(&format!("Distance from {}", sun.name)));
+                ui.label(light_years((body.position - sun.position).length()));
+                ui.end_row();
+                ui.label(key(&format!("Speed relative to {}", sun.name)));
+                ui.label(format!(
+                    "{:.2} km/s",
+                    (body.velocity - sun.velocity).length() / 1e3
+                ));
+                ui.end_row();
+                self.neighbor_rows(ui);
             } else if self.selected != SUN {
                 ui.label(key(&format!("Distance from {}", sun.name)));
                 ui.label(format!(
@@ -1423,7 +1451,9 @@ impl WorldlineApp {
                 ));
                 ui.end_row();
             }
-            if !self.simulation.is_galactic(self.selected) {
+            if !self.simulation.is_galactic(self.selected)
+                && !self.simulation.is_neighbor(self.selected)
+            {
                 self.sun_reach(ui);
                 self.galaxy_rows(ui);
                 self.magnetism(ui);
@@ -1473,6 +1503,8 @@ impl WorldlineApp {
             details::BodyKind::Galactic {
                 star: self.simulation.parent(self.selected).is_some(),
             }
+        } else if self.simulation.neighbor(self.selected).is_some() {
+            details::BodyKind::Neighbor
         } else if self.simulation.merger(self.selected).is_some() {
             details::BodyKind::MergerRemnant
         } else if self.simulation.kind(self.selected) == Some(ObjectKind::BlackHole)
@@ -1567,7 +1599,10 @@ impl WorldlineApp {
     /// mass and size, and a black hole has no fluid to model.
     fn can_be_fluid(&self, index: usize) -> bool {
         let body = &self.simulation.bodies[index];
-        body.gm > 0.0 && body.radius > 0.0 && !is_black_hole(body)
+        body.gm > 0.0
+            && body.radius > 0.0
+            && !is_black_hole(body)
+            && !self.simulation.is_neighbor(index)
     }
 
     /// The bodies whose tides stretch body `index`, strongest first: each
@@ -1581,10 +1616,9 @@ impl WorldlineApp {
             return Vec::new();
         }
         let h2 = 1.0 + polytrope_love_number();
-        let galactic = self.simulation.is_galactic(index);
         let mut tides: Vec<(usize, f64)> = (0..bodies.len())
             .filter(|&j| j != index && bodies[j].gm > 0.0)
-            .filter(|&j| self.simulation.is_galactic(j) == galactic)
+            .filter(|&j| self.simulation.same_region(index, j))
             .map(|j| {
                 let rt = tidal_radius(body.radius, body.gm, bodies[j].gm);
                 let d = (bodies[j].position - body.position).length();
@@ -1614,9 +1648,8 @@ impl WorldlineApp {
         let h2 = 1.0 + polytrope_love_number();
         let mut approaches = Vec::new();
         for i in (0..bodies.len()).filter(|&i| self.becomes_fluid(i)) {
-            let galactic = self.simulation.is_galactic(i);
             for j in (0..bodies.len()).filter(|&j| j != i && bodies[j].gm > 0.0) {
-                if self.simulation.is_galactic(j) != galactic {
+                if !self.simulation.same_region(i, j) {
                     continue;
                 }
                 let (a, b) = (&bodies[i], &bodies[j]);
@@ -2176,6 +2209,9 @@ impl WorldlineApp {
             Computed::GalacticStar => {
                 "Follows Sagittarius A*: its Newtonian pull plus its first relativistic (Schwarzschild) term"
             }
+            Computed::Neighbor => {
+                "Newtonian N-body among the nearby stars, from where Gaia or Hipparcos measured it: they don't feel the solar system, nor it them, and the galaxy's tide is left out"
+            }
             Computed::Swarm => {
                 "A swarm particle: carried on its orbit around what holds it, nudged by every other body (Wisdom–Holman)"
             }
@@ -2643,6 +2679,53 @@ impl WorldlineApp {
             .on_hover_text(
                 "The size comes from Holsapple's (1993) scaling laws, known to a factor of about two in volume. The ground is taken as hard rock, or ice on a light body, even under the sea, and there is no atmosphere to slow or break up what falls. The crater's shape as drawn, and its colors, are a visual approximation. It is drawn to scale, with a ring around it when it's too small to see.",
             );
+        ui.end_row();
+    }
+
+    /// Inspector rows for one of the nearest and brightest stars: what was
+    /// measured, by what, and where its mass and radius were published.
+    fn neighbor_rows(&self, ui: &mut egui::Ui) {
+        let Some(star) = self.simulation.neighbor(self.selected) else {
+            return;
+        };
+        let (pmra, pmdec) = star.proper_motion;
+        let whose = star
+            .motion_of
+            .as_ref()
+            .map(|w| format!(" ({w})"))
+            .unwrap_or_default();
+        let rows = [
+            (
+                "Measured by",
+                format!("{}, for {:.2}", star.catalog, star.epoch),
+            ),
+            ("Parallax", format!("{} mas", significant(star.parallax))),
+            (
+                "Across the sky",
+                format!(
+                    "{} mas a year{whose}{}",
+                    significant(pmra.hypot(pmdec)),
+                    star.proper_motion_error
+                        .map(|(a, d)| format!(
+                            ", ± {}",
+                            significant((pmra * a).hypot(pmdec * d) / pmra.hypot(pmdec))
+                        ))
+                        .unwrap_or_default()
+                ),
+            ),
+            (
+                "Toward us",
+                format!("{:.2} km/s{whose}", -star.radial_velocity / 1e3),
+            ),
+        ];
+        for (name, value) in rows {
+            ui.label(key(name));
+            ui.label(value);
+            ui.end_row();
+        }
+        ui.label(key(""));
+        ui.label(RichText::new("Mass and radius").small().color(theme::MUTED))
+            .on_hover_text(&star.source);
         ui.end_row();
     }
 

@@ -65,6 +65,10 @@ Sagittarius A\*, the Milky Way's central black hole, is in the body list with it
   - See [physics/milky-way.md](physics/milky-way.md).
 - **Dropped bodies:** anything dropped near it, from the catalogue, joins its region and feels it.
 
+## The nearest and brightest stars
+
+Nineteen stars are bodies, listed under **Nearby stars**: the nearest, like Proxima Centauri, α Centauri A and B and Barnard's Star, and the brightest, like Sirius, Vega and Betelgeuse. They move as Gaia or Hipparcos measured them and pull on each other, and anything dropped near one joins them. The inspector shows each one's distance, what measured it, its parallax, how fast it crosses the sky and comes toward us, and where its mass and radius were published. See [physics/neighbors.md](physics/neighbors.md).
+
 See [physics/galactic-center.md](physics/galactic-center.md).
 
 ## Sandbox tools

@@ -115,6 +115,22 @@ const S_STAR: &[Detail] = &[
     ),
 ];
 
+const NEIGHBOR: &[Detail] = &[
+    detail(
+        "Place and motion: Gaia DR3, or Hipparcos for stars too bright for Gaia; α Centauri and Sirius by their published orbits",
+        Kind::Measured,
+    ),
+    detail(
+        "Mass and radius: published, as the inspector names",
+        Kind::Measured,
+    ),
+    detail(
+        "Its path: Newtonian gravity among the nearby stars; the galaxy's tide and the solar system's pull are left out",
+        Kind::Model,
+    ),
+    detail("No surface map: a sphere colored as a star", Kind::Visual),
+];
+
 const ADDED: &[Detail] = &[
     detail(
         "Added in the sandbox, with the mass and size of a solar-system body",
@@ -417,6 +433,8 @@ pub enum BodyKind {
     /// Sagittarius A* in the galactic center, or (`star`) a star orbiting
     /// it.
     Galactic { star: bool },
+    /// One of the nearest and brightest stars.
+    Neighbor,
     /// A dwarf planet, asteroid or comet.
     SmallBody {
         /// A comet (or interstellar visitor) rather than an asteroid.
@@ -440,6 +458,7 @@ pub fn details(name: &str, kind: BodyKind) -> Vec<Detail> {
         BodyKind::MergerRemnant => return MERGER_REMNANT.to_vec(),
         BodyKind::CollapsedStar => return COLLAPSED_STAR.to_vec(),
         BodyKind::MiniBlackHole => return MINI_BLACK_HOLE.to_vec(),
+        BodyKind::Neighbor => return NEIGHBOR.to_vec(),
         BodyKind::SmallBody {
             comet,
             outgassing,
