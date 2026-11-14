@@ -254,7 +254,7 @@ def main():
             "(arcsec), eccentricity, inclination, node and periastron (deg). Masses and radii are "
             "in notable-objects.csv.\n"
         )
-        writer = csv.DictWriter(out, fieldnames=fields)
+        writer = csv.DictWriter(out, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         writer.writerows([centauri, pair])
     with OUT.open("w", newline="\n", encoding="utf-8") as out:
@@ -266,7 +266,7 @@ def main():
             "pmdec, their errors: mas/yr. rv, its error: km/s, from Gaia DR3 or from SIMBAD with the bibcode "
             "it cites. mass, radius: Suns, from `source`.\n"
         )
-        writer = csv.DictWriter(out, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(out, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
     print(f"wrote {len(rows)} stars to {OUT}")
