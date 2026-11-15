@@ -15,18 +15,20 @@ use std::fmt::Write;
 
 use super::*;
 
-/// The first line of every save. Version 7 records craters, version 6 which
+/// The first line of every save. Version 8 records the nearby stars, version
+/// 7 craters, version 6 which
 /// swarm particles are fragments of collisions, version 5 the solar system's
 /// place in the galaxy, version 4 black-hole mergers, version 3 the swarm,
 /// version 2 each added body's catalogue entry; older saves load too.
-const HEADER: &str = "worldline-save\t7";
-const OLDER: [&str; 6] = [
+const HEADER: &str = "worldline-save\t8";
+const OLDER: [&str; 7] = [
     "worldline-save\t1",
     "worldline-save\t2",
     "worldline-save\t3",
     "worldline-save\t4",
     "worldline-save\t5",
     "worldline-save\t6",
+    "worldline-save\t7",
 ];
 
 fn body_line(kind: &str, prefix: &str, b: &Body) -> String {
@@ -93,6 +95,12 @@ impl Simulation {
         }
         for i in 0..h.follower_count() {
             let _ = writeln!(out, "{}", body_line("follower", "", h.follower(i)));
+        }
+        // The nearby stars, relative to the solar system's barycenter.
+        if let Some(n) = &self.neighbors {
+            for b in &n.hierarchy.top.bodies {
+                let _ = writeln!(out, "{}", body_line("ntop", "", b));
+            }
         }
         // The galactic center, relative to Sagittarius A*'s place.
         if let Some(g) = &self.galaxy {
@@ -189,6 +197,7 @@ impl Simulation {
         let mut debris = std::collections::BTreeMap::new();
         let mut scars = Vec::new();
         let (mut gtop, mut gfollowers, mut galactic) = (Vec::new(), Vec::new(), None);
+        let mut ntop = Vec::new();
         for line in lines {
             let fields: Vec<&str> = line.split('\t').collect();
             let number = || {
@@ -206,6 +215,7 @@ impl Simulation {
                 }
                 "follower" => followers.push(parse_body(&fields[1..])?),
                 "gtop" => gtop.push(parse_body(&fields[1..])?),
+                "ntop" => ntop.push(parse_body(&fields[1..])?),
                 "gfollower" => gfollowers.push(parse_body(&fields[1..])?),
                 "galactic" if fields.len() == 7 => {
                     let n: Vec<f64> = fields[1..]
@@ -381,6 +391,24 @@ impl Simulation {
         }
         h.set_time(time);
         h.restart();
+        // The nearby stars as saved; saves from before step 7.1 place them
+        // afresh, as measured, at the save's moment.
+        let at = sim.epoch_jd_tdb + time / DAY;
+        let mut near = Neighborhood::at(at);
+        if !ntop.is_empty() {
+            let bodies = ntop
+                .iter()
+                .map(|s| {
+                    Body::new(&s.name, s.gm, s.radius)
+                        .at(s.position)
+                        .moving(s.velocity)
+                })
+                .collect();
+            near.hierarchy = Hierarchy::new(System::new(bodies), Box::new(Newtonian), Vec::new());
+            near.hierarchy.collisions = true;
+        }
+        near.hierarchy.set_time(time);
+        sim.neighbors = Some(near);
         // The galactic center, if the save has it (saves from before step
         // 2.1c start it afresh, at the save's time).
         if let Some(g) = &mut sim.galaxy {

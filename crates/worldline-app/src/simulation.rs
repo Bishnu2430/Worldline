@@ -13,7 +13,9 @@ use worldline_core::crater::{Crater, Strike};
 use worldline_core::eclipses::{Ephemeris, State};
 use worldline_core::gravitational_waves::{merger_time, period_derivative};
 use worldline_core::gravity::kerr::plunge_time;
-use worldline_core::gravity::{Gravity, holding_hole, moves_in_spacetime_of, reaction_converges};
+use worldline_core::gravity::{
+    Gravity, Newtonian, holding_hole, moves_in_spacetime_of, reaction_converges,
+};
 use worldline_core::hierarchy::{
     Collision, Evaporated, FREED_MOON_IDS, Hierarchy, MOON_SYSTEM_GRAVITY,
 };
@@ -31,7 +33,7 @@ use worldline_core::swarm::{Particle, Swarm};
 use worldline_core::tides::time_to_close;
 use worldline_core::timescales::TimeScales;
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
-use worldline_core::{Body, DMat3, DVec3};
+use worldline_core::{Body, DMat3, DVec3, System};
 use worldline_data::{
     BeltKind, ObjectKind, RadiationBelt, SmallBodyKind, SmallMoon, VoyagerCrossing,
 };
@@ -165,6 +167,9 @@ enum Source {
     Particle(u32),
     /// A body of the galactic center.
     Galactic(Far),
+    /// A star of the solar system's neighborhood, or a body added among
+    /// them, at the top of that region's hierarchy.
+    Neighbor(usize),
 }
 
 /// Where a galactic-center body lives in that region's hierarchy.
@@ -225,6 +230,38 @@ impl Region {
     }
 }
 
+/// The nearest and brightest stars (step 7.1), simulated on their own: each
+/// pulls on each, by Newton, from where it was measured. They don't feel the
+/// solar system, nor it them: the strongest pull between the two, α
+/// Centauri's on the Sun, is 1.6 × 10⁻¹³ m/s², and its tide across the
+/// planets' orbits 3 × 10⁻¹⁷. Their frame is the solar system's
+/// barycenter's, as both go round the galaxy together, and the galaxy's
+/// tide between them is left out (see `docs/physics/neighbors.md`).
+pub struct Neighborhood {
+    hierarchy: Hierarchy,
+    /// Each star as the catalogue measured it.
+    stars: Vec<worldline_data::Neighbor>,
+}
+
+impl Neighborhood {
+    /// The stars as measured, placed at Julian Date `jd_tdb`.
+    fn at(jd_tdb: f64) -> Self {
+        let stars = worldline_data::neighbors(jd_tdb);
+        let bodies = stars.iter().map(|s| s.body.clone()).collect();
+        let mut hierarchy = Hierarchy::new(System::new(bodies), Box::new(Newtonian), Vec::new());
+        hierarchy.collisions = true;
+        Self { hierarchy, stars }
+    }
+}
+
+/// The regions simulated apart, as none feels another.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Zone {
+    SolarSystem,
+    GalacticCenter,
+    Neighborhood,
+}
+
 /// Which part of the simulation computes a body's motion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Computed {
@@ -243,6 +280,8 @@ pub enum Computed {
     Swarm,
     /// A star following Sagittarius A*.
     GalacticStar,
+    /// A star of the solar system's neighborhood, among the others.
+    Neighbor,
 }
 
 /// What gravitational waves do to a pair (see
@@ -371,6 +410,8 @@ pub struct Simulation {
     pub events: Vec<Collision>,
     /// The galactic center.
     pub galaxy: Option<Region>,
+    /// The nearest and brightest stars.
+    neighbors: Option<Neighborhood>,
     /// Each body's own clock, against a far-away one.
     pub clocks: Clocks,
     /// Leap seconds and UT1 − UTC from the IERS: from the computer's
@@ -460,6 +501,7 @@ impl Simulation {
                 region.chart();
                 Some(region)
             },
+            neighbors: Some(Neighborhood::at(epoch_jd_tdb)),
             wind: worldline_data::parker_spiral(),
             heliosphere: worldline_data::heliosphere(),
             crossings: worldline_data::voyager_crossings(),
@@ -516,6 +558,9 @@ impl Simulation {
                 (0..g.hierarchy.follower_count()).map(|i| Source::Galactic(Far::Follower(i))),
             );
         }
+        if let Some(n) = &self.neighbors {
+            sources.extend((0..n.hierarchy.top.bodies.len()).map(Source::Neighbor));
+        }
         let bodies: Vec<Body> = sources
             .iter()
             .map(|source| match *source {
@@ -547,6 +592,10 @@ impl Simulation {
                         Far::Top(k) => g.hierarchy.top.bodies[k].clone(),
                         Far::Follower(i) => g.hierarchy.follower(i).clone(),
                     }
+                }
+                Source::Neighbor(k) => {
+                    let n = self.neighbors.as_ref().expect("the neighborhood");
+                    n.hierarchy.top.bodies[k].clone()
                 }
             })
             .collect();
@@ -629,9 +678,19 @@ impl Simulation {
     }
 
     /// Adds a body to the sandbox in the region of body `near`: the
-    /// galactic center if `near` is there, else the solar system. Given in
-    /// the solar system's frame; returns its index in the list.
+    /// galactic center or the neighborhood if `near` is there, else the
+    /// solar system. Given in the solar system's frame; returns its index in
+    /// the list.
     pub fn add_body_near(&mut self, body: Body, entry: &str, near: usize) -> usize {
+        if let (Source::Neighbor(_), Some(n)) = (self.sources[near], self.neighbors.as_mut()) {
+            let name = body.name.clone();
+            n.hierarchy.add_body(body);
+            self.added.push((name.clone(), entry.to_string()));
+            self.reindex();
+            self.refresh();
+            self.start_clocks();
+            return self.index_of(&name).expect("the new body is listed");
+        }
         let Source::Galactic(_) = self.sources[near] else {
             return self.add_body(body, entry);
         };
@@ -700,6 +759,11 @@ impl Simulation {
                 g.hierarchy.top.bodies[k].velocity += dv;
                 g.hierarchy.restart_top();
             }
+            Source::Neighbor(k) => {
+                let n = self.neighbors.as_mut().expect("the neighborhood");
+                n.hierarchy.top.bodies[k].velocity += dv;
+                n.hierarchy.restart_top();
+            }
             _ => return,
         }
         self.refresh();
@@ -758,7 +822,7 @@ impl Simulation {
         if let Some(planet) = self.parents[index] {
             return planet;
         }
-        if self.is_galactic(index) || !self.has_sun() {
+        if self.is_galactic(index) || self.is_neighbor(index) || !self.has_sun() {
             return index;
         }
         let here = self.bodies[index].position;
@@ -815,6 +879,41 @@ impl Simulation {
     /// Whether body `index` is in the galactic center.
     pub fn is_galactic(&self, index: usize) -> bool {
         matches!(self.sources[index], Source::Galactic(_))
+    }
+
+    /// The region body `index` is simulated in.
+    fn zone(&self, index: usize) -> Zone {
+        match self.sources[index] {
+            Source::Galactic(_) => Zone::GalacticCenter,
+            Source::Neighbor(_) => Zone::Neighborhood,
+            _ => Zone::SolarSystem,
+        }
+    }
+
+    /// Whether bodies `a` and `b` are simulated in the same region, and so
+    /// feel each other.
+    pub fn same_region(&self, a: usize, b: usize) -> bool {
+        self.zone(a) == self.zone(b)
+    }
+
+    /// Whether body `index` is in the solar system's neighborhood: one of
+    /// the nearest and brightest stars, or added among them.
+    pub fn is_neighbor(&self, index: usize) -> bool {
+        matches!(self.sources[index], Source::Neighbor(_))
+    }
+
+    /// For one of the nearest and brightest stars, how the catalogue
+    /// measured it.
+    pub fn neighbor(&self, index: usize) -> Option<&worldline_data::Neighbor> {
+        if !self.is_neighbor(index) || self.is_added(index) {
+            return None;
+        }
+        let name = &self.bodies[index].name;
+        self.neighbors
+            .as_ref()?
+            .stars
+            .iter()
+            .find(|s| &s.body.name == name)
     }
 
     /// For a star of the galactic center: its spectral type ('e' early,
@@ -914,7 +1013,8 @@ impl Simulation {
     /// What kind of object body `index` is, if it came from the catalog: a
     /// black hole if it has become one (a neutron star that collapsed).
     pub fn kind(&self, index: usize) -> Option<ObjectKind> {
-        let kind = self.entry(index).and_then(Entry::kind)?;
+        let star = self.neighbor(index).map(|s| s.kind);
+        let kind = star.or_else(|| self.entry(index).and_then(Entry::kind))?;
         Some(if is_black_hole(&self.bodies[index]) {
             ObjectKind::BlackHole
         } else {
@@ -937,6 +1037,10 @@ impl Simulation {
             Source::Galactic(Far::Top(k)) => {
                 let g = self.galaxy.as_mut().expect("the galactic center");
                 g.hierarchy.top.bodies[k].radius = radius;
+            }
+            Source::Neighbor(k) => {
+                let n = self.neighbors.as_mut().expect("the neighborhood");
+                n.hierarchy.top.bodies[k].radius = radius;
             }
             _ => return,
         }
@@ -1019,7 +1123,7 @@ impl Simulation {
             },
             Source::Moon { .. } | Source::Small { .. } => Removal::Moon,
             Source::Galactic(Far::Top(0)) => Removal::GalacticCenter,
-            Source::Galactic(_) => Removal::Allowed { moons: 0 },
+            Source::Galactic(_) | Source::Neighbor(_) => Removal::Allowed { moons: 0 },
         }
     }
 
@@ -1056,6 +1160,10 @@ impl Simulation {
                         g.spectral_types.remove(i);
                     }
                 }
+            }
+            Source::Neighbor(k) => {
+                let n = self.neighbors.as_mut().expect("the neighborhood");
+                n.hierarchy.remove_body(k);
             }
             Source::Small { .. } => return,
         }
@@ -1444,32 +1552,36 @@ impl Simulation {
         let gone = self.hierarchy.take_evaporated();
         self.after_evaporating(&gone);
         self.refresh();
-        self.tick_clocks(false);
+        self.tick_clocks(Zone::SolarSystem);
     }
 
     /// Starts the clocks of bodies that have none yet (reading the others
     /// again changes nothing, as no time has passed).
     fn start_clocks(&mut self) {
-        self.tick_clocks(false);
+        self.tick_clocks(Zone::SolarSystem);
         if self.galaxy.is_some() {
-            self.tick_clocks(true);
+            self.tick_clocks(Zone::GalacticCenter);
+        }
+        if self.neighbors.is_some() {
+            self.tick_clocks(Zone::Neighborhood);
         }
     }
 
-    /// Reads the clocks of the bodies of the solar system's region, or of
-    /// the galactic center's, as each has just moved: all but small moons
-    /// and swarm particles. Each feels only its own region's bodies, as the
-    /// two regions don't feel each other: the galaxy's pull is left out, as
-    /// barycentric time (TCB) leaves it out. A galactic body's far-away
-    /// clock is at rest in its region's frame, moving with it.
-    fn tick_clocks(&mut self, galactic: bool) {
+    /// Reads the clocks of the bodies of one region, as each has just
+    /// moved: all but small moons and swarm particles. Each feels only its
+    /// own region's bodies, as the regions don't feel each other: the
+    /// galaxy's pull and the stars' are left out, as barycentric time (TCB)
+    /// leaves out everything outside the solar system. A galactic body's
+    /// far-away clock is at rest in its region's frame, moving with it; a
+    /// nearby star's, in the solar system's barycentric frame.
+    fn tick_clocks(&mut self, zone: Zone) {
         let frame = self
             .galaxy
             .as_ref()
-            .filter(|_| galactic)
+            .filter(|_| zone == Zone::GalacticCenter)
             .map_or(DVec3::ZERO, |g| g.drift);
         let members: Vec<usize> = (0..self.bodies.len())
-            .filter(|&i| self.is_galactic(i) == galactic)
+            .filter(|&i| self.zone(i) == zone)
             .collect();
         let region: Vec<Body> = members.iter().map(|&i| self.bodies[i].clone()).collect();
         let readings: Vec<Reading> = members
@@ -1514,6 +1626,7 @@ impl Simulation {
     /// steps: once per update is enough, since nothing in either region
     /// feels the other.
     fn catch_up_galaxy(&mut self) {
+        self.catch_up_neighbors();
         let Some(g) = &mut self.galaxy else {
             return;
         };
@@ -1549,7 +1662,7 @@ impl Simulation {
             self.after_evaporating(&gone);
         }
         self.refresh();
-        self.tick_clocks(true);
+        self.tick_clocks(Zone::GalacticCenter);
     }
 
     /// Keeps the craters up to date after a collision. A body that's gone
@@ -1584,6 +1697,33 @@ impl Simulation {
     /// The craters on the body named `name`, oldest first.
     pub fn craters_on<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Scar> + 'a {
         self.scars.iter().filter(move |s| s.body == name)
+    }
+
+    /// Brings the neighborhood up to the solar system's time, in its own
+    /// steps: nothing in either region feels the other. A collision among
+    /// the stars merges them, as in the solar system.
+    fn catch_up_neighbors(&mut self) {
+        let Some(n) = &mut self.neighbors else {
+            return;
+        };
+        let now = self.hierarchy.time();
+        while n.hierarchy.time() < now {
+            let left = now - n.hierarchy.time();
+            if n.hierarchy.step(left) >= left {
+                n.hierarchy.set_time(now);
+            }
+        }
+        let collisions = n.hierarchy.take_collisions();
+        if !collisions.is_empty() {
+            for c in &collisions {
+                self.added.retain(|(name, _)| name != &c.absorbed);
+                self.record_merger(c);
+            }
+            self.reindex();
+            self.events.extend(collisions);
+        }
+        self.refresh();
+        self.tick_clocks(Zone::Neighborhood);
     }
 
     /// Brings the list of bodies up to date after collisions: a planet
@@ -1636,6 +1776,7 @@ impl Simulation {
             Source::Particle(_) => Computed::Swarm,
             Source::Galactic(Far::Top(_)) => Computed::TopLevel,
             Source::Galactic(Far::Follower(_)) => Computed::GalacticStar,
+            Source::Neighbor(_) => Computed::Neighbor,
             Source::Follower(_) => Computed::Follower {
                 forces: self.small_bodies[index].is_some_and(|s| s.1),
             },
@@ -1693,23 +1834,26 @@ impl Simulation {
         if self.computed(index) != Computed::TopLevel {
             return None;
         }
-        let top = match (self.sources[index], &self.galaxy) {
-            (Source::Galactic(_), Some(g)) => &g.hierarchy.top,
-            _ => &self.hierarchy.top,
-        };
+        let top = self.region_top(index);
         let name = &self.bodies[index].name;
         let k = top.bodies.iter().position(|b| &b.name == name)?;
         holding_hole(&top.bodies, k).and_then(|h| self.index_of(&top.bodies[h].name))
+    }
+
+    /// The top level of body `index`'s region.
+    fn region_top(&self, index: usize) -> &System {
+        match (self.sources[index], &self.galaxy, &self.neighbors) {
+            (Source::Galactic(_), Some(g), _) => &g.hierarchy.top,
+            (Source::Neighbor(_), _, Some(n)) => &n.hierarchy.top,
+            _ => &self.hierarchy.top,
+        }
     }
 
     /// What pulls on body `index` hardest: its planet, for a moon; for
     /// anything else, the top-level body with the strongest pull.
     fn attractor(&self, index: usize) -> Option<usize> {
         let body = &self.bodies[index];
-        let top = match (self.sources[index], &self.galaxy) {
-            (Source::Galactic(_), Some(g)) => &g.hierarchy.top,
-            _ => &self.hierarchy.top,
-        };
+        let top = self.region_top(index);
         match self.parents[index] {
             Some(planet) => Some(planet),
             None => top
@@ -1824,6 +1968,13 @@ impl Simulation {
                 }
                 Source::Follower(i) => {
                     let b = self.hierarchy.follower(i);
+                    (b.position, b.velocity)
+                }
+                Source::Neighbor(k) => {
+                    let n = self.neighbors.as_ref().expect("the neighborhood");
+                    let b = &n.hierarchy.top.bodies[k];
+                    body.gm = b.gm;
+                    body.radius = b.radius;
                     (b.position, b.velocity)
                 }
             };
@@ -2039,6 +2190,39 @@ mod tests {
         }
         println!("worst: {worst:.1} s");
         assert!(missing.is_empty() && found.len() == canon.len());
+    }
+
+    #[test]
+    fn the_nearby_stars_move_as_measured_and_save() {
+        let mut sim = Simulation::solar_system(DAY);
+        let barnard = sim.index_of("Barnard's Star").expect("listed");
+        assert!(sim.is_neighbor(barnard) && !sim.is_galactic(barnard));
+        assert_eq!(sim.kind(barnard), Some(ObjectKind::Star));
+        let sirius_b = sim.index_of("Sirius B").expect("listed");
+        assert_eq!(sim.kind(sirius_b), Some(ObjectKind::WhiteDwarf));
+        assert_eq!(
+            (0..sim.bodies.len())
+                .filter(|&i| sim.is_neighbor(i))
+                .count(),
+            19
+        );
+        // A month on, it has gone the way it was going, at its speed: the
+        // other stars' pull is under 10⁻¹³ m/s².
+        let (start, velocity) = (sim.bodies[barnard].position, sim.bodies[barnard].velocity);
+        sim.advance_by(30.0 * DAY);
+        let moved = sim.bodies[barnard].position - start;
+        let wanted = velocity * 30.0 * DAY;
+        println!(
+            "moved {:.4e} m, at {:.2} km/s",
+            moved.length(),
+            velocity.length() / 1e3
+        );
+        assert!((moved - wanted).length() < 1e-9 * wanted.length());
+        // A save keeps every star where it was, to the last digit.
+        let loaded = Simulation::load(&sim.save(), DAY).unwrap();
+        let again = loaded.index_of("Barnard's Star").expect("listed");
+        assert_eq!(loaded.bodies[again].position, sim.bodies[barnard].position);
+        assert!(loaded.is_neighbor(again));
     }
 
     #[test]
@@ -2737,10 +2921,12 @@ mod tests {
             sim.add_body(body.at(above + DVec3::new(offset, 0.0, 0.0)), key);
             name
         };
-        drop(&mut sim, "object:Sirius B", 0.0);
+        // The real Sirius B is among the nearby stars, so this one is
+        // "Sirius B 2".
+        let first = drop(&mut sim, "object:Sirius B", 0.0);
         drop(&mut sim, "copy:Jupiter", 1e6);
         sim.advance_by(1.0);
-        let dwarf = sim.index_of("Sirius B").expect("still there");
+        let dwarf = sim.index_of(&first).expect("still there");
         let gm = sim.bodies[dwarf].gm;
         let radius = sim.bodies[dwarf].radius;
         println!(
@@ -2753,7 +2939,11 @@ mod tests {
         let second = drop(&mut sim, "object:Sirius B", 1e6);
         sim.advance_by(1.0);
         println!("{}", sim.notices.join("; "));
-        assert!(sim.index_of("Sirius B").is_none() && sim.index_of(&second).is_none());
+        assert!(sim.index_of(&first).is_none() && sim.index_of(&second).is_none());
+        assert!(
+            sim.index_of("Sirius B").is_some(),
+            "the real one is untouched"
+        );
         assert!(
             sim.notices
                 .iter()
