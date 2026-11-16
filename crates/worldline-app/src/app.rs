@@ -2279,7 +2279,7 @@ impl WorldlineApp {
         if index == SUN && simulation.has_sun() && simulation.galactic_orbit().is_some() {
             notes.push((
                 amber,
-                "The whole solar system goes around the galaxy's center, in McMillan's (2017) model of the Milky Way's mass: smooth and symmetric about its axis, with no bar, spiral arms or stars one by one".into(),
+                "The whole solar system goes around the galaxy's center, in McMillan's (2017) model of the Milky Way's mass: smooth and symmetric about its axis, with no bar or spiral arms. Its stars are a swarm of 30,000 tracers, each standing for 1.8 million Suns".into(),
             ));
         }
         if simulation.is_galactic_center(index) {

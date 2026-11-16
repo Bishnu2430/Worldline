@@ -47,7 +47,7 @@ The simulated turning is 0.5% above the first-order formula. That's the size of 
 
 ## Not handled yet
 
-- **The galaxy's stars one by one:** its mass is a smooth model (step 2.9, [milky-way.md](milky-way.md)); its stars from Gaia come in v2.
+- **The galaxy's stars one by one:** its mass is a smooth model (step 2.9, [milky-way.md](milky-way.md)), and its stars a swarm of tracers drawn from that model (step 7.2, [galaxy-stars.md](galaxy-stars.md)). Its stars from Gaia, one by one, come in v2.
 - **The S-stars' own masses and sizes:** they are points, which their effect on each other allows.
 - **Exact black-hole motion:** S2 never comes within 1,400 horizon radii, where first-order relativity is accurate, but anything dropped closer needs step 2.5.
 - **The other catalog objects** (M87\*, TON 618, Cygnus X-1…) stay in the catalogue, to be dropped where you like, not at their real places.

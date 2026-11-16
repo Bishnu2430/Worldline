@@ -22,7 +22,7 @@ To see it: `cargo run --release -- --focus Sun --zoom 2.2e12 --paused`. The insp
 
 The galactic center and the solar system were separate regions, held still relative to each other. In reality the solar system goes around the galaxy's center at about 250 km/s, once every 240 million years or so.
 - **What holds it in orbit** isn't Sagittarius A\*: its 4.3 million Suns pull on the Sun under 10⁻¹⁴ m/s². It's the whole galaxy's mass inside the Sun's orbit, about 10¹¹ Suns of stars, gas and dark matter, which pulls 2 × 10⁻¹⁰ m/s².
-- **That mass** is now in Worldline as a smooth mass model. The galaxy's stars aren't simulated or drawn one by one, which would cost far more computing. The solar system goes around inside it, and the galactic center region moves as it does.
+- **That mass** is now in Worldline as a smooth mass model. The solar system goes around inside it, and the galactic center region moves as it does. Since step 7.2 its stars are also a swarm of tracers drawn from it (see [galaxy-stars.md](galaxy-stars.md)), but the galaxy's pull is still the smooth model's.
 
 ## The model: McMillan (2017)
 

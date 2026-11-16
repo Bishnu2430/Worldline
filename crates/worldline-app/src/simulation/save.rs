@@ -15,13 +15,13 @@ use std::fmt::Write;
 
 use super::*;
 
-/// The first line of every save. Version 8 records the nearby stars, version
-/// 7 craters, version 6 which
+/// The first line of every save. Version 9 records the galaxy's swarm,
+/// version 8 the nearby stars, version 7 craters, version 6 which
 /// swarm particles are fragments of collisions, version 5 the solar system's
 /// place in the galaxy, version 4 black-hole mergers, version 3 the swarm,
 /// version 2 each added body's catalogue entry; older saves load too.
-const HEADER: &str = "worldline-save\t8";
-const OLDER: [&str; 7] = [
+const HEADER: &str = "worldline-save\t9";
+const OLDER: [&str; 8] = [
     "worldline-save\t1",
     "worldline-save\t2",
     "worldline-save\t3",
@@ -29,6 +29,7 @@ const OLDER: [&str; 7] = [
     "worldline-save\t5",
     "worldline-save\t6",
     "worldline-save\t7",
+    "worldline-save\t8",
 ];
 
 fn body_line(kind: &str, prefix: &str, b: &Body) -> String {
@@ -101,6 +102,24 @@ impl Simulation {
             for b in &n.hierarchy.top.bodies {
                 let _ = writeln!(out, "{}", body_line("ntop", "", b));
             }
+        }
+        // The galaxy's swarm, galactocentric, and what pulls on it.
+        let swarm = &self.galaxy_swarm;
+        let _ = writeln!(out, "swarm_time\t{}", swarm.time);
+        for s in &swarm.stars {
+            let (x, v) = (s.position, s.velocity);
+            let _ = writeln!(
+                out,
+                "gstar\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                s.population, x.x, x.y, x.z, v.x, v.y, v.z
+            );
+        }
+        for (name, gm, radius, x, v) in &swarm.pullers {
+            let _ = writeln!(
+                out,
+                "gpuller\t{name}\t{gm}\t{radius}\t{}\t{}\t{}\t{}\t{}\t{}",
+                x.x, x.y, x.z, v.x, v.y, v.z
+            );
         }
         // The galactic center, relative to Sagittarius A*'s place.
         if let Some(g) = &self.galaxy {
@@ -198,6 +217,7 @@ impl Simulation {
         let mut scars = Vec::new();
         let (mut gtop, mut gfollowers, mut galactic) = (Vec::new(), Vec::new(), None);
         let mut ntop = Vec::new();
+        let (mut swarm_time, mut gstars, mut gpullers) = (None, Vec::new(), Vec::new());
         for line in lines {
             let fields: Vec<&str> = line.split('\t').collect();
             let number = || {
@@ -216,6 +236,39 @@ impl Simulation {
                 "follower" => followers.push(parse_body(&fields[1..])?),
                 "gtop" => gtop.push(parse_body(&fields[1..])?),
                 "ntop" => ntop.push(parse_body(&fields[1..])?),
+                "swarm_time" if fields.len() == 2 => {
+                    swarm_time = Some(
+                        fields[1]
+                            .parse::<f64>()
+                            .map_err(|_| format!("bad line `{line}`"))?,
+                    );
+                }
+                "gstar" if fields.len() == 8 => {
+                    let bad = || format!("bad line `{line}`");
+                    let n: Vec<f64> = fields[2..]
+                        .iter()
+                        .map(|f| f.parse::<f64>().map_err(|_| bad()))
+                        .collect::<Result<_, _>>()?;
+                    gstars.push(Star {
+                        position: DVec3::new(n[0], n[1], n[2]),
+                        velocity: DVec3::new(n[3], n[4], n[5]),
+                        population: fields[1].parse().map_err(|_| bad())?,
+                    });
+                }
+                "gpuller" if fields.len() == 10 => {
+                    let bad = || format!("bad line `{line}`");
+                    let n: Vec<f64> = fields[2..]
+                        .iter()
+                        .map(|f| f.parse::<f64>().map_err(|_| bad()))
+                        .collect::<Result<_, _>>()?;
+                    gpullers.push((
+                        fields[1].to_string(),
+                        n[0],
+                        n[1],
+                        DVec3::new(n[2], n[3], n[4]),
+                        DVec3::new(n[5], n[6], n[7]),
+                    ));
+                }
                 "gfollower" => gfollowers.push(parse_body(&fields[1..])?),
                 "galactic" if fields.len() == 7 => {
                     let n: Vec<f64> = fields[1..]
@@ -409,6 +462,15 @@ impl Simulation {
         }
         near.hierarchy.set_time(time);
         sim.neighbors = Some(near);
+        // The galaxy's swarm as saved; saves from before step 7.2 start it
+        // as drawn, to be stepped to the save's moment.
+        if let Some(t) = swarm_time {
+            sim.galaxy_swarm = GalaxySwarm {
+                stars: gstars,
+                time: t,
+                pullers: gpullers,
+            };
+        }
         // The galactic center, if the save has it (saves from before step
         // 2.1c start it afresh, at the save's time).
         if let Some(g) = &mut sim.galaxy {
