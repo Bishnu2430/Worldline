@@ -258,8 +258,9 @@ impl Neighborhood {
 }
 
 /// The galaxy's stars as a swarm (step 7.2): McMillan's (2017) stars,
-/// drawn in equilibrium, moving in the galaxy's potential and pulled by every
-/// body of the simulation as heavy as a hundredth of a Sun. They pull on
+/// drawn in equilibrium, and Gaia's within 50 pc, moving in the galaxy's
+/// potential and pulled by every body of the simulation as heavy as a
+/// hundredth of a Sun. They pull on
 /// nothing. Stepped every [`GALAXY_CADENCE`] and carried in straight lines
 /// between, which is off by ½(cadence/dynamical time)² of a star's distance
 /// from the center: under 10⁻⁶, as their shortest dynamical time is 0.7
@@ -281,10 +282,11 @@ pub struct GalaxySwarm {
 }
 
 impl GalaxySwarm {
-    /// The swarm as drawn, at time 0, and the clusters, nebula and
-    /// satellite galaxies where they were measured, carried to Julian Date
-    /// `jd_tdb` (time 0) and put around the galaxy's center with the solar
-    /// system's barycenter at `frame`'s place.
+    /// The swarm as drawn, with Gaia's stars within 50 pc, and the
+    /// clusters, nebula and satellite galaxies, the measured ones where they
+    /// were measured: carried to Julian Date `jd_tdb` (time 0) and put
+    /// around the galaxy's center with the solar system's barycenter at
+    /// `frame`'s place.
     fn at_start(jd_tdb: f64, frame: &worldline_data::GalacticFrame) -> Self {
         let catalog = worldline_data::deep_sky_objects();
         let objects = catalog
@@ -299,14 +301,22 @@ impl GalaxySwarm {
                 }
             })
             .collect();
+        let mut stars = worldline_data::galaxy_stars();
+        stars.extend(gaia_stars(jd_tdb, frame));
         Self {
-            stars: worldline_data::galaxy_stars(),
+            stars,
             catalog,
             objects,
             time: 0.0,
             pullers: Vec::new(),
         }
     }
+}
+
+/// Gaia's stars within 50 pc (those not bodies of their own), galactocentric
+/// at Julian Date `jd_tdb`, the barycenter at `frame`'s place.
+fn gaia_stars(jd_tdb: f64, frame: &worldline_data::GalacticFrame) -> Vec<Star> {
+    worldline_data::gaia_swarm(jd_tdb, frame.to_galactic, (frame.position, frame.velocity))
 }
 
 /// Where cluster or galaxy `k` is at simulation time `now`, in the
@@ -2440,10 +2450,42 @@ mod tests {
 
     #[test]
     fn the_galaxy_swarm_steps_feels_a_black_hole_and_saves() {
-        // 30,000 stars; nothing happens to them until a cadence has passed.
+        // 30,000 stars drawn from the model and Gaia's 21,480 within 50 pc;
+        // nothing happens to them until a cadence has passed.
         let mut sim = Simulation::solar_system(DAY);
-        let count = sim.galaxy_star_positions().count();
-        assert_eq!(count, 30_000);
+        let measured = worldline_core::galaxy_stars::MEASURED;
+        let count = |sim: &Simulation, gaia: bool| {
+            sim.galaxy_star_positions()
+                .filter(|&(_, p)| (p == measured) == gaia)
+                .count()
+        };
+        assert_eq!((count(&sim, false), count(&sim, true)), (30_000, 21_480));
+        // A Gaia star is where Gaia's numbers put it, carried from 2016.0,
+        // to rounding (10⁻¹² of the galaxy-centered place, 8 kpc).
+        let first = worldline_data::gaia_swarm_stars()[0];
+        let (x, _) = first.at(sim.epoch_jd_tdb);
+        let (placed, _) = sim
+            .galaxy_star_positions()
+            .find(|&(_, p)| p == measured)
+            .unwrap();
+        let center = sim.galaxy.as_ref().unwrap().orbit.position().length();
+        assert!((placed - x).length() < 1e-12 * center);
+        // A save from before Gaia's stars joined the swarm gets them back
+        // as measured.
+        let saved = sim.save();
+        let old: String = saved
+            .lines()
+            .filter(|l| !l.starts_with(&format!("gstar\t{measured}\t")))
+            .map(|l| {
+                if l.starts_with("worldline-save\t") {
+                    "worldline-save\t10\n".to_string()
+                } else {
+                    format!("{l}\n")
+                }
+            })
+            .collect();
+        let reloaded = Simulation::load(&old, DAY).unwrap();
+        assert_eq!(reloaded.galaxy_swarm.stars, sim.galaxy_swarm.stars);
         let before = sim.galaxy_swarm.stars.clone();
         // A hundred-million-Sun black hole beside one disk star, 10 pc off
         // and moving with it, and the swarm stepped over 2,000 years, as if

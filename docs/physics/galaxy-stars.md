@@ -3,15 +3,19 @@
 **Code:**
 - `crates/worldline-core/src/galaxy_stars.rs`: drawing stars in equilibrium, moving them, and checking a swarm against the model;
 - `crates/worldline-data/examples/galaxy_stars.rs`: draws the swarm the app uses;
+- `crates/worldline-data/src/gaia_nearby.rs`: Gaia's stars near the Sun, placed for it;
 - `crates/worldline-app/src/simulation.rs`: `GalaxySwarm`, stepping it and what pulls on it;
 - `crates/worldline-app/src/view.rs`: `draw_galaxy_stars`.
 
-**Data:** `crates/worldline-data/data/galaxy-stars.csv`, written by `cargo run --release -p worldline-data --example galaxy_stars 30000 1` (about 3 minutes on all cores).
+**Data:**
+- `crates/worldline-data/data/galaxy-stars.csv`, written by `cargo run --release -p worldline-data --example galaxy_stars 30000 1` (about 3 minutes on all cores);
+- `crates/worldline-data/data/gaia-nearby-stars.csv`, written by `tools/fetch_gaia_nearby_stars.py`.
 
 **Tests:**
 - unit tests in `galaxy_stars.rs`;
 - `crates/worldline-core/tests/validation_galaxy_stars.rs`: the method, afresh, and a black hole passing through;
 - `crates/worldline-data/tests/validation_galaxy_stars.rs`: the swarm the app uses;
+- `crates/worldline-data/tests/validation_gaia_nearby_stars.rs`: Gaia's stars in it;
 - `the_galaxy_swarm_steps_feels_a_black_hole_and_saves` in `crates/worldline-app/src/simulation.rs`.
 
 **Sources:**
@@ -21,10 +25,14 @@
 - **The kick from a passing body:** the impulse approximation (Binney & Tremaine 2008, §8.2), as in step 2.1b ([swarm.md](swarm.md)).
 - **Checking a sample:** Pearson's χ², its 99.9% point by Wilson & Hilferty (1931, *PNAS* 17, 684).
 - **Random numbers:** SplitMix64 (Steele, Lea & Flood 2014, *OOPSLA*), seeded, so the same stars come every time.
+- **The stars near the Sun:** Gaia DR3 (Gaia Collaboration, Vallenari et al. 2023, *A&A* 674, A1), from ESA's Gaia archive: those with good astrometry (a RUWE under 1.4, as Lindegren et al. 2021, *A&A* 649, A2, advise), a parallax known to a tenth, where 1/ϖ is a fair distance (Bailer-Jones 2015, *PASP* 127, 994), and a radial velocity.
+- **The Sun's motion against its neighbors,** to check them by: Schönrich, Binney & Dehnen (2010), *MNRAS* 403, 1829.
 
 ## Why it matters
 
 Step 2.9 gave the galaxy its mass as a smooth model, but its stars weren't there. Now 30,000 of them are, as dots that move through the galaxy's gravity and feel anything heavy dropped among them. A black hole passing through the disk scatters the stars it passes.
+
+Near the Sun, where each of those dots would stand for 1.8 million Suns, the swarm has the real stars instead: Gaia's 21,480 within 50 pc.
 
 ## The stars
 
@@ -45,6 +53,27 @@ Each stands for 1.82 million Suns of the model, not a star that exists:
 - ⟨v_φ²⟩ = σ² + (R/ρ) ∂(ρσ²)/∂R + R ∂Φ/∂R.
 
 They're solved on a grid 400 points in radius by 500 in height. At the Sun the thin disk's σ comes out 16.8 km/s, and √⟨v_φ²⟩ 230.3 km/s against a circular speed of 233.1: it turns a little slower than a circular orbit, as a warm disk does. σ_R = σ_z, and rotation taking all of ⟨v_φ²⟩ beyond σ², are Worldline's choices among the many that keep the density.
+
+## Gaia's stars near the Sun
+
+Every Gaia DR3 star within 50 pc (a parallax over 20 mas) whose motion Gaia measured in full, 21,484 of them, with:
+- **Good astrometry:** a RUWE under 1.4.
+- **A parallax known to a tenth:** then 1/ϖ is a fair estimate of its distance.
+- **A radial velocity.**
+
+Fainter stars have no radial velocity from Gaia and aren't here.
+
+**How each is placed.** As for the nearest stars ([neighbors.md](neighbors.md)):
+- **Place:** 1/ϖ along its direction.
+- **Velocity:** proper motion times distance across the sky, plus radial velocity along it.
+- **The moment:** carried in a straight line from 2016.0 to the simulation's start. The galaxy's tide bends that path by ½ν²t² of its distance, 2 × 10⁻¹³, with ν² = 4πGρ for 0.1 Suns per cubic parsec.
+- **Into the galaxy:** the barycenter's own place and motion around its center added.
+
+They join the swarm as stars of their own population, "measured", and move as its other stars do.
+
+**Left out.** Four are already bodies of their own among the nearest stars (step 7.1): Proxima Centauri, Barnard's Star and 61 Cygni A and B. They're left out of the swarm, which drops any Gaia star within 1′ of one on the sky and a tenth of its distance. Capella's wide companion, 12′ away, is a star of its own and stays.
+
+**Massless, like the rest.** They pull on nothing. Their mass is the model's, which is smooth there too.
 
 ## Why drawing from the Jeans equations isn't enough
 
@@ -92,6 +121,9 @@ An orbit's weight depends on nothing that changes along it, and its star is equa
 | Each component's share of the stars | its mass's share, to a star | 19,335, 5,786, 4,879 against 19,334.8, 5,785.8, 4,879.3 |
 | In the app: a hundred-million-Sun hole 10 pc from a star, moving with it, for 2,000 years | its pull GM/d² plus the galaxy's, to twice how much the hole's pull changes as the star falls, 2 × 2Δd/d = 3.6 × 10⁻³ | 8,823.36 m/s against 8,817.51: off by 6.6 × 10⁻⁴ |
 | A save and load | every star to the last digit | passes |
+| Gaia's stars, each placed in the galaxy as the app places it, then measured back from the barycenter at 2016.0 | direction, parallax, proper motion and radial velocity as Gaia published them, to rounding: 10⁻¹² of the galaxy-centered place or velocity | the worst at 0.071 of that |
+| Their mean velocity toward the galaxy's center (U) and its north pole (W), in galactic axes | the Sun's motion against its neighbors, reversed: −11.1 and −7.25 km/s (Schönrich et al. 2010), within three standard deviations of their errors and the mean's, in quadrature | −9.91 ± 0.26 km/s, 0.93 standard deviations off; −7.63 ± 0.14, 0.60 off |
+| In the app: 30,000 drawn and 21,480 measured stars; one of Gaia's where its numbers put it; a save from before they joined loads with them | to rounding | passes |
 
 ## In the app
 
@@ -103,9 +135,20 @@ From 100 parsecs out the swarm is drawn: thin-disk stars bluish white, thick-dis
 
 ![The Milky Way from 40 kiloparsecs: a disk of bluish dots around an orange bulge, the Sun on its path round the center](../images/galaxy-stars-step-7.2.png)
 
+Gaia's stars are drawn white from a parsec out:
+
+```bash
+cargo run --release -- --focus Sun --zoom 2e9 --pitch 40 --paused
+```
+
+![The Sun's neighborhood from 45 parsecs: Gaia's stars as white dots all around, thickest in the Hyades, a pale blue disk at the top; the nearest and brightest stars as colored dots near the Sun](../images/gaia-nearby-stars-step-7.2.png)
+
+**Checking the mean motion.** The check of their mean motion is independent of how Worldline places them. Schönrich et al. measured the Sun's motion against other stars, from another survey. Gaia's stars turned into galactic axes agree within an error of the measurement: the axes and velocities are read as astronomers read them. The third direction, along the galaxy's turning, isn't checked, as stars lag the Sun there by an amount that depends on their ages: −22.7 km/s here.
+
 ## Where it's valid
 
-- **A picture, not a census.** Each star stands for 1.82 million Suns, so near the Sun there are none: the nearest is 235 pc away. Gaia's measured stars near the Sun aren't in the swarm yet.
+- **A picture, not a census.** Each drawn star stands for 1.82 million Suns, so near the Sun there are none: the nearest is 235 pc away. Within 50 pc Gaia's measured stars are there instead, but only those with radial velocities; from 50 to 235 pc there are none.
+- **Gaia's stars are at their published values,** with no spread. Their errors aren't sampled, and Gaia's small parallax zero-point (about −0.02 mas, Lindegren et al. 2021) isn't corrected: at 20 mas and more, a thousandth of the distance at most.
 - **How they move is Worldline's.** The model gives the mass; σ_R = σ_z and the split of rotation are choices among the many that keep it. Measured disk stars move more in radius than in height.
 - **No bar or spiral arms:** the model has none.
 - **Equilibrium to the check's resolution:** the weights fit the model in 35 × 16 bins, and the check uses 18 × 8. Finer structure is as the Jeans orbits left it.

@@ -103,7 +103,7 @@ cargo run --release -- --focus "Alpha Centauri A" --zoom 4000 --pitch 85 --speed
 
 ## Where it's valid
 
-- **Nineteen stars.** The rest of the galaxy's stars are still the backdrop. Step 7.2 brings them as a swarm.
+- **Nineteen stars.** The rest of the galaxy's stars are a swarm (step 7.2, [galaxy-stars.md](galaxy-stars.md)), with Gaia's 21,480 within 50 pc among them; the four of these that are bodies here aren't in it twice.
 - **Pairs.** Only α Centauri and Sirius are placed by their orbits. 61 Cygni A and B are placed separately from Gaia, which includes their slow orbit of several centuries. Procyon's white dwarf and Capella's second star are folded into one body with the main star's radius.
 - **Proxima Centauri** is placed by Gaia, independently of α Centauri. Whether it stays bound to them in the simulation isn't checked.
 - **Sirius's barycenter** comes from Sirius A's Hipparcos motion, a mean over the mission's three years, less its orbit at one moment, 1991.25: an approximation. Which of Sirius A and B is nearer rests on Bond et al.'s ω being B's, which the paper doesn't state.

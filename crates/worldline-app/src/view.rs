@@ -364,7 +364,7 @@ pub fn draw_under(
         }
     }
     draw_debris(painter, camera, viewport, simulation);
-    if camera.distance >= SWARM_MIN_VIEW {
+    if camera.distance >= NEARBY_MIN_VIEW {
         draw_galaxy_stars(painter, camera, viewport, simulation);
     }
 
@@ -878,8 +878,13 @@ fn draw_belts(painter: &Painter, camera: &Camera, viewport: Rect, simulation: &S
 /// sky near the Sun.
 const SWARM_MIN_VIEW: f64 = 100.0 * worldline_core::constants::PARSEC;
 
+/// From this far out Gaia's stars in the swarm are drawn, m: they're real
+/// stars, but too faint and far to show among the solar system's bodies.
+const NEARBY_MIN_VIEW: f64 = worldline_core::constants::PARSEC;
+
 /// Draws the galaxy's swarm: thin-disk stars bluish white, thick-disk ones
-/// pale yellow, the bulge's orange, all faint. The colors only tell the
+/// pale yellow, the bulge's orange, all faint, from 100 pc out; Gaia's
+/// measured stars white, from a parsec out. The colors only tell the
 /// populations apart.
 fn draw_galaxy_stars(painter: &Painter, camera: &Camera, viewport: Rect, simulation: &Simulation) {
     let mut mesh = Mesh::default();
@@ -889,14 +894,17 @@ fn draw_galaxy_stars(painter: &Painter, camera: &Camera, viewport: Rect, simulat
         Color32::from_rgba_unmultiplied(255, 236, 180, 150),
         Color32::from_rgba_unmultiplied(255, 180, 110, 150),
     ];
+    let measured = Color32::from_rgba_unmultiplied(240, 240, 240, 190);
+    let drawn = camera.distance >= SWARM_MIN_VIEW;
     for (position, population) in simulation.galaxy_star_positions() {
+        let is_measured = population == worldline_core::galaxy_stars::MEASURED;
+        if !drawn && !is_measured {
+            continue;
+        }
         if let Some(p) = screen(camera, viewport, position)
             && viewport.contains(p.position)
         {
-            let color = colors
-                .get(population as usize)
-                .copied()
-                .unwrap_or(Color32::WHITE);
+            let color = colors.get(population as usize).copied().unwrap_or(measured);
             mesh.add_colored_rect(Rect::from_center_size(p.position, size), color);
         }
     }
