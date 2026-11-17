@@ -16,14 +16,15 @@ use std::fmt::Write;
 
 use super::*;
 
-/// The first line of every save. Version 10 records the clusters, nebula
-/// and satellite galaxies, version 9 the galaxy's swarm, version 8 the
+/// The first line of every save. Version 11 has Gaia's nearby stars in
+/// the galaxy's swarm, version 10 records the clusters, nebula and
+/// satellite galaxies, version 9 the galaxy's swarm, version 8 the
 /// nearby stars, version 7 craters, version 6 which
 /// swarm particles are fragments of collisions, version 5 the solar system's
 /// place in the galaxy, version 4 black-hole mergers, version 3 the swarm,
 /// version 2 each added body's catalogue entry; older saves load too.
-const HEADER: &str = "worldline-save\t10";
-const OLDER: [&str; 9] = [
+const HEADER: &str = "worldline-save\t11";
+const OLDER: [&str; 10] = [
     "worldline-save\t1",
     "worldline-save\t2",
     "worldline-save\t3",
@@ -33,6 +34,7 @@ const OLDER: [&str; 9] = [
     "worldline-save\t7",
     "worldline-save\t8",
     "worldline-save\t9",
+    "worldline-save\t10",
 ];
 
 fn body_line(kind: &str, prefix: &str, b: &Body) -> String {
@@ -220,7 +222,10 @@ impl Simulation {
         if header != Some(HEADER) && !OLDER.iter().any(|o| header == Some(o)) {
             return Err("not a Worldline save (or from a newer version)".to_string());
         }
-        let current = header == Some(HEADER);
+        let version: u32 = header
+            .and_then(|h| h.split('\t').nth(1))
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
         let mut sim = Simulation::solar_system(speed);
         let (mut epoch, mut time, mut detailed) = (None, None, None);
         let (mut top, mut moons, mut followers, mut added) =
@@ -493,7 +498,7 @@ impl Simulation {
         // potential to the swarm's moment.
         let mut catalog = std::mem::take(&mut sim.galaxy_swarm.catalog);
         let mut objects = std::mem::take(&mut sim.galaxy_swarm.objects);
-        if current {
+        if version >= 10 {
             let all = std::mem::take(&mut catalog);
             objects.clear();
             for (name, position, velocity) in dsky {
@@ -514,8 +519,16 @@ impl Simulation {
         sim.galaxy_swarm.catalog = catalog;
         sim.galaxy_swarm.objects = objects;
         // The galaxy's swarm as saved; saves from before step 7.2 start it
-        // as drawn, to be stepped to the save's moment.
+        // as drawn, to be stepped to the save's moment. Saves from before
+        // Gaia's stars joined it get them as measured, carried through the
+        // galaxy's potential to the swarm's moment.
         if let Some(t) = swarm_time {
+            if version < 11 {
+                let frame = worldline_data::galactic_frame();
+                let mut gaia = gaia_stars(sim.epoch_jd_tdb, &frame);
+                advance_stars(&mut gaia, milky_way(), &[], t);
+                gstars.extend(gaia);
+            }
             sim.galaxy_swarm.stars = gstars;
             sim.galaxy_swarm.time = t;
             sim.galaxy_swarm.pullers = gpullers;

@@ -71,7 +71,7 @@ The galaxy's famous objects are bodies in the list, each where its catalogue mea
 
 ## The galaxy's stars
 
-From 100 parsecs out, the galaxy's stars are drawn: 30,000 dots, each standing for 1.82 million Suns of McMillan's (2017) model, bluish white in the thin disk, pale yellow in the thick disk and orange in the bulge. They move in the galaxy's gravity and feel anything heavy dropped among them, so a black hole passing through scatters them. See [physics/galaxy-stars.md](physics/galaxy-stars.md).
+From 100 parsecs out, the galaxy's stars are drawn: 30,000 dots, each standing for 1.82 million Suns of McMillan's (2017) model, bluish white in the thin disk, pale yellow in the thick disk and orange in the bulge. They move in the galaxy's gravity and feel anything heavy dropped among them, so a black hole passing through scatters them. From a parsec out, Gaia's 21,480 measured stars within 50 pc of the Sun are drawn too, in white. See [physics/galaxy-stars.md](physics/galaxy-stars.md).
 
 ## The nearest and brightest stars
 
