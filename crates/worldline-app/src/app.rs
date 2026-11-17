@@ -50,6 +50,7 @@ use worldline_core::tides::{
     FLUID_STRETCH, POINT_STRETCH, distance_for, giant_planet, hill_radius, polytrope_love_number,
     stretch, tidal_radius,
 };
+use worldline_data::DeepSkyKind;
 use worldline_data::{Distance, ObjectKind, RadiusBasis, SmallBodyKind};
 use worldline_render::TidalBody;
 
@@ -463,6 +464,9 @@ const MIN_DISTANCE_RADII: f64 = 1.1;
 /// How far away the camera settles on a moon whose size hasn't been
 /// measured (it is drawn as a dot).
 const UNKNOWN_SIZE_DISTANCE: f64 = 1_000e3;
+/// How far away the camera settles on a cluster or nebula whose size its
+/// catalogue doesn't give: a few times a young cluster's size.
+const UNSIZED_CLUSTER_DISTANCE: f64 = 10.0 * worldline_core::constants::PARSEC;
 
 /// A smooth camera move to a newly focused body.
 struct Flight {
@@ -837,6 +841,8 @@ impl WorldlineApp {
             reach
         } else if radius > 0.0 {
             radii * radius
+        } else if self.simulation.is_deep_sky(index) {
+            UNSIZED_CLUSTER_DISTANCE
         } else {
             UNKNOWN_SIZE_DISTANCE
         };
@@ -1102,6 +1108,7 @@ impl WorldlineApp {
                 if simulation.parent(i).is_some()
                     || simulation.small_body(i).is_some()
                     || simulation.is_neighbor(i)
+                    || simulation.is_deep_sky(i)
                 {
                     continue;
                 }
@@ -1175,6 +1182,30 @@ impl WorldlineApp {
                     entry(ui, i);
                 }
             });
+            // The clusters, nebula and satellite galaxies, each kind in a
+            // fold of its own.
+            for kind in DeepSkyKind::ALL {
+                let members: Vec<usize> = (0..simulation.bodies.len())
+                    .filter(|&i| simulation.deep_sky(i).is_some_and(|o| o.kind == kind))
+                    .collect();
+                if members.is_empty() {
+                    continue;
+                }
+                let mut fold = egui::CollapsingHeader::new(format!(
+                    "{}  ·  {}",
+                    capitalized(kind.plural()),
+                    members.len()
+                ))
+                .id_salt(kind.plural());
+                if reveal && members.contains(&selected) {
+                    fold = fold.open(Some(true));
+                }
+                fold.show(ui, |ui| {
+                    for i in members {
+                        entry(ui, i);
+                    }
+                });
+            }
             // The dwarf planets, asteroids and comets, each kind in a fold.
             for (kind, label) in [
                 (SmallBodyKind::DwarfPlanet, "Dwarf planets"),
@@ -1372,6 +1403,10 @@ impl WorldlineApp {
         egui::Grid::new("selected").num_columns(2).show(ui, |ui| {
             self.impact_rows(ui);
             self.crater_rows(ui);
+            if self.simulation.is_deep_sky(self.selected) {
+                self.deep_sky_rows(ui);
+                return;
+            }
             ui.label(key("Mass"));
             if body.gm > 0.0 {
                 ui.label(format!("{:.4e} kg", body.mass()));
@@ -1497,7 +1532,9 @@ impl WorldlineApp {
         });
         self.catalog_notes(ui);
         ui.add_space(4.0);
-        let kind = if self.simulation.is_galactic(self.selected)
+        let kind = if let Some(o) = self.simulation.deep_sky(self.selected) {
+            details::BodyKind::DeepSky(o.kind)
+        } else if self.simulation.is_galactic(self.selected)
             && !self.simulation.is_added(self.selected)
         {
             details::BodyKind::Galactic {
@@ -2215,6 +2252,9 @@ impl WorldlineApp {
             Computed::Swarm => {
                 "A swarm particle: carried on its orbit around what holds it, nudged by every other body (Wisdom–Holman)"
             }
+            Computed::DeepSky => {
+                "The galaxy's gravity (McMillan's 2017 model), from where its catalogue measured it, stepped with the galaxy's swarm of stars: pulled by every body of a hundredth of a Sun or more, it pulls on nothing"
+            }
             Computed::Follower { forces: true } => {
                 "Follows the Sun and planets: Newtonian, the Sun's relativistic term, outgassing"
             }
@@ -2679,6 +2719,105 @@ impl WorldlineApp {
             .on_hover_text(
                 "The size comes from Holsapple's (1993) scaling laws, known to a factor of about two in volume. The ground is taken as hard rock, or ice on a light body, even under the sea, and there is no atmosphere to slow or break up what falls. The crater's shape as drawn, and its colors, are a visual approximation. It is drawn to scale, with a ring around it when it's too small to see.",
             );
+        ui.end_row();
+    }
+
+    /// Inspector rows for a cluster, nebula or satellite galaxy: what it is,
+    /// its mass and size where its catalogue gives them, where it is and how
+    /// it moves, and the catalogue's numbers.
+    fn deep_sky_rows(&self, ui: &mut egui::Ui) {
+        let Some(o) = self.simulation.deep_sky(self.selected) else {
+            return;
+        };
+        let bodies = &self.simulation.bodies;
+        let (body, sun) = (&bodies[self.selected], &bodies[SUN]);
+        let what = if o.also.is_empty() {
+            capitalized(o.kind.name())
+        } else {
+            format!("{}: {}", capitalized(o.kind.name()), o.also)
+        };
+        let mass = match (o.mass, &o.mass_error) {
+            (Some(m), Some(e)) => measured_suns(m, e.parse().ok().map(|e| (e, e))),
+            (Some(m), None) => measured_suns(m, None),
+            (None, _) => "not in its catalogue".to_string(),
+        };
+        let size = match (o.radius, &o.radius_published) {
+            (Some(r), Some(published)) => match o.kind {
+                DeepSkyKind::OpenCluster => {
+                    format!("half its members within {} of its center", light_years(r))
+                }
+                DeepSkyKind::SatelliteGalaxy => format!(
+                    "half its light within {} along its long axis: {} on the sky",
+                    light_years(r),
+                    published.replace(" arcmin", "′")
+                ),
+                _ => format!(
+                    "half its light within {} of its center, as seen on the sky",
+                    light_years(r)
+                ),
+            },
+            _ => "not in its catalogue".to_string(),
+        };
+        let (pmra, pmdec) = o.proper_motion;
+        let error = |e: &str| {
+            if e.contains('/') {
+                format!(" ({})", e.replace('-', "−"))
+            } else {
+                format!(" ± {e}")
+            }
+        };
+        let published = if o.distance_published.ends_with(" mag") {
+            format!("distance modulus {}", o.distance_published)
+        } else {
+            o.distance_published.clone()
+        };
+        let mut rows = vec![
+            ("What it is", what),
+            ("Mass", mass),
+            ("Size", size),
+            (
+                "Distance from the Sun",
+                light_years((body.position - sun.position).length()),
+            ),
+            (
+                "Speed relative to the Sun",
+                format!("{:.1} km/s", (body.velocity - sun.velocity).length() / 1e3),
+            ),
+        ];
+        if let Some(r) = self.simulation.galactic_radius(self.selected) {
+            rows.push((
+                "From the galaxy's center",
+                format!("{:.2} kpc", r / KILOPARSEC),
+            ));
+        }
+        rows.extend([
+            ("Published distance", published),
+            (
+                "Across the sky",
+                format!(
+                    "{pmra}{} mas a year east, {pmdec}{} north",
+                    error(&o.proper_motion_error.0),
+                    error(&o.proper_motion_error.1)
+                ),
+            ),
+            (
+                "Toward us",
+                format!(
+                    "{} km/s{}",
+                    significant(-o.radial_velocity / 1e3),
+                    error(&o.radial_velocity_error)
+                ),
+            ),
+            ("Measured for", format!("{}", o.epoch)),
+        ]);
+        for (name, value) in rows {
+            ui.label(key(name));
+            ui.label(value);
+            ui.end_row();
+        }
+        ui.label(key(""));
+        ui.label(RichText::new("Sources").small().color(theme::MUTED))
+            .on_hover_text(&o.source);
         ui.end_row();
     }
 
@@ -4287,6 +4426,14 @@ fn initial_camera() -> Camera {
         fov_y: 0.8,
         standing: None,
     }
+}
+
+/// `text` with its first letter capitalized: "Globular clusters".
+fn capitalized(text: &str) -> String {
+    let mut chars = text.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(chars).collect()
+    })
 }
 
 #[cfg(test)]

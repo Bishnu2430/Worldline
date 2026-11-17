@@ -6,7 +6,8 @@
 //! sandbox and the catalogue entry each came from, how any black hole that
 //! formed in a merger formed, the swarm (every belt body, freed small moon
 //! and fragment of a collision, brought up to the same moment first), the
-//! craters, and where the solar system is on its way around the galaxy.
+//! craters, where the solar system is on its way around the galaxy, the
+//! galaxy's swarm of stars, and where each cluster and galaxy is.
 //! Everything else (gravity fields, rotation, the data behind each body)
 //! comes from the bundled data when it loads. Numbers are written in their
 //! shortest exact form, so they load back bit for bit.
@@ -15,13 +16,14 @@ use std::fmt::Write;
 
 use super::*;
 
-/// The first line of every save. Version 9 records the galaxy's swarm,
-/// version 8 the nearby stars, version 7 craters, version 6 which
+/// The first line of every save. Version 10 records the clusters, nebula
+/// and satellite galaxies, version 9 the galaxy's swarm, version 8 the
+/// nearby stars, version 7 craters, version 6 which
 /// swarm particles are fragments of collisions, version 5 the solar system's
 /// place in the galaxy, version 4 black-hole mergers, version 3 the swarm,
 /// version 2 each added body's catalogue entry; older saves load too.
-const HEADER: &str = "worldline-save\t9";
-const OLDER: [&str; 8] = [
+const HEADER: &str = "worldline-save\t10";
+const OLDER: [&str; 9] = [
     "worldline-save\t1",
     "worldline-save\t2",
     "worldline-save\t3",
@@ -30,6 +32,7 @@ const OLDER: [&str; 8] = [
     "worldline-save\t6",
     "worldline-save\t7",
     "worldline-save\t8",
+    "worldline-save\t9",
 ];
 
 fn body_line(kind: &str, prefix: &str, b: &Body) -> String {
@@ -121,6 +124,15 @@ impl Simulation {
                 x.x, x.y, x.z, v.x, v.y, v.z
             );
         }
+        // The clusters and galaxies, galactocentric, at the swarm's moment.
+        for (o, s) in swarm.catalog.iter().zip(&swarm.objects) {
+            let (x, v) = (s.position, s.velocity);
+            let _ = writeln!(
+                out,
+                "dsky\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                o.name, x.x, x.y, x.z, v.x, v.y, v.z
+            );
+        }
         // The galactic center, relative to Sagittarius A*'s place.
         if let Some(g) = &self.galaxy {
             for b in &g.hierarchy.top.bodies {
@@ -208,6 +220,7 @@ impl Simulation {
         if header != Some(HEADER) && !OLDER.iter().any(|o| header == Some(o)) {
             return Err("not a Worldline save (or from a newer version)".to_string());
         }
+        let current = header == Some(HEADER);
         let mut sim = Simulation::solar_system(speed);
         let (mut epoch, mut time, mut detailed) = (None, None, None);
         let (mut top, mut moons, mut followers, mut added) =
@@ -218,6 +231,7 @@ impl Simulation {
         let (mut gtop, mut gfollowers, mut galactic) = (Vec::new(), Vec::new(), None);
         let mut ntop = Vec::new();
         let (mut swarm_time, mut gstars, mut gpullers) = (None, Vec::new(), Vec::new());
+        let mut dsky: Vec<(String, DVec3, DVec3)> = Vec::new();
         for line in lines {
             let fields: Vec<&str> = line.split('\t').collect();
             let number = || {
@@ -267,6 +281,18 @@ impl Simulation {
                         n[1],
                         DVec3::new(n[2], n[3], n[4]),
                         DVec3::new(n[5], n[6], n[7]),
+                    ));
+                }
+                "dsky" if fields.len() == 8 => {
+                    let bad = || format!("bad line `{line}`");
+                    let n: Vec<f64> = fields[2..]
+                        .iter()
+                        .map(|f| f.parse::<f64>().map_err(|_| bad()))
+                        .collect::<Result<_, _>>()?;
+                    dsky.push((
+                        fields[1].to_string(),
+                        DVec3::new(n[0], n[1], n[2]),
+                        DVec3::new(n[3], n[4], n[5]),
                     ));
                 }
                 "gfollower" => gfollowers.push(parse_body(&fields[1..])?),
@@ -462,14 +488,37 @@ impl Simulation {
         }
         near.hierarchy.set_time(time);
         sim.neighbors = Some(near);
+        // The clusters and galaxies as saved. Saves from before step 7.3
+        // place them as measured at the start, carried through the galaxy's
+        // potential to the swarm's moment.
+        let mut catalog = std::mem::take(&mut sim.galaxy_swarm.catalog);
+        let mut objects = std::mem::take(&mut sim.galaxy_swarm.objects);
+        if current {
+            let all = std::mem::take(&mut catalog);
+            objects.clear();
+            for (name, position, velocity) in dsky {
+                let o = all
+                    .iter()
+                    .find(|o| o.name == name)
+                    .ok_or_else(|| format!("unknown cluster or galaxy `{name}`"))?;
+                catalog.push(o.clone());
+                objects.push(Star {
+                    position,
+                    velocity,
+                    population: MEASURED,
+                });
+            }
+        } else if let Some(t) = swarm_time {
+            advance_stars(&mut objects, milky_way(), &[], t);
+        }
+        sim.galaxy_swarm.catalog = catalog;
+        sim.galaxy_swarm.objects = objects;
         // The galaxy's swarm as saved; saves from before step 7.2 start it
         // as drawn, to be stepped to the save's moment.
         if let Some(t) = swarm_time {
-            sim.galaxy_swarm = GalaxySwarm {
-                stars: gstars,
-                time: t,
-                pullers: gpullers,
-            };
+            sim.galaxy_swarm.stars = gstars;
+            sim.galaxy_swarm.time = t;
+            sim.galaxy_swarm.pullers = gpullers;
         }
         // The galactic center, if the save has it (saves from before step
         // 2.1c start it afresh, at the save's time).

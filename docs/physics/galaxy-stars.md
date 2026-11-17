@@ -67,7 +67,7 @@ An orbit's weight depends on nothing that changes along it, and its star is equa
 - **Swallowed:** a star reaching a body's surface or horizon is gone.
 - **Massless:** they pull on nothing. Their mass is the smooth model's, which is what the solar system feels.
 
-**In the app** the swarm is stepped every 1,000 years of simulated time, and carried in straight lines between steps for drawing. That's off by ½(1,000 years/dynamical time)² of a star's distance from the center: under 10⁻⁶, as no star's dynamical time is under 0.7 million years. Between steps a body's path is the cubic through where it was and is. Saves keep the swarm.
+**In the app** the swarm is stepped every 1,000 years of simulated time, and carried in straight lines between steps for drawing. That's off by ½(1,000 years/dynamical time)² of a star's distance from the center: under 10⁻⁶, as no star's dynamical time is under 0.7 million years. Between steps a body's path is the cubic through where it was and is. Saves keep the swarm. The clusters, the Orion Nebula and the satellite galaxies of step 7.3 are stepped with it, by the same code ([clusters-and-galaxies.md](clusters-and-galaxies.md)).
 
 ## Validation
 

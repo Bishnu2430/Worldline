@@ -5,6 +5,7 @@
 
 mod atmosphere;
 mod belts;
+mod deep_sky;
 mod eclipses;
 mod galactic_center;
 mod galaxy_stars;
@@ -26,6 +27,7 @@ mod time;
 
 pub use atmosphere::{Atmosphere, atmosphere};
 pub use belts::{Belt, BeltKind, BeltSample, belt_particles, belt_samples, belts};
+pub use deep_sky::{DeepSkyKind, DeepSkyObject, Printed as PrintedPlace, deep_sky_objects};
 pub use eclipses::{
     Besselian, CanonEclipse, CanonPath, LatLon, PathRow, eclipse_path_2026_08_12,
     lunar_eclipses_2026_2030, solar_eclipses_2026_2030,

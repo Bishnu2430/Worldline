@@ -11,7 +11,7 @@ use worldline_core::compact::{is_black_hole, schwarzschild_radius};
 use worldline_core::constants::{AGE_OF_UNIVERSE, DAY, GM_SUN};
 use worldline_core::crater::{Crater, Strike};
 use worldline_core::eclipses::{Ephemeris, State};
-use worldline_core::galaxy_stars::{Perturber, Star, advance as advance_stars};
+use worldline_core::galaxy_stars::{MEASURED, Perturber, Star, advance as advance_stars};
 use worldline_core::gravitational_waves::{merger_time, period_derivative};
 use worldline_core::gravity::kerr::plunge_time;
 use worldline_core::gravity::{
@@ -36,7 +36,7 @@ use worldline_core::timescales::TimeScales;
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DMat3, DVec3, System};
 use worldline_data::{
-    BeltKind, ObjectKind, RadiationBelt, SmallBodyKind, SmallMoon, VoyagerCrossing,
+    BeltKind, DeepSkyObject, ObjectKind, RadiationBelt, SmallBodyKind, SmallMoon, VoyagerCrossing,
 };
 
 use crate::catalogue::{self, Entry};
@@ -171,6 +171,8 @@ enum Source {
     /// A star of the solar system's neighborhood, or a body added among
     /// them, at the top of that region's hierarchy.
     Neighbor(usize),
+    /// A cluster, nebula or satellite galaxy, by its place among them.
+    DeepSky(usize),
 }
 
 /// Where a galactic-center body lives in that region's hierarchy.
@@ -266,11 +268,58 @@ impl Neighborhood {
 pub struct GalaxySwarm {
     /// Galactocentric, at `time`.
     stars: Vec<Star>,
+    /// The clusters, nebula and satellite galaxies (step 7.3), as their
+    /// catalogues publish them, and where each is now: galactocentric, at
+    /// `time`, moving like the swarm's stars.
+    catalog: Vec<DeepSkyObject>,
+    objects: Vec<Star>,
     /// The simulation time they're at, s.
     time: f64,
     /// The bodies pulling on them at `time`, by name: GM, radius, and their
     /// place and velocity, galactocentric.
     pullers: Vec<(String, f64, f64, DVec3, DVec3)>,
+}
+
+impl GalaxySwarm {
+    /// The swarm as drawn, at time 0, and the clusters, nebula and
+    /// satellite galaxies where they were measured, carried to Julian Date
+    /// `jd_tdb` (time 0) and put around the galaxy's center with the solar
+    /// system's barycenter at `frame`'s place.
+    fn at_start(jd_tdb: f64, frame: &worldline_data::GalacticFrame) -> Self {
+        let catalog = worldline_data::deep_sky_objects();
+        let objects = catalog
+            .iter()
+            .map(|o| {
+                let (position, velocity) =
+                    o.galactocentric(jd_tdb, frame.to_galactic, (frame.position, frame.velocity));
+                Star {
+                    position,
+                    velocity,
+                    population: MEASURED,
+                }
+            })
+            .collect();
+        Self {
+            stars: worldline_data::galaxy_stars(),
+            catalog,
+            objects,
+            time: 0.0,
+            pullers: Vec::new(),
+        }
+    }
+}
+
+/// Where cluster or galaxy `k` is at simulation time `now`, in the
+/// simulation's frame: carried in a straight line from the swarm's last
+/// step, like its stars.
+fn deep_sky_state(g: &Region, swarm: &GalaxySwarm, now: f64, k: usize) -> (DVec3, DVec3) {
+    let s = &swarm.objects[k];
+    let since = now - swarm.time;
+    let back = g.to_galactic.transpose();
+    (
+        back * (s.position + s.velocity * since - g.orbit.position()),
+        back * (s.velocity - g.orbit.velocity()),
+    )
 }
 
 /// How often the galaxy's swarm is stepped, s.
@@ -287,6 +336,9 @@ enum Zone {
     SolarSystem,
     GalacticCenter,
     Neighborhood,
+    /// The galaxy at large: the clusters, nebula and satellite galaxies,
+    /// moving in its potential with the swarm.
+    Galaxy,
 }
 
 /// Which part of the simulation computes a body's motion.
@@ -309,6 +361,9 @@ pub enum Computed {
     GalacticStar,
     /// A star of the solar system's neighborhood, among the others.
     Neighbor,
+    /// A cluster, nebula or satellite galaxy, in the galaxy's potential
+    /// with its swarm.
+    DeepSky,
 }
 
 /// What gravitational waves do to a pair (see
@@ -531,11 +586,7 @@ impl Simulation {
                 Some(region)
             },
             neighbors: Some(Neighborhood::at(epoch_jd_tdb)),
-            galaxy_swarm: GalaxySwarm {
-                stars: worldline_data::galaxy_stars(),
-                time: 0.0,
-                pullers: Vec::new(),
-            },
+            galaxy_swarm: GalaxySwarm::at_start(epoch_jd_tdb, &worldline_data::galactic_frame()),
             wind: worldline_data::parker_spiral(),
             heliosphere: worldline_data::heliosphere(),
             crossings: worldline_data::voyager_crossings(),
@@ -595,6 +646,9 @@ impl Simulation {
         if let Some(n) = &self.neighbors {
             sources.extend((0..n.hierarchy.top.bodies.len()).map(Source::Neighbor));
         }
+        if self.galaxy.is_some() {
+            sources.extend((0..self.galaxy_swarm.objects.len()).map(Source::DeepSky));
+        }
         let bodies: Vec<Body> = sources
             .iter()
             .map(|source| match *source {
@@ -630,6 +684,13 @@ impl Simulation {
                 Source::Neighbor(k) => {
                     let n = self.neighbors.as_ref().expect("the neighborhood");
                     n.hierarchy.top.bodies[k].clone()
+                }
+                // Massless, as the swarm's stars are: they pull on nothing.
+                // Sized by their half-light radius, or that of half their
+                // members.
+                Source::DeepSky(k) => {
+                    let o = &self.galaxy_swarm.catalog[k];
+                    Body::new(&o.name, 0.0, o.radius.unwrap_or(0.0))
                 }
             })
             .collect();
@@ -798,6 +859,10 @@ impl Simulation {
                 n.hierarchy.top.bodies[k].velocity += dv;
                 n.hierarchy.restart_top();
             }
+            Source::DeepSky(k) => {
+                let g = self.galaxy.as_ref().expect("the galaxy");
+                self.galaxy_swarm.objects[k].velocity += g.to_galactic * dv;
+            }
             _ => return,
         }
         self.refresh();
@@ -856,7 +921,11 @@ impl Simulation {
         if let Some(planet) = self.parents[index] {
             return planet;
         }
-        if self.is_galactic(index) || self.is_neighbor(index) || !self.has_sun() {
+        if self.is_galactic(index)
+            || self.is_neighbor(index)
+            || self.is_deep_sky(index)
+            || !self.has_sun()
+        {
             return index;
         }
         let here = self.bodies[index].position;
@@ -920,6 +989,7 @@ impl Simulation {
         match self.sources[index] {
             Source::Galactic(_) => Zone::GalacticCenter,
             Source::Neighbor(_) => Zone::Neighborhood,
+            Source::DeepSky(_) => Zone::Galaxy,
             _ => Zone::SolarSystem,
         }
     }
@@ -934,6 +1004,27 @@ impl Simulation {
     /// the nearest and brightest stars, or added among them.
     pub fn is_neighbor(&self, index: usize) -> bool {
         matches!(self.sources[index], Source::Neighbor(_))
+    }
+
+    /// Whether body `index` is a cluster, nebula or satellite galaxy.
+    pub fn is_deep_sky(&self, index: usize) -> bool {
+        matches!(self.sources[index], Source::DeepSky(_))
+    }
+
+    /// For a cluster, nebula or satellite galaxy, how its catalogue
+    /// published it.
+    pub fn deep_sky(&self, index: usize) -> Option<&DeepSkyObject> {
+        match self.sources[index] {
+            Source::DeepSky(k) => self.galaxy_swarm.catalog.get(k),
+            _ => None,
+        }
+    }
+
+    /// How far body `index` is from the galaxy's center, m, if there's a
+    /// galaxy.
+    pub fn galactic_radius(&self, index: usize) -> Option<f64> {
+        let g = self.galaxy.as_ref()?;
+        Some((self.bodies[index].position - g.origin).length())
     }
 
     /// For one of the nearest and brightest stars, how the catalogue
@@ -1157,7 +1248,9 @@ impl Simulation {
             },
             Source::Moon { .. } | Source::Small { .. } => Removal::Moon,
             Source::Galactic(Far::Top(0)) => Removal::GalacticCenter,
-            Source::Galactic(_) | Source::Neighbor(_) => Removal::Allowed { moons: 0 },
+            Source::Galactic(_) | Source::Neighbor(_) | Source::DeepSky(_) => {
+                Removal::Allowed { moons: 0 }
+            }
         }
     }
 
@@ -1198,6 +1291,10 @@ impl Simulation {
             Source::Neighbor(k) => {
                 let n = self.neighbors.as_mut().expect("the neighborhood");
                 n.hierarchy.remove_body(k);
+            }
+            Source::DeepSky(k) => {
+                self.galaxy_swarm.catalog.remove(k);
+                self.galaxy_swarm.objects.remove(k);
             }
             Source::Small { .. } => return,
         }
@@ -1704,7 +1801,8 @@ impl Simulation {
     }
 
     /// The bodies that pull on the galaxy's swarm now, galactocentric: every
-    /// one as heavy as [`SWARM_PULLER`], in any region.
+    /// one as heavy as [`SWARM_PULLER`], in any region. The clusters and
+    /// galaxies are massless, so not among them.
     fn swarm_pullers(&self) -> Vec<(String, f64, f64, DVec3, DVec3)> {
         let Some(g) = &self.galaxy else {
             return Vec::new();
@@ -1760,8 +1858,30 @@ impl Simulation {
         for k in gone.into_iter().rev() {
             swarm.stars.remove(k);
         }
+        // The clusters and galaxies move as its stars do; one that reaches
+        // a body's surface or horizon is gone into it.
+        let swallowed = advance_stars(&mut swarm.objects, milky_way(), &perturbers, h);
+        for &k in swallowed.iter().rev() {
+            let o = swarm.catalog.remove(k);
+            swarm.objects.remove(k);
+            self.notices
+                .push(format!("{} fell into a body passing through it", o.name));
+        }
+        let swarm = &mut self.galaxy_swarm;
         swarm.time = now;
         swarm.pullers = pullers;
+        if !swallowed.is_empty() {
+            self.reindex();
+        }
+        // The list follows at once: the rest of it was refreshed before
+        // the step, which needed its bodies' places.
+        if let Some(g) = &self.galaxy {
+            for (body, source) in self.bodies.iter_mut().zip(&self.sources) {
+                if let Source::DeepSky(k) = *source {
+                    (body.position, body.velocity) = deep_sky_state(g, &self.galaxy_swarm, now, k);
+                }
+            }
+        }
     }
 
     /// Where the galaxy's swarm's stars are now, in the simulation's frame,
@@ -1894,6 +2014,7 @@ impl Simulation {
             Source::Galactic(Far::Top(_)) => Computed::TopLevel,
             Source::Galactic(Far::Follower(_)) => Computed::GalacticStar,
             Source::Neighbor(_) => Computed::Neighbor,
+            Source::DeepSky(_) => Computed::DeepSky,
             Source::Follower(_) => Computed::Follower {
                 forces: self.small_bodies[index].is_some_and(|s| s.1),
             },
@@ -1909,6 +2030,10 @@ impl Simulation {
     /// from their center of mass, with both their masses. Otherwise the
     /// partners' own whirl would count as its speed.
     pub fn regime(&self, index: usize) -> Option<Regime> {
+        // The galaxy's smooth potential holds them, not a body.
+        if self.is_deep_sky(index) {
+            return None;
+        }
         let attractor = self.attractor(index)?;
         let (body, held) = (&self.bodies[index], &self.bodies[attractor]);
         if self.parents[index].is_none()
@@ -2094,6 +2219,10 @@ impl Simulation {
                     body.radius = b.radius;
                     (b.position, b.velocity)
                 }
+                Source::DeepSky(k) => {
+                    let Some(g) = &self.galaxy else { continue };
+                    deep_sky_state(g, &self.galaxy_swarm, self.hierarchy.time(), k)
+                }
             };
             body.position = position;
             body.velocity = velocity;
@@ -2113,7 +2242,7 @@ impl Simulation {
             .zip(&self.sources)
         {
             if parent.is_none() {
-                if let Source::Galactic(_) = source {
+                if let Source::Galactic(_) | Source::DeepSky(_) = source {
                     trail.record(time, body.position - origin, body.velocity - drift);
                 } else {
                     trail.record(time, body.position, body.velocity);
@@ -2126,7 +2255,7 @@ impl Simulation {
     /// origin for a body there, else the solar system's barycenter.
     pub fn trail_origin(&self, index: usize) -> DVec3 {
         match (self.sources[index], &self.galaxy) {
-            (Source::Galactic(_), Some(g)) => g.origin,
+            (Source::Galactic(_) | Source::DeepSky(_), Some(g)) => g.origin,
             _ => DVec3::ZERO,
         }
     }
@@ -2372,6 +2501,114 @@ mod tests {
         let loaded = Simulation::load(&sim.save(), DAY).unwrap();
         assert_eq!(loaded.galaxy_swarm.stars, sim.galaxy_swarm.stars);
         assert_eq!(loaded.galaxy_swarm.time, sim.galaxy_swarm.time);
+    }
+
+    #[test]
+    fn the_clusters_and_galaxies_are_where_measured_move_and_save() {
+        let year = worldline_core::constants::JULIAN_YEAR;
+        let (parsec, kpc) = (
+            worldline_core::constants::PARSEC,
+            1e3 * worldline_core::constants::PARSEC,
+        );
+        let mut sim = Simulation::solar_system(DAY);
+        let catalog = worldline_data::deep_sky_objects();
+        let index: Vec<usize> = catalog
+            .iter()
+            .map(|o| sim.index_of(&o.name).expect("listed"))
+            .collect();
+        assert!(
+            index
+                .iter()
+                .all(|&i| sim.is_deep_sky(i) && sim.bodies[i].gm == 0.0)
+        );
+        // At the start each is where its catalogue's numbers put it, carried
+        // from its epoch, to rounding: they go through the galaxy's frame
+        // and back, kiloparsecs from its center, and 10⁻¹² of that is ten
+        // thousand roundings.
+        let g = sim.galaxy.as_ref().unwrap();
+        let (center, drift) = (g.orbit.position(), g.orbit.velocity());
+        for (o, &i) in catalog.iter().zip(&index) {
+            let (x, v) = o.at(sim.epoch_jd_tdb);
+            let body = &sim.bodies[i];
+            let far = 1e-12 * (x.length() + center.length());
+            let fast = 1e-12 * (v.length() + drift.length());
+            assert!((body.position - x).length() < far, "{}", o.name);
+            assert!((body.velocity - v).length() < fast, "{}", o.name);
+        }
+        for name in ["Hyades", "Pleiades", "Orion Nebula", "Omega Centauri"] {
+            let i = sim.index_of(name).unwrap();
+            println!(
+                "{name}: {:.4} pc from the solar system's barycenter at the start",
+                sim.bodies[i].position.length() / parsec
+            );
+        }
+        let lmc = sim.index_of("Large Magellanic Cloud").unwrap();
+        println!(
+            "Large Magellanic Cloud: {:.3} kpc, {:.2} kpc from the galaxy's center",
+            sim.bodies[lmc].position.length() / kpc,
+            sim.galactic_radius(lmc).unwrap() / kpc
+        );
+        // Stepped as the swarm is, over a thousand years (as if its last
+        // step had been that long ago), each moves through the galaxy's
+        // gravity and the pull of every body heavy enough to pull on the
+        // swarm: x₀ + v₀t + ½at². What's left is of third order, ⅙ ȧt³:
+        // as the pull changes over the distance it goes, |ȧ| ≲ |a|v/r, that
+        // is under ⅓(vt/r) of the ½at² term. The limit allows it all, (vt/r)
+        // of that term, plus rounding.
+        let t = 1000.0 * year;
+        let before = sim.galaxy_swarm.objects.clone();
+        let pullers = sim.swarm_pullers();
+        let pull = |x: DVec3| {
+            pullers
+                .iter()
+                .map(|(_, gm, _, p, v)| {
+                    let d = *p - *v * t - x;
+                    d * (gm / d.length().powi(3))
+                })
+                .fold(milky_way().acceleration(x), |a, b| a + b)
+        };
+        sim.galaxy_swarm.time = sim.time() - t;
+        sim.step_galaxy_swarm();
+        let mut worst = (0.0_f64, String::new());
+        for ((o, s0), s1) in catalog.iter().zip(&before).zip(&sim.galaxy_swarm.objects) {
+            let a = pull(s0.position);
+            let bend = 0.5 * a * t * t;
+            let wanted = s0.position + s0.velocity * t + bend;
+            let third = bend.length() * s0.velocity.length() * t / s0.position.length();
+            let limit = third + 1e-15 * s0.position.length();
+            let off = (s1.position - wanted).length() / limit;
+            assert!(off <= 1.0, "{}: {off}", o.name);
+            if off > worst.0 {
+                worst = (off, o.name.clone());
+            }
+        }
+        println!(
+            "a thousand years on, each where x₀ + v₀t + ½at² puts it, the worst ({}) off by {:.3} \
+             of what third order allows",
+            worst.1, worst.0
+        );
+        // The app's list follows: the body is where the swarm put it.
+        let hyades = sim.index_of("Hyades").unwrap();
+        let k = catalog.iter().position(|o| o.name == "Hyades").unwrap();
+        let g = sim.galaxy.as_ref().unwrap();
+        let expected =
+            g.to_galactic.transpose() * (sim.galaxy_swarm.objects[k].position - g.orbit.position());
+        assert!((sim.bodies[hyades].position - expected).length() < 1e-6 * parsec);
+        // One removed stays removed, and a save keeps the rest to the last
+        // digit.
+        sim.remove(sim.index_of("M13").unwrap());
+        assert!(sim.index_of("M13").is_none());
+        let loaded = Simulation::load(&sim.save(), DAY).unwrap();
+        assert_eq!(loaded.galaxy_swarm.objects, sim.galaxy_swarm.objects);
+        let names = |s: &Simulation| -> Vec<String> {
+            s.galaxy_swarm
+                .catalog
+                .iter()
+                .map(|o| o.name.clone())
+                .collect()
+        };
+        assert_eq!(names(&loaded), names(&sim));
+        assert!(loaded.index_of("M13").is_none() && loaded.index_of("Pleiades").is_some());
     }
 
     #[test]

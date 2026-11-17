@@ -146,6 +146,17 @@ fn light_time_label(distance: f64) -> String {
 /// sandbox, by its kind (the sandbox's pink for copies of solar-system
 /// bodies).
 pub fn color(simulation: &Simulation, index: usize) -> Color32 {
+    // Clusters, the nebula and galaxies by kind: the colors only tell them
+    // apart.
+    if let Some(o) = simulation.deep_sky(index) {
+        use worldline_data::DeepSkyKind;
+        return match o.kind {
+            DeepSkyKind::GlobularCluster => Color32::from_rgb(255, 222, 160),
+            DeepSkyKind::OpenCluster => Color32::from_rgb(165, 200, 255),
+            DeepSkyKind::Nebula => Color32::from_rgb(255, 135, 170),
+            DeepSkyKind::SatelliteGalaxy => Color32::from_rgb(210, 195, 255),
+        };
+    }
     if simulation.is_galactic(index) && !simulation.is_added(index) {
         // Sagittarius A* in its black hole's ring color; its stars by type:
         // young, hot ones blue-white, cool giants orange.
@@ -269,7 +280,11 @@ pub fn layout(
                 index,
                 projection,
                 radius: true_radius.max(min_radius),
-                globe: globes_allowed && !hole && true_radius >= min_radius,
+                // A cluster or galaxy is never a globe.
+                globe: globes_allowed
+                    && !hole
+                    && !simulation.is_deep_sky(index)
+                    && true_radius >= min_radius,
             })
         })
         .collect();
@@ -1096,7 +1111,9 @@ pub fn draw_over(
         // The black hole bending the sky shows its true shadow there, once
         // it is bigger than a dot.
         let traced = Some(item.index) == attention.lensed && item.radius > MIN_RADIUS + 1.0;
-        if is_black_hole(body) && !traced {
+        if simulation.is_deep_sky(item.index) {
+            draw_deep_sky(painter, center, item.radius, color);
+        } else if is_black_hole(body) && !traced {
             draw_black_hole(painter, center, item.radius, color);
         } else if !item.globe && !is_black_hole(body) {
             painter.circle_filled(center, item.radius, color);
@@ -1187,6 +1204,21 @@ pub fn draw_over(
         }
     }
     drawn
+}
+
+/// A cluster, nebula or galaxy: a faint disk the size of its half-light
+/// radius, brighter toward its middle, with a dot at its center.
+fn draw_deep_sky(painter: &Painter, center: Pos2, radius: f32, color: Color32) {
+    if radius > MIN_RADIUS {
+        for (fraction, alpha) in [(1.0, 28), (0.6, 36), (0.3, 48)] {
+            painter.circle_filled(
+                center,
+                radius * fraction,
+                Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), alpha),
+            );
+        }
+    }
+    painter.circle_filled(center, MIN_RADIUS * 0.8, color);
 }
 
 /// A black hole: a dark disk the size of its shadow, edged by a thin ring

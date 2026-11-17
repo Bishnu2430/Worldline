@@ -145,6 +145,7 @@ fn model_name(simulation: &Simulation, index: usize) -> &'static str {
         Computed::GalacticStar => "following Sagittarius A*",
         Computed::Neighbor => "among the nearby stars",
         Computed::Swarm => "the swarm",
+        Computed::DeepSky => "the galaxy's gravity",
     }
 }
 
