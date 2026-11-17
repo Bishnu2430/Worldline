@@ -101,7 +101,7 @@ Added 2026-10-22 at the owner's request: the galaxy's stars, cheaply. Famous obj
 | 7.1 | **Famous neighbors** as full bodies at their measured places and motions (Gaia and Hipparcos: position, distance, proper motion, radial velocity): the nearest and brightest stars | α Centauri A and B circle each other with their measured period; Barnard's Star crosses the sky at its measured rate | ✅ |
 | 7.2 | **The galaxy's stars as live dots:** a swarm of sampled stars (Gaia's nearby ones, the rest drawn from McMillan's model) moving in the galaxy's potential, kicked by anything added | Left alone, the swarm keeps the model's density; a black hole passing through scatters it as the impulse approximation predicts (as in step 2.1b) | ✅ |
 | 7.3 | **Clusters, nebulae and satellite galaxies:** the Pleiades, the Orion Nebula, globular clusters, the Magellanic Clouds, as named objects at their measured places | Each at its published distance and position | ✅ |
-| 7.4 | **Seeing the galaxy:** the swarm drawn on the GPU, from inside and from outside | From above, the drawn disk thins out with the model's scale length | ⬜ |
+| 7.4 | **Seeing the galaxy:** the swarm drawn on the GPU, from inside and from outside | From above, the drawn disk thins out with the model's scale length | ✅ |
 
 ## M8: Portfolio release
 

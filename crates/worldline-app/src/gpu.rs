@@ -1,5 +1,5 @@
 //! The GPU-drawn part of the 3D view: textured, lit, rotating globes with
-//! their atmospheres and rings.
+//! their atmospheres and rings, the sky, and the galaxy's glow.
 
 use std::collections::HashMap;
 
@@ -8,8 +8,8 @@ use eframe::egui_wgpu::RenderState;
 use eframe::wgpu;
 use glam::{Mat3, Vec3};
 use worldline_render::{
-    Atmosphere, FluidDraw, Image, Material, MaterialImages, Pit, Renderer, Rings, Sky, SkyView,
-    SphereDraw, View,
+    Atmosphere, FluidDraw, Glow, GlowStar, GlowView, Image, Material, MaterialImages, Pit,
+    Renderer, Rings, Sky, SkyView, SphereDraw, View,
 };
 
 use crate::textures;
@@ -98,6 +98,51 @@ impl GpuGlobes {
             .renderer
             .render(&state.device, &state.queue, &view, &draws, fluids);
         let output = self.renderer.output()?;
+        let mut egui_renderer = state.renderer.write();
+        match self.texture {
+            Some(id) if resized => egui_renderer.update_egui_texture_from_wgpu_texture(
+                &state.device,
+                output,
+                wgpu::FilterMode::Linear,
+                id,
+            ),
+            Some(_) => {}
+            None => {
+                self.texture = Some(egui_renderer.register_native_texture(
+                    &state.device,
+                    output,
+                    wgpu::FilterMode::Linear,
+                ));
+            }
+        }
+        self.texture
+    }
+}
+
+/// Owns the galaxy's glow pass and its output's place in egui.
+pub struct GpuGlow {
+    glow: Glow,
+    texture: Option<TextureId>,
+}
+
+impl GpuGlow {
+    /// Makes the pass.
+    pub fn new(state: &RenderState) -> Self {
+        Self {
+            glow: Glow::new(&state.device),
+            texture: None,
+        }
+    }
+
+    /// Draws `stars` as a glow and returns the texture holding it.
+    pub fn draw(
+        &mut self,
+        state: &RenderState,
+        view: &GlowView,
+        stars: &[GlowStar],
+    ) -> Option<TextureId> {
+        let resized = self.glow.render(&state.device, &state.queue, view, stars);
+        let output = self.glow.output()?;
         let mut egui_renderer = state.renderer.write();
         match self.texture {
             Some(id) if resized => egui_renderer.update_egui_texture_from_wgpu_texture(

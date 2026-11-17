@@ -953,6 +953,28 @@ impl std::fmt::Display for Fit {
     }
 }
 
+/// How far a star of the swarm spreads its mass when it's drawn (step
+/// 7.4), m: the size of the volume its mass fills at the model's density
+/// there, (m/ρ★)^(1/3), ρ★ the density of `components` at `position`
+/// (galactocentric), for a star of mass `mass` (kg). No more than the
+/// widest disk's scale length: far out, where the model's stars thin out to
+/// nothing, a star would otherwise spread across the galaxy.
+pub fn spread(components: &[Component], mass: f64, position: DVec3) -> f64 {
+    let (r, z) = (position.x.hypot(position.y), position.z);
+    let density: f64 = components.iter().map(|c| c.density(r, z)).sum();
+    let widest = components
+        .iter()
+        .filter_map(|c| match c {
+            Component::Disk(d) => Some(d.scale_length),
+            Component::Spheroid(_) => None,
+        })
+        .fold(0.0, f64::max);
+    if density <= 0.0 {
+        return widest;
+    }
+    (mass / density).cbrt().min(widest)
+}
+
 /// A star's energy per unit mass in `potential`, J/kg.
 pub fn energy(star: &Star, potential: &Potential) -> f64 {
     let x = star.position;
@@ -963,6 +985,26 @@ pub fn energy(star: &Star, potential: &Potential) -> f64 {
 mod tests {
     use super::*;
     use crate::milky_way::{mcmillan_2017, milky_way};
+
+    #[test]
+    fn a_star_spreads_over_the_volume_its_mass_fills() {
+        let components = stellar_components(&mcmillan_2017());
+        let suns = 1.819e6 * crate::constants::GM_SUN / crate::constants::G;
+        let pc = crate::constants::PARSEC;
+        // At the Sun, about 0.06 Suns per cubic parsec: 1.8 million Suns
+        // fill a cube 310 pc across.
+        let here = DVec3::new(8.2 * KILOPARSEC, 0.0, 20.0 * pc);
+        let h = spread(&components, suns, here);
+        let density: f64 = components
+            .iter()
+            .map(|c| c.density(8.2 * KILOPARSEC, 20.0 * pc))
+            .sum();
+        assert!((h.powi(3) * density / suns - 1.0).abs() < 1e-12);
+        assert!((300.0 * pc..330.0 * pc).contains(&h), "{}", h / pc);
+        // Far out, the thick disk's scale length at most.
+        let far = DVec3::new(0.0, 60.0 * KILOPARSEC, 20.0 * KILOPARSEC);
+        assert!((spread(&components, suns, far) / KILOPARSEC - 3.02134).abs() < 1e-9);
+    }
 
     #[test]
     fn the_random_numbers_are_uniform_and_normal() {

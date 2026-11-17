@@ -20,7 +20,9 @@ crates/
                      ray by ray in single precision, checked against core's double
                      precision), the accretion disk's look; SPH fluids stepped in
                      single precision in their own units, checked against core's
-                     double precision, and drawn as particles                    (since step 1b.2)
+                     double precision, and drawn as particles; a cloud of stars
+                     drawn as the column of mass along each ray (the galaxy's
+                     glow)                                                        (since step 1b.2)
 ```
 
 Each crate is added when its milestone starts, not before. The 3D view is drawn in layers. Rings, trails, dots and labels are projected relative to the camera in double precision and drawn with egui's painter. Globes and the sky behind everything are drawn by `worldline-render` on the GPU. See [app.md](app.md) and [rendering.md](rendering.md).

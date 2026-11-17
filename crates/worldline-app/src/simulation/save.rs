@@ -533,6 +533,7 @@ impl Simulation {
             sim.galaxy_swarm.time = t;
             sim.galaxy_swarm.pullers = gpullers;
         }
+        sim.galaxy_swarm.respread();
         // The galactic center, if the save has it (saves from before step
         // 2.1c start it afresh, at the save's time).
         if let Some(g) = &mut sim.galaxy {
