@@ -65,6 +65,10 @@ Sagittarius A\*, the Milky Way's central black hole, is in the body list with it
   - See [physics/milky-way.md](physics/milky-way.md).
 - **Dropped bodies:** anything dropped near it, from the catalogue, joins its region and feels it.
 
+## Clusters, nebulae and satellite galaxies
+
+The galaxy's famous objects are bodies in the list, each where its catalogue measured it and moving in the galaxy's gravity with its swarm of stars: 28 open clusters (the Pleiades, the Hyades and the Messier ones), the Orion Nebula, 166 globular clusters and 56 satellite galaxies, the Magellanic Clouds among them. Each is a soft disk the size of its half-light radius with a dot at its center, colored by kind. Selecting one shows its mass and size where its catalogue gives them, how far it is, and its published distance and motion. See [physics/clusters-and-galaxies.md](physics/clusters-and-galaxies.md).
+
 ## The galaxy's stars
 
 From 100 parsecs out, the galaxy's stars are drawn: 30,000 dots, each standing for 1.82 million Suns of McMillan's (2017) model, bluish white in the thin disk, pale yellow in the thick disk and orange in the bulge. They move in the galaxy's gravity and feel anything heavy dropped among them, so a black hole passing through scatters them. See [physics/galaxy-stars.md](physics/galaxy-stars.md).

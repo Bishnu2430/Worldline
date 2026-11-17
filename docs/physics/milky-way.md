@@ -90,7 +90,7 @@ In McMillan's model that's an orbit:
 ## Where it's valid
 
 - **Axisymmetric:** there is no bar and no spiral arms. McMillan notes the model can't represent the inner few kiloparsecs, where the bar is. Near the Sun the bar and arms nudge orbits, which the model leaves out.
-- **Smooth:** stars passing near the solar system aren't in it, nor the halo's clumps, nor satellites like the Magellanic Clouds.
+- **Smooth:** stars passing near the solar system aren't in it, nor the halo's clumps, nor satellites like the Magellanic Clouds. Since step 7.3 the satellites move in the model as tracers ([clusters-and-galaxies.md](clusters-and-galaxies.md)), but their mass is still not in it.
 - **The model's uncertainty:** its circular speed at the Sun is 232.8 ± 3.0 km/s (statistical).
   - With GRAVITY's distance and Reid & Brunthaler's proper motion, the Sun moves 18.4 km/s faster than a circular orbit in the model. Local stars give 12.24 km/s (Schönrich et al.).
   - The 6 km/s difference is the size of the model's uncertainty plus the measurements' systematics. It makes the orbit's eccentricity and height somewhat larger than they would otherwise be.

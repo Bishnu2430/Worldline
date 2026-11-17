@@ -2,7 +2,7 @@
 //! each detail is: measured data, a physics model, or a visual aid.
 
 use eframe::egui::Color32;
-use worldline_data::ObjectKind;
+use worldline_data::{DeepSkyKind, ObjectKind};
 
 /// Where a detail comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -130,6 +130,39 @@ const NEIGHBOR: &[Detail] = &[
     ),
     detail("No surface map: a sphere colored as a star", Kind::Visual),
 ];
+
+/// What's shown for a cluster, nebula or satellite galaxy.
+fn deep_sky_details(kind: DeepSkyKind) -> Vec<Detail> {
+    let mut list = vec![
+        detail(
+            "Place, distance and motion: as its catalogue publishes them (the inspector names it)",
+            Kind::Measured,
+        ),
+        detail(
+            "Its path: the galaxy's gravity (McMillan 2017), stepped with its swarm of stars; pulled by every body of a hundredth of a Sun or more",
+            Kind::Model,
+        ),
+    ];
+    list.push(match kind {
+        DeepSkyKind::SatelliteGalaxy => detail(
+            "Its own pull is left out: on the Milky Way, on the other satellites, on anything near it. The Large Magellanic Cloud's would matter over a few hundred million years",
+            Kind::Model,
+        ),
+        DeepSkyKind::Nebula => detail(
+            "Its gas isn't simulated: it's placed and moves as the star cluster inside it",
+            Kind::Model,
+        ),
+        _ => detail(
+            "One point: its stars aren't simulated one by one, and its own pull is left out",
+            Kind::Model,
+        ),
+    });
+    list.push(detail(
+        "Drawn as a glowing disk the size of its half-light radius (or that of half its members); colored by kind",
+        Kind::Visual,
+    ));
+    list
+}
 
 const ADDED: &[Detail] = &[
     detail(
@@ -435,6 +468,8 @@ pub enum BodyKind {
     Galactic { star: bool },
     /// One of the nearest and brightest stars.
     Neighbor,
+    /// A cluster, nebula or satellite galaxy.
+    DeepSky(DeepSkyKind),
     /// A dwarf planet, asteroid or comet.
     SmallBody {
         /// A comet (or interstellar visitor) rather than an asteroid.
@@ -459,6 +494,7 @@ pub fn details(name: &str, kind: BodyKind) -> Vec<Detail> {
         BodyKind::CollapsedStar => return COLLAPSED_STAR.to_vec(),
         BodyKind::MiniBlackHole => return MINI_BLACK_HOLE.to_vec(),
         BodyKind::Neighbor => return NEIGHBOR.to_vec(),
+        BodyKind::DeepSky(kind) => return deep_sky_details(kind),
         BodyKind::SmallBody {
             comet,
             outgassing,
