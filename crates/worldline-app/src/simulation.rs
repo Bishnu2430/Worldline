@@ -11,6 +11,7 @@ use worldline_core::compact::{is_black_hole, schwarzschild_radius};
 use worldline_core::constants::{AGE_OF_UNIVERSE, DAY, GM_SUN};
 use worldline_core::crater::{Crater, Strike};
 use worldline_core::eclipses::{Ephemeris, State};
+use worldline_core::galaxy_stars::{Perturber, Star, advance as advance_stars};
 use worldline_core::gravitational_waves::{merger_time, period_derivative};
 use worldline_core::gravity::kerr::plunge_time;
 use worldline_core::gravity::{
@@ -254,6 +255,32 @@ impl Neighborhood {
     }
 }
 
+/// The galaxy's stars as a swarm (step 7.2): McMillan's (2017) stars,
+/// drawn in equilibrium, moving in the galaxy's potential and pulled by every
+/// body of the simulation as heavy as a hundredth of a Sun. They pull on
+/// nothing. Stepped every [`GALAXY_CADENCE`] and carried in straight lines
+/// between, which is off by ½(cadence/dynamical time)² of a star's distance
+/// from the center: under 10⁻⁶, as their shortest dynamical time is 0.7
+/// million years (see
+/// `docs/physics/galaxy-stars.md`).
+pub struct GalaxySwarm {
+    /// Galactocentric, at `time`.
+    stars: Vec<Star>,
+    /// The simulation time they're at, s.
+    time: f64,
+    /// The bodies pulling on them at `time`, by name: GM, radius, and their
+    /// place and velocity, galactocentric.
+    pullers: Vec<(String, f64, f64, DVec3, DVec3)>,
+}
+
+/// How often the galaxy's swarm is stepped, s.
+const GALAXY_CADENCE: f64 = 1000.0 * worldline_core::constants::JULIAN_YEAR;
+
+/// Bodies at least this heavy pull on the galaxy's swarm, m³/s²: stars,
+/// black holes. Jupiter's pull on a star a parsec away is 1.3 × 10⁻¹⁶ m/s², and
+/// the swarm's nearest star is 235 pc from the Sun.
+const SWARM_PULLER: f64 = 0.01 * GM_SUN;
+
 /// The regions simulated apart, as none feels another.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Zone {
@@ -412,6 +439,8 @@ pub struct Simulation {
     pub galaxy: Option<Region>,
     /// The nearest and brightest stars.
     neighbors: Option<Neighborhood>,
+    /// The galaxy's stars, as a swarm.
+    galaxy_swarm: GalaxySwarm,
     /// Each body's own clock, against a far-away one.
     pub clocks: Clocks,
     /// Leap seconds and UT1 − UTC from the IERS: from the computer's
@@ -502,6 +531,11 @@ impl Simulation {
                 Some(region)
             },
             neighbors: Some(Neighborhood::at(epoch_jd_tdb)),
+            galaxy_swarm: GalaxySwarm {
+                stars: worldline_data::galaxy_stars(),
+                time: 0.0,
+                pullers: Vec::new(),
+            },
             wind: worldline_data::parker_spiral(),
             heliosphere: worldline_data::heliosphere(),
             crossings: worldline_data::voyager_crossings(),
@@ -1641,6 +1675,7 @@ impl Simulation {
         g.place();
         g.chart();
         let collisions = g.hierarchy.take_collisions();
+        let swarm_due = now - self.galaxy_swarm.time >= GALAXY_CADENCE;
         if !collisions.is_empty() {
             let absorbed: Vec<Option<ObjectKind>> = collisions
                 .iter()
@@ -1663,6 +1698,88 @@ impl Simulation {
         }
         self.refresh();
         self.tick_clocks(Zone::GalacticCenter);
+        if swarm_due {
+            self.step_galaxy_swarm();
+        }
+    }
+
+    /// The bodies that pull on the galaxy's swarm now, galactocentric: every
+    /// one as heavy as [`SWARM_PULLER`], in any region.
+    fn swarm_pullers(&self) -> Vec<(String, f64, f64, DVec3, DVec3)> {
+        let Some(g) = &self.galaxy else {
+            return Vec::new();
+        };
+        let (center, drift) = (g.orbit.position(), g.orbit.velocity());
+        self.bodies
+            .iter()
+            .filter(|b| b.gm >= SWARM_PULLER)
+            .map(|b| {
+                (
+                    b.name.clone(),
+                    b.gm,
+                    b.radius,
+                    center + g.to_galactic * b.position,
+                    drift + g.to_galactic * b.velocity,
+                )
+            })
+            .collect()
+    }
+
+    /// Steps the galaxy's swarm to now: each star by leapfrog steps of its
+    /// own, through the galaxy's potential, pulled by the bodies along the
+    /// cubics through where they were at its last step and are now (where
+    /// one is new, it's taken to have come in a straight line). A star that
+    /// reaches a body's surface or horizon is swallowed.
+    fn step_galaxy_swarm(&mut self) {
+        let now = self.hierarchy.time();
+        let h = now - self.galaxy_swarm.time;
+        let pullers = self.swarm_pullers();
+        if h <= 0.0 {
+            self.galaxy_swarm.pullers = pullers;
+            return;
+        }
+        let perturbers: Vec<Perturber> = pullers
+            .iter()
+            .map(|(name, gm, radius, x, v)| {
+                let start = self
+                    .galaxy_swarm
+                    .pullers
+                    .iter()
+                    .find(|p| &p.0 == name)
+                    .map_or((*x - *v * h, *v), |p| (p.3, p.4));
+                Perturber {
+                    gm: *gm,
+                    radius: *radius,
+                    start,
+                    end: (*x, *v),
+                }
+            })
+            .collect();
+        let swarm = &mut self.galaxy_swarm;
+        let gone = advance_stars(&mut swarm.stars, milky_way(), &perturbers, h);
+        for k in gone.into_iter().rev() {
+            swarm.stars.remove(k);
+        }
+        swarm.time = now;
+        swarm.pullers = pullers;
+    }
+
+    /// Where the galaxy's swarm's stars are now, in the simulation's frame,
+    /// and which population each is (0 thin disk, 1 thick disk, 2 bulge):
+    /// carried in straight lines from their last step.
+    pub fn galaxy_star_positions(&self) -> impl Iterator<Item = (DVec3, u8)> + '_ {
+        let since = self.time() - self.galaxy_swarm.time;
+        let frame = self
+            .galaxy
+            .as_ref()
+            .map(|g| (g.orbit.position(), g.to_galactic.transpose()));
+        self.galaxy_swarm.stars.iter().filter_map(move |s| {
+            let (center, back) = frame?;
+            Some((
+                back * (s.position + s.velocity * since - center),
+                s.population,
+            ))
+        })
     }
 
     /// Keeps the craters up to date after a collision. A body that's gone
@@ -2190,6 +2307,71 @@ mod tests {
         }
         println!("worst: {worst:.1} s");
         assert!(missing.is_empty() && found.len() == canon.len());
+    }
+
+    #[test]
+    fn the_galaxy_swarm_steps_feels_a_black_hole_and_saves() {
+        // 30,000 stars; nothing happens to them until a cadence has passed.
+        let mut sim = Simulation::solar_system(DAY);
+        let count = sim.galaxy_star_positions().count();
+        assert_eq!(count, 30_000);
+        let before = sim.galaxy_swarm.stars.clone();
+        // A hundred-million-Sun black hole beside one disk star, 10 pc off
+        // and moving with it, and the swarm stepped over 2,000 years, as if
+        // it had last been stepped that long ago (running the solar system
+        // that long would take an hour). The hole is added where it is at
+        // the end, and its place at the start is set: what the swarm keeps
+        // between steps. Then that star's velocity changes by the hole's
+        // pull, GM/d², and the galaxy's. Both barely change as it moves: the
+        // limit is twice how much the hole's does, 2 × 2Δd/d.
+        let target = before
+            .iter()
+            .position(|s| s.population == 0)
+            .expect("a disk star");
+        let years = 2000.0 * worldline_core::constants::JULIAN_YEAR;
+        let parsec = worldline_core::constants::PARSEC;
+        let (star, moving) = (before[target].position, before[target].velocity);
+        let start = star + DVec3::X * 10.0 * parsec;
+        let g = sim.galaxy.as_ref().unwrap();
+        let back = g.to_galactic.transpose();
+        let gm = 1e8 * GM_SUN;
+        let c = worldline_core::constants::C;
+        let hole = Body::new("Hole", gm, 2.0 * gm / (c * c))
+            .at(back * (start + moving * years - g.orbit.position()))
+            .moving(back * (moving - g.orbit.velocity()));
+        sim.add_body_near(
+            hole,
+            "object:TON 618",
+            sim.index_of("Sagittarius A*").unwrap(),
+        );
+        let mut pullers = sim.swarm_pullers();
+        for p in &mut pullers {
+            if p.0 == "Hole" {
+                p.3 = start;
+            }
+        }
+        sim.galaxy_swarm.pullers = pullers;
+        sim.galaxy_swarm.time = sim.time() - years;
+        sim.step_galaxy_swarm();
+        let after = &sim.galaxy_swarm.stars;
+        assert_eq!(sim.galaxy_swarm.time, sim.time());
+        let t = years;
+        let d = 10.0 * parsec;
+        let wanted = DVec3::X * (gm / (d * d) * t) + milky_way().acceleration(star) * t;
+        let pulled = after[target].velocity - before[target].velocity;
+        let moved = 0.5 * gm / (d * d) * t * t;
+        let limit = 2.0 * 2.0 * moved / d;
+        let off = (pulled - wanted).length() / wanted.length();
+        println!(
+            "pulled by {:.2} m/s, expected {:.2}: off by {off:.1e} (limit {limit:.1e})",
+            pulled.length(),
+            wanted.length()
+        );
+        assert!(off < limit, "{off}");
+        // A save keeps the swarm, to the last digit.
+        let loaded = Simulation::load(&sim.save(), DAY).unwrap();
+        assert_eq!(loaded.galaxy_swarm.stars, sim.galaxy_swarm.stars);
+        assert_eq!(loaded.galaxy_swarm.time, sim.galaxy_swarm.time);
     }
 
     #[test]

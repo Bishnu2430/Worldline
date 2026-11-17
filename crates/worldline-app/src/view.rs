@@ -349,6 +349,9 @@ pub fn draw_under(
         }
     }
     draw_debris(painter, camera, viewport, simulation);
+    if camera.distance >= SWARM_MIN_VIEW {
+        draw_galaxy_stars(painter, camera, viewport, simulation);
+    }
 
     let bodies = &simulation.bodies;
     if options.trails {
@@ -850,6 +853,36 @@ fn draw_belts(painter: &Painter, camera: &Camera, viewport: Rect, simulation: &S
             {
                 mesh.add_colored_rect(Rect::from_center_size(p.position, size), color);
             }
+        }
+    }
+    painter.add(Shape::mesh(mesh));
+}
+
+/// From this far out the galaxy's swarm is drawn, m: its stars stand for
+/// 1.8 million Suns each, so they are a picture of the galaxy, not of the
+/// sky near the Sun.
+const SWARM_MIN_VIEW: f64 = 100.0 * worldline_core::constants::PARSEC;
+
+/// Draws the galaxy's swarm: thin-disk stars bluish white, thick-disk ones
+/// pale yellow, the bulge's orange, all faint. The colors only tell the
+/// populations apart.
+fn draw_galaxy_stars(painter: &Painter, camera: &Camera, viewport: Rect, simulation: &Simulation) {
+    let mut mesh = Mesh::default();
+    let size = vec2(1.6, 1.6);
+    let colors = [
+        Color32::from_rgba_unmultiplied(190, 210, 255, 150),
+        Color32::from_rgba_unmultiplied(255, 236, 180, 150),
+        Color32::from_rgba_unmultiplied(255, 180, 110, 150),
+    ];
+    for (position, population) in simulation.galaxy_star_positions() {
+        if let Some(p) = screen(camera, viewport, position)
+            && viewport.contains(p.position)
+        {
+            let color = colors
+                .get(population as usize)
+                .copied()
+                .unwrap_or(Color32::WHITE);
+            mesh.add_colored_rect(Rect::from_center_size(p.position, size), color);
         }
     }
     painter.add(Shape::mesh(mesh));

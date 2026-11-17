@@ -7,6 +7,7 @@ mod atmosphere;
 mod belts;
 mod eclipses;
 mod galactic_center;
+mod galaxy_stars;
 mod heliosphere;
 mod impacts;
 mod kernel;
@@ -34,6 +35,7 @@ pub use galactic_center::{
     galactic_frame, galactic_north_pole, kepler_state, s_stars, sgr_a_star_direction,
     sgr_a_star_sky_position, sun_motion, year_to_time,
 };
+pub use galaxy_stars::galaxy_stars;
 pub use heliosphere::{
     Boundary, SolarWindHour, VoyagerCrossing, heliosphere, mean_flow_pressure, parker_spiral,
     solar_wind_2025, voyager_crossings,

@@ -13,6 +13,7 @@ pub mod debris;
 pub mod diagnostics;
 pub mod eclipses;
 pub mod fields;
+pub mod galaxy_stars;
 pub mod giant_impact;
 pub mod gravitational_waves;
 pub mod gravity;
