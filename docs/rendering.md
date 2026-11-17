@@ -10,7 +10,7 @@ When a body is big enough on screen to see, at least 3 points across, Worldline 
 
 The 3D view is drawn in four layers:
 
-0. **The sky, on the GPU:** a full-screen pass that looks up the sky map along each pixel's ray, bent first by a black hole if one bends the view, and traced past it ray by ray, with its disk, when the camera is close (see [The sky](#the-sky)).
+0. **The sky, on the GPU:** a full-screen pass that looks up the sky map along each pixel's ray, bent first by a black hole if one bends the view, and traced past it ray by ray, with its disk, when the camera is close (see [The sky](#the-sky)). Out among the galaxy's stars, the galaxy's glow lies over it (see [The galaxy's glow](#the-galaxys-glow)).
 1. **Back, on the CPU through egui:** reference rings, orbit trails and the Sun's glow.
 2. **Middle, on the GPU (`worldline-render`):** drawn into an offscreen image that is transparent everywhere else. egui then paints that image over the back layer, so trails pass behind planets naturally. Four pipelines run in order:
    - **globes:** opaque, writing depth;
@@ -55,6 +55,63 @@ The view spans from the camera a few thousand kilometers above Earth out to Plut
   - **Drawn again only when the view changes.** The pass remembers everything it was drawn from, and skips a frame when nothing has changed. The camera follows the hole, so time running doesn't change the view; only turning or zooming it does.
 - **A compute entry point (`cs_trace`)** runs the same tracing for a list of directions. `trace_rays` uses it so a test can check the shader's rays against core's (it needs a GPU, so it is ignored by default).
 - **Tests:** a naga test compiles and validates `sky.wgsl`, and another checks that its uniforms' layouts, as naga computes them, match the Rust structs. A `vec3` of padding there once made one 144 bytes against 128.
+
+## The galaxy's glow
+
+Step 7.4 draws the galaxy's swarm ([physics/galaxy-stars.md](physics/galaxy-stars.md)) as light, on the GPU (`glow.rs`, `glow.wgsl`).
+
+**Each star is a Gaussian of mass.** Each of the swarm's 30,000 drawn stars, 1.8 million Suns apiece, is spread as a 3D Gaussian, whose standard deviation h is the size of the volume its mass fills at the model's density there: h = (m/ρ★)^(1/3).
+- **Its size:** 32 pc at the center, 310 pc at the Sun, wider farther out.
+- **Its limit:** no more than the thick disk's scale length, 3.02 kpc. Far out, where the model's stars thin to nothing, a star would otherwise spread across the galaxy.
+
+Gaia's measured stars are drawn as points instead.
+
+**Each pixel shows the column of mass along its ray,** from the camera outward:
+
+Σ = m/(4πh²) · e^(−b²/2h²) · (1 + erf(s/√2h))
+
+where b is the ray's closest approach to the star and s how far along the ray that is (negative behind the camera). It's exact from anywhere, from inside a star's own spread too. From far off, it's the projected Gaussian m/(2πh²) e^(−b²/2h²).
+- **Light from mass:** every Sun of mass gives the same light, so the column is the galaxy's surface brightness, dust left out.
+- **Precision in single precision:** b comes from the cross product of the ray and the star's place, so it stays exact for a star far off and nearly straight ahead.
+- **erf:** Abramowitz & Stegun's 7.1.26, to 1.5 × 10⁻⁷.
+- **Lengths in parsecs,** relative to the camera, worked out in double precision by the app. The column comes out in Suns per square parsec.
+
+**How each star is drawn:**
+- **As far as it reaches:** out to 4 standard deviations. Beyond, it would add under e⁻⁸ of its column.
+- **From far off:** a square around the cone it lights, one unit along it.
+- **Close up or across much of the view:** the whole screen, when its cone is wider than 60° or the square would reach behind the camera.
+- **Out of view:** dropped.
+- **Adding up:** columns are added in half floats.
+- **Resolution:** a third of the view's, since its light is smooth, or coarser to keep to 60 million pixel evaluations a frame. The app estimates on the CPU how many screens' worth each star's square covers, as the shader draws it. From inside the disk the hundred or so nearest stars each cover the whole screen, and the light there is smoother still.
+- **Cost on an Intel Iris Xe** (`how_long_the_glow_takes`, run like the check below):
+
+  | View | Size drawn | Per frame |
+  |---|---|---|
+  | From 40 kpc out | 622 × 341 | 7.2 ms |
+  | From inside the disk at the Sun's place | 166 × 91 | 5.6 ms (it was 74 ms at a third of the resolution) |
+
+  Measured alone. Run alongside the other GPU tests, sharing the GPU, both take about 9.5 ms.
+
+**Shown** as light whose luminance L, the column over 150 Suns per square parsec, is drawn as L/(1 + L) (Reinhard et al. 2002), colors kept.
+- **Transparency:** as transparent as it is dark, over the sky.
+- **Color:** the thin disk's light is bluish white, the thick disk's pale yellow, the bulge's orange.
+
+How bright and what color are visual; where the light is, is the model's.
+
+**It takes the sky's place out among the stars.** The sky map is the sky as seen from the solar system, so it stays where the camera is near something simulated:
+- **Within 100 pc of the solar system or the galactic center:** the measured sky, in full. The Milky Way's light comes from stars kiloparsecs off, so from there it looks as it does from Earth. The galactic center's lensed sky is unchanged.
+- **Past 1 kpc from both:** the glow alone.
+- **Between:** the two cross over evenly in the logarithm of the distance.
+
+**Checks:**
+- **The shader:** naga compiles and validates it, and its `View` and `Star` layouts match the Rust structs.
+- **Seen from above** (`validation_glow_gpu.rs`, on the GPU): the app's 30,000 stars, from 200 kpc over the center, 1,024 pixels across, read back in single precision. The disk, drawn, thins out over 4 to 12 kpc with a scale length of 2.5945 kpc. McMillan's model at the same pixels gives 2.6156 kpc. They're 0.61 standard deviations apart, where σ = 0.0344 kpc is how much a 30,000-star sample's profile wanders, from 300 resamples; the limit is 3. The stars themselves, counted without drawing, give 2.5938 kpc, so the drawing adds nothing. At the Sun's radius the drawn disk holds 43.2 Suns per square parsec, against the model's 45.0.
+
+![The Milky Way from 40 kpc, drawn as light: a mottled bluish disk brightening to an orange bulge, the Sun on its path around the center, the globular clusters as yellow dots](images/galaxy-glow-step-7.4.png)
+
+![From inside the disk, 1.85 kpc from the Sun near the globular cluster M4: a dark sky above, the inner galaxy's warm glow brightening toward the lower left](images/galaxy-glow-inside-step-7.4.png)
+
+**From inside,** the band of the Milky Way is as broad as the swarm allows: the nearest drawn stars, each spread over a few hundred parsecs, fill the sky around the camera.
 
 ## Spacecraft maps
 
@@ -117,7 +174,7 @@ A body modeled as a fluid (steps 4.2 and 4.3, see [physics/sph.md](physics/sph.m
 ## Checks
 
 - **CI, without a GPU:**
-  - the shader is compiled and validated with naga, the same compiler wgpu uses (the globes', the sky's, the fluid's and its particles');
+  - the shader is compiled and validated with naga, the same compiler wgpu uses (the globes', the sky's, the fluid's and its particles', the galaxy's glow's);
   - the uniform-buffer layout matches the shader's padding rules;
   - the depth projection maps the near plane to 1 and infinity to 0;
   - the sphere's triangles all face outward;

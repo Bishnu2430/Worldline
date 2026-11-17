@@ -106,6 +106,7 @@ An orbit's weight depends on nothing that changes along it, and its star is equa
 |---|---|---|
 | The app's 30,000 stars, as drawn, against the model's density in 18 × 8 bins of radius and height | χ² under its 99.9% point: no further off than chance allows once in a thousand times | 145.2 over 137 degrees of freedom, limit 193.9 |
 | The same, left alone for a galactic year (216 million years) | the same | **130.3**, limit 193.9 |
+| Seen from above, drawn on the GPU (step 7.4): the scale length the disk thins out with, fitted over 4 to 12 kpc | McMillan's, 2.6156 kpc at the same pixels, to three standard deviations of a 30,000-star sample's, 0.0344 kpc | 2.5945 kpc, 0.61 standard deviations off; the stars counted, without drawing, 2.5938 |
 | A million-Sun black hole falling through the disk at 1,000 km/s, among 300 stars within 30 pc of the Sun's radius | each kick as the impulse approximation gives it, to twice what it leaves out: the kick over the relative speed (the star pulled off its straight path), and the galaxy's tide on the kick before it's measured, ½|T|τ² | kicks up to 16.58 km/s; the worst off by 0.88 of what's allowed |
 
 **The density check** (`cargo test --release -p worldline-data --test validation_galaxy_stars -- --include-ignored --nocapture`) counts the swarm's stars in each bin against what the model's mass there says. Any sample is noisy, and χ² measures how noisy. Stars that drift, as the Jeans-drawn ones do, push it far past the limit.
@@ -131,9 +132,11 @@ An orbit's weight depends on nothing that changes along it, and its star is equa
 cargo run --release -- --focus Sun --zoom 1.5e12 --pitch 50 --paused
 ```
 
-From 100 parsecs out the swarm is drawn: thin-disk stars bluish white, thick-disk ones pale yellow, the bulge's orange. The colors only tell the populations apart.
+Out among the galaxy's stars, more than 100 pc from the solar system and the galactic center, the swarm is drawn as light on the GPU (step 7.4). Each star's mass is spread over the volume it fills at the model's density, and each pixel shows the stars along its ray. Seen from above, that's the disk's surface density; see [rendering.md](../rendering.md#the-galaxys-glow). Turned off ("The galaxy's glow"), the swarm is drawn as dots from 100 pc out, as step 7.2 drew it: thin-disk stars bluish white, thick-disk ones pale yellow, the bulge's orange. The colors only tell the populations apart.
 
-![The Milky Way from 40 kiloparsecs: a disk of bluish dots around an orange bulge, the Sun on its path round the center](../images/galaxy-stars-step-7.2.png)
+![The Milky Way from 40 kiloparsecs, drawn as light: a mottled bluish disk brightening to an orange bulge, the Sun on its path round the center](../images/galaxy-glow-step-7.4.png)
+
+![The same in step 7.2, as dots](../images/galaxy-stars-step-7.2.png)
 
 Gaia's stars are drawn white from a parsec out:
 
@@ -148,6 +151,7 @@ cargo run --release -- --focus Sun --zoom 2e9 --pitch 40 --paused
 ## Where it's valid
 
 - **A picture, not a census.** Each drawn star stands for 1.82 million Suns, so near the Sun there are none: the nearest is 235 pc away. Within 50 pc Gaia's measured stars are there instead, but only those with radial velocities; from 50 to 235 pc there are none.
+- **Drawn as light, it's coarse from inside.** Each drawn star spreads its 1.8 million Suns over a few hundred parsecs. From inside the disk the nearest ones fill the sky around the camera, so the band of the Milky Way is broad, and from up close the light is lumpy where the sample is.
 - **Gaia's stars are at their published values,** with no spread. Their errors aren't sampled, and Gaia's small parallax zero-point (about −0.02 mas, Lindegren et al. 2021) isn't corrected: at 20 mas and more, a thousandth of the distance at most.
 - **How they move is Worldline's.** The model gives the mass; σ_R = σ_z and the split of rotation are choices among the many that keep it. Measured disk stars move more in radius than in height.
 - **No bar or spiral arms:** the model has none.

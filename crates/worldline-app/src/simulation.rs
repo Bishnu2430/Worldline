@@ -11,7 +11,9 @@ use worldline_core::compact::{is_black_hole, schwarzschild_radius};
 use worldline_core::constants::{AGE_OF_UNIVERSE, DAY, GM_SUN};
 use worldline_core::crater::{Crater, Strike};
 use worldline_core::eclipses::{Ephemeris, State};
-use worldline_core::galaxy_stars::{MEASURED, Perturber, Star, advance as advance_stars};
+use worldline_core::galaxy_stars::{
+    Component, MEASURED, Perturber, Star, advance as advance_stars, spread, stellar_components,
+};
 use worldline_core::gravitational_waves::{merger_time, period_derivative};
 use worldline_core::gravity::kerr::plunge_time;
 use worldline_core::gravity::{
@@ -274,6 +276,12 @@ pub struct GalaxySwarm {
     /// `time`, moving like the swarm's stars.
     catalog: Vec<DeepSkyObject>,
     objects: Vec<Star>,
+    /// How far each star spreads its mass when drawn (step 7.4), m, in the
+    /// stars' order: 0 for Gaia's, drawn as points.
+    spreads: Vec<f64>,
+    /// The mass each drawn star stands for, kg: the stellar components'
+    /// total over the 30,000.
+    star_mass: f64,
     /// The simulation time they're at, s.
     time: f64,
     /// The bodies pulling on them at `time`, by name: GM, radius, and their
@@ -302,15 +310,45 @@ impl GalaxySwarm {
             })
             .collect();
         let mut stars = worldline_data::galaxy_stars();
+        let total: f64 = stellar().iter().map(Component::mass).sum();
+        let star_mass = total / stars.len() as f64;
         stars.extend(gaia_stars(jd_tdb, frame));
-        Self {
+        let mut swarm = Self {
             stars,
             catalog,
             objects,
+            spreads: Vec::new(),
+            star_mass,
             time: 0.0,
             pullers: Vec::new(),
-        }
+        };
+        swarm.respread();
+        swarm
     }
+
+    /// Works out how far each star spreads when drawn, from where it is:
+    /// the size of the volume its mass fills at the model's density there.
+    fn respread(&mut self) {
+        let mass = self.star_mass;
+        self.spreads = self
+            .stars
+            .iter()
+            .map(|s| {
+                if s.population == MEASURED {
+                    0.0
+                } else {
+                    spread(stellar(), mass, s.position)
+                }
+            })
+            .collect();
+    }
+}
+
+/// McMillan's (2017) stellar components: its bulge and thin and thick
+/// disks.
+fn stellar() -> &'static [Component] {
+    static COMPONENTS: std::sync::OnceLock<Vec<Component>> = std::sync::OnceLock::new();
+    COMPONENTS.get_or_init(|| stellar_components(&worldline_core::milky_way::mcmillan_2017()))
 }
 
 /// Gaia's stars within 50 pc (those not bodies of their own), galactocentric
@@ -1870,6 +1908,7 @@ impl Simulation {
         }
         // The clusters and galaxies move as its stars do; one that reaches
         // a body's surface or horizon is gone into it.
+        swarm.respread();
         let swallowed = advance_stars(&mut swarm.objects, milky_way(), &perturbers, h);
         for &k in swallowed.iter().rev() {
             let o = swarm.catalog.remove(k);
@@ -1910,6 +1949,42 @@ impl Simulation {
                 s.population,
             ))
         })
+    }
+
+    /// The galaxy's drawn stars, for its glow (step 7.4): where each is
+    /// now in the simulation's frame, carried in a straight line from its
+    /// last step, how far it spreads (m) and its population (0 thin disk, 1
+    /// thick disk, 2 bulge). Gaia's measured stars aren't among them.
+    pub fn galaxy_glow(&self) -> impl Iterator<Item = (DVec3, f64, u8)> + '_ {
+        let since = self.time() - self.galaxy_swarm.time;
+        let frame = self
+            .galaxy
+            .as_ref()
+            .map(|g| (g.orbit.position(), g.to_galactic.transpose()));
+        self.galaxy_swarm
+            .stars
+            .iter()
+            .zip(&self.galaxy_swarm.spreads)
+            .filter(|(s, _)| s.population != MEASURED)
+            .filter_map(move |(s, &h)| {
+                let (center, back) = frame?;
+                Some((
+                    back * (s.position + s.velocity * since - center),
+                    h,
+                    s.population,
+                ))
+            })
+    }
+
+    /// The mass each of the galaxy's drawn stars stands for, kg.
+    pub fn galaxy_star_mass(&self) -> f64 {
+        self.galaxy_swarm.star_mass
+    }
+
+    /// Where the galaxy's center is, in the simulation's frame, if the
+    /// galactic center is simulated.
+    pub fn galactic_center_place(&self) -> Option<DVec3> {
+        self.galaxy.as_ref().map(|g| g.origin)
     }
 
     /// Keeps the craters up to date after a collision. A body that's gone
@@ -2460,6 +2535,14 @@ mod tests {
                 .count()
         };
         assert_eq!((count(&sim, false), count(&sim, true)), (30_000, 21_480));
+        // The glow is handed the 30,000 drawn stars, each spread over the
+        // volume its mass fills at the model's density (step 7.4).
+        let mass = sim.galaxy_star_mass();
+        let glow: Vec<(DVec3, f64, u8)> = sim.galaxy_glow().collect();
+        assert_eq!(glow.len(), 30_000);
+        for (s, &(_, h, _)) in sim.galaxy_swarm.stars.iter().zip(&glow) {
+            assert_eq!(h, spread(stellar(), mass, s.position));
+        }
         // A Gaia star is where Gaia's numbers put it, carried from 2016.0,
         // to rounding (10⁻¹² of the galaxy-centered place, 8 kpc).
         let first = worldline_data::gaia_swarm_stars()[0];

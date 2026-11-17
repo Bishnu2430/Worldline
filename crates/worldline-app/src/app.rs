@@ -7,7 +7,7 @@ use eframe::egui::collapsing_header::CollapsingState;
 use eframe::egui::{self, Align2, Color32, FontId, Rect, RichText, Sense, TextureId, pos2, vec2};
 use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
-use worldline_core::constants::{AU, C, DAY, GM_SUN, JULIAN_YEAR, SOLAR_LUMINOSITY};
+use worldline_core::constants::{AU, C, DAY, G, GM_SUN, JULIAN_YEAR, PARSEC, SOLAR_LUMINOSITY};
 use worldline_core::eclipses::{Eclipse, LunarKind, SolarKind, State, apparent};
 use worldline_core::gravity::kerr::innermost_stable_orbit;
 use worldline_core::hawking;
@@ -25,7 +25,8 @@ use worldline_core::sunlight::{irradiance, light_time};
 use worldline_core::white_dwarf::{CARBON_OXYGEN, chandrasekhar_limit, radius_for};
 use worldline_core::{Body, DVec3};
 use worldline_render::{
-    Atmosphere, FluidDraw, KerrDisk, KerrLens, Lens, Pit, Rings, SkyView, View,
+    Atmosphere, FluidDraw, GlowStar, GlowView, KerrDisk, KerrLens, Lens, Pit, Rings, SkyView, View,
+    glow_coverage, glow_size,
 };
 
 use crate::calendar::{DateTime, to_the_minute, to_the_second};
@@ -34,7 +35,7 @@ use crate::catalogue::{self, Entry, Group, length, light_years, measured_suns, s
 use crate::details;
 use crate::eclipse_finder::{self, Finder};
 use crate::fluid::{FluidBody, Lab};
-use crate::gpu::{Globe, GpuGlobes, GpuSky};
+use crate::gpu::{Globe, GpuGlobes, GpuGlow, GpuSky};
 use crate::ground::{self, Ahead, PLACES};
 use crate::impact_lab::ImpactLab;
 use crate::overlays::{self, Overlays};
@@ -347,6 +348,35 @@ const EARTH: usize = 3;
 /// bodies stand out.
 const SKY_EXPOSURE: f32 = 0.8;
 
+/// Within this distance of the solar system or the galactic center the
+/// measured sky is shown in full, m: the Milky Way's light comes from
+/// stars kiloparsecs off, so from here it looks as it does from Earth.
+const SKY_NEAR: f64 = 100.0 * PARSEC;
+
+/// Past this distance from both, the galaxy's glow takes the sky's place,
+/// m: the Milky Way's band would be seen from somewhere else.
+const SKY_FAR: f64 = 1000.0 * PARSEC;
+
+/// The galaxy's glow is drawn at this fraction of the view's resolution
+/// at most, one over.
+const GLOW_SCALE: f64 = 3.0;
+
+/// A column of stars of this many Suns per square parsec is shown at half
+/// brightness: about the disk's at the Sun's radius, seen from above
+/// (McMillan 2017's model has 45). Visual.
+const GLOW_REFERENCE: f64 = 150.0;
+
+/// The glow's colors for the thin disk, the thick disk and the bulge:
+/// bluish white (0.80, 0.88, 1), pale yellow (1, 0.93, 0.75) and orange (1,
+/// 0.70, 0.45) in linear light, each scaled to luminance 1. They tell the
+/// populations apart; how bright a star is drawn is its mass, the same
+/// light for every Sun of it. Visual.
+const GLOW_COLORS: [[f64; 3]; 3] = [
+    [0.9178, 1.0096, 1.1472],
+    [1.0731, 0.9980, 0.8048],
+    [1.3410, 0.9387, 0.6034],
+];
+
 /// How the black hole bending the sky bends each ray, from where the camera
 /// is (see `worldline_core::lensing::BendTable`).
 struct LensTable {
@@ -495,6 +525,8 @@ pub struct WorldlineApp {
     gpu: Option<GpuGlobes>,
     /// The sky's GPU pass, created on the first frame.
     sky: Option<GpuSky>,
+    /// The galaxy's glow on the GPU, once first drawn.
+    glow: Option<GpuGlow>,
     /// How the black hole bending the sky bends it, for the camera's
     /// distance from it.
     lens: Option<LensTable>,
@@ -615,6 +647,7 @@ impl WorldlineApp {
                 magnetospheres: true,
                 shadows: true,
                 starfield: true,
+                galaxy_glow: true,
                 accretion_disk: true,
                 overlays: Overlays::default(),
             },
@@ -622,6 +655,7 @@ impl WorldlineApp {
             flight: None,
             gpu: None,
             sky: None,
+            glow: None,
             lens: None,
             disk: None,
             disk_colors: disk_colors(),
@@ -1316,6 +1350,14 @@ impl WorldlineApp {
     }
 
     fn display(&mut self, ui: &mut egui::Ui) {
+        ui.checkbox(&mut self.options.galaxy_glow, "The galaxy's glow")
+            .on_hover_text(
+                "Out among the galaxy's stars, more than 100 pc from the solar system and the \
+                 galactic center, its swarm drawn as light: each star's 1.8 million Suns spread \
+                 as far as the model's density says, each pixel the stars along its ray. It \
+                 takes the place of the starfield, which is the sky as seen from the solar \
+                 system, by 1 kpc out. How bright and what color are visual",
+            );
         ui.checkbox(&mut self.options.starfield, "Starfield")
             .on_hover_text(
                 "The Milky Way as ESA's Gaia mapped it (CC BY-SA 3.0 IGO), and the 9,096 stars of \
@@ -3039,6 +3081,20 @@ impl WorldlineApp {
                 painter.rect_filled(viewport, 0.0, Color32::from_rgb(3, 5, 12));
             }
         }
+        // The galaxy's glow over the sky, out among its stars.
+        let glow = 1.0 - self.sky_presence();
+        if let Some(state) = render_state.filter(|_| self.options.galaxy_glow && glow > 0.0)
+            && let Some(texture) = self.draw_glow(state, ui.ctx().pixels_per_point(), viewport)
+        {
+            let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+            let a = (255.0 * glow).round() as u8;
+            painter.image(
+                texture,
+                viewport,
+                uv,
+                Color32::from_rgba_premultiplied(a, a, a, a),
+            );
+        }
 
         if response.dragged() && self.tool.is_none() {
             let delta = response.drag_delta();
@@ -3887,6 +3943,65 @@ impl WorldlineApp {
     /// Draws the sky on the GPU: the Milky Way and the bright stars, bent
     /// by the black hole whose Einstein ring, √(4GM/c²r) across, is widest
     /// from here, if it spans half a pixel or more.
+    /// How much of the measured sky is shown, 0 to 1: all of it within
+    /// [`SKY_NEAR`] of the solar system or the galactic center (the regions
+    /// whose bodies are simulated), none past [`SKY_FAR`] from both, evenly
+    /// in the logarithm of the distance between. The sky map is the sky as
+    /// seen from the solar system; out among the galaxy's stars, its glow
+    /// takes the sky's place.
+    fn sky_presence(&self) -> f64 {
+        sky_presence(self.camera.eye(), self.simulation.galactic_center_place())
+    }
+
+    /// Draws the galaxy's swarm as a glow on the GPU, at a third of the
+    /// view's resolution (its light is smooth), or coarser where its stars
+    /// cover the view many times over, as from inside the galaxy, to keep
+    /// to a budget of pixels a frame (see `worldline_render::glow_size`):
+    /// each star its mass spread
+    /// as a Gaussian as far as the model's density says, each pixel the
+    /// column of mass along its ray, in Suns per square parsec, shown at
+    /// half brightness at [`GLOW_REFERENCE`].
+    fn draw_glow(
+        &mut self,
+        state: &RenderState,
+        pixels_per_point: f32,
+        viewport: Rect,
+    ) -> Option<TextureId> {
+        let full = [
+            (viewport.width() * pixels_per_point).round() as u32,
+            (viewport.height() * pixels_per_point).round() as u32,
+        ];
+        let eye = self.camera.eye();
+        let suns = self.simulation.galaxy_star_mass() * G / GM_SUN;
+        let stars: Vec<GlowStar> = self
+            .simulation
+            .galaxy_glow()
+            .map(|(place, spread, population)| {
+                let color = GLOW_COLORS
+                    .get(population as usize)
+                    .copied()
+                    .unwrap_or([1.0; 3]);
+                GlowStar {
+                    position: ((place - eye) / PARSEC).as_vec3().to_array(),
+                    spread: (spread / PARSEC) as f32,
+                    color: color.map(|c| (c * suns) as f32),
+                    padding: 0.0,
+                }
+            })
+            .collect();
+        let (forward, _, up) = self.camera.basis();
+        let mut view = GlowView {
+            size: full,
+            forward: forward.as_vec3(),
+            up: up.as_vec3(),
+            fov_y: self.camera.fov_y as f32,
+            exposure: (1.0 / GLOW_REFERENCE) as f32,
+        };
+        view.size = glow_size(full, glow_coverage(&view, &stars), 1.0 / GLOW_SCALE);
+        let gpu = self.glow.get_or_insert_with(|| GpuGlow::new(state));
+        gpu.draw(state, &view, &stars)
+    }
+
     fn draw_sky(
         &mut self,
         state: &RenderState,
@@ -3996,7 +4111,7 @@ impl WorldlineApp {
             fov_y: self.camera.fov_y as f32,
             to_map: crate::sky::to_galactic().as_mat3(),
             exposure: if self.options.starfield {
-                SKY_EXPOSURE
+                SKY_EXPOSURE * self.sky_presence() as f32
             } else {
                 0.0
             },
@@ -4436,9 +4551,32 @@ fn capitalized(text: &str) -> String {
     })
 }
 
+/// How much of the measured sky is shown from `eye` (in the simulation's
+/// frame, whose origin is the solar system's barycenter), with the galaxy's
+/// center at `center` if it's simulated: see `App::sky_presence`.
+fn sky_presence(eye: DVec3, center: Option<DVec3>) -> f64 {
+    let near = center.map_or(eye.length(), |c| eye.length().min((eye - c).length()));
+    (SKY_FAR / near.max(SKY_NEAR)).ln().max(0.0) / (SKY_FAR / SKY_NEAR).ln()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_measured_sky_gives_way_to_the_glow_out_among_the_stars() {
+        let pc = PARSEC;
+        let center = Some(DVec3::X * 8277.0 * pc);
+        let at = |eye: DVec3| sky_presence(eye, center);
+        // All of it near the solar system or the galactic center, none a
+        // kiloparsec from both, half at √(100 × 1000) = 316 pc.
+        assert_eq!(at(DVec3::Y * AU), 1.0);
+        assert_eq!(at(DVec3::X * 8200.0 * pc), 1.0);
+        assert_eq!(at(DVec3::Z * 1000.0 * pc), 0.0);
+        assert_eq!(at(DVec3::Z * 40_000.0 * pc), 0.0);
+        assert!((at(DVec3::Z * 1e3_f64.sqrt() * 10.0 * pc) - 0.5).abs() < 1e-12);
+        assert_eq!(sky_presence(DVec3::Z * 50.0 * pc, None), 1.0);
+    }
 
     #[test]
     fn percentages_keep_two_figures() {

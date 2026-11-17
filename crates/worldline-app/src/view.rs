@@ -34,6 +34,7 @@ pub struct ViewOptions {
     pub magnetospheres: bool,
     pub shadows: bool,
     pub starfield: bool,
+    pub galaxy_glow: bool,
     pub accretion_disk: bool,
     pub overlays: crate::overlays::Overlays,
 }
@@ -365,7 +366,7 @@ pub fn draw_under(
     }
     draw_debris(painter, camera, viewport, simulation);
     if camera.distance >= NEARBY_MIN_VIEW {
-        draw_galaxy_stars(painter, camera, viewport, simulation);
+        draw_galaxy_stars(painter, camera, viewport, simulation, options.galaxy_glow);
     }
 
     let bodies = &simulation.bodies;
@@ -882,11 +883,18 @@ const SWARM_MIN_VIEW: f64 = 100.0 * worldline_core::constants::PARSEC;
 /// stars, but too faint and far to show among the solar system's bodies.
 const NEARBY_MIN_VIEW: f64 = worldline_core::constants::PARSEC;
 
-/// Draws the galaxy's swarm: thin-disk stars bluish white, thick-disk ones
-/// pale yellow, the bulge's orange, all faint, from 100 pc out; Gaia's
-/// measured stars white, from a parsec out. The colors only tell the
-/// populations apart.
-fn draw_galaxy_stars(painter: &Painter, camera: &Camera, viewport: Rect, simulation: &Simulation) {
+/// Draws the galaxy's swarm as dots: thin-disk stars bluish white,
+/// thick-disk ones pale yellow, the bulge's orange, all faint, from 100 pc
+/// out, unless they're drawn as a glow on the GPU (`glow`); Gaia's measured
+/// stars white, from a parsec out. The colors only tell the populations
+/// apart.
+fn draw_galaxy_stars(
+    painter: &Painter,
+    camera: &Camera,
+    viewport: Rect,
+    simulation: &Simulation,
+    glow: bool,
+) {
     let mut mesh = Mesh::default();
     let size = vec2(1.6, 1.6);
     let colors = [
@@ -895,7 +903,7 @@ fn draw_galaxy_stars(painter: &Painter, camera: &Camera, viewport: Rect, simulat
         Color32::from_rgba_unmultiplied(255, 180, 110, 150),
     ];
     let measured = Color32::from_rgba_unmultiplied(240, 240, 240, 190);
-    let drawn = camera.distance >= SWARM_MIN_VIEW;
+    let drawn = camera.distance >= SWARM_MIN_VIEW && !glow;
     for (position, population) in simulation.galaxy_star_positions() {
         let is_measured = population == worldline_core::galaxy_stars::MEASURED;
         if !drawn && !is_measured {

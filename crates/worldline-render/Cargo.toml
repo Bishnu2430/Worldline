@@ -19,6 +19,8 @@ naga = { version = "30.0.1", features = ["wgsl-in"] }
 pollster = "1.0.1"
 wgpu = "30.0.1"
 worldline-core = { path = "../worldline-core" }
+# For the GPU test that draws the galaxy's swarm.
+worldline-data = { path = "../worldline-data" }
 
 [lints]
 workspace = true

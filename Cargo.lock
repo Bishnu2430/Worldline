@@ -4129,6 +4129,7 @@ dependencies = [
  "pollster",
  "wgpu",
  "worldline-core",
+ "worldline-data",
 ]
 
 [[package]]
