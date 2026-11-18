@@ -105,6 +105,7 @@
 | The galaxy's stars as a swarm in its potential, kicked by anything added | left alone, the swarm keeps the model's density; a black hole passing through scatters it as the impulse approximation predicts | ✅ passing: χ² 145.2 as drawn and 130.3 a galactic year on, over 137 degrees of freedom (limit 193.9); 300 kicks up to 16.58 km/s, the worst at 0.88 of what's allowed; Gaia's 21,480 stars within 50 pc at their measured places, moving on average as the Sun's motion against them says (0.93 and 0.60 standard deviations) |
 | Clusters, nebulae and satellite galaxies as named objects at their measured places | each at its published distance and position | ✅ passing: all 251 placed in the galaxy and measured back as published, the worst at 0.001 of what rounding allows; their galactic coordinates as their catalogues print them, to the last digit printed (the worst at 0.98 of what's allowed) |
 | The galaxy's swarm drawn on the GPU, from inside and outside | from above, the drawn disk thins out with the model's scale length | ✅ passing: 2.5945 kpc drawn against McMillan's 2.6156 over 4 to 12 kpc, 0.61 of a 30,000-star sample's standard deviation (limit 3) |
+| A scenario library: famous events, each set up in one click | each scenario loads and plays from a menu | ✅ passing: all 11 load and play; played to their ends, Mercury's perihelion turns 42.9806″ a century against general relativity's 42.9807″, GW150914 and GW170817 merge when their recorded chirps end (8.7 s and 173 s), and the eclipse finder goes to 12 August 2026 |
 | Tidal disruption begins near r_t ≈ R(M/m)^(1/3), and the debris falls back at a rate ∝ t^(−5/3) | a Jupiter-like planet passing a star loses what Faber, Rasio & Willems's simulations found (0.58, 0.24, 0.027 and 0 at 1.2, 1.5, 1.8 and 2.2 r_t); torn right through, its debris comes back as t^(−5/3) | ✅ passing: 0.574, 0.235, 0.024, 0; t^(−1.676 ± 0.023) |
 | A planet stays a point until it nears its tidal radius, then becomes a fluid | a point until tides would stretch it by 1% (5.34 tidal radii for n = 1, never passed); as a fluid it stretches by the n = 1 polytrope's Love number, 15/π² − 1 = 0.520 | ✅ passing: Jupiter falling toward a black hole stops at 1.006 of that distance; the GPU fluid's Love number 0.517 with 8,000 particles; a Jupiter passing the Sun is a fluid at its closest and a point again after |
 | A clock near a black hole runs slow by the predicted factor (proper time) | on a circular orbit at 10 GM/c², √(1 − 3GM/rc²) = 0.836660; Earth's clock against the barycenter's, the IAU's L_C = 1.48082686741 × 10⁻⁸ | ✅ passing: 0.836660026534, carried round by the engine; Earth over 10 years 4 × 10⁻¹⁴ off L_C; GPS clocks gain 38.54 µs a day |
@@ -130,6 +131,14 @@ The first build takes a few minutes. Then:
 - scroll to zoom,
 - click a body to inspect it,
 - double-click a body to fly to it.
+
+To play one of the scenario library's famous events (Mercury's perihelion, the Hulse–Taylor pulsar, GW150914, GW170817, a planet meeting a black hole, TON 618 swallowing Sagittarius A*, a white dwarf past its limit, an evaporating black hole, the next total solar eclipse, the Moon-forming impact, a black hole through the Sun's neighborhood), open **Scenarios** in the top bar, or:
+
+```bash
+cargo run --release -- --scenario gw150914
+```
+
+See [docs/scenarios.md](docs/scenarios.md) for the keys.
 
 To start already flown in to a body with time stopped:
 
@@ -219,6 +228,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 - [Roadmap](docs/ROADMAP.md): milestones and steps
 - [Architecture](docs/ARCHITECTURE.md): how the engine picks physics models
 - [The desktop app](docs/app.md): frame loop, double-precision 3D view, camera, trails and the sandbox tools
+- [Scenarios](docs/scenarios.md): the library of famous events, each set up in one click, and what each checks
 - [What a collision leaves](docs/physics/collision-outcomes.md): merging, partial accretion, hit-and-run and disruption, from Leinhardt & Stewart's scaling laws
 - [What a collision throws off](docs/physics/debris.md): the fragments, and where every joule goes
 - [Craters](docs/physics/craters.md): what a small body digs, against Meteor Crater and Chicxulub

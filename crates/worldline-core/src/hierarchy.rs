@@ -745,10 +745,14 @@ impl Hierarchy {
     }
 
     /// Removes top-level body `index`, and its moon system if it has one.
-    /// The Sun (body 0) can't be removed: the followers' relativistic term
-    /// and the solar wind are measured from it.
+    /// Body 0 (the Sun) can't be removed while followers or particles are
+    /// measured from it: their relativistic term, and the solar wind. A
+    /// hierarchy with neither, like the nearby stars', can lose it.
     pub fn remove_body(&mut self, index: usize) {
-        assert!(index > 0, "the Sun can't be removed");
+        assert!(
+            index > 0 || (self.followers.is_empty() && self.swarm.is_empty()),
+            "the Sun can't be removed"
+        );
         self.top.bodies.remove(index);
         self.moon_systems.retain(|moons| moons.host != index);
         for moons in &mut self.moon_systems {

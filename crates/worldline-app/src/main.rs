@@ -44,6 +44,11 @@
 //!   1 grazing).
 //! - `--fluid Jupiter` models Jupiter as a self-gravitating fluid of SPH
 //!   particles on the GPU, as many as it steps smoothly.
+//! - `--scenario mercury` plays a scenario from the library (step 8.1):
+//!   mercury, hulse-taylor, gw150914, gw170817, planet-black-hole,
+//!   ton-618, white-dwarf, mini-black-hole, eclipse, moon-impact or
+//!   black-hole-flyby. It starts afresh, after the options above.
+//! - `--scenarios` opens the scenario window.
 
 mod app;
 mod calendar;
@@ -128,6 +133,10 @@ pub struct StartOptions {
     pub look: Option<(f64, f64)>,
     /// The field of view there, in degrees.
     pub fov: Option<f64>,
+    /// A scenario from the library to play, by its key.
+    pub scenario: Option<String>,
+    /// Start with the scenario window open.
+    pub scenarios: bool,
 }
 
 /// Two numbers with a comma between them.
@@ -145,6 +154,11 @@ impl StartOptions {
                 "--focus" => options.focus = args.next(),
                 "--fluid" => options.fluid = args.next(),
                 "--sky" => options.sky = true,
+                "--scenarios" => options.scenarios = true,
+                "--scenario" => match args.next() {
+                    Some(key) => options.scenario = Some(key),
+                    None => eprintln!("worldline: --scenario needs a scenario's key"),
+                },
                 "--stand" => match args.next().and_then(|a| pair(&a)) {
                     Some(place) if place.0.abs() <= 90.0 => options.stand = Some(place),
                     _ => eprintln!("worldline: --stand needs latitude,longitude in degrees"),
@@ -326,6 +340,9 @@ mod tests {
             "jupiter:2@Gaia BH1",
             "--launch",
             "0.071",
+            "--scenario",
+            "gw150914",
+            "--scenarios",
         ]
         .map(String::from)
         .into_iter();
@@ -371,6 +388,8 @@ mod tests {
                 stand: Some((38.88, -77.03)),
                 look: Some((120.0, 30.0)),
                 fov: Some(3.0),
+                scenario: Some("gw150914".into()),
+                scenarios: true,
             }
         );
         assert_eq!(

@@ -18,6 +18,24 @@ pub fn kepler_period(a: f64, mu: f64) -> f64 {
     TAU * (a.powi(3) / mu).sqrt()
 }
 
+/// The Laplace–Runge–Lenz vector, v × h − μ r̂ with h = r × v, of a body
+/// at `r` (m) moving at `v` (m/s) relative to what it circles, μ (m³/s²)
+/// their combined gravitational parameter: it points at periapsis, and its
+/// length is μ times the eccentricity. Newtonian gravity keeps it fixed;
+/// anything else turns it.
+pub fn periapsis_vector(r: DVec3, v: DVec3, mu: f64) -> DVec3 {
+    v.cross(r.cross(v)) - mu * r.normalize()
+}
+
+/// How far general relativity turns a bound orbit's periapsis each orbit,
+/// rad: 6πμ/(c²a(1 − e²)) (Einstein 1915), to first order in μ/c²a. For
+/// semi-major axis `a` (m), eccentricity `e` and combined gravitational
+/// parameter `mu` (m³/s²).
+pub fn relativistic_advance(mu: f64, a: f64, e: f64) -> f64 {
+    let c = crate::constants::C;
+    6.0 * std::f64::consts::PI * mu / (c * c * a * (1.0 - e * e))
+}
+
 /// Relative position (m) and velocity (m/s) at periapsis, the closest
 /// approach, for a bound orbit with semi-major axis `a` (m), eccentricity
 /// `e` (0 ≤ e < 1) and combined gravitational parameter `mu` (m³/s²).
@@ -176,6 +194,29 @@ impl KeplerOrbit {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_periapsis_vector_points_at_periapsis_with_length_mu_e() {
+        let (mu, a, e) = (1.327e20, 5.79e10, 0.2056);
+        let (r, v) = periapsis_state(a, e, mu);
+        let lrl = periapsis_vector(r, v, mu);
+        assert!((lrl.normalize() - DVec3::X).length() < 1e-12);
+        assert!((lrl.length() / (mu * e) - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn mercurys_perihelion_turns_43_arcseconds_a_century() {
+        // Mercury's mean elements (Standish, J2000), as in
+        // validation_mercury.rs.
+        let mu = crate::constants::GM_SUN + 2.203_186_855_140_000_3e13;
+        let a = 0.387_098_93 * crate::constants::AU;
+        let per_century = relativistic_advance(mu, a, 0.205_630_69)
+            * (100.0 * crate::constants::JULIAN_YEAR / kepler_period(a, mu))
+            * 180.0
+            / std::f64::consts::PI
+            * 3600.0;
+        assert!((per_century - 42.98).abs() < 0.01, "{per_century}");
+    }
     use crate::constants::{AU, DAY, GM_SUN};
 
     #[test]

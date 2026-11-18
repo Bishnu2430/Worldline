@@ -79,6 +79,10 @@ Nineteen stars are bodies, listed under **Nearby stars**: the nearest, like Prox
 
 See [physics/galactic-center.md](physics/galactic-center.md).
 
+## Scenarios
+
+**Scenarios** in the top bar opens the library: eleven famous events and experiments, from Mercury's perihelion to GW150914 and a black hole through the Sun's neighborhood. **Play** sets one up afresh from the 2025 solar system, replacing what's running: its bodies, its view, its speed and any window it needs. `--scenario KEY` plays one from the command line. See [scenarios.md](scenarios.md).
+
 ## Sandbox tools
 
 ![A Jupiter-mass planet (pink) dropped 1.5 AU from the Sun, five years on: the inner planets' orbits pulled out of shape](images/sandbox-step-1.6.png)

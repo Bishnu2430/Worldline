@@ -2181,6 +2181,9 @@ impl Simulation {
     fn attractor(&self, index: usize) -> Option<usize> {
         let body = &self.bodies[index];
         let top = self.region_top(index);
+        // Where it is in its region's own frame, as the region's bodies are:
+        // the galactic center's is offset from the solar system's.
+        let here = body.position - self.trail_origin(index);
         match self.parents[index] {
             Some(planet) => Some(planet),
             None => top
@@ -2189,7 +2192,7 @@ impl Simulation {
                 .enumerate()
                 .filter(|(_, b)| b.name != body.name && b.gm > 0.0)
                 .max_by(|(_, a), (_, b)| {
-                    let pull = |x: &Body| x.gm / (x.position - body.position).length_squared();
+                    let pull = |x: &Body| x.gm / (x.position - here).length_squared();
                     pull(a).total_cmp(&pull(b))
                 })
                 .and_then(|(_, b)| self.index_of(&b.name)),
@@ -2734,6 +2737,21 @@ mod tests {
         };
         assert_eq!(names(&loaded), names(&sim));
         assert!(loaded.index_of("M13").is_none() && loaded.index_of("Pleiades").is_some());
+    }
+
+    #[test]
+    fn any_nearby_star_can_be_removed() {
+        // Proxima Centauri is the first body of the nearby stars' region,
+        // which removing once took for the solar system's Sun, and stopped.
+        let mut sim = Simulation::solar_system(DAY);
+        let proxima = sim.index_of("Proxima Centauri").expect("listed");
+        assert!(matches!(sim.removal(proxima), Removal::Allowed { .. }));
+        sim.remove(proxima);
+        assert!(sim.index_of("Proxima Centauri").is_none());
+        assert!(sim.index_of("Barnard's Star").is_some());
+        sim.advance_by(DAY);
+        let reloaded = Simulation::load(&sim.save(), DAY).unwrap();
+        assert!(reloaded.index_of("Proxima Centauri").is_none());
     }
 
     #[test]

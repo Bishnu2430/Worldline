@@ -81,8 +81,16 @@ pub struct FinalHole {
 /// its strength and phase.
 pub fn record(a: &Body, b: &Body, observer: DVec3, max_orbits: f64) -> Recording {
     let gm = a.gm + b.gm;
-    let mut system = System::new(vec![a.clone(), b.clone()]);
     let center = (a.position * a.gm + b.position * b.gm) / gm;
+    // Run relative to their center of mass: the quadrupole is about it, and
+    // a pair far from the origin keeps its own precision.
+    let drift = (a.velocity * a.gm + b.velocity * b.gm) / gm;
+    let local = |body: &Body| Body {
+        position: body.position - center,
+        velocity: body.velocity - drift,
+        ..body.clone()
+    };
+    let mut system = System::new(vec![local(a), local(b)]);
     let toward = observer - center;
     let distance = toward.length();
     let touching = a.radius + b.radius;

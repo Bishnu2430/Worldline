@@ -45,6 +45,10 @@ use crate::simulation::{Approach, Computed, Limits, Removal};
 use crate::theme;
 use crate::view::{self, OnScreen, ViewOptions};
 use crate::waves;
+
+mod scenarios;
+
+use scenarios::PerihelionWatch;
 use worldline_core::compact::{gravitational_redshift, horizon_spin, is_black_hole};
 use worldline_core::regime::Validity;
 use worldline_core::tides::{
@@ -561,6 +565,14 @@ pub struct WorldlineApp {
     finder: Option<Finder>,
     /// The eclipse to go to once the finder finds it (0 the first).
     go_to_when_found: Option<usize>,
+    /// Whether to go to the first total solar eclipse the finder finds.
+    go_to_total: bool,
+    /// Whether the scenario window is open, and the scenario playing.
+    scenarios_open: bool,
+    playing: Option<&'static str>,
+    /// A body whose perihelion is watched as it turns (Mercury's
+    /// scenario).
+    watch: Option<PerihelionWatch>,
     /// Whether the sky window is open, and the latitude and longitude in
     /// it, degrees.
     sky_open: bool,
@@ -672,6 +684,10 @@ impl WorldlineApp {
             eclipses_open: false,
             finder: None,
             go_to_when_found: None,
+            go_to_total: false,
+            scenarios_open: false,
+            playing: None,
+            watch: None,
             sky_open: false,
             impact_lab: None,
             sky_place: (PLACES[0].1, PLACES[0].2),
@@ -762,6 +778,20 @@ impl WorldlineApp {
                 eprintln!("worldline: --waves needs --focus on one body of a pair that will merge");
             }
         }
+        app.scenarios_open = start.scenarios;
+        if let Some(key) = &start.scenario {
+            match scenarios::scenario(key) {
+                Some(scenario) => app.play_scenario(scenario),
+                None => eprintln!(
+                    "worldline: no scenario `{key}`: {}",
+                    scenarios::SCENARIOS
+                        .iter()
+                        .map(|s| s.key)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            }
+        }
         app
     }
 
@@ -787,6 +817,8 @@ impl WorldlineApp {
     }
 
     fn reset(&mut self) {
+        self.playing = None;
+        self.watch = None;
         self.simulation = Simulation::solar_system(SPEEDS[self.speed_index].1);
         self.camera = initial_camera();
         self.standing = None;
@@ -965,6 +997,17 @@ impl WorldlineApp {
                 .clicked()
             {
                 self.go_live();
+            }
+            if ui
+                .selectable_label(self.scenarios_open, "Scenarios")
+                .on_hover_text(
+                    "Famous events and experiments, each set up in one go: Mercury's perihelion, \
+                     the Hulse–Taylor pulsar, GW150914, GW170817, a planet meeting a black hole, \
+                     and more",
+                )
+                .clicked()
+            {
+                self.scenarios_open = !self.scenarios_open;
             }
             if ui
                 .selectable_label(self.eclipses_open, "Eclipses")
@@ -1482,6 +1525,7 @@ impl WorldlineApp {
             ui.end_row();
             self.catalog_rows(ui);
             self.clock_rows(ui);
+            self.perihelion_rows(ui);
             if let Some(parent) = parent {
                 let planet = &bodies[parent];
                 let d = (body.position - planet.position).length();
@@ -3555,6 +3599,13 @@ impl WorldlineApp {
             self.go_to_eclipse(k);
             return;
         }
+        if self.go_to_total
+            && let Some(k) = first_total_solar(finder)
+        {
+            self.go_to_total = false;
+            self.go_to_eclipse(k);
+            return;
+        }
         let Some(finder) = &self.finder else {
             return;
         };
@@ -4378,21 +4429,12 @@ impl WorldlineApp {
         let gpu = self.gpu.get_or_insert_with(|| GpuGlobes::new(state));
         gpu.draw(state, view, &globes, &fluids)
     }
-}
 
-impl eframe::App for WorldlineApp {
-    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        let now = Instant::now();
-        let elapsed = now.duration_since(self.last_frame).as_secs_f64();
-        self.frame_seconds += 0.05 * (elapsed.min(1.0) - self.frame_seconds);
-        // Cap the step after a stall (e.g. dragging the window) at 0.1 s.
-        let real_dt = elapsed.min(0.1);
-        self.last_frame = now;
-        // The fluid's steps go to the GPU first, so it works on them while
-        // the computer works out the physics and the interface.
-        if let Some(state) = frame.wgpu_render_state() {
-            self.update_fluid(state, ui.ctx(), elapsed);
-        }
+    /// One frame's physics, `real_dt` seconds after the last: time moves
+    /// on (in step with the computer's clock, if live), a body nearing
+    /// where tides make it a fluid becomes one, and the watched perihelion
+    /// is sampled.
+    fn physics_frame(&mut self, real_dt: f64) {
         let names = self.attended_names();
         let limits = self.limits();
         let reached = if self.live && !self.simulation.paused {
@@ -4430,12 +4472,48 @@ impl eframe::App for WorldlineApp {
         self.after_events(names);
         self.aim_camera();
 
+        if let Some(watch) = &mut self.watch {
+            watch.sample(&self.simulation);
+        }
+    }
+}
+
+/// The first total solar eclipse `finder` has found, if any.
+fn first_total_solar(finder: &Finder) -> Option<usize> {
+    finder.found.iter().position(|f| {
+        matches!(
+            f.eclipse,
+            Eclipse::Solar {
+                kind: SolarKind::Total,
+                ..
+            }
+        )
+    })
+}
+
+impl eframe::App for WorldlineApp {
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        let now = Instant::now();
+        let elapsed = now.duration_since(self.last_frame).as_secs_f64();
+        self.frame_seconds += 0.05 * (elapsed.min(1.0) - self.frame_seconds);
+        // Cap the step after a stall (e.g. dragging the window) at 0.1 s.
+        let real_dt = elapsed.min(0.1);
+        self.last_frame = now;
+        // The fluid's steps go to the GPU first, so it works on them while
+        // the computer works out the physics and the interface.
+        if let Some(state) = frame.wgpu_render_state() {
+            self.update_fluid(state, ui.ctx(), elapsed);
+        }
+        self.physics_frame(real_dt);
+
         egui::Panel::top("controls").show(ui, |ui| self.controls(ui));
+
         egui::Panel::right("inspector")
             .default_size(290.0)
             .show(ui, |ui| self.inspector(ui));
         egui::CentralPanel::no_frame().show(ui, |ui| self.scene(ui, frame));
         self.catalogue_window(ui.ctx());
+        self.scenarios_window(ui.ctx());
         self.waves_window(ui.ctx());
         self.eclipses_window(ui.ctx());
         self.sky_window(ui.ctx());
