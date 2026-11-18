@@ -107,7 +107,7 @@ Added 2026-10-22 at the owner's request: the galaxy's stars, cheaply. Famous obj
 
 | # | Step | How you verify it | Status |
 |---|---|---|---|
-| 8.1 | Scenario library: Mercury, Hulse–Taylor, GW150914, GW170817, planet versus black hole, TON 618 meets Sagittarius A\*, white dwarf pushed past the limit, evaporating mini black hole, the next total solar eclipse, the Moon-forming impact, a black hole through the Sun's neighborhood | Each scenario loads and plays from a menu | ⬜ |
+| 8.1 | Scenario library: Mercury, Hulse–Taylor, GW150914, GW170817, planet versus black hole, TON 618 meets Sagittarius A\*, white dwarf pushed past the limit, evaporating mini black hole, the next total solar eclipse, the Moon-forming impact, a black hole through the Sun's neighborhood | Each scenario loads and plays from a menu | ✅ |
 | 8.2 | Validation report: plots generated automatically into `docs/validation/` | Every claim in the README links to a passing test and a plot | ⬜ |
 | 8.3 | README with GIFs, physics docs, Windows release build | A fresh machine can download and run it | ⬜ |
 
