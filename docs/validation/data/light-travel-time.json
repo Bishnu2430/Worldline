@@ -1,0 +1,11 @@
+{
+  "id": "light-travel-time",
+  "test": "validation_sun_reach::light_takes_8_3_minutes_to_reach_earth",
+  "file": "crates/worldline-data/tests/validation_sun_reach.rs",
+  "kind": "margins",
+  "title": "Light travel time, Sun to Earth",
+  "checks": [
+    {"label": "1 AU / c, against the IAU's 499.004 783 836 s", "off": 1.5643308870494366e-10, "limit": 1e-9, "shown": "499.004783836 s (limit: the IAU's last digit)"},
+    {"label": "2025's average, against 8.3 minutes", "off": 0.017995911175507473, "limit": 0.05, "shown": "8.318 minutes (limit: 8.3's rounding)"}
+  ]
+}

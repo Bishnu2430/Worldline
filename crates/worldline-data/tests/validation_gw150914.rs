@@ -92,6 +92,60 @@ fn a_gw150914_replay_leaves_the_hole_ligo_measured() {
     let published = measured.mass.value;
     let (published_spin, _) = measured.spin.expect("a spin");
     println!("GWTC-1: {published} +{plus}/−{minus} Suns, spin {published_spin} +0.05/−0.04");
+    // An interval's check: how far from its center, as a share of the
+    // side it's on.
+    let within = |x: f64, center: f64, plus: f64, minus: f64| {
+        if x > center {
+            (x - center) / plus
+        } else {
+            (center - x) / minus
+        }
+    };
+    let radiated = merger.radiated_gm / GM_SUN;
+    worldline_report::margins(
+        "gw150914",
+        "GW150914 replayed: the final black hole against LIGO and Virgo's measurements (90% credible)",
+    )
+    .check(
+        "mass, against 62 ± 4 Suns (2016)",
+        within(mass, 62.0, 4.0, 4.0),
+        1.0,
+        format!("{mass:.2} Suns"),
+    )
+    .check(
+        "spin, against 0.67 +0.05/−0.07 (2016)",
+        within(spin, 0.67, 0.05, 0.07),
+        1.0,
+        format!("{spin:.3}"),
+    )
+    .check(
+        "radiated, against 3.0 ± 0.5 Suns (2016)",
+        within(radiated, 3.0, 0.5, 0.5),
+        1.0,
+        format!("{radiated:.2} Suns; rings down at {:.0} Hz", tone.frequency),
+    )
+    .check(
+        &format!("mass, against GWTC-1's {published} +{plus}/−{minus} Suns"),
+        within(mass, published, plus, minus),
+        1.0,
+        format!("{mass:.2} Suns"),
+    )
+    .check(
+        &format!("spin, against GWTC-1's {published_spin} +0.05/−0.04"),
+        within(spin, published_spin, 0.05, 0.04),
+        1.0,
+        format!("{spin:.3}"),
+    )
+    .check(
+        "the hole's mass and what's radiated add up to the pair's",
+        (hole.gm + merger.radiated_gm - gm) / gm,
+        1e-15,
+        format!(
+            "{:.1e} of the total (limit 10⁻¹⁵, rounding)",
+            ((hole.gm + merger.radiated_gm - gm) / gm).abs()
+        ),
+    )
+    .save(worldline_report::here!());
     assert!((published - minus..=published + plus).contains(&mass));
     assert!((published_spin - 0.04..=published_spin + 0.05).contains(&spin));
 }

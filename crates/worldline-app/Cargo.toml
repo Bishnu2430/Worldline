@@ -20,5 +20,9 @@ worldline-core = { path = "../worldline-core" }
 worldline-data = { path = "../worldline-data" }
 worldline-render = { path = "../worldline-render" }
 
+[dev-dependencies]
+# The validation report's figures (step 8.2).
+worldline-report = { path = "../worldline-report" }
+
 [lints]
 workspace = true

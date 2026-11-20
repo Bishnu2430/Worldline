@@ -108,6 +108,17 @@ fn carried_round_its_orbit_the_clock_keeps_that_rate() {
         4000.0 * step,
         shown
     );
+    worldline_report::margins(
+        "proper-time-orbit",
+        "A clock carried round a circular orbit at 10 GM/c² of a black hole runs slow by √(1 − 3GM/rc²)",
+    )
+    .check(
+        "its rate over 20 turns, against √(1 − 3/r) = 0.836660",
+        factor - predicted,
+        1e-10,
+        format!("{factor:.12} against {predicted:.12}"),
+    )
+    .save(worldline_report::here!());
     assert!((factor - predicted).abs() < 1e-10);
 }
 
@@ -143,5 +154,20 @@ fn gps_clocks_run_fast_as_worked_out_by_hand() {
         (ground - up) * 86_400e6,
         hand * 86_400e6
     );
+    worldline_report::margins(
+        "gps-clocks",
+        "A GPS satellite's clock against one on the equator, as worked out by hand",
+    )
+    .check(
+        "the gain, against GM/c²(1/R − 1/r) − (v_s² − v_g²)/2c²",
+        (ground - up) - hand,
+        5e-19,
+        format!(
+            "{:.2} µs a day, by hand {:.2} (limit the next order, (GM/Rc²)²)",
+            (ground - up) * 86_400e6,
+            hand * 86_400e6
+        ),
+    )
+    .save(worldline_report::here!());
     assert!(((ground - up) - hand).abs() < 5e-19);
 }

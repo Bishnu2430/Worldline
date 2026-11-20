@@ -1,0 +1,12 @@
+{
+  "id": "gpu-fluid-equilibrium",
+  "test": "validation_fluid_gpu::left_alone_on_the_gpu_a_planet_stays_in_equilibrium",
+  "file": "crates/worldline-render/tests/validation_fluid_gpu.rs",
+  "kind": "margins",
+  "title": "Jupiter as a fluid on the GPU, left alone for ten dynamical times",
+  "checks": [
+    {"label": "half-mass radius moved, against half a smoothing length", "off": 0.012750176384182188, "limit": 0.08824727815469645, "shown": "0.07 h at most"},
+    {"label": "kinetic energy, against an oscillation that size", "off": 0.00021192136582973362, "limit": 0.0077875821017123655, "shown": "2.1e-4 of the binding energy"},
+    {"label": "energy kept, against the steps' error and single precision's", "off": 4.157351841465652e-5, "limit": 0.001643629120919181, "shown": "changed by 4.2e-5 over 280 steps"}
+  ]
+}

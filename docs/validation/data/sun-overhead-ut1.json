@@ -1,0 +1,13 @@
+{
+  "id": "sun-overhead-ut1",
+  "test": "validation_time::the_sun_is_overhead_where_jpl_puts_it",
+  "file": "crates/worldline-data/tests/validation_time.rs",
+  "kind": "margins",
+  "title": "Earth turned by the IERS's UT1: where the Sun is overhead, against JPL Horizons",
+  "checks": [
+    {"label": "JD 2460676.5 TT: longitude", "off": 0.006193600739948124, "limit": 0.015, "shown": "+0.0062° (the IAU's model in TDB alone: +0.089°); limit 0.015°: aberration and nutation, left out"},
+    {"label": "JD 2460676.5 TT: latitude", "off": 0.0027909543082635935, "limit": 0.015, "shown": "+0.0028°"},
+    {"label": "JD 2461341.5 TT: longitude", "off": 0.005961413570219065, "limit": 0.015, "shown": "+0.0060° (the IAU's model in TDB alone: +0.092°); limit 0.015°: aberration and nutation, left out"},
+    {"label": "JD 2461341.5 TT: latitude", "off": 0.00012768049259115344, "limit": 0.015, "shown": "-0.0001°"}
+  ]
+}

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="540" viewBox="0 0 760 540">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">Every solar and lunar eclipse of 2026–2030, found in the app's own simulation</text>
+<line x1="90.0" y1="64" x2="90.0" y2="400" stroke="#e4e7eb"/>
+<text x="90.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">2026</text>
+<line x1="218.0" y1="64" x2="218.0" y2="400" stroke="#e4e7eb"/>
+<text x="218.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">2027</text>
+<line x1="346.0" y1="64" x2="346.0" y2="400" stroke="#e4e7eb"/>
+<text x="346.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">2028</text>
+<line x1="474.0" y1="64" x2="474.0" y2="400" stroke="#e4e7eb"/>
+<text x="474.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">2029</text>
+<line x1="602.0" y1="64" x2="602.0" y2="400" stroke="#e4e7eb"/>
+<text x="602.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">2030</text>
+<line x1="730.0" y1="64" x2="730.0" y2="400" stroke="#e4e7eb"/>
+<text x="730.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">2031</text>
+<line x1="90" y1="359.3" x2="730" y2="359.3" stroke="#e4e7eb"/>
+<text x="84.0" y="363.3" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">-50</text>
+<line x1="90" y1="295.6" x2="730" y2="295.6" stroke="#e4e7eb"/>
+<text x="84.0" y="299.6" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">-25</text>
+<line x1="90" y1="232.0" x2="730" y2="232.0" stroke="#e4e7eb"/>
+<text x="84.0" y="236.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">0</text>
+<line x1="90" y1="168.4" x2="730" y2="168.4" stroke="#e4e7eb"/>
+<text x="84.0" y="172.4" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">25</text>
+<line x1="90" y1="104.7" x2="730" y2="104.7" stroke="#e4e7eb"/>
+<text x="84.0" y="108.7" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">50</text>
+<rect x="90" y="64" width="640" height="336" fill="none" stroke="#6b7785"/>
+<text x="410.0" y="436.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" font-weight="normal">year</text>
+<text x="18" y="232.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" transform="rotate(-90 18 232.0)">greatest eclipse, from NASA's canon (s)</text>
+<circle cx="106.6" cy="230.6" r="2.6" fill="#1c7ed6"/>
+<circle cx="168.4" cy="229.9" r="2.6" fill="#1c7ed6"/>
+<circle cx="230.8" cy="229.1" r="2.6" fill="#1c7ed6"/>
+<circle cx="292.7" cy="227.2" r="2.6" fill="#1c7ed6"/>
+<circle cx="354.8" cy="227.3" r="2.6" fill="#1c7ed6"/>
+<circle cx="417.0" cy="227.1" r="2.6" fill="#1c7ed6"/>
+<circle cx="478.9" cy="226.3" r="2.6" fill="#1c7ed6"/>
+<circle cx="530.9" cy="224.4" r="2.6" fill="#1c7ed6"/>
+<circle cx="541.3" cy="224.6" r="2.6" fill="#1c7ed6"/>
+<circle cx="592.8" cy="223.8" r="2.6" fill="#1c7ed6"/>
+<circle cx="655.0" cy="223.2" r="2.6" fill="#1c7ed6"/>
+<circle cx="717.0" cy="222.3" r="2.6" fill="#1c7ed6"/>
+<circle cx="100" cy="452" r="3" fill="#1c7ed6"/>
+<text x="118.0" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">solar eclipses</text>
+<circle cx="111.5" cy="231.6" r="2.6" fill="#e8590c"/>
+<circle cx="173.8" cy="225.3" r="2.6" fill="#e8590c"/>
+<circle cx="235.8" cy="239.8" r="2.6" fill="#e8590c"/>
+<circle cx="287.5" cy="228.8" r="2.6" fill="#e8590c"/>
+<circle cx="297.9" cy="223.4" r="2.6" fill="#e8590c"/>
+<circle cx="349.7" cy="219.2" r="2.6" fill="#e8590c"/>
+<circle cx="411.6" cy="232.9" r="2.6" fill="#e8590c"/>
+<circle cx="474.0" cy="223.4" r="2.6" fill="#e8590c"/>
+<circle cx="535.8" cy="223.2" r="2.6" fill="#e8590c"/>
+<circle cx="598.1" cy="222.5" r="2.6" fill="#e8590c"/>
+<circle cx="660.1" cy="226.7" r="2.6" fill="#e8590c"/>
+<circle cx="722.2" cy="223.0" r="2.6" fill="#e8590c"/>
+<circle cx="100" cy="468" r="3" fill="#e8590c"/>
+<text x="118.0" y="472.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">lunar eclipses</text>
+<path d="M90.0,79.3 L730.0,79.3" fill="none" stroke="#2b8a3e" stroke-width="1.8" stroke-dasharray="6 4"/>
+<line x1="90" y1="484" x2="110" y2="484" stroke="#2b8a3e" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="118.0" y="488.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">limit: a minute</text>
+<path d="M90.0,384.7 L730.0,384.7" fill="none" stroke="#2b8a3e" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="20.0" y="508.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">24 of NASA's 24 eclipses found (Five Millennium Canons, Espenak &amp; Meeus), each of the same type, and 24 found</text>
+<text x="20.0" y="524.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">in all: none extra. The worst is 5.0 s from the canon's time.</text>
+</svg>

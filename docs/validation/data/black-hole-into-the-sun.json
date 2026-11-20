@@ -1,0 +1,12 @@
+{
+  "id": "black-hole-into-the-sun",
+  "test": "validation_collisions::a_black_hole_that_hits_the_sun_takes_its_place",
+  "file": "crates/worldline-core/tests/validation_collisions.rs",
+  "kind": "margins",
+  "title": "A black hole of 10 Suns falls into the Sun and takes its place",
+  "checks": [
+    {"label": "total momentum before and after, against rounding", "off": 9921634304.0, "limit": 241340398659263.28, "shown": "changed by 4.1e-17 of its scale (limit 10⁻¹²)"},
+    {"label": "the horizon of 11 Suns, 2GM/c²", "off": 2.220446049250313e-16, "limit": 1e-12, "shown": "32.49 km"},
+    {"label": "the black hole survives, as body 0", "off": 0.0, "limit": 0.5, "shown": "Hole absorbed the Sun at 2000 km/s"}
+  ]
+}

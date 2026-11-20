@@ -49,9 +49,12 @@ fn sagittarius_a_star_spirals_into_ton_618() {
     let mut last = (0.0, 9.0);
     let mut orbits = 0.0;
     let mut closest: f64 = 9.0;
+    let mut path = Vec::new();
+    let year = 365.25 * 86_400.0;
     while h.top.bodies.len() == 2 {
         let r = (h.top.bodies[1].position - h.top.bodies[0].position).length() / m;
         let t = h.time();
+        path.push((t / year, r));
         for (k, &mark) in marks.iter().enumerate() {
             if crossed[k].is_nan() && r < mark {
                 crossed[k] = last.0 + (t - last.0) * (last.1 - mark) / (last.1 - r);
@@ -74,7 +77,6 @@ fn sagittarius_a_star_spirals_into_ton_618() {
     let to_plunge = |x: f64| plunge_time(gm, nu, x * m).expect("outside 6 GM/c²");
     let expected = (to_plunge(8.5) - to_plunge(6.5)) / unit_time;
     let miss = (measured / expected - 1.0).abs();
-    let year = 365.25 * 86_400.0;
     println!(
         "ν = {nu:.3e}; GM/c³ = {:.3} days. From 8.5 to 6.5 GM/c²: {measured:.5e} GM/c³ ({:.0} years); the adiabatic rate gives {expected:.5e} (off by {miss:.1e}, bound √ν = {:.1e})",
         unit_time / 86_400.0,
@@ -88,6 +90,29 @@ fn sagittarius_a_star_spirals_into_ton_618() {
         (merged - crossed[2]) / year,
         merged / year
     );
+    let in_transition = (merged - crossed[2]) / unit_time / isco_period;
+    // The adiabatic inspiral, from 8.5 GM/c² where the measurement starts.
+    let adiabatic: Vec<(f64, f64)> = (0..=100)
+        .map(|k| 8.5 - 2.49 * k as f64 / 100.0)
+        .map(|r| ((crossed[0] + to_plunge(8.5) - to_plunge(r)) / year, r))
+        .collect();
+    worldline_report::lines(
+        "emri",
+        "Sagittarius A* spirals into TON 618 (1 : 15,000), in TON 618's exact spacetime",
+        "years",
+        "separation (GM/c²)",
+    )
+    .series("simulated", path)
+    .expected("the adiabatic rate of circular orbits, from 8.5 GM/c²", adiabatic)
+    .expected("the innermost stable orbit, 6 GM/c²", [(0.0, 6.0), (merged / year, 6.0)])
+    .note(&format!(
+        "From 8.5 to 6.5 GM/c², {miss:.1e} off the adiabatic rate (limit √ν = {:.1e}). From 6 GM/c² it plunges \
+         within {in_transition:.1} orbits there, as Ori & Thorne's transition predicts, about ν^(−1/5) (limit \
+         ν^(−3/5) = {:.0}).",
+        nu.sqrt(),
+        nu.powf(-0.6)
+    ))
+    .save(worldline_report::here!());
     // 1. The inspiral follows the adiabatic rate, up to corrections of
     //    order ν (the orbit isn't quite circular as it shrinks); a mistake
     //    in the spacetime or the radiation reaction would show at order 1.

@@ -1,0 +1,10 @@
+{
+  "id": "scenario-mercury",
+  "test": "worldline::app::scenarios::tests::mercurys_perihelion_turns_as_general_relativity_says",
+  "file": "crates/worldline-app/src/app/scenarios.rs",
+  "kind": "margins",
+  "title": "The Mercury scenario: the inspector's perihelion rate over a century, against general relativity's",
+  "checks": [
+    {"label": "the fitted rate, against 6πGM/c²a(1 − e²) an orbit", "off": 3.037125293037235e-6, "limit": 0.001, "shown": "42.9806″ a century against 42.9807″ (limit 10⁻³: the osculating swing shifts it under 10⁻⁴)"}
+  ]
+}

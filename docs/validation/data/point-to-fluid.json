@@ -1,0 +1,11 @@
+{
+  "id": "point-to-fluid",
+  "test": "worldline::simulation::tests::a_giant_planet_stays_a_point_until_its_tides_reach_one_percent",
+  "file": "crates/worldline-app/src/simulation.rs",
+  "kind": "margins",
+  "title": "A planet stays a point until tides would stretch it by 1%, at 5.34 tidal radii",
+  "checks": [
+    {"label": "Jupiter falling toward a black hole stops there, within 1% beyond", "off": 0.14165775559427193, "limit": 1.0, "shown": "at 1.0057 of that distance"},
+    {"label": "never closer before", "off": 8062668564.958013, "limit": 8108692605.4478655, "shown": "closest 1.0057 of it"}
+  ]
+}

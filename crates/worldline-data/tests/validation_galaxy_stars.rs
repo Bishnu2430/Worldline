@@ -28,6 +28,26 @@ fn left_alone_the_swarm_keeps_the_models_density() {
         "after {:.0} million years: {after}",
         year / JULIAN_YEAR / 1e6
     );
+    worldline_report::margins(
+        "galaxy-swarm-density",
+        "The galaxy's 30,000 stars, left alone, keep McMillan's (2017) density",
+    )
+    .check(
+        "as drawn: χ² against the model, over its bins",
+        start.chi2,
+        start.limit,
+        format!(
+            "χ² {:.1} over {} degrees of freedom (limit {:.1}: exceeded by chance once in a thousand)",
+            start.chi2, start.dof, start.limit
+        ),
+    )
+    .check(
+        &format!("a galactic year on, {:.0} million years", year / JULIAN_YEAR / 1e6),
+        after.chi2,
+        after.limit,
+        format!("χ² {:.1} over {} degrees of freedom", after.chi2, after.dof),
+    )
+    .save(worldline_report::here!());
     assert!(after.passes());
 }
 

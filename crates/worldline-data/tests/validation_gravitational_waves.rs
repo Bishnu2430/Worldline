@@ -169,7 +169,8 @@ fn the_hulse_taylor_orbit_shrinks_as_measured() {
     let orbits = 1000;
     let all = turns(pair(a, start_e), &gravity, orbit.period, orbits);
     let (_, simulated_e) = period_and_eccentricity(&all[..6]);
-    let [_, period, curvature] = parabola(&periastron_times(&all));
+    let times = periastron_times(&all);
+    let [start, period, curvature] = parabola(&times);
     let simulated = 2.0 * curvature / period;
 
     let formula = period_derivative(gm1, gm2, period, e);
@@ -206,6 +207,81 @@ fn the_hulse_taylor_orbit_shrinks_as_measured() {
         "  the pair merges in {:.0} million years",
         merger_time(gm1, gm2, period, e) / JULIAN_YEAR / 1e6
     );
+
+    // The classic plot: each periastron's time against a steady period's,
+    // shifting earlier and earlier, as ½ P (dP/dt) N² after N orbits.
+    let shift: Vec<(f64, f64)> = times
+        .iter()
+        .enumerate()
+        .map(|(k, t)| {
+            let k = k as f64;
+            (k * period / JULIAN_YEAR, (t - start - period * k) * 1e3)
+        })
+        .collect();
+    let predicted_shift: Vec<(f64, f64)> = (0..=orbits)
+        .step_by(10)
+        .map(|k| {
+            let k = k as f64;
+            (
+                k * period / JULIAN_YEAR,
+                0.5 * period * predicted * k * k * 1e3,
+            )
+        })
+        .collect();
+    worldline_report::lines(
+        "hulse-taylor-shrinking",
+        "The Hulse–Taylor pulsar's orbit shrinking from gravitational waves, simulated over 1000 orbits",
+        "years",
+        "periastron's shift from a steady period (ms)",
+    )
+    .dots("simulated periastron passages", shift)
+    .expected(
+        "general relativity's prediction, −2.40263 × 10⁻¹² s/s (Weisberg & Huang 2016)",
+        predicted_shift,
+    )
+    .note(&format!(
+        "Simulated dP/dt = {simulated:.5e}, {:.1e} from the prediction (limit {:.1e}: the catalog's masses' \
+         rounding, and the prediction's own uncertainty), {:+.1}σ from the measured {measured:.3e} ± {sigma:.3e}.",
+        (simulated / predicted - 1.0).abs(),
+        allowed_against_prediction(predicted, predicted_sigma),
+        (simulated - measured) / sigma
+    ))
+    .save(worldline_report::here!());
+    worldline_report::margins(
+        "hulse-taylor-shrinking-margins",
+        "The Hulse–Taylor pulsar's orbit shrinking: the checks",
+    )
+    .check(
+        "against general relativity's prediction",
+        simulated / predicted - 1.0,
+        allowed_against_prediction(predicted, predicted_sigma),
+        format!("{simulated:.5e} against {predicted:.5e} s/s (limit: the masses' rounding)"),
+    )
+    .check(
+        "against Peters & Mathews's formula, same masses and orbit",
+        simulated / formula - 1.0,
+        strength.sqrt(),
+        format!("{formula:.5e} s/s (limit √(GM/rc²): the next order is GM/rc²)"),
+    )
+    .check(
+        "the roadmap's −2.40 × 10⁻¹² s/s",
+        simulated - -2.40e-12,
+        0.005e-12,
+        format!("{simulated:.3e} s/s (limit: the last digit's rounding)"),
+    )
+    .check(
+        "the simulated period is the measured one",
+        period / orbit.period - 1.0,
+        1e-6,
+        format!("{:.6} h", period / 3600.0),
+    )
+    .check(
+        "the simulated eccentricity is the measured one",
+        simulated_e - e,
+        1e-6,
+        format!("{simulated_e:.7} against {e}"),
+    )
+    .save(worldline_report::here!());
 
     // The simulated orbit is the measured one.
     assert!((period / orbit.period - 1.0).abs() < 1e-6);

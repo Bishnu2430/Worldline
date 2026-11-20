@@ -76,8 +76,8 @@ fn run(spin: f64, position: DVec3, velocity: DVec3, period: f64, orbits: f64) ->
 }
 
 /// Whether a circular orbit at `r` (units of GM/c²), its speed nudged by
-/// one part in 10⁶, survives 300 turns.
-fn survives(spin: f64, r: f64, prograde: bool) -> bool {
+/// one part in 10⁶, survives 300 turns, and the least radius it reached.
+fn survives(spin: f64, r: f64, prograde: bool) -> (bool, f64) {
     let (x, v) = circular_orbit(GM, spin, r * m(), prograde);
     let period = TAU * r * m() / v.length();
     let (low, high, fell) = run(spin, x, v * (1.0 - 1e-6), period, 300.0);
@@ -86,7 +86,7 @@ fn survives(spin: f64, r: f64, prograde: bool) -> bool {
         if prograde { "prograde" } else { "retrograde" },
         if fell { "plunged" } else { "kept circling" },
     );
-    !fell
+    (!fell, low)
 }
 
 #[test]
@@ -99,15 +99,45 @@ fn the_innermost_stable_orbit_is_where_theory_puts_it() {
     // swing outside (2 × 10⁻⁴) stays well clear of the orbit, and 300
     // turns are ample inside.
     let bracket = 0.005;
+    let mut figure = worldline_report::margins(
+        "kerr-isco",
+        "The innermost stable orbit of a black hole, from orbits in its exact (Kerr) spacetime",
+    );
     for (spin, prograde) in [(0.0, true), (0.9, true), (0.9, false)] {
         let isco = innermost_stable_orbit(spin, prograde);
         println!(
             "spin {spin}, {}: Bardeen, Press & Teukolsky put it at {isco:.4} GM/c²",
             if prograde { "prograde" } else { "retrograde" }
         );
-        assert!(survives(spin, isco * (1.0 + bracket), prograde));
-        assert!(!survives(spin, isco * (1.0 - bracket), prograde));
+        let way = if prograde { "with" } else { "against" };
+        let (outside, low) = survives(spin, isco * (1.0 + bracket), prograde);
+        let (inside, _) = survives(spin, isco * (1.0 - bracket), prograde);
+        let start = isco * (1.0 + bracket);
+        figure = figure
+            .check(
+                &format!("spin {spin} ({way}), 0.5% outside {isco:.2} GM/c²: keeps circling"),
+                (start - low) / (start - isco),
+                1.0,
+                format!(
+                    "swings in to {low:.4} GM/c²: {:.1e} of the way to the innermost stable orbit",
+                    (start - low) / (start - isco)
+                ),
+            )
+            .check(
+                &format!("spin {spin} ({way}), 0.5% inside: plunges"),
+                if inside { 1.0 } else { 0.0 },
+                0.5,
+                if inside {
+                    "kept circling"
+                } else {
+                    "plunged within 300 turns"
+                }
+                .to_string(),
+            );
+        assert!(outside);
+        assert!(!inside);
     }
+    figure.save(worldline_report::here!());
     // The roadmap's number: 6 GM/c² for a hole that doesn't spin.
     assert_eq!(innermost_stable_orbit(0.0, true), 6.0);
 }

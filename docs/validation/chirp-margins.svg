@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="810" viewBox="0 0 760 810">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">Two neutron stars' chirp, 20 to 40 Hz: the checks at five points</text>
+<text x="20.0" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#6b7785" text-anchor="start" font-weight="normal">how far each result is from what's expected, as a share of the limit it must stay within</text>
+<line x1="250.0" y1="58" x2="250.0" y2="762" stroke="#e4e7eb"/>
+<text x="250.0" y="778.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−6</tspan></text>
+<line x1="318.6" y1="58" x2="318.6" y2="762" stroke="#e4e7eb"/>
+<text x="318.6" y="778.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−5</tspan></text>
+<line x1="387.1" y1="58" x2="387.1" y2="762" stroke="#e4e7eb"/>
+<text x="387.1" y="778.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−4</tspan></text>
+<line x1="455.7" y1="58" x2="455.7" y2="762" stroke="#e4e7eb"/>
+<text x="455.7" y="778.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−3</tspan></text>
+<line x1="524.3" y1="58" x2="524.3" y2="762" stroke="#e4e7eb"/>
+<text x="524.3" y="778.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−2</tspan></text>
+<line x1="592.9" y1="58" x2="592.9" y2="762" stroke="#e4e7eb"/>
+<text x="592.9" y="778.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−1</tspan></text>
+<line x1="661.4" y1="58" x2="661.4" y2="762" stroke="#e4e7eb"/>
+<text x="661.4" y="778.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">1</text>
+<line x1="730.0" y1="58" x2="730.0" y2="762" stroke="#e4e7eb"/>
+<text x="730.0" y="778.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="661.4" y1="54" x2="661.4" y2="762" stroke="#c92a2a" stroke-width="2"/>
+<text x="661.4" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#c92a2a" text-anchor="middle" font-weight="normal">limit</text>
+<text x="20.0" y="78.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">20.0 Hz: the chirp formula, to its</text>
+<text x="20.0" y="91.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">next order</text>
+<rect x="250" y="68" width="375.3" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="98.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 2.8e-2 = 3.2 x (limit √x = 9.4e-2)</text>
+<text x="20.0" y="124.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">20.0 Hz: with its first correction</text>
+<rect x="250" y="114" width="372.1" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="144.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 2.4e-3 = 30 x² (limit x = 8.9e-3)</text>
+<text x="20.0" y="170.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">20.0 Hz: the amplitude</text>
+<rect x="250" y="160" width="317.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="190.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">2.848e-23 against 2.859e-23</text>
+<text x="20.0" y="216.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">22.3 Hz: the chirp formula, to its</text>
+<text x="20.0" y="229.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">next order</text>
+<rect x="250" y="206" width="376.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="236.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 3.0e-2 = 3.2 x (limit √x = 9.8e-2)</text>
+<text x="20.0" y="262.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">22.3 Hz: with its first correction</text>
+<rect x="250" y="252" width="373.6" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="282.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 2.7e-3 = 29 x² (limit x = 9.5e-3)</text>
+<text x="20.0" y="308.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">22.3 Hz: the amplitude</text>
+<rect x="250" y="298" width="318.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="328.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">3.064e-23 against 3.077e-23</text>
+<text x="20.0" y="354.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">25.5 Hz: the chirp formula, to its</text>
+<text x="20.0" y="367.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">next order</text>
+<rect x="250" y="344" width="378.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="374.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 3.3e-2 = 3.2 x (limit √x = 1.0e-1)</text>
+<text x="20.0" y="400.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">25.5 Hz: with its first correction</text>
+<rect x="250" y="390" width="375.2" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="420.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 3.1e-3 = 28 x² (limit x = 1.0e-2)</text>
+<text x="20.0" y="446.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">25.5 Hz: the amplitude</text>
+<rect x="250" y="436" width="319.2" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="466.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">3.351e-23 against 3.367e-23</text>
+<text x="20.0" y="492.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">30.4 Hz: the chirp formula, to its</text>
+<text x="20.0" y="505.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">next order</text>
+<rect x="250" y="482" width="379.8" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="512.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 3.7e-2 = 3.2 x (limit √x = 1.1e-1)</text>
+<text x="20.0" y="538.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">30.4 Hz: with its first correction</text>
+<rect x="250" y="528" width="376.6" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="558.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 3.6e-3 = 27 x² (limit x = 1.2e-2)</text>
+<text x="20.0" y="584.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">30.4 Hz: the amplitude</text>
+<rect x="250" y="574" width="320.8" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="604.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">3.760e-23 against 3.780e-23</text>
+<text x="20.0" y="630.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">38.7 Hz: the chirp formula, to its</text>
+<text x="20.0" y="643.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">next order</text>
+<rect x="250" y="620" width="382.2" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="650.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 4.4e-2 = 3.2 x (limit √x = 1.2e-1)</text>
+<text x="20.0" y="676.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">38.7 Hz: with its first correction</text>
+<rect x="250" y="666" width="376.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="696.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 4.3e-3 = 22 x² (limit x = 1.4e-2)</text>
+<text x="20.0" y="722.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">38.7 Hz: the amplitude</text>
+<rect x="250" y="712" width="323.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="742.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">4.417e-23 against 4.444e-23</text>
+<text x="250.0" y="796.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">share of the limit (logarithmic): under 1 passes</text>
+</svg>

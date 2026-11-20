@@ -1,0 +1,10 @@
+{
+  "id": "gps-clocks",
+  "test": "validation_proper_time::gps_clocks_run_fast_as_worked_out_by_hand",
+  "file": "crates/worldline-core/tests/validation_proper_time.rs",
+  "kind": "margins",
+  "title": "A GPS satellite's clock against one on the equator, as worked out by hand",
+  "checks": [
+    {"label": "the gain, against GM/c²(1/R − 1/r) − (v_s² − v_g²)/2c²", "off": 2.112263596797035e-19, "limit": 5e-19, "shown": "38.54 µs a day, by hand 38.54 (limit the next order, (GM/Rc²)²)"}
+  ]
+}

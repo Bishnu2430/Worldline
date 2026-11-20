@@ -205,6 +205,28 @@ fn from_above_the_drawn_disk_thins_out_with_the_models_scale_length() {
         (r_drawn - r_model).abs(),
         (r_drawn - r_model).abs() / sigma
     );
+    let profile = |values: &[f64]| -> Vec<(f64, f64)> {
+        centers()
+            .iter()
+            .copied()
+            .zip(values.iter().copied())
+            .collect()
+    };
+    worldline_report::lines(
+        "galaxy-glow",
+        "The galaxy's swarm drawn on the GPU, seen from 200 kpc above: the disk thins out with the model's scale length",
+        "distance from the center (kpc)",
+        "surface density (Suns per pc²)",
+    )
+    .log_y()
+    .dots("drawn on the GPU, 1,024 × 1,024 pixels", profile(&drawn))
+    .expected("McMillan's (2017) model, seen the same way", profile(&expected))
+    .note(&format!(
+        "Scale length from 4 to 12 kpc: drawn {r_drawn:.4} kpc, the model's {r_model:.4}: {:.2} of a 30,000-star \
+         sample's standard deviation, {sigma:.4} kpc (limit 3).",
+        (r_drawn - r_model).abs() / sigma
+    ))
+    .save(worldline_report::here!());
     assert!((r_drawn - r_model).abs() < 3.0 * sigma);
 }
 

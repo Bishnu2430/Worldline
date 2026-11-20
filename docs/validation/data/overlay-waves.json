@@ -1,0 +1,14 @@
+{
+  "id": "overlay-waves",
+  "test": "validation_overlays::gravitational_waves_are_as_worked_out_by_hand",
+  "file": "crates/worldline-core/tests/validation_overlays.rs",
+  "kind": "margins",
+  "title": "The gravitational-wave overlay's numbers, against hand calculations",
+  "checks": [
+    {"label": "time to merge from 100 Hz, against Peters's", "off": 7.105427357601002e-15, "limit": 1e-12, "shown": "0.0116 s"},
+    {"label": "the orbit's phase half a turn back", "off": 2.220446049250313e-15, "limit": 1e-12, "shown": "11.521999 ms ago"},
+    {"label": "GW150914 face on from 410 Mpc at 100 Hz", "off": 0.0, "limit": 1e-15, "shown": "h = 1.622e-21"},
+    {"label": "against the bodies' quadrupole, face on", "off": 4.6044535259248676e-5, "limit": 0.0002007914279955319, "shown": "4.6e-5 off (limit twice GM/rc² = 2.0e-4)"},
+    {"label": "and edge on", "off": 9.211452265667219e-5, "limit": 0.0002007914279955319, "shown": "9.2e-5 off"}
+  ]
+}

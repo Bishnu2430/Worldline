@@ -1,0 +1,15 @@
+{
+  "id": "kerr-isco",
+  "test": "validation_kerr::the_innermost_stable_orbit_is_where_theory_puts_it",
+  "file": "crates/worldline-core/tests/validation_kerr.rs",
+  "kind": "margins",
+  "title": "The innermost stable orbit of a black hole, from orbits in its exact (Kerr) spacetime",
+  "checks": [
+    {"label": "spin 0 (with), 0.5% outside 6.00 GM/c²: keeps circling", "off": 0.11211535000261229, "limit": 1.0, "shown": "swings in to 6.0266 GM/c²: 1.1e-1 of the way to the innermost stable orbit"},
+    {"label": "spin 0 (with), 0.5% inside: plunges", "off": 0.0, "limit": 0.5, "shown": "plunged within 300 turns"},
+    {"label": "spin 0.9 (with), 0.5% outside 2.32 GM/c²: keeps circling", "off": 0.14235958126571197, "limit": 1.0, "shown": "swings in to 2.3308 GM/c²: 1.4e-1 of the way to the innermost stable orbit"},
+    {"label": "spin 0.9 (with), 0.5% inside: plunges", "off": 0.0, "limit": 0.5, "shown": "plunged within 300 turns"},
+    {"label": "spin 0.9 (against), 0.5% outside 8.72 GM/c²: keeps circling", "off": 0.10801549878867851, "limit": 1.0, "shown": "swings in to 8.7562 GM/c²: 1.1e-1 of the way to the innermost stable orbit"},
+    {"label": "spin 0.9 (against), 0.5% inside: plunges", "off": 0.0, "limit": 0.5, "shown": "plunged within 300 turns"}
+  ]
+}

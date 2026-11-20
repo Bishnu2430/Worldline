@@ -43,6 +43,15 @@ fn no_white_dwarf_passes_chandrasekhars_limit() {
     // wrong equation of state wouldn't approach the limit at all. The test
     // asks the shortfall to fall faster than 1/x, the midpoint.
     let mut previous: Option<(f64, f64)> = None;
+    // The masses of ever denser white dwarfs, for the plot.
+    let curve: Vec<(f64, f64)> = (0..=30)
+        .map(|k| {
+            let x = 10f64.powf(-1.0 + 4.0 * k as f64 / 30.0);
+            let star = white_dwarf(rho0() * x * x * x, CARBON_OXYGEN);
+            (star.central_density, star.gm / GM_SUN)
+        })
+        .collect();
+    let mut powers = Vec::new();
     for x in [1.0, 10.0, 100.0, 1000.0] {
         let star = white_dwarf(rho0() * x * x * x, CARBON_OXYGEN);
         let short = 1.0 - star.gm / limit;
@@ -56,12 +65,33 @@ fn no_white_dwarf_passes_chandrasekhars_limit() {
         if let Some((px, pshort)) = previous {
             let power = (pshort / short).ln() / (x / px).ln();
             println!("  the shortfall falls as x^−{power:.2}");
+            powers.push(format!("x^−{power:.2}"));
             if x > 10.0 {
                 assert!(power > 1.0);
             }
         }
         previous = Some((x, short));
     }
+    let densities = (curve[0].0, curve[curve.len() - 1].0);
+    worldline_report::lines(
+        "chandrasekhar-limit",
+        "White dwarfs of carbon and oxygen, ever denser: their mass approaches Chandrasekhar's limit from below",
+        "central density (kg/m³)",
+        "mass (Suns)",
+    )
+    .log_x()
+    .series("the degenerate-electron equation of state, solved", curve)
+    .expected(
+        &format!("Chandrasekhar's limit, {:.4} Suns", limit / GM_SUN),
+        [(densities.0, limit / GM_SUN), (densities.1, limit / GM_SUN)],
+    )
+    .note(&format!(
+        "The limit is {:.4} Suns, the roadmap's 1.46 to its digits. The shortfall falls as {} as the electrons \
+         grow relativistic: as 1/x², faster than 1/x, the test's midpoint.",
+        limit / GM_SUN,
+        powers.join(", then ")
+    ))
+    .save(worldline_report::here!());
 }
 
 #[test]
@@ -115,6 +145,31 @@ fn sirius_b_is_the_size_theory_gives_its_mass() {
         radius / 1e3,
         (predicted - radius).abs() / sigma
     );
+    let relation: Vec<(f64, f64)> = (4..=290)
+        .map(|k| k as f64 * 0.005)
+        .filter_map(|m| radius_for(m * GM_SUN, CARBON_OXYGEN).map(|r| (m, r / SOLAR_RADIUS)))
+        .collect();
+    worldline_report::lines(
+        "sirius-b-radius",
+        "Sirius B's radius from its measured mass: an ideal cold carbon-oxygen white dwarf",
+        "mass (Suns)",
+        "radius (Sun radii)",
+    )
+    .expected("the mass–radius relation, cold and ideal", relation)
+    .dots(
+        "Sirius B, measured: 1.018 Suns (Bond et al. 2017), 0.00803 Sun radii (Joyce et al. 2018)",
+        [(mass, radius / SOLAR_RADIUS)],
+    )
+    .note(&format!(
+        "At its mass: {:.5} Sun radii, {:.0} km, against {:.5} ± {:.5} measured: {:.2} σ off, where σ combines \
+         the radius's uncertainty and the mass's carried through the relation.",
+        predicted / SOLAR_RADIUS,
+        predicted / 1e3,
+        radius / SOLAR_RADIUS,
+        radius_up / SOLAR_RADIUS,
+        (predicted - radius).abs() / sigma
+    ))
+    .save(worldline_report::here!());
     assert!((predicted - radius).abs() < sigma);
     println!("The mass–radius relation (carbon and oxygen, cold, ideal):");
     for m in [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.3, 1.4, 1.45] {

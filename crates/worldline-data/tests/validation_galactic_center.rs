@@ -27,6 +27,23 @@ fn sagittarius_a_star_is_where_it_is_on_the_sky() {
     let l = galactic.y.atan2(galactic.x).to_degrees().rem_euclid(360.0);
     let b = galactic.z.asin().to_degrees();
     println!("Sagittarius A*: l = {l:.8}°, b = {b:.8}° (SIMBAD: 359.94423568°, −0.04616002°)");
+    worldline_report::margins(
+        "sagittarius-a-star-direction",
+        "Sagittarius A*'s direction in galactic coordinates, against SIMBAD's",
+    )
+    .check(
+        "galactic longitude, against 359.94423568°",
+        l - 359.944_235_68,
+        1e-4,
+        format!("{l:.8}° (limit 0.0001°: SIMBAD's radio position differs by under 0.05″)"),
+    )
+    .check(
+        "galactic latitude, against −0.04616002°",
+        b + 0.046_160_02,
+        1e-4,
+        format!("{b:.8}°"),
+    )
+    .save(worldline_report::here!());
     assert!((l - 359.944_235_68).abs() < 1e-4);
     assert!((b + 0.046_160_02).abs() < 1e-4);
 }
@@ -118,6 +135,30 @@ fn s2_circles_sagittarius_a_star_and_turns_as_gravity_measured() {
         (perihelia[0] - expected) / 86_400.0,
         allowed / 86_400.0
     );
+    let turned: Vec<(f64, f64)> = points
+        .iter()
+        .map(|(t, x)| (t / period, (x - points[0].1) * arcmin))
+        .collect();
+    worldline_report::lines(
+        "s2-turning",
+        "The star S2 around Sagittarius A*: its orbit's relativistic turning, over ten orbits",
+        "orbits",
+        "pericenter turned (arcminutes)",
+    )
+    .series("simulated, Sagittarius A*'s field to first post-Newtonian order", turned)
+    .expected(
+        "general relativity, 6πGM/c²a(1 − e²) an orbit",
+        [(0.0, 0.0), (orbits, orbits * predicted * arcmin)],
+    )
+    .note(&format!(
+        "{:.2}′ an orbit simulated, {:.2}′ predicted: f = {f:.4}, against GRAVITY's measured 0.997 ± 0.144. The next \
+         pericenter {:.2} days from one Keplerian period after 2018.3789 (limit {:.2}: GM/rc² of a period).",
+        per_orbit * arcmin,
+        predicted * arcmin,
+        (perihelia[0] - expected) / 86_400.0,
+        allowed / 86_400.0
+    ))
+    .save(worldline_report::here!());
     assert!((perihelia[0] - expected).abs() < allowed);
     // Its turning as GRAVITY measured it, within their 1σ.
     assert!((f - 0.997).abs() < 0.144);

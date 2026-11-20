@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="508" viewBox="0 0 760 508">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">The Milky Way's rotation curve, from McMillan's (2017) mass model</text>
+<line x1="247.6" y1="64" x2="247.6" y2="400" stroke="#e4e7eb"/>
+<text x="247.6" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">5</text>
+<line x1="408.4" y1="64" x2="408.4" y2="400" stroke="#e4e7eb"/>
+<text x="408.4" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="569.2" y1="64" x2="569.2" y2="400" stroke="#e4e7eb"/>
+<text x="569.2" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">15</text>
+<line x1="730.0" y1="64" x2="730.0" y2="400" stroke="#e4e7eb"/>
+<text x="730.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">20</text>
+<line x1="90" y1="320.5" x2="730" y2="320.5" stroke="#e4e7eb"/>
+<text x="84.0" y="324.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">100</text>
+<line x1="90" y1="229.9" x2="730" y2="229.9" stroke="#e4e7eb"/>
+<text x="84.0" y="233.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">150</text>
+<line x1="90" y1="139.3" x2="730" y2="139.3" stroke="#e4e7eb"/>
+<text x="84.0" y="143.3" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">200</text>
+<rect x="90" y="64" width="640" height="336" fill="none" stroke="#6b7785"/>
+<text x="410.0" y="436.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" font-weight="normal">distance from the center (kpc)</text>
+<text x="18" y="232.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" transform="rotate(-90 18 232.0)">circular speed (km/s)</text>
+<path d="M90.0,384.7 L93.2,335.3 L96.4,304.0 L99.6,281.0 L102.9,262.7 L106.1,247.4 L109.3,234.3 L112.5,222.9 L115.7,212.7 L118.9,203.6 L122.2,195.4 L125.4,187.9 L128.6,181.2 L131.8,175.0 L135.0,169.4 L138.2,164.2 L141.5,159.5 L144.7,155.1 L147.9,151.1 L151.1,147.4 L154.3,143.9 L157.5,140.7 L160.8,137.7 L164.0,134.9 L167.2,132.3 L170.4,129.8 L173.6,127.4 L176.8,125.2 L180.1,123.1 L183.3,121.0 L186.5,119.0 L189.7,117.2 L192.9,115.3 L196.1,113.6 L199.3,111.9 L202.6,110.2 L205.8,108.6 L209.0,107.1 L212.2,105.6 L215.4,104.2 L218.6,102.8 L221.9,101.4 L225.1,100.1 L228.3,98.8 L231.5,97.6 L234.7,96.4 L237.9,95.3 L241.2,94.2 L244.4,93.2 L247.6,92.2 L250.8,91.2 L254.0,90.3 L257.2,89.5 L260.5,88.6 L263.7,87.9 L266.9,87.1 L270.1,86.4 L273.3,85.8 L276.5,85.1 L279.7,84.6 L283.0,84.0 L286.2,83.5 L289.4,83.0 L292.6,82.6 L295.8,82.2 L299.0,81.8 L302.3,81.4 L305.5,81.1 L308.7,80.8 L311.9,80.6 L315.1,80.4 L318.3,80.1 L321.6,80.0 L324.8,79.8 L328.0,79.7 L331.2,79.6 L334.4,79.5 L337.6,79.4 L340.9,79.3 L344.1,79.3 L347.3,79.3 L350.5,79.3 L353.7,79.3 L356.9,79.3 L360.2,79.3 L363.4,79.4 L366.6,79.5 L369.8,79.5 L373.0,79.6 L376.2,79.7 L379.4,79.8 L382.7,80.0 L385.9,80.1 L389.1,80.2 L392.3,80.4 L395.5,80.5 L398.7,80.7 L402.0,80.8 L405.2,81.0 L408.4,81.2 L411.6,81.3 L414.8,81.5 L418.0,81.7 L421.3,81.9 L424.5,82.1 L427.7,82.3 L430.9,82.5 L434.1,82.7 L437.3,82.9 L440.6,83.1 L443.8,83.3 L447.0,83.5 L450.2,83.7 L453.4,83.9 L456.6,84.1 L459.8,84.3 L463.1,84.5 L466.3,84.8 L469.5,85.0 L472.7,85.2 L475.9,85.4 L479.1,85.6 L482.4,85.8 L485.6,86.0 L488.8,86.2 L492.0,86.4 L495.2,86.6 L498.4,86.8 L501.7,87.1 L504.9,87.3 L508.1,87.5 L511.3,87.7 L514.5,87.9 L517.7,88.1 L521.0,88.3 L524.2,88.5 L527.4,88.7 L530.6,88.9 L533.8,89.0 L537.0,89.2 L540.3,89.4 L543.5,89.6 L546.7,89.8 L549.9,90.0 L553.1,90.2 L556.3,90.4 L559.5,90.5 L562.8,90.7 L566.0,90.9 L569.2,91.1 L572.4,91.2 L575.6,91.4 L578.8,91.6 L582.1,91.7 L585.3,91.9 L588.5,92.1 L591.7,92.2 L594.9,92.4 L598.1,92.6 L601.4,92.7 L604.6,92.9 L607.8,93.0 L611.0,93.2 L614.2,93.3 L617.4,93.5 L620.7,93.6 L623.9,93.8 L627.1,93.9 L630.3,94.1 L633.5,94.2 L636.7,94.4 L639.9,94.5 L643.2,94.6 L646.4,94.8 L649.6,94.9 L652.8,95.0 L656.0,95.2 L659.2,95.3 L662.5,95.4 L665.7,95.6 L668.9,95.7 L672.1,95.8 L675.3,96.0 L678.5,96.1 L681.8,96.2 L685.0,96.3 L688.2,96.4 L691.4,96.6 L694.6,96.7 L697.8,96.8 L701.1,96.9 L704.3,97.0 L707.5,97.2 L710.7,97.3 L713.9,97.4 L717.1,97.5 L720.4,97.6 L723.6,97.7 L726.8,97.8 L730.0,97.9" fill="none" stroke="#1c7ed6" stroke-width="1.8"/>
+<line x1="90" y1="452" x2="110" y2="452" stroke="#1c7ed6" stroke-width="2"/>
+<text x="118.0" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">the solved model</text>
+<circle cx="350.8" cy="79.3" r="2.6" fill="#e8590c"/>
+<circle cx="100" cy="468" r="3" fill="#e8590c"/>
+<text x="118.0" y="472.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">McMillan's Table 3: 233.1 km/s at 8.21 kpc</text>
+<text x="20.0" y="492.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">At 8.21 kpc: 233.1088 km/s.</text>
+</svg>

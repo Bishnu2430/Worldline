@@ -1,0 +1,10 @@
+{
+  "id": "earths-clock",
+  "test": "worldline::simulation::tests::earths_clock_runs_slow_against_the_barycenters_by_the_iau_rate",
+  "file": "crates/worldline-app/src/simulation.rs",
+  "kind": "margins",
+  "title": "Earth's clock against the solar system barycenter's, over ten years",
+  "checks": [
+    {"label": "its rate, against the IAU's L_C = 1.48082686741 × 10⁻⁸", "off": 3.650038041214653e-14, "limit": 1.2e-13, "shown": "1.480823217372e-8; it fell 4.6731 s behind (limit: Saturn's and Jupiter's long terms, left in)"}
+  ]
+}

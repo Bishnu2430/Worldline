@@ -114,6 +114,7 @@ fn a_black_hole_passing_through_scatters_it_as_the_impulse_approximation_predict
     let hole_at = |t: f64| start + velocity * t;
     let tidal = tide(center);
     let (mut worst, mut largest, mut most_allowed) = (0.0f64, 0.0f64, 0.0f64);
+    let mut kicks = Vec::new();
     for star in &stars {
         // When it passes closest, on straight lines, and the undisturbed
         // star's state then.
@@ -157,6 +158,7 @@ fn a_black_hole_passing_through_scatters_it_as_the_impulse_approximation_predict
         // ½|T|τ². Twice that is allowed.
         let allowed = 2.0 * (predicted.length() / relative + 0.5 * tidal * wait * wait);
         let off = (kick - predicted).length() / predicted.length();
+        kicks.push((predicted.length() / 1e3, off / allowed));
         worst = worst.max(off / allowed);
         largest = largest.max(predicted.length());
         most_allowed = most_allowed.max(allowed);
@@ -168,5 +170,20 @@ fn a_black_hole_passing_through_scatters_it_as_the_impulse_approximation_predict
         worst,
         most_allowed
     );
+    worldline_report::lines(
+        "galaxy-swarm-flyby",
+        "A million-Sun black hole falls through the galaxy's swarm at 1,000 km/s: each star's kick",
+        "predicted kick (km/s)",
+        "off the impulse approximation, as a share of what's allowed",
+    )
+    .log_x()
+    .dots("300 stars near the Sun's radius", kicks)
+    .expected("limit", [(1e-3, 1.0), (largest / 1e3 * 2.0, 1.0)])
+    .note(&format!(
+        "Allowed: twice what the approximation leaves out, the kick over the relative speed and the galaxy's tide \
+         over the wait. The worst is {worst:.2} of it; kicks up to {:.2} km/s.",
+        largest / 1e3
+    ))
+    .save(worldline_report::here!());
     assert!(worst < 1.0);
 }

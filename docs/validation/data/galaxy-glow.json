@@ -1,0 +1,16 @@
+{
+  "id": "galaxy-glow",
+  "test": "validation_glow_gpu::from_above_the_drawn_disk_thins_out_with_the_models_scale_length",
+  "file": "crates/worldline-render/tests/validation_glow_gpu.rs",
+  "kind": "lines",
+  "title": "The galaxy's swarm drawn on the GPU, seen from 200 kpc above: the disk thins out with the model's scale length",
+  "x": "distance from the center (kpc)",
+  "y": "surface density (Suns per pc²)",
+  "log_x": false,
+  "log_y": true,
+  "note": "Scale length from 4 to 12 kpc: drawn 2.5945 kpc, the model's 2.6156: 0.61 of a 30,000-star sample's standard deviation, 0.0344 kpc (limit 3).",
+  "series": [
+    {"name": "drawn on the GPU, 1,024 × 1,024 pixels", "expected": false, "dots": true, "points": [[4.25, 207.45412911910216], [4.75, 173.4879560170757], [5.25, 142.61074835248786], [5.75, 117.93897187581477], [6.25, 95.99025954437222], [6.75, 78.12519570634535], [7.25, 64.38522497039295], [7.75, 53.238033895262575], [8.25, 43.2013123252588], [8.75, 35.712449645995555], [9.25, 30.017934459801985], [9.75, 25.369740157214125], [10.25, 21.46023368277894], [10.75, 17.4753373171518], [11.25, 13.848265598779655], [11.75, 11.27856879476846]]},
+    {"name": "McMillan's (2017) model, seen the same way", "expected": true, "dots": false, "points": [[4.25, 210.43517374387662], [4.75, 172.56164387794598], [5.25, 142.04475494225824], [5.75, 117.143759134797], [6.25, 96.6826056368881], [6.75, 79.83540548540775], [7.25, 65.93835715778954], [7.75, 54.45616351476541], [8.25, 44.988308712785496], [8.75, 37.1786264367878], [9.25, 30.734660285752128], [9.75, 25.41430878644453], [10.25, 21.018954204766473], [10.75, 17.388417600349502], [11.25, 14.385335058723237], [11.75, 11.902137856618062]]}
+  ]
+}

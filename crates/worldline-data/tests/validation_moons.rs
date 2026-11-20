@@ -56,6 +56,10 @@ fn moons_match_jpl_after_30_days() {
         "moon", "error (km)", "radius (km)", "orbit (km)", "error (degrees)"
     );
     let mut failures = Vec::new();
+    let mut figure = worldline_report::margins(
+        "major-moons-vs-jpl",
+        "21 major moons after 30 days against NASA JPL: each within its own radius",
+    );
     for system in &reference {
         for (name, error, orbit, radius) in errors(&h, system) {
             println!(
@@ -66,11 +70,22 @@ fn moons_match_jpl_after_30_days() {
                 orbit / 1e3,
                 (error / orbit).to_degrees()
             );
+            figure = figure.check(
+                &format!("{name} ({})", system.host),
+                error,
+                radius,
+                format!(
+                    "{:.2} km from JPL; radius {:.0} km",
+                    error / 1e3,
+                    radius / 1e3
+                ),
+            );
             if error >= radius {
                 failures.push(name);
             }
         }
     }
+    figure.save(worldline_report::here!());
     assert!(
         failures.is_empty(),
         "farther from JPL than their own radius: {failures:?}"
@@ -85,6 +100,10 @@ fn mars_lumpy_gravity_keeps_phobos_and_deimos_on_track() {
     // both moons drift off JPL's track by more than their own size.
     let (end_jd, reference) = reference();
     let mars = reference.iter().find(|s| s.host == "Mars").unwrap();
+    let mut figure = worldline_report::margins(
+        "mars-lumpy-gravity",
+        "Phobos and Deimos after 30 days against JPL, with and without Mars's lumpy (Tharsis) gravity",
+    );
     for with_lumps in [true, false] {
         let mut h = solar_system_with_moons();
         h.moon_systems.retain(|m| m.system.bodies[0].name == "Mars");
@@ -99,9 +118,33 @@ fn mars_lumpy_gravity_keeps_phobos_and_deimos_on_track() {
                 error / 1e3,
                 radius / 1e3
             );
+            figure = if with_lumps {
+                figure.check(
+                    &format!("{name} with the lumps: within its radius"),
+                    error,
+                    radius,
+                    format!(
+                        "{:.2} km from JPL; radius {:.1} km",
+                        error / 1e3,
+                        radius / 1e3
+                    ),
+                )
+            } else {
+                figure.check(
+                    &format!("{name} without them: farther than its radius"),
+                    radius,
+                    error,
+                    format!(
+                        "{:.0} km from JPL; radius {:.1} km",
+                        error / 1e3,
+                        radius / 1e3
+                    ),
+                )
+            };
             assert_eq!(error < radius, with_lumps, "{name}");
         }
     }
+    figure.save(worldline_report::here!());
 }
 
 /// Mean longitude of an orbit, from its position and velocity relative to
@@ -221,6 +264,30 @@ fn galilean_moons_hold_the_laplace_resonance() {
         crossings.len()
     );
     println!("Libration period: {period:.0} days (published: about {PUBLISHED_PERIOD:.0} days)");
+    let days = |averages: &[f64]| -> Vec<(f64, f64)> {
+        averages
+            .iter()
+            .enumerate()
+            .map(|(k, phi)| ((k as f64 + 0.5) * 30.0, *phi))
+            .collect()
+    };
+    worldline_report::lines(
+        "laplace-resonance",
+        "Io, Europa and Ganymede's Laplace resonance: φ = λ_Io − 3λ_Europa + 2λ_Ganymede",
+        "days",
+        "φ, 30-day averages (degrees)",
+    )
+    .series("Io pushed forward by 3 m/s", days(&disturbed))
+    .series("as JPL has them", days(&undisturbed))
+    .expected(
+        "Io pushed, if nothing held φ: it drifts",
+        [(0.0, 180.0), ((years * 365) as f64, 180.0 + drift)],
+    )
+    .note(&format!(
+        "Pushed, φ swings between {low:.1}° and {high:.1}° about 180° instead of drifting {drift:.0}°, crossing 180° {} times: a libration period of {period:.0} days, against about {PUBLISHED_PERIOD:.0} (Lieske 1998).",
+        crossings.len()
+    ))
+    .save(worldline_report::here!());
     assert!(
         drift > 360.0,
         "the push must be big enough to send φ round if nothing held it"

@@ -55,6 +55,25 @@ fn every_moon_in_jpls_list_loads() {
         elements.len(),
         small.len()
     );
+    // Counts are whole numbers: off by any is off by at least 1, so the
+    // limit is half of one.
+    worldline_report::margins(
+        "every-moon-loads",
+        "Every moon in JPL's list of planetary satellites loads",
+    )
+    .check(
+        "moons with mean orbits, against JPL's list",
+        elements.len() as f64 - listed as f64,
+        0.5,
+        format!("{} loaded; JPL lists {listed}", elements.len()),
+    )
+    .check(
+        "the Moon, the major moons and the small ones",
+        (1 + major + small.len()) as f64 - listed as f64,
+        0.5,
+        format!("1 + {major} + {} = {listed}", small.len()),
+    )
+    .save(worldline_report::here!());
     assert_eq!(elements.len(), listed);
     assert_eq!(1 + major + small.len(), listed);
     let missing: Vec<&str> = small
@@ -87,6 +106,7 @@ fn small_moons_match_jpl_after_30_days() {
     let mut failures = Vec::new();
     let mut checked = 0;
     let mut worst: Vec<(f64, String)> = Vec::new();
+    let mut checks = Vec::new();
     println!(
         "{:<14} {:>12} {:>11} {:>14}",
         "moon", "error (km)", "radius (km)", "orbit (km)"
@@ -107,6 +127,7 @@ fn small_moons_match_jpl_after_30_days() {
                     radius / 1e3,
                     expected.length() / 1e3
                 );
+                checks.push((moon.name.clone(), error, radius));
                 if error >= radius {
                     failures.push(moon.name.clone());
                 }
@@ -133,6 +154,28 @@ fn small_moons_match_jpl_after_30_days() {
         "Kerberos",
     ];
     println!("known residuals, not yet explained: {failures:?}");
+    let mut figure = worldline_report::margins(
+        "small-moons-vs-jpl",
+        "Small moons with measured sizes after 30 days against JPL: 7 listed residuals, not yet explained",
+    );
+    for (name, error, radius) in checks {
+        let listed = if known.contains(&name.as_str()) {
+            " (listed residual)"
+        } else {
+            ""
+        };
+        figure = figure.check(
+            &format!("{name}{listed}"),
+            error,
+            radius,
+            format!(
+                "{:.2} km from JPL; radius {:.1} km",
+                error / 1e3,
+                radius / 1e3
+            ),
+        );
+    }
+    figure.save(worldline_report::here!());
     let unexpected: Vec<&String> = failures
         .iter()
         .filter(|f| !known.contains(&f.as_str()))
@@ -269,8 +312,10 @@ fn janus_and_epimetheus_trade_orbits() {
     };
     let start = gap(&h);
     let mut swap_day = None;
+    let mut curve = vec![(0.0, start / 1e3)];
     for day in 1..=730 {
         h.advance(DAY);
+        curve.push((day as f64, gap(&h) / 1e3));
         if swap_day.is_none() && gap(&h).signum() != start.signum() {
             swap_day = Some(day);
         }
@@ -281,6 +326,19 @@ fn janus_and_epimetheus_trade_orbits() {
         gap(&h) / 1e3
     );
     let day = swap_day.expect("they never swapped");
+    worldline_report::lines(
+        "janus-epimetheus",
+        "Janus and Epimetheus trade orbits: due in January 2026",
+        "days from 1 January 2025",
+        "Janus's semi-major axis minus Epimetheus's (km)",
+    )
+    .series("simulated, daily", curve)
+    .expected("1 January 2026", [(365.0, -60.0), (365.0, 60.0)])
+    .expected("31 January 2026", [(395.0, -60.0), (395.0, 60.0)])
+    .note(&format!(
+        "They swap on day {day}. Their closest approaches were observed in January 2006, 2010, 2014, 2018 and 2022, four years apart, so one is due in January 2026: days 365 to 395."
+    ))
+    .save(worldline_report::here!());
     println!("they swapped {day} days after 2025-01-01 (January 2026 is days 365 to 395)");
     assert!(
         (365..=395).contains(&day),

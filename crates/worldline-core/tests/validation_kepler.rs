@@ -50,6 +50,10 @@ fn orbital_periods_obey_keplers_third_law() {
         ("Jupiter-like", 5.2026 * AU, 0.048_4, 1.267_127_64e17),
         ("Comet-like", 3.0 * AU, 0.7, 1.0e9),
     ];
+    let mut figure = worldline_report::margins(
+        "kepler-periods",
+        "Kepler's third law: simulated orbital periods against T = 2π √(a³/GM)",
+    );
     for (name, a, e, gm) in orbits {
         let expected = kepler_period(a, GM_SUN + gm);
         let mut system = two_body_system(sun(), Body::new(name, gm, 1.0), a, e);
@@ -60,8 +64,19 @@ fn orbital_periods_obey_keplers_third_law() {
             expected / DAY,
             measured / DAY,
         );
+        figure = figure.check(
+            name,
+            rel_error,
+            1e-6,
+            format!(
+                "{:.6} days against {:.6}: {rel_error:.1e} off",
+                measured / DAY,
+                expected / DAY
+            ),
+        );
         assert!(rel_error < 1e-6, "{name}: period off by {rel_error:e}");
     }
+    figure.save(worldline_report::here!());
 }
 
 /// Integrates an eccentric (e = 0.5) orbit for `orbits` orbits and returns

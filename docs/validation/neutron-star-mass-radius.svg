@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="524" viewBox="0 0 760 524">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">Neutron stars of the SLy equation of state: mass against radius, up to the heaviest</text>
+<line x1="97.7" y1="64" x2="97.7" y2="400" stroke="#e4e7eb"/>
+<text x="97.7" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="254.0" y1="64" x2="254.0" y2="400" stroke="#e4e7eb"/>
+<text x="254.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10.5</text>
+<line x1="410.4" y1="64" x2="410.4" y2="400" stroke="#e4e7eb"/>
+<text x="410.4" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">11</text>
+<line x1="566.7" y1="64" x2="566.7" y2="400" stroke="#e4e7eb"/>
+<text x="566.7" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">11.5</text>
+<line x1="723.1" y1="64" x2="723.1" y2="400" stroke="#e4e7eb"/>
+<text x="723.1" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">12</text>
+<line x1="90" y1="308.2" x2="730" y2="308.2" stroke="#e4e7eb"/>
+<text x="84.0" y="312.2" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">1</text>
+<line x1="90" y1="199.0" x2="730" y2="199.0" stroke="#e4e7eb"/>
+<text x="84.0" y="203.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">1.5</text>
+<line x1="90" y1="89.8" x2="730" y2="89.8" stroke="#e4e7eb"/>
+<text x="84.0" y="93.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">2</text>
+<rect x="90" y="64" width="640" height="336" fill="none" stroke="#6b7785"/>
+<text x="410.0" y="436.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" font-weight="normal">radius (km)</text>
+<text x="18" y="232.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" transform="rotate(-90 18 232.0)">mass (Suns)</text>
+<path d="M730.0,384.7 L716.5,372.0 L706.6,359.3 L698.9,346.5 L692.6,333.8 L687.1,321.1 L681.9,308.4 L676.7,295.6 L671.0,282.9 L664.8,270.2 L657.8,257.5 L649.7,244.7 L640.4,232.0 L629.7,219.3 L617.4,206.5 L603.2,193.8 L586.8,181.1 L567.6,168.4 L544.9,155.6 L517.7,142.9 L484.6,130.2 L443.3,117.5 L389.3,104.7 L311.4,92.0 L90.0,79.3" fill="none" stroke="#1c7ed6" stroke-width="1.8"/>
+<line x1="90" y1="452" x2="110" y2="452" stroke="#1c7ed6" stroke-width="2"/>
+<text x="118.0" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">SLy (Douchin &amp; Haensel 2001, Read et al.'s fit), solved</text>
+<circle cx="90.0" cy="79.3" r="2.6" fill="#e8590c"/>
+<circle cx="100" cy="468" r="3" fill="#e8590c"/>
+<text x="118.0" y="472.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">the heaviest it holds up</text>
+<text x="20.0" y="492.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">At most 2.048 Suns, at 9.98 km; a 1.4-Sun star is 11.71 km. Above the heaviest, no static star exists: it</text>
+<text x="20.0" y="508.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">collapses to a black hole.</text>
+</svg>

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="540" viewBox="0 0 760 540">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">Light bent by a black hole: rays traced through its spacetime against Darwin's exact angle</text>
+<line x1="145.4" y1="64" x2="145.4" y2="400" stroke="#e4e7eb"/>
+<text x="145.4" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="340.3" y1="64" x2="340.3" y2="400" stroke="#e4e7eb"/>
+<text x="340.3" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">2</tspan></text>
+<line x1="535.1" y1="64" x2="535.1" y2="400" stroke="#e4e7eb"/>
+<text x="535.1" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">3</tspan></text>
+<line x1="730.0" y1="64" x2="730.0" y2="400" stroke="#e4e7eb"/>
+<text x="730.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">4</tspan></text>
+<line x1="90" y1="357.9" x2="730" y2="357.9" stroke="#e4e7eb"/>
+<text x="84.0" y="361.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−3</tspan></text>
+<line x1="90" y1="290.4" x2="730" y2="290.4" stroke="#e4e7eb"/>
+<text x="84.0" y="294.4" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−2</tspan></text>
+<line x1="90" y1="222.9" x2="730" y2="222.9" stroke="#e4e7eb"/>
+<text x="84.0" y="226.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−1</tspan></text>
+<line x1="90" y1="155.4" x2="730" y2="155.4" stroke="#e4e7eb"/>
+<text x="84.0" y="159.4" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">1</text>
+<line x1="90" y1="87.9" x2="730" y2="87.9" stroke="#e4e7eb"/>
+<text x="84.0" y="91.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">10</text>
+<rect x="90" y="64" width="640" height="336" fill="none" stroke="#6b7785"/>
+<text x="410.0" y="436.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" font-weight="normal">impact parameter (GM/c²)</text>
+<text x="18" y="232.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" transform="rotate(-90 18 232.0)">bending (radians)</text>
+<circle cx="90.9" cy="113.4" r="2.6" fill="#1c7ed6"/>
+<circle cx="94.8" cy="127.9" r="2.6" fill="#1c7ed6"/>
+<circle cx="102.2" cy="139.5" r="2.6" fill="#1c7ed6"/>
+<circle cx="145.4" cy="170.8" r="2.6" fill="#1c7ed6"/>
+<circle cx="340.3" cy="248.9" r="2.6" fill="#1c7ed6"/>
+<circle cx="730.0" cy="384.7" r="2.6" fill="#1c7ed6"/>
+<circle cx="100" cy="452" r="3" fill="#1c7ed6"/>
+<text x="118.0" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">traced rays</text>
+<path d="M90.0,79.3 L93.2,123.8 L96.4,131.1 L99.6,136.2 L102.8,140.2 L106.0,143.7 L109.2,146.8 L112.4,149.6 L115.6,152.2 L118.8,154.6 L122.0,156.8 L125.2,159.0 L128.4,161.0 L131.6,163.0 L134.8,164.9 L138.0,166.8 L141.2,168.6 L144.4,170.3 L147.6,172.0 L150.8,173.6 L154.0,175.3 L157.2,176.9 L160.4,178.4 L163.6,179.9 L166.8,181.5 L170.0,182.9 L173.2,184.4 L176.4,185.8 L179.6,187.3 L182.8,188.7 L186.0,190.1 L189.2,191.5 L192.4,192.8 L195.6,194.2 L198.8,195.5 L202.0,196.8 L205.2,198.2 L208.4,199.5 L211.6,200.8 L214.8,202.1 L218.0,203.3 L221.2,204.6 L224.4,205.9 L227.6,207.1 L230.8,208.4 L234.0,209.6 L237.2,210.9 L240.4,212.1 L243.6,213.3 L246.8,214.6 L250.0,215.8 L253.2,217.0 L256.4,218.2 L259.6,219.4 L262.8,220.6 L266.0,221.8 L269.2,223.0 L272.4,224.2 L275.6,225.4 L278.8,226.6 L282.0,227.8 L285.2,228.9 L288.4,230.1 L291.6,231.3 L294.8,232.5 L298.0,233.6 L301.2,234.8 L304.4,236.0 L307.6,237.1 L310.8,238.3 L314.0,239.4 L317.2,240.6 L320.4,241.7 L323.6,242.9 L326.8,244.0 L330.0,245.2 L333.2,246.3 L336.4,247.5 L339.6,248.6 L342.8,249.8 L346.0,250.9 L349.2,252.0 L352.4,253.2 L355.6,254.3 L358.8,255.5 L362.0,256.6 L365.2,257.7 L368.4,258.9 L371.6,260.0 L374.8,261.1 L378.0,262.2 L381.2,263.4 L384.4,264.5 L387.6,265.6 L390.8,266.8 L394.0,267.9 L397.2,269.0 L400.4,270.1 L403.6,271.3 L406.8,272.4 L410.0,273.5 L413.2,274.6 L416.4,275.8 L419.6,276.9 L422.8,278.0 L426.0,279.1 L429.2,280.2 L432.4,281.4 L435.6,282.5 L438.8,283.6 L442.0,284.7 L445.2,285.8 L448.4,287.0 L451.6,288.1 L454.8,289.2 L458.0,290.3 L461.2,291.4 L464.4,292.5 L467.6,293.7 L470.8,294.8 L474.0,295.9 L477.2,297.0 L480.4,298.1 L483.6,299.2 L486.8,300.3 L490.0,301.5 L493.2,302.6 L496.4,303.7 L499.6,304.8 L502.8,305.9 L506.0,307.0 L509.2,308.1 L512.4,309.3 L515.6,310.4 L518.8,311.5 L522.0,312.6 L525.2,313.7 L528.4,314.8 L531.6,315.9 L534.8,317.0 L538.0,318.1 L541.2,319.3 L544.4,320.4 L547.6,321.5 L550.8,322.6 L554.0,323.7 L557.2,324.8 L560.4,325.9 L563.6,327.0 L566.8,328.1 L570.0,329.3 L573.2,330.4 L576.4,331.5 L579.6,332.6 L582.8,333.7 L586.0,334.8 L589.2,335.9 L592.4,337.0 L595.6,338.1 L598.8,339.3 L602.0,340.4 L605.2,341.5 L608.4,342.6 L611.6,343.7 L614.8,344.8 L618.0,345.9 L621.2,347.0 L624.4,348.1 L627.6,349.2 L630.8,350.3 L634.0,351.5 L637.2,352.6 L640.4,353.7 L643.6,354.8 L646.8,355.9 L650.0,357.0 L653.2,358.1 L656.4,359.2 L659.6,360.3 L662.8,361.4 L666.0,362.5 L669.2,363.7 L672.4,364.8 L675.6,365.9 L678.8,367.0 L682.0,368.1 L685.2,369.2 L688.4,370.3 L691.6,371.4 L694.8,372.5 L698.0,373.6 L701.2,374.7 L704.4,375.9 L707.6,377.0 L710.8,378.1 L714.0,379.2 L717.2,380.3 L720.4,381.4 L723.6,382.5 L726.8,383.6 L730.0,384.7" fill="none" stroke="#e8590c" stroke-width="1.8" stroke-dasharray="6 4"/>
+<line x1="90" y1="468" x2="110" y2="468" stroke="#e8590c" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="118.0" y="472.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Darwin's exact angle</text>
+<path d="M90.9,150.3 L94.8,152.1 L102.2,155.6 L145.4,174.7 L340.3,248.9 L730.0,384.7" fill="none" stroke="#2b8a3e" stroke-width="1.8" stroke-dasharray="6 4"/>
+<line x1="90" y1="484" x2="110" y2="484" stroke="#2b8a3e" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="118.0" y="488.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">the weak field, 4M/b + (15π/4)(M/b)²</text>
+<text x="20.0" y="508.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">The shadow's edge is at √27 = 5.196 GM/c², where the bending grows without bound. The traced rays are at most</text>
+<text x="20.0" y="524.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">5.7e-13 rad from Darwin's angle (limit 10⁻⁹).</text>
+</svg>

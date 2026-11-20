@@ -66,6 +66,10 @@ fn the_sun_is_overhead_where_jpl_puts_it() {
     // within 0.015°.
     let scales = time_scales();
     let model = rotation_model("Earth").unwrap();
+    let mut figure = worldline_report::margins(
+        "sun-overhead-ut1",
+        "Earth turned by the IERS's UT1: where the Sun is overhead, against JPL Horizons",
+    );
     for (jd_tt, ra, dec, gast) in sun_overhead() {
         let snapshot = if jd_tt < 2_461_000.0 {
             solar_system()
@@ -84,6 +88,22 @@ fn the_sun_is_overhead_where_jpl_puts_it() {
             "JD {jd_tt} TT: Sun overhead at {latitude:.4}°, {longitude:.4}° (JPL: {dec:.4}°, {expected:.4}°): {:.4}° and {off:.4}° off; the IAU model in TDB alone {iau_off:.3}° off",
             latitude - dec
         );
+        figure = figure
+            .check(
+                &format!("JD {jd_tt} TT: longitude"),
+                off,
+                0.015,
+                format!(
+                    "{off:+.4}° (the IAU's model in TDB alone: {iau_off:+.3}°); limit 0.015°: aberration and nutation, left out"
+                ),
+            )
+            .check(
+                &format!("JD {jd_tt} TT: latitude"),
+                latitude - dec,
+                0.015,
+                format!("{:+.4}°", latitude - dec),
+            );
         assert!(off.abs() < 0.015 && (latitude - dec).abs() < 0.015);
     }
+    figure.save(worldline_report::here!());
 }

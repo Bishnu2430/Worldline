@@ -1,0 +1,10 @@
+{
+  "id": "chicxulub",
+  "test": "validation_craters::chicxulub_from_its_estimated_impactor",
+  "file": "crates/worldline-core/tests/validation_craters.rs",
+  "kind": "margins",
+  "title": "Chicxulub, dug by Holsapple's scaling laws from its estimated impactor",
+  "checks": [
+    {"label": "180 km across, within the published scaling's spread", "off": 0.22581114106271766, "limit": 0.250867600636969, "shown": "143616 m across against 180000 m (-20%); the law's spread 111752 to 184567 m"}
+  ]
+}

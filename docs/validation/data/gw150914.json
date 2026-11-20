@@ -1,0 +1,15 @@
+{
+  "id": "gw150914",
+  "test": "validation_gw150914::a_gw150914_replay_leaves_the_hole_ligo_measured",
+  "file": "crates/worldline-data/tests/validation_gw150914.rs",
+  "kind": "margins",
+  "title": "GW150914 replayed: the final black hole against LIGO and Virgo's measurements (90% credible)",
+  "checks": [
+    {"label": "mass, against 62 ± 4 Suns (2016)", "off": 0.25754011917438646, "limit": 1.0, "shown": "63.03 Suns"},
+    {"label": "spin, against 0.67 +0.05/−0.07 (2016)", "off": 0.26413355892972223, "limit": 1.0, "shown": "0.683"},
+    {"label": "radiated, against 3.0 ± 0.5 Suns (2016)", "off": 0.339679046604898, "limit": 1.0, "shown": "3.17 Suns; rings down at 271 Hz"},
+    {"label": "mass, against GWTC-1's 63.1 +3.4/−3 Suns", "off": 0.023279841100818526, "limit": 1.0, "shown": "63.03 Suns"},
+    {"label": "spin, against GWTC-1's 0.69 +0.05/−0.04", "off": 0.16983305133784488, "limit": 1.0, "shown": "0.683"},
+    {"label": "the hole's mass and what's radiated add up to the pair's", "off": 0.0, "limit": 1e-15, "shown": "0.0e0 of the total (limit 10⁻¹⁵, rounding)"}
+  ]
+}

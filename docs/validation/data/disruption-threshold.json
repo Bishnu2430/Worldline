@@ -1,0 +1,17 @@
+{
+  "id": "disruption-threshold",
+  "test": "validation_collision_outcomes::the_catastrophic_disruption_threshold",
+  "file": "crates/worldline-data/tests/validation_collision_outcomes.rs",
+  "kind": "margins",
+  "title": "The catastrophic disruption threshold, from nothing but the bodies, against Leinhardt & Stewart's fits",
+  "checks": [
+    {"label": "γ 1, b 0.00", "off": 0.5204488124123291, "limit": 1.0, "shown": "114 J/kg against 110: × 1.04 (within a factor of 2, \"usually\": all but one)"},
+    {"label": "γ 0.25, b 0.00", "off": 0.5185989898084322, "limit": 1.0, "shown": "125 J/kg against 130: × 0.96 (within a factor of 2, \"usually\": all but one)"},
+    {"label": "γ 0.25, b 0.35", "off": 0.6972190171171797, "limit": 1.0, "shown": "136 J/kg against 190: × 0.72 (within a factor of 2, \"usually\": all but one)"},
+    {"label": "γ 0.1, b 0.00", "off": 0.653884727121581, "limit": 1.0, "shown": "209 J/kg against 160: × 1.31 (within a factor of 2, \"usually\": all but one)"},
+    {"label": "γ 0.1, b 0.35", "off": 0.6451825260655738, "limit": 1.0, "shown": "209 J/kg against 270: × 0.77 (within a factor of 2, \"usually\": all but one)"},
+    {"label": "γ 0.025, b 0.00", "off": 0.5196604933418806, "limit": 1.0, "shown": "616 J/kg against 640: × 0.96 (within a factor of 2, \"usually\": all but one)"},
+    {"label": "γ 0.025, b 0.35", "off": 0.5846180550096157, "limit": 1.0, "shown": "616 J/kg against 720: × 0.86 (within a factor of 2, \"usually\": all but one)"},
+    {"label": "γ 0.025, b 0.70 (the one allowed to miss)", "off": 1.0428126031797775, "limit": 1.0, "shown": "959 J/kg against 2000: × 0.48 (within a factor of 2, \"usually\": all but one)"}
+  ]
+}

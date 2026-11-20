@@ -1,0 +1,11 @@
+{
+  "id": "quadrupole-energy-loss",
+  "test": "worldline_core::gravity::post_newtonian::tests::radiation_carries_off_the_waves_power",
+  "file": "crates/worldline-core/src/gravity/post_newtonian.rs",
+  "kind": "margins",
+  "title": "A pair's energy loss against Einstein's quadrupole formula and its first correction",
+  "checks": [
+    {"label": "at GM/rc² = 0.01: with the correction", "off": 0.0006585194156670804, "limit": 0.005239832210732343, "shown": "off by 6.6e-4, 6.6 (GM/rc²)²; the formula alone by 5.2e-2, 5.2 GM/rc² (limit √(GM/rc²) times that)"},
+    {"label": "at GM/rc² = 0.003: with the correction", "off": 6.043396156030223e-5, "limit": 0.0008524273446616451, "shown": "off by 6.0e-5, 6.7 (GM/rc²)²; the formula alone by 1.6e-2, 5.2 GM/rc² (limit √(GM/rc²) times that)"}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "halley-2061",
+  "test": "validation_small_bodies::halleys_comet_returns_in_july_2061",
+  "file": "crates/worldline-data/tests/validation_small_bodies.rs",
+  "kind": "margins",
+  "title": "Halley's Comet returns in July 2061",
+  "checks": [
+    {"label": "perihelion within July 2061, from its center", "off": 12.208333333488554, "limit": 15.5, "shown": "27.71 days into July; JPL's perihelion -17 minutes away"}
+  ]
+}

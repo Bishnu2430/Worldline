@@ -1,0 +1,11 @@
+{
+  "id": "love-number",
+  "test": "validation_fluid_gpu::a_fluid_planet_stretches_by_its_love_number",
+  "file": "crates/worldline-render/tests/validation_fluid_gpu.rs",
+  "kind": "margins",
+  "title": "A fluid planet on the GPU stretches by the n = 1 polytrope's Love number, 15/π² − 1",
+  "checks": [
+    {"label": "968 particles", "off": 0.043746306782881605, "limit": 0.17650469418707465, "shown": "k₂ = 0.5426 against 0.5198 (limit: its mean smoothing length, 0.177 R)"},
+    {"label": "8024 particles", "off": 0.013761991251783456, "limit": 0.08776489948874278, "shown": "k₂ = 0.5270 against 0.5198 (limit: its mean smoothing length, 0.088 R)"}
+  ]
+}

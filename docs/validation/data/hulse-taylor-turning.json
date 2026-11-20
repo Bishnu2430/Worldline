@@ -1,0 +1,11 @@
+{
+  "id": "hulse-taylor-turning",
+  "test": "validation_notable_objects::the_hulse_taylor_orbit_turns_as_measured",
+  "file": "crates/worldline-data/tests/validation_notable_objects.rs",
+  "kind": "margins",
+  "title": "The Hulse–Taylor pulsar's orbit turning, simulated with relativistic gravity",
+  "checks": [
+    {"label": "the turning, against 4.226585°/yr measured", "off": 5.7285288949104896e-6, "limit": 0.00047, "shown": "4.226561°/yr; the formula gives 4.226226 (limit: the masses' rounding to 0.001 Suns)"},
+    {"label": "the period, against the measured 7.75 h", "off": 2.4366794804109304e-8, "limit": 1e-6, "shown": "7.7519 h"}
+  ]
+}

@@ -80,6 +80,7 @@ fn a_black_hole_flyby_kicks_the_asteroids_as_the_impulse_approximation_says() {
     let allowed = 2.0 * orbital / speed;
     let mut worst: f64 = 0.0;
     let mut largest: f64 = 0.0;
+    let (mut kicks, mut predictions) = (Vec::new(), Vec::new());
     for (k, ((r, v), (_, v0))) in with.iter().zip(&without).enumerate() {
         // Where the asteroid is when the hole passes closest, halfway
         // through: it has moved on along its circle by ω z/V.
@@ -90,6 +91,9 @@ fn a_black_hole_flyby_kicks_the_asteroids_as_the_impulse_approximation_says() {
         let error = (measured - predicted).length() / predicted.length();
         worst = worst.max(error);
         largest = largest.max(measured.length());
+        let degrees = k as f64 * 5.0;
+        kicks.push((degrees, measured.length()));
+        predictions.push((degrees, predicted.length()));
         assert!(r.length() > 2.0 * AU, "asteroid {k} stayed in the ring");
     }
     println!(
@@ -99,6 +103,20 @@ fn a_black_hole_flyby_kicks_the_asteroids_as_the_impulse_approximation_says() {
         worst,
         allowed
     );
+    worldline_report::lines(
+        "black-hole-flyby",
+        "A black hole of 10 Suns streaks past the asteroid belt at 0.1c: each asteroid's kick",
+        "asteroid's place around the ring, 2.5 AU out (degrees from the hole's side)",
+        "kick, relative to the Sun (m/s)",
+    )
+    .log_y()
+    .dots("simulated, against a twin run without the hole's mass", kicks)
+    .expected("the impulse approximation, 2GM/(bV) · Z/√(Z² + b²), less the Sun's", predictions)
+    .note(&format!(
+        "The worst kick is {worst:.1e} off the approximation, within {allowed:.1e}: twice what it leaves out, \
+         the asteroids' speed over the hole's."
+    ))
+    .save(worldline_report::here!());
     assert!(worst < allowed);
 }
 

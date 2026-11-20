@@ -23,6 +23,9 @@ crates/
                      double precision, and drawn as particles; a cloud of stars
                      drawn as the column of mass along each ray (the galaxy's
                      glow)                                                        (since step 1b.2)
+  worldline-report   the validation report: each validation test records what it
+                     checked as a figure, drawn into docs/validation/; used only by
+                     tests                                                        (since step 8.2)
 ```
 
 Each crate is added when its milestone starts, not before. The 3D view is drawn in layers. Rings, trails, dots and labels are projected relative to the camera in double precision and drawn with egui's painter. Globes and the sky behind everything are drawn by `worldline-render` on the GPU. See [app.md](app.md) and [rendering.md](rendering.md).

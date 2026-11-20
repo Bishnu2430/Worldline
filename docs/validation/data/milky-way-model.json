@@ -1,0 +1,22 @@
+{
+  "id": "milky-way-model",
+  "test": "validation_milky_way::the_model_is_mcmillans",
+  "file": "crates/worldline-core/tests/validation_milky_way.rs",
+  "kind": "margins",
+  "title": "The Milky Way's mass model (McMillan 2017), solved as his code solves it",
+  "checks": [
+    {"label": "circular speed at 8.21 kpc, against 233.1 km/s", "off": 0.008846573314116313, "limit": 0.05, "shown": "233.1088 km/s (limit: the last digit's rounding)"},
+    {"label": "halo density there, against 0.0101 M☉/pc³", "off": 8.84401805973517e-7, "limit": 5e-5, "shown": "0.01010 M☉/pc³"},
+    {"label": "atomic gas (H I) disk: surface density at 8.33 kpc", "off": 3.313388166503728e-6, "limit": 0.5, "shown": "10.0000 M☉/pc² against 10"},
+    {"label": "atomic gas (H I) disk: mass", "off": 319591220.68112564, "limit": 500000000.0, "shown": "1.0680e10 M☉ against 1.1e10"},
+    {"label": "molecular gas (H₂) disk: surface density at 8.33 kpc", "off": 9.507098526206903e-7, "limit": 0.5, "shown": "2.0000 M☉/pc² against 2"},
+    {"label": "molecular gas (H₂) disk: mass", "off": 30563156.53027582, "limit": 50000000.0, "shown": "1.2306e9 M☉ against 1.2e9"},
+    {"label": "the Sun's orbit: guiding radius, kpc", "off": 2.544671957371847e-6, "limit": 4.218275418807529e-5, "shown": "8.621188 against GalPot's 8.621210 (limit: its grid's h⁴)"},
+    {"label": "the Sun's orbit: least radius, kpc", "off": 1.621178613131491e-6, "limit": 4.218275418807529e-5, "shown": "8.119867 against GalPot's 8.119880 (limit: its grid's h⁴)"},
+    {"label": "the Sun's orbit: greatest radius, kpc", "off": 3.4053031119363197e-6, "limit": 4.218275418807529e-5, "shown": "9.184989 against GalPot's 9.185020 (limit: its grid's h⁴)"},
+    {"label": "the Sun's orbit: greatest height, kpc", "off": 1.1860200616942151e-5, "limit": 4.218275418807529e-5, "shown": "0.104203 against GalPot's 0.104202 (limit: its grid's h⁴)"},
+    {"label": "the Sun's orbit: energy, (km/s)²", "off": 7.711561573531256e-6, "limit": 4.218275418807529e-5, "shown": "-153188.318084 against GalPot's -153187.136772 (limit: its grid's h⁴)"},
+    {"label": "the Sun's orbit: angular momentum, kpc km/s", "off": 1.1102230246251565e-16, "limit": 4.218275418807529e-5, "shown": "-2009.000000 against GalPot's -2009.000000 (limit: its grid's h⁴)"},
+    {"label": "the Sun's orbit: energy kept over 10 Gyr", "off": 5.390492274770509e-9, "limit": 2.8110123573894416e-7, "shown": "changed by 5.4e-9 (limit: the potential's own grid)"}
+  ]
+}

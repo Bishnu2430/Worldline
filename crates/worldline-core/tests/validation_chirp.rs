@@ -136,6 +136,11 @@ fn the_chirp_sweeps_up_as_theory_says() {
     // At five points along the way: the measured sweep against the
     // formulas, in windows of 400 half-cycles.
     let window = 400;
+    let mut measured = Vec::new();
+    let mut margins = worldline_report::margins(
+        "chirp-margins",
+        "Two neutron stars' chirp, 20 to 40 Hz: the checks at five points",
+    );
     for k in 0..5 {
         let at = window / 2 + k * (half_cycles.len() - window) / 4;
         let (f, fdot) = sweep(&half_cycles[at - window / 2..at + window / 2]);
@@ -170,6 +175,33 @@ fn the_chirp_sweeps_up_as_theory_says() {
             x.sqrt(),
             corrected_miss / (x * x)
         );
+        measured.push((f, fdot / leading));
+        margins = margins
+            .check(
+                &format!("{f:.1} Hz: the chirp formula, to its next order"),
+                miss,
+                x.sqrt(),
+                format!(
+                    "off by {miss:.1e} = {:.1} x (limit √x = {:.1e})",
+                    miss / x,
+                    x.sqrt()
+                ),
+            )
+            .check(
+                &format!("{f:.1} Hz: with its first correction"),
+                corrected_miss,
+                x,
+                format!(
+                    "off by {corrected_miss:.1e} = {:.0} x² (limit x = {x:.1e})",
+                    corrected_miss / (x * x)
+                ),
+            )
+            .check(
+                &format!("{f:.1} Hz: the amplitude"),
+                h_miss,
+                x.sqrt(),
+                format!("{h:.3e} against {expected_h:.3e}"),
+            );
         // 1. The chirp formula holds to its next order, x: allowed √x.
         assert!(miss < x.sqrt());
         // 2. With the 1PN term (which the 3.5PN reaction terms produce),
@@ -182,4 +214,34 @@ fn the_chirp_sweeps_up_as_theory_says() {
         // 3. The amplitude, to its next order: allowed √x.
         assert!(h_miss < x.sqrt());
     }
+    margins.save(worldline_report::here!());
+    // The formulas along the way, against the leading one.
+    let formula = |f: f64, tail: bool| {
+        let x = (PI * gm * f / C.powi(3)).powf(2.0 / 3.0);
+        let tail = if tail { 4.0 * PI * x.powf(1.5) } else { 0.0 };
+        1.0 - (743.0 / 336.0 + 11.0 / 4.0 * nu) * x + tail
+    };
+    let frequencies: Vec<f64> = (0..=40).map(|k| 20.0 + 0.5 * k as f64).collect();
+    worldline_report::lines(
+        "chirp-sweep",
+        "Two neutron stars' chirp: how fast the wave's frequency sweeps up, 20 to 40 Hz",
+        "wave frequency (Hz)",
+        "df/dt, over the chirp formula's",
+    )
+    .dots("simulated, from the wave's zero crossings", measured)
+    .expected("the chirp formula (96/5) π^(8/3) (G𝓜/c³)^(5/3) f^(11/3)", [(20.0, 1.0), (40.0, 1.0)])
+    .expected(
+        "with its first correction, −(743/336 + 11ν/4) x",
+        frequencies.iter().map(|&f| (f, formula(f, false))),
+    )
+    .expected(
+        "general relativity with the tail, +4π x^(3/2), which local equations leave out",
+        frequencies.iter().map(|&f| (f, formula(f, true))),
+    )
+    .note(&format!(
+        "{} wave cycles. The sweep runs slower than the leading formula by its next order, about 3 x, where \
+         x = (πGmf/c³)^(2/3) ≈ GM/rc²; with the correction, what's left is of second order, x², as it must be.",
+        half_cycles.len() / 2
+    ))
+    .save(worldline_report::here!());
 }

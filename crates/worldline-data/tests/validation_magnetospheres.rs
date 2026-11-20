@@ -41,13 +41,17 @@ fn earths_magnetopause_sits_about_10_earth_radii_sunward() {
     // Shue's slope near Bz = 0 (0.04 Earth radii per nT), that shifts its
     // standoff by tenths of an Earth radius at most.
     let mut differences = Vec::new();
-    for hour in solar_wind_2025() {
+    let (mut physics_curve, mut shue_curve) = (Vec::new(), Vec::new());
+    for (k, hour) in solar_wind_2025().iter().enumerate() {
         let (Some(p), Some(b)) = (hour.flow_pressure, hour.field) else {
             continue;
         };
         let physics = standoff(&earth, p) / earth.radius;
         let (measured, _) = shue_1998(p * 1e9, b.z * 1e9);
         differences.push(physics - measured);
+        // Days into 2025: the data are hourly from its start.
+        physics_curve.push((k as f64 / 24.0, physics));
+        shue_curve.push((k as f64 / 24.0, measured));
     }
     let n = differences.len() as f64;
     let rms = (differences.iter().map(|d| d * d).sum::<f64>() / n).sqrt();
@@ -58,6 +62,44 @@ fn earths_magnetopause_sits_about_10_earth_radii_sunward() {
         differences.len(),
         within_1 * 100.0
     );
+    worldline_report::margins(
+        "earth-magnetopause",
+        "Earth's magnetopause from pressure balance with the solar wind",
+    )
+    .check(
+        "in 2025's average wind: about 10 Earth radii",
+        at_mean - 10.0,
+        0.5,
+        format!(
+            "{at_mean:.2} Earth radii at {:.2} nPa (limit: to the nearest Earth radius)",
+            mean * 1e9
+        ),
+    )
+    .check(
+        "hour by hour, against Shue et al.'s scatter of 1.23",
+        rms,
+        1.23,
+        format!(
+            "RMS difference {rms:.2} Earth radii over {} hours; {:+.2} on average",
+            differences.len(),
+            mean_difference
+        ),
+    )
+    .save(worldline_report::here!());
+    worldline_report::lines(
+        "magnetopause-2025",
+        "Earth's magnetopause through 2025: pressure balance against Shue et al.'s fit to spacecraft crossings",
+        "days into 2025",
+        "distance sunward (Earth radii)",
+    )
+    .series("pressure balance, from the measured wind (NASA OMNI)", physics_curve)
+    .series("Shue et al. (1998), from the same wind", shue_curve)
+    .note(&format!(
+        "Hourly. RMS difference {rms:.2} Earth radii, within the 1.23 that Shue et al.'s fit scatters about real \
+         crossings; {:.0}% of hours within 1 Earth radius.",
+        within_1 * 100.0
+    ))
+    .save(worldline_report::here!());
     assert!(rms <= 1.23);
 }
 

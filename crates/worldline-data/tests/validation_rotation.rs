@@ -40,14 +40,25 @@ fn axial_tilts_match_nasa() {
     let snapshot = solar_system();
     let jd = snapshot.epoch_jd_tdb;
     let sun = snapshot.body("Sun").unwrap();
+    let mut figure = worldline_report::margins(
+        "axial-tilts",
+        "Planets' axial tilts: IAU rotation models and the simulated orbits, against NASA's fact sheet",
+    );
     for (name, expected) in published {
         let tilt = obliquity(snapshot.body(name).unwrap(), sun, jd);
         println!("{name:<8} tilt {tilt:7.3}°   NASA {expected}°");
+        figure = figure.check(
+            name,
+            tilt - expected,
+            0.1,
+            format!("{tilt:.3}° against NASA's {expected}° (limit 0.1°, its last digit's rounding and a little more)"),
+        );
         assert!(
             (tilt - expected).abs() < 0.1,
             "{name}: {tilt}° vs {expected}°"
         );
     }
+    figure.save(worldline_report::here!());
 }
 
 #[test]
@@ -105,6 +116,18 @@ fn mercury_spins_three_times_every_two_orbits() {
         orbit / DAY,
         spin / DAY
     );
+    worldline_report::margins("mercury-spin-orbit", "Mercury's 3:2 spin–orbit resonance")
+        .check(
+            "orbit period over spin period, against 3/2",
+            ratio - 1.5,
+            1e-3,
+            format!(
+                "orbit {:.3} days, spin {:.3} days: ratio {ratio:.5}",
+                orbit / DAY,
+                spin / DAY
+            ),
+        )
+        .save(worldline_report::here!());
     assert!((ratio - 1.5).abs() < 1e-3);
 }
 
@@ -126,6 +149,7 @@ fn moon_keeps_one_face_toward_earth() {
     let (earth, moon) = (3, 4);
     let mut ias = Ias15::new();
     let (mut lon_range, mut lat_range) = ((f64::MAX, f64::MIN), (f64::MAX, f64::MIN));
+    let mut path = Vec::new();
     for _ in 0..=(28 * 4) {
         let jd = snapshot.epoch_jd_tdb + system.time() / DAY;
         let to_earth: DVec3 = system.bodies[earth].position - system.bodies[moon].position;
@@ -134,12 +158,29 @@ fn moon_keeps_one_face_toward_earth() {
         let lat = local.z.asin().to_degrees();
         lon_range = (lon_range.0.min(lon), lon_range.1.max(lon));
         lat_range = (lat_range.0.min(lat), lat_range.1.max(lat));
+        path.push((lon, lat));
         advance(&mut system, &EinsteinInfeldHoffmann, &mut ias, DAY / 4.0);
     }
     println!(
         "Earth in the Moon's sky over a month: longitude {:+.2}° to {:+.2}°, latitude {:+.2}° to {:+.2}°",
         lon_range.0, lon_range.1, lat_range.0, lat_range.1
     );
+    worldline_report::lines(
+        "moon-libration",
+        "Earth in the Moon's sky over a month: the Moon keeps one face toward it, rocking (libration)",
+        "longitude on the Moon (degrees)",
+        "latitude on the Moon (degrees)",
+    )
+    .series("Earth's direction, every 6 hours for 28 days", path)
+    .expected(
+        "the test's limits, ±8.5° and ±7.5°",
+        [(-8.5, -7.5), (8.5, -7.5), (8.5, 7.5), (-8.5, 7.5), (-8.5, -7.5)],
+    )
+    .note(&format!(
+        "Longitude {:+.1}° to {:+.1}°, latitude {:+.1}° to {:+.1}°. Libration rocks Earth by at most about 7.9° in longitude and 6.7° in latitude; the rocking must be there too, more than 2° across.",
+        lon_range.0, lon_range.1, lat_range.0, lat_range.1
+    ))
+    .save(worldline_report::here!());
     // Earth stays near the center of the Moon's near side (0°, 0°). Libration
     // rocks it by at most about 7.9° in longitude and 6.7° in latitude.
     assert!(lon_range.0 > -8.5 && lon_range.1 < 8.5);
@@ -170,6 +211,26 @@ fn sun_is_overhead_in_the_right_place_on_new_years_day() {
     let latitude = local.z.asin().to_degrees();
     let longitude = local.y.atan2(local.x).to_degrees();
     println!("Sun overhead at latitude {latitude:.2}°, longitude {longitude:.2}°");
+    worldline_report::margins(
+        "sun-overhead",
+        "Where the Sun is overhead on 1 January 2025, 00:00 TDB",
+    )
+    .check(
+        "latitude: the Sun's declination, 23.0°S",
+        latitude - -23.0,
+        0.2,
+        format!("{:.2}°S (limit 0.2°)", -latitude),
+    )
+    .check(
+        "longitude: 179.0°W, from the equation of time and TDB",
+        longitude - -179.0,
+        0.5,
+        format!(
+            "{:.2}°W (limit 0.5°, the IAU's simple Earth model)",
+            -longitude
+        ),
+    )
+    .save(worldline_report::here!());
     assert!((latitude - -23.0).abs() < 0.2, "latitude {latitude}°");
     // The IAU Earth model is a simple one (see docs/physics/rotation.md),
     // good to a few tenths of a degree. The app turns Earth by the IERS's

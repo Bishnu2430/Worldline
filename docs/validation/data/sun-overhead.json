@@ -1,0 +1,11 @@
+{
+  "id": "sun-overhead",
+  "test": "validation_rotation::sun_is_overhead_in_the_right_place_on_new_years_day",
+  "file": "crates/worldline-data/tests/validation_rotation.rs",
+  "kind": "margins",
+  "title": "Where the Sun is overhead on 1 January 2025, 00:00 TDB",
+  "checks": [
+    {"label": "latitude: the Sun's declination, 23.0°S", "off": 0.004516732308264437, "limit": 0.2, "shown": "23.00°S (limit 0.2°)"},
+    {"label": "longitude: 179.0°W, from the equation of time and TDB", "off": 0.2372020098130463, "limit": 0.5, "shown": "178.76°W (limit 0.5°, the IAU's simple Earth model)"}
+  ]
+}

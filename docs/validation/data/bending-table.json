@@ -1,0 +1,13 @@
+{
+  "id": "bending-table",
+  "test": "validation_lensing::the_table_the_gpu_reads_places_the_sky_within_a_tenth_of_a_pixel",
+  "file": "crates/worldline-core/tests/validation_lensing.rs",
+  "kind": "margins",
+  "title": "The table of bending the GPU reads: how far it moves the sky, against a tenth of a pixel",
+  "checks": [
+    {"label": "seen from 2.5 GM/c²", "off": 4.651430636567976e-6, "limit": 7.407407407407409e-5, "shown": "6.3e-3 pixel at most (a full-HD screen's pixel)"},
+    {"label": "seen from 8 GM/c²", "off": 2.3651999673171573e-6, "limit": 7.407407407407409e-5, "shown": "3.2e-3 pixel at most (a full-HD screen's pixel)"},
+    {"label": "seen from 40 GM/c²", "off": 7.549955492733015e-7, "limit": 7.407407407407409e-5, "shown": "1.0e-3 pixel at most (a full-HD screen's pixel)"},
+    {"label": "seen from 10000 GM/c²", "off": 7.559876995130956e-8, "limit": 7.407407407407409e-5, "shown": "1.0e-4 pixel at most (a full-HD screen's pixel)"}
+  ]
+}

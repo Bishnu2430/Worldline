@@ -1,0 +1,15 @@
+{
+  "id": "black-hole-shadow",
+  "test": "validation_lensing::the_shadow_is_root_27_and_its_edge_where_synge_puts_it",
+  "file": "crates/worldline-core/tests/validation_lensing.rs",
+  "kind": "margins",
+  "title": "The shadow of a non-spinning black hole, by tracing rays: its edge against Synge's angle",
+  "checks": [
+    {"label": "seen from 3.5 GM/c²", "off": 1.6653345369377348e-15, "limit": 1e-6, "shown": "the edge at 76.387248641°, Synge's 76.387248641°; impact parameter 5.196152423 GM/c² (√27 = 5.196152423)"},
+    {"label": "seen from 6 GM/c²", "off": 2.886579864025407e-15, "limit": 1e-6, "shown": "the edge at 45.000000000°, Synge's 45.000000000°; impact parameter 5.196152423 GM/c² (√27 = 5.196152423)"},
+    {"label": "seen from 30 GM/c²", "off": 1.3322676295501878e-15, "limit": 1e-6, "shown": "the edge at 9.632732283°, Synge's 9.632732283°; impact parameter 5.196152423 GM/c² (√27 = 5.196152423)"},
+    {"label": "seen from 1000 GM/c²", "off": 1.5543122344752192e-15, "limit": 1e-6, "shown": "the edge at 0.297421073°, Synge's 0.297421073°; impact parameter 5.196152423 GM/c² (√27 = 5.196152423)"},
+    {"label": "seen from 1000000 GM/c²", "off": 4.141131881851834e-14, "limit": 1e-6, "shown": "the edge at 0.000297717°, Synge's 0.000297717°; impact parameter 5.196152423 GM/c² (√27 = 5.196152423)"},
+    {"label": "from far away: √27 GM/c²", "off": 0.0, "limit": 1e-15, "shown": "the critical impact parameter, to rounding"}
+  ]
+}

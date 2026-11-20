@@ -1,0 +1,15 @@
+{
+  "id": "scenarios-play-out",
+  "test": "worldline::app::scenarios::tests::the_scenarios_play_out_as_they_say",
+  "file": "crates/worldline-app/src/app/scenarios.rs",
+  "kind": "margins",
+  "title": "The scenarios that end in an event, played until it happens",
+  "checks": [
+    {"label": "GW150914: merges when its recorded chirp ends", "off": 0.01140650236629348, "limit": 0.03, "shown": "after 8.70 s; the recording ends at 8.69 (limit: the play's step, 0.03)"},
+    {"label": "GW170817: merges when its recorded chirp ends", "off": 0.7422219192293653, "limit": 0.75, "shown": "after 173.25 s; the recording ends at 172.51 (limit: the play's step, 0.75)"},
+    {"label": "A white dwarf past its limit explodes as a type Ia supernova: happens", "off": 0.0, "limit": 0.5, "shown": "after 12.24 hours"},
+    {"label": "An evaporating black hole vanishes: happens", "off": 0.0, "limit": 0.5, "shown": "after 2.67 years"},
+    {"label": "TON 618 swallows Sagittarius A*: happens", "off": 0.0, "limit": 0.5, "shown": "after 0.48 years"},
+    {"label": "The eclipse finder goes to 12 August 2026, as NASA's canon has it", "off": 0.0, "limit": 0.5, "shown": "2026-08-12 17:46 UTC"}
+  ]
+}

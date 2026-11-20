@@ -1,0 +1,10 @@
+{
+  "id": "asteroids-pull-on-mars",
+  "test": "validation_small_bodies::the_asteroids_mass_shrinks_mars_error",
+  "file": "crates/worldline-data/tests/validation_small_bodies.rs",
+  "kind": "margins",
+  "title": "The heaviest asteroids' pull brings Mars closer to JPL after a year",
+  "checks": [
+    {"label": "Mars with the asteroids, against without them", "off": 0.10918976567646309, "limit": 0.1892521452485065, "shown": "0.11 km from JPL with them, 0.19 km without"}
+  ]
+}

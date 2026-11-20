@@ -1,0 +1,14 @@
+{
+  "id": "ring-structure",
+  "test": "validation_rings::measured_profile_matches_the_published_ring_boundaries",
+  "file": "crates/worldline-data/tests/validation_rings.rs",
+  "kind": "margins",
+  "title": "Cassini's measured ring profile against the PDS ring boundaries",
+  "checks": [
+    {"label": "B ring's outer edge, 117,570 km", "off": 60000.0, "limit": 100000.0, "shown": "117630 km against 117570 (limit 100 km: the edge swings ±70 km)"},
+    {"label": "Cassini Division nearly empty", "off": 0.22411195632183903, "limit": 0.3, "shown": "mean optical depth 0.224 (PDS: 0 to 0.2; limit 0.3)"},
+    {"label": "Encke Gap empty", "off": 0.0004591428571428571, "limit": 0.05, "shown": "mean optical depth 0.000 (limit 0.05)"},
+    {"label": "B ring core opaque", "off": 3.0, "limit": 4.650522215000002, "shown": "mean optical depth 4.65, above 3 (PDS: 1 to 5, median 3.6)"},
+    {"label": "A ring between 0.4 and 1", "off": 0.8625553616830799, "limit": 1.0, "shown": "mean optical depth 0.86"}
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "zodiacal-helios",
+  "test": "validation_zodiacal::the_dust_model_brightens_toward_the_sun_as_helios_measured",
+  "file": "crates/worldline-core/tests/validation_zodiacal.rs",
+  "kind": "lines",
+  "title": "The zodiacal dust model (COBE) brightens toward the Sun as Helios measured",
+  "x": "elongation from the Sun (degrees)",
+  "y": "exponent: brightness as R^−n, from 1 to 0.3 AU",
+  "log_x": false,
+  "log_y": false,
+  "note": "Helios 1 and 2 measured R^−(2.3 ± 0.1) at every elongation from 17.5° to 135° (Leinert et al. 1981). The model is furthest from 2.3 by 0.075.",
+  "series": [
+    {"name": "seen from ecliptic longitude 0°", "expected": false, "dots": false, "points": [[30.0, 2.3749424561144012], [60.0, 2.3680734737800937], [90.0, 2.368634817380777], [135.0, 2.3718821125013654]]},
+    {"name": "seen from ecliptic longitude 90°", "expected": false, "dots": false, "points": [[30.0, 2.312500304621371], [60.0, 2.334640576227791], [90.0, 2.345726529641371], [135.0, 2.357316034188243]]},
+    {"name": "seen from ecliptic longitude 180°", "expected": false, "dots": false, "points": [[30.0, 2.299471481252555], [60.0, 2.3135368178622038], [90.0, 2.3217384446895126], [135.0, 2.3309177590005574]]},
+    {"name": "seen from ecliptic longitude 270°", "expected": false, "dots": false, "points": [[30.0, 2.3596235552544393], [60.0, 2.3447360048435746], [90.0, 2.342498989794902], [135.0, 2.343674325274461]]},
+    {"name": "Helios: 2.3", "expected": true, "dots": false, "points": [[30.0, 2.3], [135.0, 2.3]]},
+    {"name": "Helios's ± 0.1", "expected": true, "dots": false, "points": [[30.0, 2.2], [135.0, 2.2]]},
+    {"name": "", "expected": true, "dots": false, "points": [[30.0, 2.4], [135.0, 2.4]]}
+  ]
+}

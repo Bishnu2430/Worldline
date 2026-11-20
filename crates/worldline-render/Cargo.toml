@@ -21,6 +21,8 @@ wgpu = "30.0.1"
 worldline-core = { path = "../worldline-core" }
 # For the GPU test that draws the galaxy's swarm.
 worldline-data = { path = "../worldline-data" }
+# The validation report's figures (step 8.2).
+worldline-report = { path = "../worldline-report" }
 
 [lints]
 workspace = true

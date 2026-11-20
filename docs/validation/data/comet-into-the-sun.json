@@ -1,0 +1,11 @@
+{
+  "id": "comet-into-the-sun",
+  "test": "validation_collisions::a_comet_falling_into_the_sun_is_absorbed_at_the_surface",
+  "file": "crates/worldline-core/tests/validation_collisions.rs",
+  "kind": "margins",
+  "title": "A comet falling into the Sun from 1 AU at 50 km/s is caught at the surface",
+  "checks": [
+    {"label": "speed at the surface, from energy conservation", "off": 3.638948037343326e-7, "limit": 0.01, "shown": "618.3 km/s against 618.3 km/s (limit 10⁻²: ten times the interpolation's 10⁻³)"},
+    {"label": "when, from the radial Kepler orbit", "off": 2.6718283141491384e-10, "limit": 0.01, "shown": "24.6177 days against 24.6177 days"}
+  ]
+}

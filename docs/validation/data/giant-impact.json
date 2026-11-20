@@ -1,0 +1,17 @@
+{
+  "id": "giant-impact",
+  "test": "validation_giant_impact::the_canonical_impact_leaves_the_disk_canup_found",
+  "file": "crates/worldline-core/tests/validation_giant_impact.rs",
+  "kind": "lines",
+  "title": "The Moon-forming impact, planets of rock and iron in SPH: the disk it leaves",
+  "x": "hours after the impact",
+  "y": "disk mass (lunar masses)",
+  "log_x": false,
+  "log_y": false,
+  "note": "After 27 hours: 1.38 lunar masses in 135 particles, within 1.22 to 1.76. Energy kept to 6.1e-4, angular momentum to 3.9e-9. At 4,000 particles it fails, with 1.08, and convergence isn't shown.",
+  "series": [
+    {"name": "simulated, 7936 particles", "expected": false, "dots": false, "points": [[0.0, 0.0], [3.0006468873172287, 3.3386330723249102], [6.001310676420301, 4.35099242745261], [9.001950375577856, 2.5267692594902877], [12.000009430266317, 2.091403498633049], [15.0016391179129, 2.0329017765555006], [18.001720809317877, 1.8785957617108928], [21.001399808081352, 1.7557365287188962], [24.00177908209979, 1.4807672016961284], [27.001775255910115, 1.3781405163345937], [27.001775255910115, 1.3781405163345937]]},
+    {"name": "Canup's (2004) 1.33 to 1.62, widened by the disk's counting noise", "expected": true, "dots": false, "points": [[0.0, 1.2155318255454253], [27.0, 1.2155318255454253]]},
+    {"name": "", "expected": true, "dots": false, "points": [[0.0, 1.7594274004634671], [27.0, 1.7594274004634671]]}
+  ]
+}

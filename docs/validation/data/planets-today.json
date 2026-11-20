@@ -1,0 +1,21 @@
+{
+  "id": "planets-today",
+  "test": "worldline::simulation::tests::the_planets_today_are_where_jpl_puts_them",
+  "file": "crates/worldline-app/src/simulation.rs",
+  "kind": "margins",
+  "title": "Today's planets: the app's simulation from 1 January 2025 to 28 October 2026, against JPL",
+  "checks": [
+    {"label": "Sun", "off": 1.5290341879506794e-8, "limit": 1e-5, "shown": "0.0 km off, 1.5e-8 of its distance"},
+    {"label": "Mercury", "off": 4.217152355226959e-9, "limit": 1e-5, "shown": "0.2 km off, 4.2e-9 of its distance"},
+    {"label": "Venus", "off": 3.5839329074870073e-10, "limit": 1e-5, "shown": "0.0 km off, 3.6e-10 of its distance"},
+    {"label": "Earth, against 1 part in 10,000 of an AU", "off": 27.1838973886039, "limit": 14959787.07, "shown": "0.03 km off"},
+    {"label": "Earth", "off": 1.8355261044831134e-10, "limit": 1e-5, "shown": "0.0 km off, 1.8e-10 of its distance"},
+    {"label": "Moon", "off": 8.15890176802041e-9, "limit": 1e-5, "shown": "1.2 km off, 8.2e-9 of its distance"},
+    {"label": "Mars", "off": 2.1281393128308865e-10, "limit": 1e-5, "shown": "0.1 km off, 2.1e-10 of its distance"},
+    {"label": "Jupiter", "off": 1.3662256726884131e-11, "limit": 1e-5, "shown": "0.0 km off, 1.4e-11 of its distance"},
+    {"label": "Saturn", "off": 1.1406585495975287e-10, "limit": 1e-5, "shown": "0.2 km off, 1.1e-10 of its distance"},
+    {"label": "Uranus", "off": 4.2031379367262413e-7, "limit": 1e-5, "shown": "1221.8 km off, 4.2e-7 of its distance"},
+    {"label": "Neptune", "off": 7.838700801042912e-8, "limit": 1e-5, "shown": "350.3 km off, 7.8e-8 of its distance"},
+    {"label": "Pluto", "off": 1.7014793010336284e-10, "limit": 1e-5, "shown": "0.9 km off, 1.7e-10 of its distance"}
+  ]
+}

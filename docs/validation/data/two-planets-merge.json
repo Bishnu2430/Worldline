@@ -1,0 +1,12 @@
+{
+  "id": "two-planets-merge",
+  "test": "validation_collisions::two_planets_collide_merge_and_keep_their_momentum",
+  "file": "crates/worldline-core/tests/validation_collisions.rs",
+  "kind": "margins",
+  "title": "Two planets collide and merge (Newtonian gravity)",
+  "checks": [
+    {"label": "total momentum before and after, against rounding", "off": 0.0, "limit": 30984691.829676934, "shown": "changed by 0.0e0 of its scale (limit 10⁻¹²)"},
+    {"label": "the merged mass: the two added", "off": 0.0, "limit": 0.5, "shown": "GM 1e15 m³/s² against 1e15"},
+    {"label": "the merged radius: their volumes added", "off": 0.0, "limit": 1.0, "shown": "8237.661 km against 8237.661 km (limit 1 m)"}
+  ]
+}

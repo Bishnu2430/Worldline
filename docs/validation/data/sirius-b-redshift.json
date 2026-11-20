@@ -1,0 +1,10 @@
+{
+  "id": "sirius-b-redshift",
+  "test": "validation_notable_objects::sirius_b_reddens_its_light_as_hubble_measured",
+  "file": "crates/worldline-data/tests/validation_notable_objects.rs",
+  "kind": "margins",
+  "title": "Sirius B's gravitational redshift from its mass and radius, against Hubble's measurement",
+  "checks": [
+    {"label": "predicted against measured, within their combined uncertainty", "off": 50.549752704420825, "limit": 1604.8061197907186, "shown": "80.70 ± 1.41 km/s against Hubble's 80.65 ± 0.77 km/s"}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "sagittarius-a-star-direction",
+  "test": "validation_galactic_center::sagittarius_a_star_is_where_it_is_on_the_sky",
+  "file": "crates/worldline-data/tests/validation_galactic_center.rs",
+  "kind": "margins",
+  "title": "Sagittarius A*'s direction in galactic coordinates, against SIMBAD's",
+  "checks": [
+    {"label": "galactic longitude, against 359.94423568°", "off": 2.083178156908616e-5, "limit": 0.0001, "shown": "359.94421485° (limit 0.0001°: SIMBAD's radio position differs by under 0.05″)"},
+    {"label": "galactic latitude, against −0.04616002°", "off": 2.2533741558528053e-6, "limit": 0.0001, "shown": "-0.04615777°"}
+  ]
+}

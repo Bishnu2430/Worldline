@@ -1,0 +1,13 @@
+{
+  "id": "leinhardt-stewart-example",
+  "test": "validation_collision_outcomes::the_papers_worked_example",
+  "file": "crates/worldline-data/tests/validation_collision_outcomes.rs",
+  "kind": "margins",
+  "title": "Leinhardt & Stewart's (2012) worked example, from their scaling laws",
+  "checks": [
+    {"label": "Q*_RD, against 5.3 J/kg", "off": 0.025522731661043352, "limit": 0.05, "shown": "5.33 J/kg (limit: the printed digits' rounding)"},
+    {"label": "V*, against 6.5 m/s", "off": 0.02718789780777975, "limit": 0.05, "shown": "6.53 m/s"},
+    {"label": "at 45°, Q′*_RD rises by almost 5", "off": 0.0593461303447782, "limit": 0.25, "shown": "× 4.69 (counted as 4.5 to 5)"},
+    {"label": "at 45°, V′* against 14 m/s", "off": 0.13652964746375673, "limit": 0.5, "shown": "14.1 m/s"}
+  ]
+}

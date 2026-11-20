@@ -127,6 +127,36 @@ fn a_jupiter_mass_planet_disturbs_the_inner_orbits() {
         estimate / 1e3,
         shift / estimate
     );
+    let ratio = shift / estimate;
+    worldline_report::margins(
+        "jupiter-intruder",
+        "A Jupiter-mass planet dropped at 1.5 AU: the solar system over 10 years",
+    )
+    .check(
+        "Newtonian energy, against relativity's (v/c)²",
+        energy_drift,
+        2.5 * v_over_c_squared,
+        format!(
+            "changed by {energy_drift:.1e}; (v/c)² = {v_over_c_squared:.1e}, limit 2.5 times it"
+        ),
+    )
+    .check(
+        "momentum, against the same",
+        momentum_drift,
+        2.5 * v_over_c_squared,
+        format!("changed by {momentum_drift:.1e}"),
+    )
+    .check(
+        "Earth's shift after a year, within 10× of ½ f t²",
+        (0.1 / ratio).max(ratio / 10.0),
+        1.0,
+        format!(
+            "{:.0} km, {ratio:.2} times the estimate of {:.0} km",
+            shift / 1e3,
+            estimate / 1e3
+        ),
+    )
+    .save(worldline_report::here!());
     assert!((0.1..10.0).contains(&(shift / estimate)));
 }
 
@@ -210,6 +240,44 @@ fn an_intruder_that_hits_mars_merges_and_keeps_the_momentum() {
         );
     }
     println!("momentum drift {drift:.1e}");
+    let absorbed = collisions.iter().find(|c| c.absorbed == "Mars");
+    worldline_report::margins(
+        "intruder-hits-mars",
+        "A Jupiter-mass body hits Mars in the real solar system, with relativistic gravity",
+    )
+    .check(
+        "momentum, against relativity's 2.5 (v/c)²",
+        drift,
+        2.5 * (59e3 / C).powi(2),
+        format!("changed by {drift:.1e}"),
+    )
+    .check(
+        "Phobos and Deimos freed by its tides first",
+        if freed.freed == ["Phobos", "Deimos"] {
+            0.0
+        } else {
+            1.0
+        },
+        0.5,
+        format!("{:?} freed after {:.1} h", freed.freed, freed.time / 3600.0),
+    )
+    .check(
+        "Mars absorbed by the intruder",
+        if absorbed.is_some_and(|c| c.survivor == "Intruder") {
+            0.0
+        } else {
+            1.0
+        },
+        0.5,
+        absorbed.map_or("no collision".to_string(), |c| {
+            format!(
+                "at {:.2} km/s after {:.1} h",
+                c.speed / 1e3,
+                c.time / 3600.0
+            )
+        }),
+    )
+    .save(worldline_report::here!());
     assert_eq!(
         (freed.by.as_str(), freed.planet.as_str()),
         ("Intruder", "Mars")

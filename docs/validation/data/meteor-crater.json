@@ -1,0 +1,10 @@
+{
+  "id": "meteor-crater",
+  "test": "validation_craters::meteor_crater_from_its_estimated_impactor",
+  "file": "crates/worldline-core/tests/validation_craters.rs",
+  "kind": "margins",
+  "title": "Meteor Crater, dug by Holsapple's scaling laws from its estimated impactor",
+  "checks": [
+    {"label": "1,186 m across, within the published scaling's spread", "off": 0.08002348262111161, "limit": 0.23104906018664845, "shown": "1095 m across against 1186 m (-8%); the law's spread 869 to 1379 m"}
+  ]
+}

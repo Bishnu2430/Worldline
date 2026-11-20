@@ -25,3 +25,5 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Tests (including physics validation)
         run: cargo test -- --nocapture
+      - name: Validation plots are drawn from their recorded data
+        run: python3 tools/validation_report.py && git diff --exit-code docs/validation

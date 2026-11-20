@@ -1,0 +1,11 @@
+{
+  "id": "kerr-disk-doppler",
+  "test": "validation_kerr_light::the_side_coming_toward_you_is_brighter",
+  "file": "crates/worldline-core/tests/validation_kerr_light.rs",
+  "kind": "margins",
+  "title": "A disk around a spinning black hole, seen nearly edge on: the side coming toward you is brighter",
+  "checks": [
+    {"label": "coming toward you, light shifted up: g above 1", "off": 1.0, "limit": 1.2706490749752162, "shown": "g = 1.2706, from r = 9.15 GM/c²"},
+    {"label": "going away, shifted down: g below 1", "off": 0.6058086077791497, "limit": 1.0, "shown": "g = 0.6058, from r = 8.82; brightness ratio (g/g)⁴ = 19.4"}
+  ]
+}

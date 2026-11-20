@@ -695,6 +695,10 @@ mod tests {
         // forth around the orbit. Stopping at a periastron, where the run
         // started, lets them cancel; stopping elsewhere leaves a swing that
         // doesn't shrink with GM/rc².
+        let mut figure = worldline_report::margins(
+            "quadrupole-energy-loss",
+            "A pair's energy loss against Einstein's quadrupole formula and its first correction",
+        );
         for strength in [1e-2f64, 3e-3] {
             let (mut system, period) = eccentric_binary(strength);
             let gravity = PostNewtonian::default();
@@ -747,7 +751,19 @@ mod tests {
                 corrected / start.abs(),
                 strength.sqrt() * miss
             );
+            figure = figure.check(
+                &format!("at GM/rc² = {strength}: with the correction"),
+                corrected_miss,
+                strength.sqrt() * miss,
+                format!(
+                    "off by {corrected_miss:.1e}, {:.1} (GM/rc²)²; the formula alone by {miss:.1e}, {:.1} GM/rc² \
+                     (limit √(GM/rc²) times that)",
+                    corrected_miss / (strength * strength),
+                    miss / strength
+                ),
+            );
             assert!(corrected_miss < strength.sqrt() * miss);
         }
+        figure.save(worldline_report::here!());
     }
 }

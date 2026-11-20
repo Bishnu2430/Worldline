@@ -1,0 +1,18 @@
+{
+  "id": "sky-from-a-city",
+  "test": "worldline::simulation::tests::the_sky_from_a_city_is_jpls",
+  "file": "crates/worldline-app/src/simulation.rs",
+  "kind": "margins",
+  "title": "The Sun, Moon and planets' altitude and azimuth from two cities in 2026, against JPL Horizons",
+  "checks": [
+    {"label": "Sun", "off": 7.58246365333268, "limit": 12.5, "shown": "7.6″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)"},
+    {"label": "Moon", "off": 9.000489316661392, "limit": 12.5, "shown": "9.0″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)"},
+    {"label": "Mercury", "off": 8.095129700436845, "limit": 12.5, "shown": "8.1″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)"},
+    {"label": "Venus", "off": 7.706821013017831, "limit": 12.5, "shown": "7.7″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)"},
+    {"label": "Mars", "off": 8.036808280916214, "limit": 12.5, "shown": "8.0″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)"},
+    {"label": "Jupiter", "off": 8.30941280781109, "limit": 12.5, "shown": "8.3″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)"},
+    {"label": "Saturn", "off": 4.775049167247652, "limit": 12.5, "shown": "4.8″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)"},
+    {"label": "Uranus", "off": 8.925001280325409, "limit": 12.5, "shown": "8.9″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)"},
+    {"label": "Neptune", "off": 3.6097371437735886, "limit": 12.5, "shown": "3.6″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)"}
+  ]
+}

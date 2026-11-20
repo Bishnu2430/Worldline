@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="524" viewBox="0 0 760 524">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">The Moon-forming impact, planets of rock and iron in SPH: the disk it leaves</text>
+<line x1="90.0" y1="64" x2="90.0" y2="400" stroke="#e4e7eb"/>
+<text x="90.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">0</text>
+<line x1="208.5" y1="64" x2="208.5" y2="400" stroke="#e4e7eb"/>
+<text x="208.5" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">5</text>
+<line x1="327.0" y1="64" x2="327.0" y2="400" stroke="#e4e7eb"/>
+<text x="327.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="445.5" y1="64" x2="445.5" y2="400" stroke="#e4e7eb"/>
+<text x="445.5" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">15</text>
+<line x1="564.0" y1="64" x2="564.0" y2="400" stroke="#e4e7eb"/>
+<text x="564.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">20</text>
+<line x1="682.6" y1="64" x2="682.6" y2="400" stroke="#e4e7eb"/>
+<text x="682.6" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">25</text>
+<line x1="90" y1="384.7" x2="730" y2="384.7" stroke="#e4e7eb"/>
+<text x="84.0" y="388.7" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">0</text>
+<line x1="90" y1="314.5" x2="730" y2="314.5" stroke="#e4e7eb"/>
+<text x="84.0" y="318.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">1</text>
+<line x1="90" y1="244.3" x2="730" y2="244.3" stroke="#e4e7eb"/>
+<text x="84.0" y="248.3" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">2</text>
+<line x1="90" y1="174.1" x2="730" y2="174.1" stroke="#e4e7eb"/>
+<text x="84.0" y="178.1" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">3</text>
+<line x1="90" y1="103.9" x2="730" y2="103.9" stroke="#e4e7eb"/>
+<text x="84.0" y="107.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">4</text>
+<rect x="90" y="64" width="640" height="336" fill="none" stroke="#6b7785"/>
+<text x="410.0" y="436.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" font-weight="normal">hours after the impact</text>
+<text x="18" y="232.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" transform="rotate(-90 18 232.0)">disk mass (lunar masses)</text>
+<path d="M90.0,384.7 L161.1,150.3 L232.2,79.3 L303.4,207.3 L374.4,237.9 L445.6,242.0 L516.7,252.8 L587.8,261.5 L658.9,280.8 L730.0,288.0 L730.0,288.0" fill="none" stroke="#1c7ed6" stroke-width="1.8"/>
+<line x1="90" y1="452" x2="110" y2="452" stroke="#1c7ed6" stroke-width="2"/>
+<text x="118.0" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulated, 7936 particles</text>
+<path d="M90.0,299.4 L730.0,299.4" fill="none" stroke="#e8590c" stroke-width="1.8" stroke-dasharray="6 4"/>
+<line x1="90" y1="468" x2="110" y2="468" stroke="#e8590c" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="118.0" y="472.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Canup's (2004) 1.33 to 1.62, widened by the disk's counting noise</text>
+<path d="M90.0,261.2 L730.0,261.2" fill="none" stroke="#e8590c" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="20.0" y="492.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">After 27 hours: 1.38 lunar masses in 135 particles, within 1.22 to 1.76. Energy kept to 6.1e-4, angular</text>
+<text x="20.0" y="508.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">momentum to 3.9e-9. At 4,000 particles it fails, with 1.08, and convergence isn't shown.</text>
+</svg>

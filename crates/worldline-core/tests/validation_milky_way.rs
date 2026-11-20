@@ -248,20 +248,72 @@ fn the_model_is_mcmillans() {
     println!(
         "circular speed at 8.21 kpc: {v0:.4} km/s (McMillan: 233.1); halo density there {halo:.5} M☉/pc³ (0.0101)"
     );
+    let mut figure = worldline_report::margins(
+        "milky-way-model",
+        "The Milky Way's mass model (McMillan 2017), solved as his code solves it",
+    )
+    .check(
+        "circular speed at 8.21 kpc, against 233.1 km/s",
+        v0 - 233.1,
+        0.05,
+        format!("{v0:.4} km/s (limit: the last digit's rounding)"),
+    )
+    .check(
+        "halo density there, against 0.0101 M☉/pc³",
+        halo - 0.0101,
+        0.000_05,
+        format!("{halo:.5} M☉/pc³"),
+    );
+    worldline_report::lines(
+        "milky-way-rotation-curve",
+        "The Milky Way's rotation curve, from McMillan's (2017) mass model",
+        "distance from the center (kpc)",
+        "circular speed (km/s)",
+    )
+    .series(
+        "the solved model",
+        (1..=200).map(|k| {
+            let r = 0.1 * k as f64;
+            (r, potential.circular_speed(r * kpc) / KMS)
+        }),
+    )
+    .dots(
+        "McMillan's Table 3: 233.1 km/s at 8.21 kpc",
+        [(8.21, 233.1)],
+    )
+    .note(&format!("At 8.21 kpc: {v0:.4} km/s."))
+    .save(worldline_report::here!());
     assert!((v0 - 233.1).abs() <= 0.05);
     assert!((halo - 0.0101).abs() <= 0.000_05);
 
     // Table 1: the gas disks' surface densities at 8.33 kpc and their
     // masses, to their last digit.
-    for (disk, sigma, mass) in [(model.disks[2], 10.0, 1.1e10), (model.disks[3], 2.0, 1.2e9)] {
+    for (disk, sigma, mass) in [
+        (model.disks[2], 10.0, 1.1e10_f64),
+        (model.disks[3], 2.0, 1.2e9),
+    ] {
         let s = disk.surface_density_at(8.33 * kpc) / msun_pc2;
         let m = disk.mass() / SOLAR_MASS;
         println!(
             "{}: {s:.4} M☉/pc² at 8.33 kpc (McMillan: {sigma}); {m:.4e} M☉ ({mass:.1e})",
             disk.name
         );
+        let last_digit = 0.05 * 10f64.powf(mass.log10().floor());
+        figure = figure
+            .check(
+                &format!("{}: surface density at 8.33 kpc", disk.name),
+                s - sigma,
+                0.5,
+                format!("{s:.4} M☉/pc² against {sigma}"),
+            )
+            .check(
+                &format!("{}: mass", disk.name),
+                m - mass,
+                last_digit,
+                format!("{m:.4e} M☉ against {mass:.1e}"),
+            );
         assert!((s - sigma).abs() <= 0.5);
-        assert!((m - mass).abs() <= 0.05 * 10f64.powf(mass.log10().floor()));
+        assert!((m - mass).abs() <= last_digit);
     }
     for d in &model.disks[..2] {
         println!("{}: {:.4e} M☉", d.name, d.mass() / SOLAR_MASS);
@@ -318,6 +370,12 @@ fn the_model_is_mcmillans() {
     ] {
         let off = (ours / galpot - 1.0).abs();
         println!("  {what}: {ours:.6} (GalPot {galpot:.6}; off {off:.1e})");
+        figure = figure.check(
+            &format!("the Sun's orbit: {what}"),
+            off,
+            h4,
+            format!("{ours:.6} against GalPot's {galpot:.6} (limit: its grid's h⁴)"),
+        );
         assert!(off < h4, "{what}");
     }
     println!(
@@ -330,5 +388,16 @@ fn the_model_is_mcmillans() {
         e.azimuthal_period / MYR
     );
     // The integration adds less than the potential's own interpolation.
+    figure
+        .check(
+            "the Sun's orbit: energy kept over 10 Gyr",
+            drift,
+            our_h4(),
+            format!(
+                "changed by {:.1e} (limit: the potential's own grid)",
+                drift.abs()
+            ),
+        )
+        .save(worldline_report::here!());
     assert!(drift.abs() < our_h4());
 }

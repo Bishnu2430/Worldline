@@ -1,0 +1,11 @@
+{
+  "id": "earth-magnetopause",
+  "test": "validation_magnetospheres::earths_magnetopause_sits_about_10_earth_radii_sunward",
+  "file": "crates/worldline-data/tests/validation_magnetospheres.rs",
+  "kind": "margins",
+  "title": "Earth's magnetopause from pressure balance with the solar wind",
+  "checks": [
+    {"label": "in 2025's average wind: about 10 Earth radii", "off": 0.1575728872897617, "limit": 0.5, "shown": "9.84 Earth radii at 2.62 nPa (limit: to the nearest Earth radius)"},
+    {"label": "hour by hour, against Shue et al.'s scatter of 1.23", "off": 0.26199258069872816, "limit": 1.23, "shown": "RMS difference 0.26 Earth radii over 8664 hours; +0.11 on average"}
+  ]
+}

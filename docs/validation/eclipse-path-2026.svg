@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="540" viewBox="0 0 760 540">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">The total solar eclipse of 12 August 2026: the central line against NASA's path, every 2 minutes</text>
+<line x1="90.0" y1="64" x2="90.0" y2="400" stroke="#e4e7eb"/>
+<text x="90.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">16</text>
+<line x1="196.7" y1="64" x2="196.7" y2="400" stroke="#e4e7eb"/>
+<text x="196.7" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">16.5</text>
+<line x1="303.3" y1="64" x2="303.3" y2="400" stroke="#e4e7eb"/>
+<text x="303.3" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">17</text>
+<line x1="410.0" y1="64" x2="410.0" y2="400" stroke="#e4e7eb"/>
+<text x="410.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">17.5</text>
+<line x1="516.7" y1="64" x2="516.7" y2="400" stroke="#e4e7eb"/>
+<text x="516.7" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">18</text>
+<line x1="623.3" y1="64" x2="623.3" y2="400" stroke="#e4e7eb"/>
+<text x="623.3" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">18.5</text>
+<line x1="730.0" y1="64" x2="730.0" y2="400" stroke="#e4e7eb"/>
+<text x="730.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">19</text>
+<line x1="90" y1="391.6" x2="730" y2="391.6" stroke="#e4e7eb"/>
+<text x="84.0" y="395.6" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">0</text>
+<line x1="90" y1="287.5" x2="730" y2="287.5" stroke="#e4e7eb"/>
+<text x="84.0" y="291.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">1</text>
+<line x1="90" y1="183.4" x2="730" y2="183.4" stroke="#e4e7eb"/>
+<text x="84.0" y="187.4" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">2</text>
+<line x1="90" y1="79.3" x2="730" y2="79.3" stroke="#e4e7eb"/>
+<text x="84.0" y="83.3" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">3</text>
+<rect x="90" y="64" width="640" height="336" fill="none" stroke="#6b7785"/>
+<text x="410.0" y="436.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" font-weight="normal">hours UT on 12 August 2026</text>
+<text x="18" y="232.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" transform="rotate(-90 18 232.0)">central line across NASA's (km)</text>
+<path d="M310.4,371.0 L317.6,365.2 L324.7,368.4 L331.8,368.9 L338.9,354.8 L346.0,355.7 L353.1,359.1 L360.2,355.6 L367.3,354.8 L374.4,353.4 L381.6,352.5 L388.7,349.2 L395.8,347.4 L402.9,348.3 L410.0,347.0 L417.1,349.0 L424.2,343.7 L431.3,343.1 L438.4,345.9 L445.6,346.5 L452.7,340.7 L459.8,342.8 L466.9,343.9 L474.0,340.3 L481.1,343.7 L488.2,340.4 L495.3,339.1 L502.4,343.0 L509.6,349.3 L516.7,340.4 L523.8,343.6 L530.9,346.7 L538.0,349.3 L545.1,340.8 L552.2,339.2 L559.3,345.1 L566.4,356.6 L573.6,350.4 L580.7,352.2 L587.8,350.7 L594.9,358.4 L602.0,354.6 L609.1,369.9 L616.2,384.7 L623.3,368.1 L630.4,144.5" fill="none" stroke="#1c7ed6" stroke-width="1.8"/>
+<line x1="90" y1="452" x2="110" y2="452" stroke="#1c7ed6" stroke-width="2"/>
+<text x="118.0" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">the app's simulation, from its 2025 snapshot</text>
+<path d="M90.0,79.3 L730.0,79.3" fill="none" stroke="#e8590c" stroke-width="1.8" stroke-dasharray="6 4"/>
+<line x1="90" y1="468" x2="110" y2="468" stroke="#e8590c" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="118.0" y="472.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">limit: 3 km, the roadmap's few</text>
+<text x="20.0" y="492.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">From Siberia to Spain. The worst 2.37 km across; the path's northern and southern limits within 25.63 km</text>
+<text x="20.0" y="508.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">(printed, not checked). At the elements' t₀, l₁ 0.537956 (0.537954), l₂ -0.008141 (-0.008142), tan f₁</text>
+<text x="20.0" y="524.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.0046141 (0.0046141): NASA's Besselian elements in brackets.</text>
+</svg>

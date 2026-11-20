@@ -72,12 +72,43 @@ fn two_planets_collide_merge_and_keep_their_momentum() {
         collision.time / 3600.0,
         (after - before).length() / scale
     );
+    let merged = &h.top.bodies[1];
+    let volumes_add = (7.0e6f64.powi(3) + 6.0e6f64.powi(3)).cbrt();
+    worldline_report::margins(
+        "two-planets-merge",
+        "Two planets collide and merge (Newtonian gravity)",
+    )
+    .check(
+        "total momentum before and after, against rounding",
+        (after - before).length(),
+        1e-12 * scale,
+        format!(
+            "changed by {:.1e} of its scale (limit 10⁻¹²)",
+            (after - before).length() / scale
+        ),
+    )
+    .check(
+        "the merged mass: the two added",
+        merged.gm - 1e15,
+        0.5,
+        format!("GM {:e} m³/s² against 1e15", merged.gm),
+    )
+    .check(
+        "the merged radius: their volumes added",
+        merged.radius - volumes_add,
+        1.0,
+        format!(
+            "{:.3} km against {:.3} km (limit 1 m)",
+            merged.radius / 1e3,
+            volumes_add / 1e3
+        ),
+    )
+    .save(worldline_report::here!());
     assert_eq!(
         (collision.survivor.as_str(), collision.absorbed.as_str()),
         ("A", "B")
     );
     assert_eq!(h.top.bodies.len(), 2);
-    let merged = &h.top.bodies[1];
     assert_eq!(merged.gm, 1e15);
     // Volumes add: (7³ + 6³)^(1/3) = 8.50 thousand km.
     assert!((merged.radius - (7.0e6f64.powi(3) + 6.0e6f64.powi(3)).cbrt()).abs() < 1.0);
@@ -135,6 +166,31 @@ fn a_comet_falling_into_the_sun_is_absorbed_at_the_surface() {
         collision.time / 86_400.0,
         fall / 86_400.0
     );
+    worldline_report::margins(
+        "comet-into-the-sun",
+        "A comet falling into the Sun from 1 AU at 50 km/s is caught at the surface",
+    )
+    .check(
+        "speed at the surface, from energy conservation",
+        collision.speed / expected - 1.0,
+        1e-2,
+        format!(
+            "{:.1} km/s against {:.1} km/s (limit 10⁻²: ten times the interpolation's 10⁻³)",
+            collision.speed / 1e3,
+            expected / 1e3
+        ),
+    )
+    .check(
+        "when, from the radial Kepler orbit",
+        collision.time / fall - 1.0,
+        1e-2,
+        format!(
+            "{:.4} days against {:.4} days",
+            collision.time / 86_400.0,
+            fall / 86_400.0
+        ),
+    )
+    .save(worldline_report::here!());
     assert!((collision.time / fall - 1.0).abs() < 1e-2);
 }
 
@@ -249,13 +305,48 @@ fn a_black_hole_that_hits_the_sun_takes_its_place() {
         hole.radius / 1e3,
         (after - before).length() / scale
     );
+    let expected = schwarzschild_radius(11.0 * GM_SUN);
+    worldline_report::margins(
+        "black-hole-into-the-sun",
+        "A black hole of 10 Suns falls into the Sun and takes its place",
+    )
+    .check(
+        "total momentum before and after, against rounding",
+        (after - before).length(),
+        1e-12 * scale,
+        format!(
+            "changed by {:.1e} of its scale (limit 10⁻¹²)",
+            (after - before).length() / scale
+        ),
+    )
+    .check(
+        "the horizon of 11 Suns, 2GM/c²",
+        hole.radius / expected - 1.0,
+        1e-12,
+        format!("{:.2} km", hole.radius / 1e3),
+    )
+    .check(
+        "the black hole survives, as body 0",
+        if collision.survivor == "Hole" && h.top.bodies[0].name == "Hole" {
+            0.0
+        } else {
+            1.0
+        },
+        0.5,
+        format!(
+            "{} absorbed the {} at {:.0} km/s",
+            collision.survivor,
+            collision.absorbed,
+            collision.speed / 1e3
+        ),
+    )
+    .save(worldline_report::here!());
     assert_eq!(
         (collision.survivor.as_str(), collision.absorbed.as_str()),
         ("Hole", "Sun")
     );
     assert_eq!(hole.name, "Hole");
     assert!(is_black_hole(hole));
-    let expected = schwarzschild_radius(11.0 * GM_SUN);
     assert!((hole.radius - expected).abs() < 1e-12 * expected);
     assert_eq!(
         h.top
@@ -365,6 +456,10 @@ fn a_collision_keeps_its_mass_momentum_and_energy() {
     use worldline_core::impact::Regime;
     let rounding = 130.0 * f64::EPSILON;
     let mut seen = Vec::new();
+    let mut figure = worldline_report::margins(
+        "debris-accounts",
+        "What a collision throws off: mass, momentum and energy before and after, in five regimes",
+    );
     for (speed, b) in [
         (9e3, 0.3),
         (14e3, 0.3),
@@ -379,6 +474,7 @@ fn a_collision_keeps_its_mass_momentum_and_energy() {
         let mass = |all: &[(f64, DVec3, DVec3)]| all.iter().map(|x| x.0).sum::<f64>();
         let momentum = |all: &[(f64, DVec3, DVec3)]| all.iter().map(|x| x.2 * x.0).sum::<DVec3>();
         let scale: f64 = before.iter().map(|x| (x.2 * x.0).length()).sum();
+        let mass_scale = scale;
         let left = collision.aftermath.expect("the laws cover it");
         let outcome = collision.outcome.expect("the laws cover it").1;
         println!(
@@ -424,6 +520,41 @@ fn a_collision_keeps_its_mass_momentum_and_energy() {
         );
         assert!(left.heat >= 0.0, "{}", left.heat);
         let closes = left.before.total() - left.after.total() - left.heat;
+        let case = format!("{:.0} km/s, b {b}, {:?}", speed / 1e3, outcome.regime);
+        let mass_off = (mass(&after) / mass(&before) - 1.0).abs();
+        let momentum_off = (momentum(&after) - momentum(&before)).length() / mass_scale;
+        figure = figure
+            .check(
+                &format!("{case}: mass"),
+                mass_off,
+                rounding,
+                format!("off by {mass_off:.1e} (limit 130 ε = {rounding:.1e})"),
+            )
+            .check(
+                &format!("{case}: momentum"),
+                momentum_off,
+                rounding,
+                format!("off by {momentum_off:.1e} of its scale"),
+            )
+            .check(
+                &format!("{case}: kinetic energy flying"),
+                (kinetic - left.after.kinetic).abs() / scale,
+                rounding,
+                format!(
+                    "off by {:.1e} of the energy's scale",
+                    (kinetic - left.after.kinetic).abs() / scale
+                ),
+            )
+            .check(
+                &format!("{case}: energy accounted for, with heat"),
+                closes.abs() / scale,
+                rounding,
+                format!(
+                    "off by {:.1e}; heat {:.2e} J",
+                    closes.abs() / scale,
+                    left.heat
+                ),
+            );
         assert!(closes.abs() <= rounding * scale);
         seen.push(outcome.regime);
     }
@@ -437,6 +568,7 @@ fn a_collision_keeps_its_mass_momentum_and_energy() {
             Regime::HitAndRun
         ]
     );
+    figure.save(worldline_report::here!());
 }
 
 #[test]

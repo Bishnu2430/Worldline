@@ -1,0 +1,13 @@
+{
+  "id": "hawking-lifetimes",
+  "test": "validation_hawking::the_lifetime_follows_from_the_temperature_and_a_black_body",
+  "file": "crates/worldline-core/tests/validation_hawking.rs",
+  "kind": "margins",
+  "title": "Black holes' lifetimes from Hawking's temperature and a black body, against 5120πG²M³/(ħc⁴)",
+  "checks": [
+    {"label": "1.000e8 kg: the time to radiate it away", "off": 4.440892098500626e-16, "limit": 1e-12, "shown": "2.665e0 years, at 1.227e15 K"},
+    {"label": "1.000e11 kg: the time to radiate it away", "off": 0.0, "limit": 1e-12, "shown": "2.665e9 years, at 1.227e12 K"},
+    {"label": "7.350e22 kg: the time to radiate it away", "off": 2.220446049250313e-16, "limit": 1e-12, "shown": "1.058e45 years, at 1.669e0 K"},
+    {"label": "1.989e30 kg: the time to radiate it away", "off": 2.220446049250313e-16, "limit": 1e-12, "shown": "2.097e67 years, at 6.168e-8 K"}
+  ]
+}

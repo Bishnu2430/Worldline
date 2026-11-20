@@ -80,6 +80,20 @@ fn alpha_centauri_a_and_b_go_round_in_their_measured_period() {
         "first periastron {first:.3}, the orbit's {:.3}",
         orbit.periastron + orbit.period
     );
+    worldline_report::margins(
+        "alpha-centauri-period",
+        "α Centauri A and B circle each other with their measured period, as full bodies",
+    )
+    .check(
+        "the period between periastrons, against 79.929 ± 0.013 years",
+        period - orbit.period,
+        limit,
+        format!(
+            "{period:.3} years over {} orbits (limit {limit:.3}: the period's uncertainty and its fit's rounding)",
+            periods.len()
+        ),
+    )
+    .save(worldline_report::here!());
     assert!(periods.len() >= 2);
     assert!((period - orbit.period).abs() < limit, "{period}");
 }
@@ -134,6 +148,7 @@ fn barnards_star_crosses_the_sky_at_its_measured_rate() {
     let direction = |h: &Hierarchy| h.top.bodies[k].position.normalize();
     let mut worst: f64 = 0.0;
     let mut before = direction(&h);
+    let (mut rates, mut wanted_rates) = (Vec::new(), Vec::new());
     for tenth in 1..=10 {
         let end = tenth as f64 * 0.1 * JULIAN_YEAR;
         while h.time() < end {
@@ -147,6 +162,9 @@ fn barnards_star_crosses_the_sky_at_its_measured_rate() {
         // The rate halfway through the tenth.
         let wanted = measured + speedup * (tenth as f64 - 0.5) * 0.1;
         worst = worst.max((rate - wanted).abs());
+        let year = 2016.0 + (tenth as f64 - 0.5) * 0.1;
+        rates.push((year, rate - measured));
+        wanted_rates.push((year, wanted - measured));
         if tenth == 1 || tenth == 10 {
             println!(
                 "{:.2}: {rate:.3} mas/yr, expected {wanted:.3} (Gaia {measured:.3} ± {error:.3} at 2016.0, \
@@ -157,6 +175,21 @@ fn barnards_star_crosses_the_sky_at_its_measured_rate() {
         before = now;
     }
     println!("worst {worst:.4} mas/yr, against Gaia's {error:.3}");
+    worldline_report::lines(
+        "barnards-star",
+        "Barnard's Star crosses the sky at its measured rate, speeding up as it approaches",
+        "year",
+        "proper motion over Gaia's 10,393.349 mas/yr (mas/yr)",
+    )
+    .dots("simulated, over each tenth of a year", rates)
+    .expected(
+        "Gaia DR3 at 2016.0, plus the approach's speed-up, −2μv_r/d",
+        wanted_rates,
+    )
+    .note(&format!(
+        "The worst {worst:.4} mas/yr off, within Gaia's {error:.3} mas/yr uncertainty."
+    ))
+    .save(worldline_report::here!());
     assert!(worst < error, "{worst}");
     // A distant tug wouldn't do this: the next nearest star pulls on it at
     // under 10⁻¹² m/s².

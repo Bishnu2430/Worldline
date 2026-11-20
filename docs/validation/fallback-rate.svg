@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="524" viewBox="0 0 760 524">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">Torn right through (β = 2), the planet's debris falls back as t^(−5/3)</text>
+<line x1="130.8" y1="64" x2="130.8" y2="400" stroke="#e4e7eb"/>
+<text x="130.8" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">2</tspan></text>
+<line x1="244.2" y1="64" x2="244.2" y2="400" stroke="#e4e7eb"/>
+<text x="244.2" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">3</tspan></text>
+<line x1="357.6" y1="64" x2="357.6" y2="400" stroke="#e4e7eb"/>
+<text x="357.6" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">4</tspan></text>
+<line x1="471.1" y1="64" x2="471.1" y2="400" stroke="#e4e7eb"/>
+<text x="471.1" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">5</tspan></text>
+<line x1="584.5" y1="64" x2="584.5" y2="400" stroke="#e4e7eb"/>
+<text x="584.5" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">6</tspan></text>
+<line x1="698.0" y1="64" x2="698.0" y2="400" stroke="#e4e7eb"/>
+<text x="698.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">7</tspan></text>
+<line x1="90" y1="372.6" x2="730" y2="372.6" stroke="#e4e7eb"/>
+<text x="84.0" y="376.6" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−7</tspan></text>
+<line x1="90" y1="336.2" x2="730" y2="336.2" stroke="#e4e7eb"/>
+<text x="84.0" y="340.2" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−6</tspan></text>
+<line x1="90" y1="299.9" x2="730" y2="299.9" stroke="#e4e7eb"/>
+<text x="84.0" y="303.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−5</tspan></text>
+<line x1="90" y1="263.5" x2="730" y2="263.5" stroke="#e4e7eb"/>
+<text x="84.0" y="267.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−4</tspan></text>
+<line x1="90" y1="227.1" x2="730" y2="227.1" stroke="#e4e7eb"/>
+<text x="84.0" y="231.1" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−3</tspan></text>
+<line x1="90" y1="190.8" x2="730" y2="190.8" stroke="#e4e7eb"/>
+<text x="84.0" y="194.8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−2</tspan></text>
+<line x1="90" y1="154.4" x2="730" y2="154.4" stroke="#e4e7eb"/>
+<text x="84.0" y="158.4" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−1</tspan></text>
+<line x1="90" y1="118.1" x2="730" y2="118.1" stroke="#e4e7eb"/>
+<text x="84.0" y="122.1" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">1</text>
+<line x1="90" y1="81.7" x2="730" y2="81.7" stroke="#e4e7eb"/>
+<text x="84.0" y="85.7" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">10</text>
+<rect x="90" y="64" width="640" height="336" fill="none" stroke="#6b7785"/>
+<text x="410.0" y="436.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" font-weight="normal">time after the closest approach (dynamical times)</text>
+<text x="18" y="232.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" transform="rotate(-90 18 232.0)">particles coming back per dynamical time</text>
+<circle cx="90.0" cy="104.7" r="2.6" fill="#1c7ed6"/>
+<circle cx="117.2" cy="82.9" r="2.6" fill="#1c7ed6"/>
+<circle cx="144.5" cy="79.3" r="2.6" fill="#1c7ed6"/>
+<circle cx="171.7" cy="89.3" r="2.6" fill="#1c7ed6"/>
+<circle cx="198.9" cy="100.8" r="2.6" fill="#1c7ed6"/>
+<circle cx="226.2" cy="115.4" r="2.6" fill="#1c7ed6"/>
+<circle cx="253.4" cy="130.9" r="2.6" fill="#1c7ed6"/>
+<circle cx="280.6" cy="144.1" r="2.6" fill="#1c7ed6"/>
+<circle cx="307.9" cy="157.1" r="2.6" fill="#1c7ed6"/>
+<circle cx="335.1" cy="174.4" r="2.6" fill="#1c7ed6"/>
+<circle cx="362.3" cy="186.8" r="2.6" fill="#1c7ed6"/>
+<circle cx="389.6" cy="204.1" r="2.6" fill="#1c7ed6"/>
+<circle cx="416.8" cy="217.6" r="2.6" fill="#1c7ed6"/>
+<circle cx="444.0" cy="236.4" r="2.6" fill="#1c7ed6"/>
+<circle cx="471.3" cy="250.3" r="2.6" fill="#1c7ed6"/>
+<circle cx="498.5" cy="274.1" r="2.6" fill="#1c7ed6"/>
+<circle cx="525.7" cy="279.9" r="2.6" fill="#1c7ed6"/>
+<circle cx="553.0" cy="288.6" r="2.6" fill="#1c7ed6"/>
+<circle cx="580.2" cy="300.3" r="2.6" fill="#1c7ed6"/>
+<circle cx="607.4" cy="323.5" r="2.6" fill="#1c7ed6"/>
+<circle cx="634.7" cy="332.2" r="2.6" fill="#1c7ed6"/>
+<circle cx="661.9" cy="340.9" r="2.6" fill="#1c7ed6"/>
+<circle cx="100" cy="452" r="3" fill="#1c7ed6"/>
+<text x="118.0" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulated on the GPU, 8,000 particles</text>
+<path d="M244.0,125.1 L730.0,384.7" fill="none" stroke="#e8590c" stroke-width="1.8" stroke-dasharray="6 4"/>
+<line x1="90" y1="468" x2="110" y2="468" stroke="#e8590c" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="118.0" y="472.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">t^(−5/3), with the mass that comes back after 30 times the first</text>
+<text x="20.0" y="492.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">From 30 times the first return on, by maximum likelihood: t^(−1.688 ± 0.022), 5/3 within 1.0 standard errors</text>
+<text x="20.0" y="508.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">(limit 3).</text>
+</svg>

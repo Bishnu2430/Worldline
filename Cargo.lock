@@ -4103,6 +4103,7 @@ dependencies = [
  "worldline-core",
  "worldline-data",
  "worldline-render",
+ "worldline-report",
 ]
 
 [[package]]
@@ -4110,6 +4111,7 @@ name = "worldline-core"
 version = "0.1.0"
 dependencies = [
  "glam",
+ "worldline-report",
 ]
 
 [[package]]
@@ -4117,6 +4119,7 @@ name = "worldline-data"
 version = "0.1.0"
 dependencies = [
  "worldline-core",
+ "worldline-report",
 ]
 
 [[package]]
@@ -4130,7 +4133,12 @@ dependencies = [
  "wgpu",
  "worldline-core",
  "worldline-data",
+ "worldline-report",
 ]
+
+[[package]]
+name = "worldline-report"
+version = "0.1.0"
 
 [[package]]
 name = "x11-dl"

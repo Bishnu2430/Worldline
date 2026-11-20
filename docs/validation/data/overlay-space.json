@@ -1,0 +1,14 @@
+{
+  "id": "overlay-space",
+  "test": "validation_overlays::space_around_a_body_is_shaped_as_worked_out_by_hand",
+  "file": "crates/worldline-core/tests/validation_overlays.rs",
+  "kind": "margins",
+  "title": "The shape of space around a body, against hand calculations",
+  "checks": [
+    {"label": "a hole: a ruler from the horizon to 2 r_s, r_s(√2 + ln(1 + √2))", "off": 0.0, "limit": 1e-12, "shown": "2.2956 r_s long"},
+    {"label": "a hole: Flamm's paraboloid 2 r_s high there", "off": 0.0, "limit": 1e-12, "shown": "2.000000000000 r_s"},
+    {"label": "Earth: a ruler from its surface to twice its radius, longer by", "off": 7.523877076920371e-10, "limit": 1e-8, "shown": "0.003074 m (limit: first order leaves out r_s/R = 1.4 × 10⁻⁹)"},
+    {"label": "Earth: its center below its surface by", "off": 3.4767611012398447e-10, "limit": 1e-8, "shown": "118.926558 m (limit: first order leaves out r_s/R = 1.4 × 10⁻⁹)"},
+    {"label": "Earth: twice its radius out, above it by", "off": 4.916882456740268e-10, "limit": 1e-8, "shown": "197.043973 m (limit: first order leaves out r_s/R = 1.4 × 10⁻⁹)"}
+  ]
+}

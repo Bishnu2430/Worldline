@@ -109,11 +109,19 @@ fn a_spinning_holes_shadow_is_bardeens() {
     // whose η = Q/E² it must have, however far the camera. A ray within δ
     // of the edge circles the hole about ln(1/δ)/2π times, so the halving
     // finds the edge to about the tracer's error, steps × 10⁻¹² of η.
+    let mut figure = worldline_report::lines(
+        "kerr-shadow",
+        "The shadow of a spinning black hole: rays traced along its edge, against Bardeen's outline",
+        "across the spin axis, seen from afar (GM/c²)",
+        "along it (GM/c²)",
+    );
+    let mut notes = Vec::new();
     for (a, degrees) in [(0.5, 30.0), (0.9, 60.0), (0.9, 90.0), (0.99, 90.0)] {
         let i = f64::to_radians(degrees);
         let camera = Camera::at(a, place(1e3, i));
         let (mut worst, mut bound): (f64, f64) = (0.0, 0.0);
         let mut across = Vec::new();
+        let mut traced = Vec::new();
         for k in 0..12 {
             let chi = 2.0 * PI * k as f64 / 12.0;
             let ray = edge(&camera, chi);
@@ -121,8 +129,10 @@ fn a_spinning_holes_shadow_is_bardeens() {
             let (_, want) = spherical_orbit(a, orbit_with(a, xi));
             worst = worst.max((eta - want).abs() / want.abs().max(1.0));
             bound = bound.max(ray.steps as f64 * TOLERANCE);
+            let seen = seen_from_afar(a, i, xi, eta).expect("on the sky");
+            traced.push(seen);
             if k % 6 == 0 {
-                across.push(seen_from_afar(a, i, xi, eta).expect("on the sky").0);
+                across.push(seen.0);
             }
         }
         // Lopsided: seen from afar, the edge across the spin axis on the
@@ -137,8 +147,26 @@ fn a_spinning_holes_shadow_is_bardeens() {
              across the axis from {:.3} to {:.3} GM/c² (Bardeen's outline: {:.3} to {:.3})",
             across[0], across[1], ends.0, ends.1
         );
+        if degrees == 90.0 {
+            figure = figure
+                .expected(
+                    &format!("Bardeen's outline, spin {a}, edge on"),
+                    outline.iter().copied(),
+                )
+                .dots(&format!("traced edge rays, spin {a}"), traced);
+        }
+        notes.push(format!(
+            "spin {a} at {degrees}°: η off by {worst:.1e} (limit {bound:.1e})"
+        ));
         assert!(worst < bound);
     }
+    figure
+        .note(&format!(
+            "The edge rays spiral toward Bardeen's spherical photon orbits: each must have its orbit's η = Q/E², \
+             to the tracer's error. {}.",
+            notes.join("; ")
+        ))
+        .save(worldline_report::here!());
 }
 
 /// Binet's equation, d²u/dφ² + u = 3u² (step 3.1's), for the ray seen at
@@ -236,6 +264,28 @@ fn the_side_coming_toward_you_is_brighter() {
         away.g,
         (toward.g / away.g).powi(4)
     );
+    worldline_report::margins(
+        "kerr-disk-doppler",
+        "A disk around a spinning black hole, seen nearly edge on: the side coming toward you is brighter",
+    )
+    .check(
+        "coming toward you, light shifted up: g above 1",
+        1.0,
+        toward.g,
+        format!("g = {:.4}, from r = {:.2} GM/c²", toward.g, toward.r),
+    )
+    .check(
+        "going away, shifted down: g below 1",
+        away.g,
+        1.0,
+        format!(
+            "g = {:.4}, from r = {:.2}; brightness ratio (g/g)⁴ = {:.1}",
+            away.g,
+            away.r,
+            (toward.g / away.g).powi(4)
+        ),
+    )
+    .save(worldline_report::here!());
     assert!(toward.g > 1.0 && away.g < 1.0);
 }
 

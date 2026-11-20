@@ -512,6 +512,10 @@ mod tests {
         let mut keys: Vec<&str> = SCENARIOS.iter().map(|s| s.key).collect();
         keys.dedup();
         assert_eq!(keys.len(), 11);
+        let mut figure = worldline_report::margins(
+            "scenarios-load",
+            "The scenario library: every scenario loads and plays from the menu",
+        );
         for scenario in &SCENARIOS {
             let mut app = app();
             app.play_scenario(scenario);
@@ -530,8 +534,24 @@ mod tests {
                     ""
                 }
             );
-            assert!(app.simulation.paused || moved > 0.0, "{}", scenario.key);
+            let plays = app.simulation.paused || moved > 0.0;
+            figure = figure.check(
+                scenario.title,
+                if plays { 0.0 } else { 1.0 },
+                0.5,
+                format!(
+                    "{} bodies; {}",
+                    app.simulation.bodies.len(),
+                    if app.simulation.paused {
+                        "waits paused, as it should".to_string()
+                    } else {
+                        format!("{moved:.3} s of simulated time in three frames")
+                    }
+                ),
+            );
+            assert!(plays, "{}", scenario.key);
         }
+        figure.save(worldline_report::here!());
     }
 
     #[test]
@@ -620,6 +640,21 @@ mod tests {
             rate * k,
             watch.theory * k
         );
+        worldline_report::margins(
+            "scenario-mercury",
+            "The Mercury scenario: the inspector's perihelion rate over a century, against general relativity's",
+        )
+        .check(
+            "the fitted rate, against 6πGM/c²a(1 − e²) an orbit",
+            rate / watch.theory - 1.0,
+            1e-3,
+            format!(
+                "{:.4}″ a century against {:.4}″ (limit 10⁻³: the osculating swing shifts it under 10⁻⁴)",
+                rate * k,
+                watch.theory * k
+            ),
+        )
+        .save(worldline_report::here!());
         assert!((rate / watch.theory - 1.0).abs() < 1e-3);
     }
 
@@ -657,17 +692,72 @@ mod tests {
             if let Some(r) = recorded {
                 assert!((took - r).abs() <= step, "{key}: {took} against {r}");
             }
+            (took, recorded, step)
+        };
+        // Each event happens; the mergers when their recordings end.
+        let mut figure = worldline_report::margins(
+            "scenarios-play-out",
+            "The scenarios that end in an event, played until it happens",
+        );
+        let mut happened = |name: &str,
+                            (took, recorded, step): (f64, Option<f64>, f64),
+                            unit: f64,
+                            units: &str| {
+            figure = match recorded {
+                Some(r) => figure.clone().check(
+                    &format!("{name}: merges when its recorded chirp ends"),
+                    took - r,
+                    step,
+                    format!(
+                        "after {:.2} {units}; the recording ends at {:.2} (limit: the play's step, {:.2})",
+                        took / unit,
+                        r / unit,
+                        step / unit
+                    ),
+                ),
+                None => figure.clone().check(
+                    &format!("{name}: happens"),
+                    0.0,
+                    0.5,
+                    format!("after {:.2} {units}", took / unit),
+                ),
+            };
         };
         let merged = |a: &WorldlineApp, name: &str| a.simulation.index_of(name).is_none();
-        outcome("gw150914", 12.0, &|a| merged(a, "GW150914 lighter hole"));
-        outcome("gw170817", 300.0, &|a| merged(a, "GW170817 lighter star"));
-        outcome("white-dwarf", 2.0 * DAY, &|a| {
-            a.simulation.notices.iter().any(|n| n.contains("type Ia"))
-        });
-        outcome("mini-black-hole", 3.0 * JULIAN_YEAR, &|a| {
-            merged(a, "Mini black hole")
-        });
-        outcome("ton-618", JULIAN_YEAR, &|a| merged(a, "Sagittarius A*"));
+        happened(
+            "GW150914",
+            outcome("gw150914", 12.0, &|a| merged(a, "GW150914 lighter hole")),
+            1.0,
+            "s",
+        );
+        happened(
+            "GW170817",
+            outcome("gw170817", 300.0, &|a| merged(a, "GW170817 lighter star")),
+            1.0,
+            "s",
+        );
+        happened(
+            "A white dwarf past its limit explodes as a type Ia supernova",
+            outcome("white-dwarf", 2.0 * DAY, &|a| {
+                a.simulation.notices.iter().any(|n| n.contains("type Ia"))
+            }),
+            3600.0,
+            "hours",
+        );
+        happened(
+            "An evaporating black hole vanishes",
+            outcome("mini-black-hole", 3.0 * JULIAN_YEAR, &|a| {
+                merged(a, "Mini black hole")
+            }),
+            JULIAN_YEAR,
+            "years",
+        );
+        happened(
+            "TON 618 swallows Sagittarius A*",
+            outcome("ton-618", JULIAN_YEAR, &|a| merged(a, "Sagittarius A*")),
+            JULIAN_YEAR,
+            "years",
+        );
         // The finder's first total solar eclipse, gone to: 12 August 2026,
         // as NASA's Five Millennium Canon has it.
         let mut a = app();
@@ -685,6 +775,18 @@ mod tests {
         }
         let when = to_the_minute(a.simulation.time_scales().utc(a.simulation.julian_date()));
         println!("eclipse: went to {when} UTC");
+        figure
+            .check(
+                "The eclipse finder goes to 12 August 2026, as NASA's canon has it",
+                if when.starts_with("2026-08-12") {
+                    0.0
+                } else {
+                    1.0
+                },
+                0.5,
+                format!("{when} UTC"),
+            )
+            .save(worldline_report::here!());
         assert!(when.starts_with("2026-08-12"), "{when}");
     }
 }

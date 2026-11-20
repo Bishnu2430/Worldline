@@ -1,0 +1,20 @@
+{
+  "id": "scenarios-load",
+  "test": "worldline::app::scenarios::tests::every_scenario_loads_and_plays",
+  "file": "crates/worldline-app/src/app/scenarios.rs",
+  "kind": "margins",
+  "title": "The scenario library: every scenario loads and plays from the menu",
+  "checks": [
+    {"label": "Mercury's perihelion", "off": 0.0, "limit": 0.5, "shown": "312 bodies; 17094358.016 s of simulated time in three frames"},
+    {"label": "The Hulse–Taylor pulsar", "off": 0.0, "limit": 0.5, "shown": "313 bodies; 1080.000 s of simulated time in three frames"},
+    {"label": "GW150914: two black holes merge", "off": 0.0, "limit": 0.5, "shown": "313 bodies; 0.300 s of simulated time in three frames"},
+    {"label": "GW170817: two neutron stars merge", "off": 0.0, "limit": 0.5, "shown": "313 bodies; 0.300 s of simulated time in three frames"},
+    {"label": "A planet meets a black hole", "off": 0.0, "limit": 0.5, "shown": "843 bodies; 77476.345 s of simulated time in three frames"},
+    {"label": "TON 618 swallows Sagittarius A*", "off": 0.0, "limit": 0.5, "shown": "842 bodies; 77476.345 s of simulated time in three frames"},
+    {"label": "A white dwarf past its limit", "off": 0.0, "limit": 0.5, "shown": "843 bodies; 1080.000 s of simulated time in three frames"},
+    {"label": "An evaporating black hole", "off": 0.0, "limit": 0.5, "shown": "842 bodies; 77476.345 s of simulated time in three frames"},
+    {"label": "The next total solar eclipse", "off": 0.0, "limit": 0.5, "shown": "841 bodies; 77476.345 s of simulated time in three frames"},
+    {"label": "The Moon-forming impact", "off": 0.0, "limit": 0.5, "shown": "841 bodies; waits paused, as it should"},
+    {"label": "A black hole through the Sun's neighborhood", "off": 0.0, "limit": 0.5, "shown": "312 bodies; 946728000.000 s of simulated time in three frames"}
+  ]
+}

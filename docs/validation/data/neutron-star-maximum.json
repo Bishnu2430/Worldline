@@ -1,0 +1,12 @@
+{
+  "id": "neutron-star-maximum",
+  "test": "validation_neutron_stars::sly_holds_up_at_most_about_2_05_suns",
+  "file": "crates/worldline-data/tests/validation_neutron_stars.rs",
+  "kind": "margins",
+  "title": "The heaviest neutron star the SLy equation of state holds up (general relativity's static stars)",
+  "checks": [
+    {"label": "the roadmap's about 2.05 Suns", "off": 0.001586662200468325, "limit": 0.005, "shown": "2.0484 Suns (limit: the last digit's rounding)"},
+    {"label": "Read et al.'s (2009) maximum for this fit", "off": 0.0004862191058461196, "limit": 0.002, "shown": "2.0494 Suns (limit 0.2%: their code's older G and solar mass)"},
+    {"label": "Read et al.'s radius of a 1.4-Sun star", "off": 0.000452284832453409, "limit": 0.002, "shown": "11.706 km against 11.711"}
+  ]
+}

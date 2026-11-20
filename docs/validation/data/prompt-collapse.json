@@ -1,0 +1,22 @@
+{
+  "id": "prompt-collapse",
+  "test": "validation_neutron_stars::merging_neutron_stars_collapse_at_once_above_the_threshold",
+  "file": "crates/worldline-data/tests/validation_neutron_stars.rs",
+  "kind": "margins",
+  "title": "Merging neutron stars collapse at once above Bauswein et al.'s (2013) threshold",
+  "checks": [
+    {"label": "NL3: their fit, against their simulations", "off": 0.0030303130700130867, "limit": 0.029265104507907147, "shown": "threshold 3.85 Suns, the fit 3.842: k off by 0.003 (limit their 0.025, and rounding)"},
+    {"label": "GS1: their fit, against their simulations", "off": 0.010057619325494245, "limit": 0.029363636363636366, "shown": "threshold 3.85 Suns, the fit 3.822: k off by 0.010 (limit their 0.025, and rounding)"},
+    {"label": "LS375: their fit, against their simulations", "off": 0.01937723919163112, "limit": 0.029330006399694995, "shown": "threshold 3.65 Suns, the fit 3.597: k off by 0.019 (limit their 0.025, and rounding)"},
+    {"label": "DD2: their fit, against their simulations", "off": 0.0239228468316654, "limit": 0.029926234546820574, "shown": "threshold 3.35 Suns, the fit 3.408: k off by 0.024 (limit their 0.025, and rounding)"},
+    {"label": "Shen: their fit, against their simulations", "off": 0.008459365752071072, "limit": 0.03075237399561724, "shown": "threshold 3.45 Suns, the fit 3.469: k off by 0.008 (limit their 0.025, and rounding)"},
+    {"label": "TM1: their fit, against their simulations", "off": 0.0005573412860087791, "limit": 0.03079431215577077, "shown": "threshold 3.45 Suns, the fit 3.449: k off by 0.001 (limit their 0.025, and rounding)"},
+    {"label": "SFHX: their fit, against their simulations", "off": 0.0013612559556465417, "limit": 0.030708743855936874, "shown": "threshold 3.05 Suns, the fit 3.053: k off by 0.001 (limit their 0.025, and rounding)"},
+    {"label": "GS2: their fit, against their simulations", "off": 0.011135393337259384, "limit": 0.031112497424509514, "shown": "threshold 3.25 Suns, the fit 3.227: k off by 0.011 (limit their 0.025, and rounding)"},
+    {"label": "SFHO: their fit, against their simulations", "off": 0.01523137188102405, "limit": 0.03090300688095014, "shown": "threshold 2.95 Suns, the fit 2.981: k off by 0.015 (limit their 0.025, and rounding)"},
+    {"label": "LS220: their fit, against their simulations", "off": 0.01101554325367413, "limit": 0.031115436370626685, "shown": "threshold 3.05 Suns, the fit 3.072: k off by 0.011 (limit their 0.025, and rounding)"},
+    {"label": "TMA: their fit, against their simulations", "off": 0.012298653081947733, "limit": 0.031457700225468094, "shown": "threshold 3.25 Suns, the fit 3.225: k off by 0.012 (limit their 0.025, and rounding)"},
+    {"label": "IUF: their fit, against their simulations", "off": 0.010131544218480143, "limit": 0.031574621959237346, "shown": "threshold 3.05 Suns, the fit 3.030: k off by 0.010 (limit their 0.025, and rounding)"},
+    {"label": "GW170817's 2.73 Suns didn't collapse at once, as its kilonova showed", "off": 2.73, "limit": 2.9402087183115433, "shown": "under SLy's threshold, 2.94 Suns"}
+  ]
+}

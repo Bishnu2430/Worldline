@@ -1,0 +1,29 @@
+{
+  "id": "debris-accounts",
+  "test": "validation_collisions::a_collision_keeps_its_mass_momentum_and_energy",
+  "file": "crates/worldline-core/tests/validation_collisions.rs",
+  "kind": "margins",
+  "title": "What a collision throws off: mass, momentum and energy before and after, in five regimes",
+  "checks": [
+    {"label": "9 km/s, b 0.3, Merging: mass", "off": 0.0, "limit": 2.886579864025407e-14, "shown": "off by 0.0e0 (limit 130 ε = 2.9e-14)"},
+    {"label": "9 km/s, b 0.3, Merging: momentum", "off": 6.485589021194904e-19, "limit": 2.886579864025407e-14, "shown": "off by 6.5e-19 of its scale"},
+    {"label": "9 km/s, b 0.3, Merging: kinetic energy flying", "off": 3.7986600595612837e-39, "limit": 2.886579864025407e-14, "shown": "off by 3.8e-39 of the energy's scale"},
+    {"label": "9 km/s, b 0.3, Merging: energy accounted for, with heat", "off": 0.0, "limit": 2.886579864025407e-14, "shown": "off by 0.0e0; heat 3.06e31 J"},
+    {"label": "14 km/s, b 0.3, PartialAccretion: mass", "off": 5.662137425588298e-15, "limit": 2.886579864025407e-14, "shown": "off by 5.7e-15 (limit 130 ε = 2.9e-14)"},
+    {"label": "14 km/s, b 0.3, PartialAccretion: momentum", "off": 2.331716518521241e-16, "limit": 2.886579864025407e-14, "shown": "off by 2.3e-16 of its scale"},
+    {"label": "14 km/s, b 0.3, PartialAccretion: kinetic energy flying", "off": 7.204810178177378e-18, "limit": 2.886579864025407e-14, "shown": "off by 7.2e-18 of the energy's scale"},
+    {"label": "14 km/s, b 0.3, PartialAccretion: energy accounted for, with heat", "off": 0.0, "limit": 2.886579864025407e-14, "shown": "off by 0.0e0; heat 4.46e31 J"},
+    {"label": "40 km/s, b 0.3, Erosion: mass", "off": 4.551914400963142e-15, "limit": 2.886579864025407e-14, "shown": "off by 4.6e-15 (limit 130 ε = 2.9e-14)"},
+    {"label": "40 km/s, b 0.3, Erosion: momentum", "off": 7.471407672770524e-16, "limit": 2.886579864025407e-14, "shown": "off by 7.5e-16 of its scale"},
+    {"label": "40 km/s, b 0.3, Erosion: kinetic energy flying", "off": 0.0, "limit": 2.886579864025407e-14, "shown": "off by 0.0e0 of the energy's scale"},
+    {"label": "40 km/s, b 0.3, Erosion: energy accounted for, with heat", "off": 0.0, "limit": 2.886579864025407e-14, "shown": "off by 0.0e0; heat 3.39e32 J"},
+    {"label": "75 km/s, b 0.3, SuperCatastrophic: mass", "off": 9.992007221626409e-16, "limit": 2.886579864025407e-14, "shown": "off by 1.0e-15 (limit 130 ε = 2.9e-14)"},
+    {"label": "75 km/s, b 0.3, SuperCatastrophic: momentum", "off": 1.7397648822175587e-16, "limit": 2.886579864025407e-14, "shown": "off by 1.7e-16 of its scale"},
+    {"label": "75 km/s, b 0.3, SuperCatastrophic: kinetic energy flying", "off": 3.821742816705223e-17, "limit": 2.886579864025407e-14, "shown": "off by 3.8e-17 of the energy's scale"},
+    {"label": "75 km/s, b 0.3, SuperCatastrophic: energy accounted for, with heat", "off": 0.0, "limit": 2.886579864025407e-14, "shown": "off by 0.0e0; heat 1.40e33 J"},
+    {"label": "16 km/s, b 0.8, HitAndRun: mass", "off": 5.995204332975845e-15, "limit": 2.886579864025407e-14, "shown": "off by 6.0e-15 (limit 130 ε = 2.9e-14)"},
+    {"label": "16 km/s, b 0.8, HitAndRun: momentum", "off": 3.7442358104937998e-16, "limit": 2.886579864025407e-14, "shown": "off by 3.7e-16 of its scale"},
+    {"label": "16 km/s, b 0.8, HitAndRun: kinetic energy flying", "off": 0.0, "limit": 2.886579864025407e-14, "shown": "off by 0.0e0 of the energy's scale"},
+    {"label": "16 km/s, b 0.8, HitAndRun: energy accounted for, with heat", "off": 0.0, "limit": 2.886579864025407e-14, "shown": "off by 0.0e0; heat 1.47e31 J"}
+  ]
+}

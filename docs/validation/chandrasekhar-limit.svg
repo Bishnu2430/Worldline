@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="524" viewBox="0 0 760 524">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">White dwarfs of carbon and oxygen, ever denser: their mass approaches Chandrasekhar's limit from below</text>
+<line x1="127.9" y1="64" x2="127.9" y2="400" stroke="#e4e7eb"/>
+<text x="127.9" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">7</tspan></text>
+<line x1="181.2" y1="64" x2="181.2" y2="400" stroke="#e4e7eb"/>
+<text x="181.2" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">8</tspan></text>
+<line x1="234.6" y1="64" x2="234.6" y2="400" stroke="#e4e7eb"/>
+<text x="234.6" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">9</tspan></text>
+<line x1="287.9" y1="64" x2="287.9" y2="400" stroke="#e4e7eb"/>
+<text x="287.9" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">10</tspan></text>
+<line x1="341.2" y1="64" x2="341.2" y2="400" stroke="#e4e7eb"/>
+<text x="341.2" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">11</tspan></text>
+<line x1="394.6" y1="64" x2="394.6" y2="400" stroke="#e4e7eb"/>
+<text x="394.6" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">12</tspan></text>
+<line x1="447.9" y1="64" x2="447.9" y2="400" stroke="#e4e7eb"/>
+<text x="447.9" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">13</tspan></text>
+<line x1="501.2" y1="64" x2="501.2" y2="400" stroke="#e4e7eb"/>
+<text x="501.2" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">14</tspan></text>
+<line x1="554.6" y1="64" x2="554.6" y2="400" stroke="#e4e7eb"/>
+<text x="554.6" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">15</tspan></text>
+<line x1="607.9" y1="64" x2="607.9" y2="400" stroke="#e4e7eb"/>
+<text x="607.9" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">16</tspan></text>
+<line x1="661.2" y1="64" x2="661.2" y2="400" stroke="#e4e7eb"/>
+<text x="661.2" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">17</tspan></text>
+<line x1="714.6" y1="64" x2="714.6" y2="400" stroke="#e4e7eb"/>
+<text x="714.6" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">18</tspan></text>
+<line x1="90" y1="389.4" x2="730" y2="389.4" stroke="#e4e7eb"/>
+<text x="84.0" y="393.4" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">0</text>
+<line x1="90" y1="282.9" x2="730" y2="282.9" stroke="#e4e7eb"/>
+<text x="84.0" y="286.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">0.5</text>
+<line x1="90" y1="176.4" x2="730" y2="176.4" stroke="#e4e7eb"/>
+<text x="84.0" y="180.4" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">1</text>
+<line x1="90" y1="70.0" x2="730" y2="70.0" stroke="#e4e7eb"/>
+<text x="84.0" y="74.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">1.5</text>
+<rect x="90" y="64" width="640" height="336" fill="none" stroke="#6b7785"/>
+<text x="410.0" y="436.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" font-weight="normal">central density (kg/m³)</text>
+<text x="18" y="232.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" transform="rotate(-90 18 232.0)">mass (Suns)</text>
+<path d="M90.0,384.7 L111.3,382.0 L132.7,377.8 L154.0,371.3 L175.3,361.3 L196.7,346.4 L218.0,325.2 L239.3,297.2 L260.7,263.1 L282.0,226.0 L303.3,189.9 L324.7,158.3 L346.0,132.9 L367.3,114.1 L388.7,101.0 L410.0,92.4 L431.3,87.0 L452.7,83.7 L474.0,81.8 L495.3,80.7 L516.7,80.0 L538.0,79.7 L559.3,79.5 L580.7,79.4 L602.0,79.3 L623.3,79.3 L644.7,79.3 L666.0,79.3 L687.3,79.3 L708.7,79.3 L730.0,79.3" fill="none" stroke="#1c7ed6" stroke-width="1.8"/>
+<line x1="90" y1="452" x2="110" y2="452" stroke="#1c7ed6" stroke-width="2"/>
+<text x="118.0" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">the degenerate-electron equation of state, solved</text>
+<path d="M90.0,79.3 L730.0,79.3" fill="none" stroke="#e8590c" stroke-width="1.8" stroke-dasharray="6 4"/>
+<line x1="90" y1="468" x2="110" y2="468" stroke="#e8590c" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="118.0" y="472.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Chandrasekhar's limit, 1.4563 Suns</text>
+<text x="20.0" y="492.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">The limit is 1.4563 Suns, the roadmap's 1.46 to its digits. The shortfall falls as x^−1.19, then x^−1.89, then</text>
+<text x="20.0" y="508.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">x^−2.00 as the electrons grow relativistic: as 1/x², faster than 1/x, the test's midpoint.</text>
+</svg>

@@ -1,0 +1,13 @@
+{
+  "id": "voyager-crossings",
+  "test": "validation_sun_reach::voyager_positions_match_the_published_crossings",
+  "file": "crates/worldline-data/tests/validation_sun_reach.rs",
+  "kind": "margins",
+  "title": "The Voyagers' heliosphere crossings: JPL's positions against the published distances",
+  "checks": [
+    {"label": "Voyager 1 TerminationShock, 2004-12-16", "off": 2669515079.7734375, "limit": 7479893535.0, "shown": "94.028 AU against 94.01 AU published (limit 0.05 AU)"},
+    {"label": "Voyager 2 TerminationShock, 2007-08-31", "off": 4096951040.185547, "limit": 7479893535.0, "shown": "83.673 AU against 83.7 AU published (limit 0.05 AU)"},
+    {"label": "Voyager 1 Heliopause, 2012-08-25", "off": 1105939081.3867188, "limit": 7479893535.0, "shown": "121.607 AU against 121.6 AU published (limit 0.05 AU)"},
+    {"label": "Voyager 2 Heliopause, 2018-11-05", "off": 3249340924.9296875, "limit": 7479893535.0, "shown": "119.022 AU against 119 AU published (limit 0.05 AU)"}
+  ]
+}

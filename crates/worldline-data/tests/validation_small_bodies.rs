@@ -61,6 +61,21 @@ fn the_asteroids_mass_shrinks_mars_error() {
         println!("{name:<8} {a:>21.3} {b:>18.3}");
     }
     let mars = |errors: &[(String, f64)]| errors.iter().find(|e| e.0 == "Mars").unwrap().1;
+    worldline_report::margins(
+        "asteroids-pull-on-mars",
+        "The heaviest asteroids' pull brings Mars closer to JPL after a year",
+    )
+    .check(
+        "Mars with the asteroids, against without them",
+        mars(&with),
+        mars(&without),
+        format!(
+            "{:.2} km from JPL with them, {:.2} km without",
+            mars(&with),
+            mars(&without)
+        ),
+    )
+    .save(worldline_report::here!());
     assert!(
         mars(&with) < mars(&without),
         "Mars: {} km with, {} km without",
@@ -92,6 +107,7 @@ fn small_bodies_match_jpl_after_one_year() {
     let reference = small_bodies_one_year_on();
     let sun = h.top.bodies[0].position;
     let mut failures = Vec::new();
+    let mut fractions = Vec::new();
     println!(
         "{:<22} {:>12} {:>12} {:>12}",
         "body", "error (km)", "Sun (AU)", "fraction"
@@ -108,10 +124,26 @@ fn small_bodies_match_jpl_after_one_year() {
             distance / AU,
             error / distance
         );
+        fractions.push((distance / AU, error / distance));
         if error >= 1e-4 * distance {
             failures.push(name);
         }
     }
+    let worst = fractions.iter().map(|f| f.1).fold(0.0, f64::max);
+    worldline_report::lines(
+        "small-bodies-vs-jpl",
+        "62 dwarf planets, asteroids and comets after a year against NASA JPL",
+        "distance from the Sun (AU)",
+        "error, as a share of the distance",
+    )
+    .log_x()
+    .log_y()
+    .dots("each body", fractions)
+    .expected("limit: 1 part in 10,000", [(0.5, 1e-4), (100.0, 1e-4)])
+    .note(&format!(
+        "The worst is {worst:.1e} of its distance (Bennu, a listed residual in docs/physics/small-bodies.md); the same standard as the planets in step 1.3."
+    ))
+    .save(worldline_report::here!());
     assert!(
         failures.is_empty(),
         "farther than 1 part in 10,000: {failures:?}"
@@ -151,6 +183,18 @@ fn halleys_comet_returns_in_july_2061() {
     );
     // July 2061, from 1 July 0h to 1 August 0h TDB.
     let (july_1, august_1) = (2_474_006.5, 2_474_037.5);
+    worldline_report::margins("halley-2061", "Halley's Comet returns in July 2061")
+        .check(
+            "perihelion within July 2061, from its center",
+            when - (july_1 + august_1) / 2.0,
+            (august_1 - july_1) / 2.0,
+            format!(
+                "{:.2} days into July; JPL's perihelion {:+.0} minutes away",
+                when - july_1,
+                (when - jpl) * 24.0 * 60.0
+            ),
+        )
+        .save(worldline_report::here!());
     assert!(
         (july_1..august_1).contains(&when),
         "perihelion at JD {when}, not in July 2061"
