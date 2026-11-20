@@ -106,6 +106,14 @@ The owner asked for three more things, now milestones M5 to M7 of the [roadmap](
 - **Collisions in full:** what a collision leaves (merging, hit-and-run, disruption), debris, craters, and giant impacts between planets as fluids with rock and iron equations of state. That last part moves here from v2.
 - **The Milky Way filled in:** famous stars, clusters, nebulae and satellite galaxies at their real places; the rest of the galaxy's stars as a swarm of dots that move in its gravity and feel anything added, without full detail.
 
+## Added to v1: polish before the release (decided 2026-11-20)
+
+The owner asked for four things before the Windows release, now steps 8.3 to 8.6 of the [roadmap](ROADMAP.md):
+- **A modern interface:** sharper, cleaner, and quick to respond.
+- **Lighter to run:** on computers like the owner's (an Intel Iris Xe laptop) or weaker.
+- **A manual inside the app.**
+- **A project website:** a landing page on GitHub Pages.
+
 ## v2: committed, starts once v1 is established
 
 All of these will be built. They are ordered after v1 because they depend on its engine, not because they are optional.

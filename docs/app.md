@@ -8,9 +8,51 @@ The app is a window around the physics engine. It never does physics itself. It 
 
 1. **Measure real time.** It measures how much real time has passed since the last frame, capped at 0.1 s so a stall (like dragging the window) doesn't cause a jump.
 2. **Advance the physics.** It advances by *speed × real time*. Each step runs the whole hierarchy: relativistic gravity for the Sun and planets, then each planet's moon system in its own frame (see [physics/moons.md](physics/moons.md)). These are the same models the validation tests check. After each step the app copies positions into one flat list of bodies: the Sun and planets in the snapshot's order, then the moons. A planet with moons stands in for its system's barycenter.
-3. **Respect a time budget.** Physics may use at most 12 ms of each frame. If the chosen speed needs more, the simulation runs slower than requested and the top bar shows an orange note with the percentage achieved. **Worldline never takes bigger, less accurate steps to keep up.** Accuracy wins over speed, and the app says so when that happens.
+3. **Respect a time budget.** Physics starts no new step once 12 ms of the frame have passed. If the chosen speed needs more, the simulation runs slower than requested and the top bar shows an amber chip with the percentage achieved. **Worldline never takes bigger, less accurate steps to keep up.** Accuracy wins over speed, and the app says so when that happens. The budget is checked between steps, though, and a single step of the whole solar system can take longer: in the default view, on an Intel Iris Xe, physics takes 54 ms a frame (step 8.3's timings). Step 8.4 profiles that.
 4. **Point the camera.** The camera moves to the body it is following.
 5. **Draw.** It draws the panels and the 3D view: rings and trails at the back, textured globes from the GPU in the middle, dots and labels in front. See [rendering.md](rendering.md).
+
+## The interface
+
+Step 8.3 gave the app its current look and feel.
+
+![Worldline with Saturn up close: the top bar's grouped tools, the clock on the right, and the inspector's cards for the bodies and Saturn](images/ui-step-8.3.png)
+
+**The look** (`theme.rs`):
+- **Type.** Text is set in [Inter](https://github.com/rsms/inter), a typeface made for screens: Regular for text, SemiBold for titles and the primary button. egui's own fonts follow it for anything Inter lacks (arrows, symbols, the icons). A test reads every string the app's code writes and fails if any character would show as an empty box.
+- **Color.** A deep blue-black, so the sky stays the brightest thing on screen; three steps of surface (panels, cards and windows, buttons); one blue accent for what's selected or open. A model's verdict keeps its green, amber and red.
+- **Shape.** The inspector groups things in rounded cards. Floating windows cast soft shadows. The window has its own icon, drawn in code: an orbit around a star.
+
+**The top bar**, left to right:
+- **Time:** run or stop it (the blue button), how fast, ⟲ back to 1 January 2025, ● Now (the present, with the computer's clock).
+- **Exploring:** 🎞 Scenarios, ◑ Eclipses, ⊕ Sky. A tool whose window is open is highlighted.
+- **Building:** ✚ Add a body, Save, Load.
+- **On the right:** the clock in UTC (hover for TDB and Earth's rotation), and chips for what's happening: "● live", a note when time can't run as asked ("⚠ 13% of the speed", the full reason on hovering), the last event.
+
+In a window narrower than 1,200 points the exploring tools show their icons alone, their names on hovering.
+
+**Keyboard shortcuts** (`feel.rs`), ignored while typing in a field:
+
+| Key | Does |
+|---|---|
+| Space | Run or stop time |
+| + or ] | The next speed up |
+| − or [ | The next speed down |
+| F | Fly to the selected body and follow it |
+| Esc | Close the open windows (while adding bodies: stop adding) |
+| Ctrl+S | Save the sandbox |
+| F3 | Show or hide the frame's timings |
+
+**The camera glides.** Let go of a drag and the view carries on turning, slowing by e every 0.16 s, so a flick spins it and a drag held still stops dead. A flick at 600 points a second glides as far as the pointer moves in 0.16 s at that speed, 96 points, however fast frames come. Clicking stops it.
+
+**The frame's timings.** F3, **Display → Frame timings** or `--timings` shows, over the view's top right: frames a second, and the physics's and the interface's share of each frame, as running means over about a quarter second. On an Intel Iris Xe:
+
+| View | Frames a second | A frame | Physics | Interface |
+|---|---|---|---|---|
+| The default view: the solar system, a month a second | 13 | 77 ms | 54 ms | 15 ms |
+| Earth up close, an hour a second | 44 | 23 ms | 14 ms | 7 ms |
+
+What feels slow is the physics, not the interface. Step 8.4 works on it.
 
 ## The 3D view
 
@@ -182,6 +224,8 @@ A distant body pulls the whole solar system almost equally, so it falls together
 ## Tests
 
 `cargo test -p worldline-app` covers:
+- **The look:** every character the app's code writes has a glyph in Inter or its fallbacks; the window's icon is a disk on a clear background with a warm star at its center.
+- **The feel:** a flick glides 96 points at 30, 60 and 144 frames a second, and stops within a second; a drag held still before letting go doesn't glide; the shortcuts need no modifier but Ctrl+S, and Ctrl with another key does nothing; the timings average over the last frames.
 - **Durations:** light travel times read as seconds, minutes and seconds, or hours and minutes.
 - **Calendar:** known dates, including J2000, Sputnik 1 and the first Gregorian day, and rounding at midnight.
 - **Camera:** projection geometry, hiding points behind the camera, size falling off with distance, double-precision stability 30 AU out, and the zoom limits.

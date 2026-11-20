@@ -3589,11 +3589,13 @@ mod tests {
         let mut loaded = Simulation::load(&text, DAY).unwrap();
         assert_eq!(loaded.save(), text);
         assert!(loaded.index_of("New planet 1").is_some() && loaded.index_of("Mars").is_none());
-        // Two loads of the same save run identically.
+        // Two loads of the same save run identically. Without a time
+        // budget: on a busy machine one could run out of it first and stop
+        // short, which isn't what's checked.
         let mut a = Simulation::load(&text, 10.0 * DAY).unwrap();
         let mut b = Simulation::load(&text, 10.0 * DAY).unwrap();
-        a.update(1.0, GENEROUS, &Limits::default());
-        b.update(1.0, GENEROUS, &Limits::default());
+        a.update(1.0, Duration::MAX, &Limits::default());
+        b.update(1.0, Duration::MAX, &Limits::default());
         // Text compared character by character: any difference is a whole
         // character, so the limit is half of one.
         let differing = |x: &str, y: &str| {

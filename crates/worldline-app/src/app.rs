@@ -4,7 +4,9 @@ use std::f64::consts::{FRAC_PI_2, PI};
 use std::time::{Duration, Instant};
 
 use eframe::egui::collapsing_header::CollapsingState;
-use eframe::egui::{self, Align2, Color32, FontId, Rect, RichText, Sense, TextureId, pos2, vec2};
+use eframe::egui::{
+    self, Align, Align2, Color32, FontId, Layout, Rect, RichText, Sense, TextureId, pos2, vec2,
+};
 use eframe::egui_wgpu::RenderState;
 use glam::Mat3;
 use worldline_core::constants::{AU, C, DAY, G, GM_SUN, JULIAN_YEAR, PARSEC, SOLAR_LUMINOSITY};
@@ -34,6 +36,7 @@ use crate::camera::{Camera, Standing};
 use crate::catalogue::{self, Entry, Group, length, light_years, measured_suns, significant};
 use crate::details;
 use crate::eclipse_finder::{self, Finder};
+use crate::feel::{self, Spin, Timings};
 use crate::fluid::{FluidBody, Lab};
 use crate::gpu::{Globe, GpuGlobes, GpuGlow, GpuSky};
 use crate::ground::{self, Ahead, PLACES};
@@ -599,6 +602,11 @@ pub struct WorldlineApp {
     slowed: Option<(String, String)>,
     /// A running mean of the time between frames, s.
     frame_seconds: f64,
+    /// The camera's turning after a drag is let go.
+    spin: Spin,
+    /// How long frames take, and whether to show it over the view.
+    timings: Timings,
+    show_timings: bool,
 
     /// The GPU and the graphics interface it's driven through.
     gpu_name: String,
@@ -700,6 +708,9 @@ impl WorldlineApp {
             lab: Lab::default(),
             slowed: None,
             frame_seconds: 1.0 / 60.0,
+            spin: Spin::default(),
+            timings: Timings::default(),
+            show_timings: false,
             gpu_name: String::new(),
             live: false,
             behind: 0.0,
@@ -779,6 +790,7 @@ impl WorldlineApp {
             }
         }
         app.scenarios_open = start.scenarios;
+        app.show_timings = start.timings;
         if let Some(key) = &start.scenario {
             match scenarios::scenario(key) {
                 Some(scenario) => app.play_scenario(scenario),
@@ -961,36 +973,74 @@ impl WorldlineApp {
         }
     }
 
+    /// The top bar: time on the left (run or stop, how fast, the start,
+    /// now), then the windows to explore with, then building the sandbox;
+    /// on the right, the clock and what's happening.
     fn controls(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label(RichText::new("Worldline").strong().size(16.0));
-            ui.separator();
-            let label = if self.simulation.paused {
-                "Play"
+        // In a narrow window the tools show their icons alone, their names
+        // on hovering.
+        let compact = ui.ctx().content_rect().width() < 1200.0;
+        let named = |icon: &str, name: &str| {
+            if compact {
+                icon.to_string()
             } else {
-                "Pause"
+                format!("{icon}  {name}")
+            }
+        };
+        ui.horizontal_centered(|ui| {
+            ui.spacing_mut().item_spacing.x = 4.0;
+            if !compact {
+                ui.label(
+                    RichText::new("Worldline")
+                        .font(theme::strong(15.0))
+                        .color(theme::TEXT),
+                );
+                ui.add_space(14.0);
+            }
+
+            let (icon, label) = if self.simulation.paused {
+                ("▶", "Play")
+            } else {
+                ("⏸", "Pause")
             };
-            if ui.button(label).clicked() {
-                self.simulation.paused = !self.simulation.paused;
-                // Stopped, it no longer keeps up with the clock.
-                self.live &= !self.simulation.paused;
+            if ui
+                .add(theme::primary_button(format!("{icon}  {label}")).min_size(vec2(88.0, 28.0)))
+                .on_hover_text(format!(
+                    "Run or stop time · {}",
+                    feel::Action::PlayPause.key()
+                ))
+                .clicked()
+            {
+                self.play_pause();
             }
             let speed = self.speed_index;
             egui::ComboBox::from_id_salt("speed")
                 .selected_text(SPEEDS[self.speed_index].0)
+                .width(140.0)
                 .show_ui(ui, |ui| {
                     for (i, (name, _)) in SPEEDS.iter().enumerate() {
                         ui.selectable_value(&mut self.speed_index, i, *name);
                     }
-                });
-            self.live &= self.speed_index == speed;
-            self.simulation.speed = SPEEDS[self.speed_index].1;
-            if ui.button("Reset").clicked() {
+                })
+                .response
+                .on_hover_text(format!(
+                    "How fast time runs · {} and {} to change it",
+                    feel::Action::Faster.key(),
+                    feel::Action::Slower.key()
+                ));
+            if self.speed_index != speed {
+                self.set_speed(self.speed_index);
+            }
+            if ui
+                .add(theme::tool_button("⟲", false))
+                .on_hover_text("Reset: the solar system as it was on 1 January 2025")
+                .clicked()
+            {
                 self.reset();
                 self.live = false;
             }
             if ui
-                .button("Now")
+                .add(theme::tool_button("●  Now", self.live))
                 .on_hover_text(
                     "The solar system as it is right now, running in real time with the computer's clock: from the 2025 snapshot, caught up to the present",
                 )
@@ -998,21 +1048,22 @@ impl WorldlineApp {
             {
                 self.go_live();
             }
+            divider(ui);
             if ui
-                .selectable_label(self.scenarios_open, "Scenarios")
+                .add(theme::tool_button(named("🎞", "Scenarios"), self.scenarios_open))
                 .on_hover_text(
-                    "Famous events and experiments, each set up in one go: Mercury's perihelion, \
-                     the Hulse–Taylor pulsar, GW150914, GW170817, a planet meeting a black hole, \
-                     and more",
+                    "Scenarios: famous events and experiments, each set up in one go: Mercury's \
+                     perihelion, the Hulse–Taylor pulsar, GW150914, GW170817, a planet meeting a \
+                     black hole, and more",
                 )
                 .clicked()
             {
                 self.scenarios_open = !self.scenarios_open;
             }
             if ui
-                .selectable_label(self.eclipses_open, "Eclipses")
+                .add(theme::tool_button(named("◑", "Eclipses"), self.eclipses_open))
                 .on_hover_text(
-                    "Find every solar and lunar eclipse of the next 5 years, by running a copy of this simulation ahead",
+                    "Eclipses: find every solar and lunar eclipse of the next 5 years, by running a copy of this simulation ahead",
                 )
                 .clicked()
             {
@@ -1023,37 +1074,88 @@ impl WorldlineApp {
                 }
             }
             if ui
-                .selectable_label(self.sky_open, "Sky")
+                .add(theme::tool_button(named("⊕", "Sky"), self.sky_open))
                 .on_hover_text(
-                    "Stand at a place on Earth and look at the sky: the horizon, Sun, Moon and planets, and when the Sun and Moon rise and set",
+                    "Sky: stand at a place on Earth and look at the sky: the horizon, Sun, Moon and planets, and when the Sun and Moon rise and set",
                 )
                 .clicked()
             {
                 self.sky_open = !self.sky_open;
             }
-            ui.separator();
-            self.sandbox_controls(ui);
-            ui.separator();
-            self.clock(ui);
-            if let Some(note) = self.time_note() {
-                ui.separator();
-                let text = RichText::new(&note).color(Color32::from_rgb(255, 170, 60));
-                ui.add(egui::Label::new(text).truncate()).on_hover_text(note);
-            }
-            self.status_message(ui);
+            divider(ui);
+            self.sandbox_controls(ui, compact);
+
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                self.clock(ui);
+                if let Some((note, more)) = self.time_note() {
+                    theme::chip(ui, &note, theme::APPROXIMATE).on_hover_text(more);
+                }
+                self.status_message(ui);
+            });
         });
     }
 
-    /// The last thing that happened, for a few seconds. It comes last in
-    /// the top bar and truncates to the room that's left, the rest on
+    /// Runs or stops time.
+    fn play_pause(&mut self) {
+        self.simulation.paused = !self.simulation.paused;
+        // Stopped, it no longer keeps up with the clock.
+        self.live &= !self.simulation.paused;
+    }
+
+    /// Sets how fast time runs, from the list of speeds. A speed of one's
+    /// own no longer keeps up with the clock.
+    fn set_speed(&mut self, index: usize) {
+        let index = index.min(SPEEDS.len() - 1);
+        if index != self.speed_index || SPEEDS[index].1 != self.simulation.speed {
+            self.live = false;
+        }
+        self.speed_index = index;
+        self.simulation.speed = SPEEDS[index].1;
+    }
+
+    /// Saves the sandbox, and says where.
+    fn save_sandbox(&mut self) {
+        let message = match sandbox::save(&mut self.simulation) {
+            Ok(path) => format!("Saved {}", path.display()),
+            Err(e) => format!("Couldn't save: {e}"),
+        };
+        self.status = Some((message, Instant::now()));
+    }
+
+    /// Esc: closes the open windows. While adding bodies, the view takes
+    /// it instead, to stop adding (see `adding`).
+    fn escape(&mut self) {
+        if self.tool.is_some() {
+            return;
+        }
+        self.scenarios_open = false;
+        self.eclipses_open = false;
+        self.sky_open = false;
+        self.catalogue_open = false;
+    }
+
+    /// What the keyboard's shortcuts do (see `feel.rs`).
+    fn shortcuts(&mut self, ctx: &egui::Context) {
+        for action in feel::pressed(ctx) {
+            match action {
+                feel::Action::PlayPause => self.play_pause(),
+                feel::Action::Faster => self.set_speed(self.speed_index + 1),
+                feel::Action::Slower => self.set_speed(self.speed_index.saturating_sub(1)),
+                feel::Action::FollowSelected => self.focus_on(self.selected),
+                feel::Action::Escape => self.escape(),
+                feel::Action::Save => self.save_sandbox(),
+                feel::Action::Timings => self.show_timings = !self.show_timings,
+            }
+        }
+    }
+
+    /// The last thing that happened, for a few seconds, as a chip left of
+    /// the clock. It truncates to the room that's left, the rest on
     /// hovering: a top bar wider than the window loses the side panel.
     fn status_message(&mut self, ui: &mut egui::Ui) {
         if let Some((message, since)) = &self.status {
             if since.elapsed() < Duration::from_secs(6) {
-                ui.separator();
-                let text = RichText::new(message).small().color(theme::MUTED);
-                ui.add(egui::Label::new(text).truncate())
-                    .on_hover_text(message);
+                theme::chip(ui, message, theme::ACCENT).on_hover_text(message.clone());
             } else {
                 self.status = None;
             }
@@ -1079,19 +1181,27 @@ impl WorldlineApp {
                 &to_the_second(known)[..10]
             ),
         };
-        ui.label(
-            RichText::new(format!("{} UTC", to_the_second(utc)))
-                .monospace()
-                .size(15.0),
-        )
-        .on_hover_text(format!(
-            "{} TDB, the simulation's own time\nΔT = TT − UT1 = {:.3} s, UT1 − UTC = {dut1:+.4} s from the IERS, {source}\nLeap seconds: TAI − UTC = {:.0} s",
-            to_the_second(self.simulation.julian_date()),
-            scales.delta_t(utc),
-            scales.tai_minus_utc(utc)
-        ));
+        egui::Frame::new()
+            .fill(theme::RAISED)
+            .corner_radius(egui::CornerRadius::same(8))
+            .inner_margin(egui::Margin::symmetric(10, 4))
+            .show(ui, |ui| {
+                ui.label(
+                    RichText::new(format!("{} UTC", to_the_second(utc)))
+                        .monospace()
+                        .size(13.5)
+                        .color(theme::TEXT),
+                )
+            })
+            .response
+            .on_hover_text(format!(
+                "{} TDB, the simulation's own time\nΔT = TT − UT1 = {:.3} s, UT1 − UTC = {dut1:+.4} s from the IERS, {source}\nLeap seconds: TAI − UTC = {:.0} s",
+                to_the_second(self.simulation.julian_date()),
+                scales.delta_t(utc),
+                scales.tai_minus_utc(utc)
+            ));
         if self.live && self.behind < 1.0 {
-            ui.colored_label(theme::ACCENT, "live")
+            theme::chip(ui, "● live", theme::WITHIN)
                 .on_hover_text("Running with the computer's clock");
         }
     }
@@ -1099,47 +1209,51 @@ impl WorldlineApp {
     /// The side panel: the bodies in a scrolling tree at the top, and below
     /// it, always in view, the selected body and the settings.
     fn inspector(&mut self, ui: &mut egui::Ui) {
-        ui.add_space(6.0);
-        ui.horizontal(|ui| {
-            ui.heading("Bodies");
-            ui.label(
-                RichText::new(self.simulation.bodies.len().to_string())
-                    .small()
-                    .color(theme::MUTED),
+        let list_height = (ui.available_height() * 0.36).clamp(140.0, 420.0);
+        theme::card(ui, |ui| {
+            theme::card_title(ui, "Bodies", Some(grouped(self.simulation.bodies.len())));
+            ui.add(
+                egui::TextEdit::singleline(&mut self.search)
+                    .hint_text("Search by name")
+                    .desired_width(f32::INFINITY),
             );
-        });
-        ui.add(
-            egui::TextEdit::singleline(&mut self.search)
-                .hint_text("Search by name")
-                .desired_width(f32::INFINITY),
-        );
-        ui.label(
-            RichText::new("Click to select · double-click to follow")
+            ui.add_space(2.0);
+            egui::ScrollArea::vertical()
+                .id_salt("bodies")
+                .max_height(list_height)
+                .auto_shrink([false, true])
+                .show(ui, |ui| self.body_list(ui));
+            ui.label(
+                RichText::new(format!(
+                    "Click to select · double-click or {} to follow",
+                    feel::Action::FollowSelected.key()
+                ))
                 .small()
                 .color(theme::MUTED),
-        );
-        let list_height = (ui.available_height() * 0.42).clamp(140.0, 440.0);
-        egui::ScrollArea::vertical()
-            .id_salt("bodies")
-            .max_height(list_height)
-            .auto_shrink([false, true])
-            .show(ui, |ui| self.body_list(ui));
-        ui.separator();
+            );
+        });
+        ui.add_space(8.0);
         egui::ScrollArea::vertical()
             .id_salt("details")
             .auto_shrink([false, false])
             .show(ui, |ui| {
-                self.selected_body(ui);
+                theme::card(ui, |ui| self.selected_body(ui));
                 ui.add_space(8.0);
-                egui::CollapsingHeader::new("Physics")
-                    .id_salt("physics section")
-                    .show(ui, |ui| self.physics(ui));
-                egui::CollapsingHeader::new("Display")
-                    .id_salt("display section")
-                    .show(ui, |ui| self.display(ui));
-                egui::CollapsingHeader::new("Overlays")
-                    .id_salt("overlays section")
-                    .show(ui, |ui| self.overlay_options(ui));
+                theme::card(ui, |ui| {
+                    for (name, salt) in [
+                        ("Physics", "physics section"),
+                        ("Display", "display section"),
+                        ("Overlays", "overlays section"),
+                    ] {
+                        egui::CollapsingHeader::new(RichText::new(name).font(theme::strong(12.5)))
+                            .id_salt(salt)
+                            .show(ui, |ui| match name {
+                                "Physics" => self.physics(ui),
+                                "Display" => self.display(ui),
+                                _ => self.overlay_options(ui),
+                            });
+                    }
+                });
             });
     }
 
@@ -1321,7 +1435,7 @@ impl WorldlineApp {
     }
 
     fn physics(&self, ui: &mut egui::Ui) {
-        egui::Grid::new("physics").num_columns(2).show(ui, |ui| {
+        inspector_grid("physics", ui).show(ui, |ui| {
             for (what, value) in [
                 ("Gravity", self.simulation.gravity().name()),
                 ("Moons", self.simulation.moon_gravity_name()),
@@ -1430,6 +1544,11 @@ impl WorldlineApp {
         ui.checkbox(&mut self.options.spin_axes, "Spin axes")
             .on_hover_text("A dot marks the end the spin points toward");
         ui.checkbox(&mut self.options.globes, "Textured globes up close");
+        ui.checkbox(&mut self.show_timings, "Frame timings")
+            .on_hover_text(format!(
+                "Frames a second, and how long the physics and the interface take each frame · {}",
+                feel::Action::Timings.key()
+            ));
         let total: usize = self
             .simulation
             .belts
@@ -1485,7 +1604,7 @@ impl WorldlineApp {
         let body = &bodies[self.selected];
         let sun = &bodies[SUN];
         let parent = self.simulation.parent(self.selected);
-        egui::Grid::new("selected").num_columns(2).show(ui, |ui| {
+        inspector_grid("selected", ui).show(ui, |ui| {
             self.impact_rows(ui);
             self.crater_rows(ui);
             if self.simulation.is_deep_sky(self.selected) {
@@ -1814,20 +1933,23 @@ impl WorldlineApp {
     }
 
     /// What the top bar says about time, if it isn't running as asked.
-    fn time_note(&self) -> Option<String> {
+    /// Why time isn't running as asked, if it isn't: a few words for the
+    /// top bar, and the whole of it on hovering.
+    fn time_note(&self) -> Option<(String, String)> {
+        let same = |note: String| Some((note.clone(), note));
         if self.live && self.behind >= 1.0 {
-            return Some(format!(
+            return same(format!(
                 "Catching up to now: {}",
                 DateTime::from_julian_date(self.simulation.julian_date_utc())
             ));
         }
         if let Some((name, _)) = &self.pending {
             let doing = self.lab.status().unwrap_or_else(|| "starting".into());
-            return Some(format!("{name} is becoming a fluid: {doing}"));
+            return same(format!("{name} is becoming a fluid: {doing}"));
         }
         if let Some(fluid) = &self.fluid {
             let pace = f64::from(fluid.clock.dt) * fluid.units.time / self.frame_seconds;
-            return Some(format!(
+            return same(format!(
                 "{} is a fluid: time runs at its pace, {} a second",
                 fluid.name,
                 duration(pace)
@@ -1836,13 +1958,21 @@ impl WorldlineApp {
         if self.simulation.paused || self.simulation.achieved >= 0.99 {
             return None;
         }
-        Some(match &self.slowed {
-            Some((body, by)) => format!("Slowed down: {body} nearing {by}'s tides"),
-            None => format!(
-                "Physics running at {:.0}% of the requested speed",
-                self.simulation.achieved * 100.0
-            ),
-        })
+        match &self.slowed {
+            Some((body, by)) => same(format!("Slowed down: {body} nearing {by}'s tides")),
+            None => {
+                let percent = self.simulation.achieved * 100.0;
+                Some((
+                    format!("⚠ {percent:.0}% of the speed"),
+                    format!(
+                        "Physics running at {percent:.0}% of the requested speed: this computer \
+                         can't step every body that fast within each frame's {} ms. A slower \
+                         speed keeps up",
+                        PHYSICS_BUDGET.as_millis()
+                    ),
+                ))
+            }
+        }
     }
 
     /// The selected body as a fluid: how much tides stretch it, the button
@@ -1879,7 +2009,7 @@ impl WorldlineApp {
         if let Some(&(by, stretched)) = tides.first()
             && (giant || stretched >= FLUID_STRETCH)
         {
-            egui::Grid::new("tides").num_columns(2).show(ui, |ui| {
+            inspector_grid("tides", ui).show(ui, |ui| {
                 ui.label(key("Tides stretch it"));
                 ui.label(format!(
                     "by {} of its radius ({})",
@@ -1925,7 +2055,7 @@ impl WorldlineApp {
         }
         let t = fluid.units.time;
         let since = f64::from(fluid.clock.time);
-        egui::Grid::new("fluid").num_columns(2).show(ui, |ui| {
+        inspector_grid("fluid", ui).show(ui, |ui| {
             ui.label(key("As a fluid"));
             ui.label(format!(
                 "{} SPH particles, on the GPU",
@@ -2434,32 +2564,42 @@ impl WorldlineApp {
     }
 
     /// The top bar's sandbox tools: adding bodies, saving and loading.
-    fn sandbox_controls(&mut self, ui: &mut egui::Ui) {
+    fn sandbox_controls(&mut self, ui: &mut egui::Ui, compact: bool) {
         let label = match self.tool {
-            Some(entry) => format!("Adding: {}", entry.label),
-            None => "Add a body".to_string(),
+            Some(entry) => format!("✚  Adding: {}", entry.label),
+            None if compact => "✚".to_string(),
+            None => "✚  Add a body".to_string(),
         };
         if ui
-            .selectable_label(self.catalogue_open, label)
+            .add(theme::tool_button(
+                label,
+                self.catalogue_open || self.tool.is_some(),
+            ))
             .on_hover_text(
-                "Open the catalogue: planets, stars, white dwarfs, neutron stars, black holes",
+                "Add a body: the catalogue of planets, stars, white dwarfs, neutron stars and \
+                 black holes",
             )
             .clicked()
         {
             self.catalogue_open = !self.catalogue_open;
         }
-        if self.tool.is_some() && ui.button("Done").clicked() {
+        if self.tool.is_some()
+            && ui
+                .add(theme::tool_button("Done", false))
+                .on_hover_text("Stop adding · Esc")
+                .clicked()
+        {
             self.tool = None;
             self.launch = None;
         }
-        if ui.button("Save").clicked() {
-            let message = match sandbox::save(&mut self.simulation) {
-                Ok(path) => format!("Saved {}", path.display()),
-                Err(e) => format!("Couldn't save: {e}"),
-            };
-            self.status = Some((message, Instant::now()));
+        if ui
+            .add(theme::tool_button("Save", false))
+            .on_hover_text(format!("Save the sandbox · {}", feel::Action::Save.key()))
+            .clicked()
+        {
+            self.save_sandbox();
         }
-        ui.menu_button("Load", |ui| {
+        ui.menu_button("🗁  Load", |ui| {
             let saves = sandbox::saves();
             if saves.is_empty() {
                 ui.label(RichText::new("No saves yet").color(theme::MUTED));
@@ -3140,9 +3280,19 @@ impl WorldlineApp {
             );
         }
 
+        let dt = ui.input(|i| i.stable_dt).min(0.1);
         if response.dragged() && self.tool.is_none() {
             let delta = response.drag_delta();
             self.camera.orbit(delta.x, delta.y);
+            self.spin.dragged(delta, dt);
+            ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
+        } else if self.tool.is_some()
+            || self.flight.is_some()
+            || (response.hovered() && ui.input(|i| i.pointer.any_pressed()))
+        {
+            self.spin.stop();
+        } else if let Some(turn) = self.spin.coast(dt) {
+            self.camera.orbit(turn.x, turn.y);
         }
         let focus_radius = self.simulation.bodies[self.focus].radius;
         let min_distance = (MIN_DISTANCE_RADII * focus_radius).max(1e3);
@@ -3163,12 +3313,10 @@ impl WorldlineApp {
                 place,
                 self.options.labels,
             );
-            painter.text(
-                viewport.left_bottom() + vec2(10.0, -10.0),
-                Align2::LEFT_BOTTOM,
+            hint(
+                &painter,
+                viewport,
                 "Drag to look around · scroll to zoom · refraction included; the sky's color is visual, and the planets are dots",
-                FontId::proportional(12.0),
-                Color32::from_gray(190),
             );
             return;
         }
@@ -3266,17 +3414,35 @@ impl WorldlineApp {
             self.remove_selected();
         }
 
-        painter.text(
-            viewport.left_bottom() + vec2(10.0, -10.0),
-            Align2::LEFT_BOTTOM,
+        hint(
+            &painter,
+            viewport,
             if self.tool.is_some() {
                 "Click to place in a circular orbit · drag to launch · Esc to stop adding"
             } else {
-                "Drag to rotate · scroll to zoom · double-click a body to fly to it"
+                "Drag to rotate · scroll to zoom · double-click a body to fly to it · Space to run or stop time"
             },
-            FontId::proportional(12.0),
-            Color32::from_gray(140),
         );
+        if self.show_timings {
+            self.draw_timings(&painter, viewport);
+        }
+    }
+
+    /// The frame's timings, in the view's top right corner.
+    fn draw_timings(&self, painter: &egui::Painter, viewport: Rect) {
+        let t = self.timings;
+        let lines = format!(
+            "{:.0} frames a second · {:.1} ms a frame\nphysics {:.1} ms · interface {:.1} ms",
+            t.rate(),
+            t.frame * 1e3,
+            t.physics * 1e3,
+            t.interface * 1e3
+        );
+        let galley = painter.layout_no_wrap(lines, FontId::monospace(11.5), theme::TEXT);
+        let size = galley.size() + vec2(20.0, 12.0);
+        let rect = Rect::from_min_size(viewport.right_top() + vec2(-size.x - 12.0, 12.0), size);
+        painter.rect_filled(rect, 8.0, Color32::from_rgba_unmultiplied(9, 11, 16, 200));
+        painter.galley(rect.min + vec2(10.0, 6.0), galley, theme::TEXT);
     }
 
     /// Placing a body: press where it goes (on the plane of the body in
@@ -4504,12 +4670,27 @@ impl eframe::App for WorldlineApp {
         if let Some(state) = frame.wgpu_render_state() {
             self.update_fluid(state, ui.ctx(), elapsed);
         }
+        let physics_began = Instant::now();
         self.physics_frame(real_dt);
+        let physics = physics_began.elapsed().as_secs_f64();
+        self.shortcuts(ui.ctx());
 
-        egui::Panel::top("controls").show(ui, |ui| self.controls(ui));
+        egui::Panel::top("controls")
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BACKGROUND)
+                    .inner_margin(egui::Margin::symmetric(12, 7)),
+            )
+            .show(ui, |ui| self.controls(ui));
 
         egui::Panel::right("inspector")
-            .default_size(290.0)
+            .default_size(330.0)
+            .size_range(280.0..=440.0)
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BACKGROUND)
+                    .inner_margin(egui::Margin::same(10)),
+            )
             .show(ui, |ui| self.inspector(ui));
         egui::CentralPanel::no_frame().show(ui, |ui| self.scene(ui, frame));
         self.catalogue_window(ui.ctx());
@@ -4525,10 +4706,43 @@ impl eframe::App for WorldlineApp {
             self.impact_lab = None;
         }
 
-        if !self.simulation.paused || self.flight.is_some() {
+        if !self.simulation.paused || self.flight.is_some() || self.spin.moving() {
             ui.ctx().request_repaint();
         }
+        let work = now.elapsed().as_secs_f64();
+        self.timings
+            .record(elapsed, physics, (work - physics).max(0.0));
     }
+}
+
+/// A line of help over the view's bottom left, on a dark pill so it reads
+/// over any sky.
+fn hint(painter: &egui::Painter, viewport: Rect, text: &str) {
+    let galley = painter.layout_no_wrap(
+        text.to_string(),
+        FontId::proportional(12.0),
+        Color32::from_gray(185),
+    );
+    let size = galley.size() + vec2(20.0, 10.0);
+    let rect = Rect::from_min_size(viewport.left_bottom() + vec2(12.0, -size.y - 12.0), size);
+    painter.rect_filled(rect, 255.0, Color32::from_rgba_unmultiplied(9, 11, 16, 170));
+    painter.galley(rect.min + vec2(10.0, 5.0), galley, Color32::from_gray(185));
+}
+
+/// A grid of names and values in the inspector, its values wrapping to
+/// the panel's width rather than widening it.
+fn inspector_grid(id: &str, ui: &egui::Ui) -> egui::Grid {
+    let width = ui.available_width();
+    egui::Grid::new(id)
+        .num_columns(2)
+        .max_col_width((0.64 * width).max(120.0))
+}
+
+/// A thin upright line between groups of the top bar's tools.
+fn divider(ui: &mut egui::Ui) {
+    ui.add_space(6.0);
+    ui.add(egui::Separator::default().vertical().spacing(4.0));
+    ui.add_space(6.0);
 }
 
 /// An eclipse's kind in words, the magnitude to show (the umbral one for
