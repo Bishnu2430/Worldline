@@ -11,3 +11,6 @@
 .idea/
 .DS_Store
 Thumbs.db
+
+# The waves window's Save writes the chirp where the app runs from
+/worldline-gravitational-waves.wav
