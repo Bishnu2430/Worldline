@@ -1,0 +1,10 @@
+{
+  "id": "proper-time-orbit",
+  "test": "validation_proper_time::carried_round_its_orbit_the_clock_keeps_that_rate",
+  "file": "crates/worldline-core/tests/validation_proper_time.rs",
+  "kind": "margins",
+  "title": "A clock carried round a circular orbit at 10 GM/c² of a black hole runs slow by √(1 − 3GM/rc²)",
+  "checks": [
+    {"label": "its rate over 20 turns, against √(1 − 3/r) = 0.836660", "off": 1.2545520178264269e-14, "limit": 1e-10, "shown": "0.836660026534 against 0.836660026534"}
+  ]
+}

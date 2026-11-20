@@ -1,0 +1,12 @@
+{
+  "id": "black-hole-sizes",
+  "test": "validation_notable_objects::the_black_holes_look_as_big_as_the_event_horizon_telescope_saw",
+  "file": "crates/worldline-data/tests/validation_notable_objects.rs",
+  "kind": "margins",
+  "title": "Black holes' sizes on the sky, θg = GM/Dc², against the Event Horizon Telescope's images",
+  "checks": [
+    {"label": "Sagittarius A*, against EHT's 4.8 +1.4/−0.7 μas", "off": 0.23166533622132565, "limit": 1.0, "shown": "5.1243 μas from GRAVITY's mass and distance"},
+    {"label": "Sagittarius A*, against GRAVITY's 5.125 μas", "off": 0.0006685292901442708, "limit": 0.0014058209607634938, "shown": "5.1243 μas (limit: the published digits' rounding, 0.0014)"},
+    {"label": "M87*, against EHT's 3.8 ± 0.4 μas", "off": 0.01899325235110938, "limit": 0.4, "shown": "3.819 μas from EHT's mass and distance"}
+  ]
+}

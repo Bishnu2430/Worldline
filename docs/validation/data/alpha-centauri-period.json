@@ -1,0 +1,10 @@
+{
+  "id": "alpha-centauri-period",
+  "test": "validation_neighbors::alpha_centauri_a_and_b_go_round_in_their_measured_period",
+  "file": "crates/worldline-data/tests/validation_neighbors.rs",
+  "kind": "margins",
+  "title": "α Centauri A and B circle each other with their measured period, as full bodies",
+  "checks": [
+    {"label": "the period between periastrons, against 79.929 ± 0.013 years", "off": 0.006365008333489186, "limit": 0.01916629058664178, "shown": "79.935 years over 3 orbits (limit 0.019: the period's uncertainty and its fit's rounding)"}
+  ]
+}

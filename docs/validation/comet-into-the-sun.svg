@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="212" viewBox="0 0 760 212">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">A comet falling into the Sun from 1 AU at 50 km/s is caught at the surface</text>
+<text x="20.0" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#6b7785" text-anchor="start" font-weight="normal">how far each result is from what's expected, as a share of the limit it must stay within</text>
+<line x1="250.0" y1="58" x2="250.0" y2="164" stroke="#e4e7eb"/>
+<text x="250.0" y="180.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−8</tspan></text>
+<line x1="303.3" y1="58" x2="303.3" y2="164" stroke="#e4e7eb"/>
+<text x="303.3" y="180.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−7</tspan></text>
+<line x1="356.7" y1="58" x2="356.7" y2="164" stroke="#e4e7eb"/>
+<text x="356.7" y="180.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−6</tspan></text>
+<line x1="410.0" y1="58" x2="410.0" y2="164" stroke="#e4e7eb"/>
+<text x="410.0" y="180.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−5</tspan></text>
+<line x1="463.3" y1="58" x2="463.3" y2="164" stroke="#e4e7eb"/>
+<text x="463.3" y="180.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−4</tspan></text>
+<line x1="516.7" y1="58" x2="516.7" y2="164" stroke="#e4e7eb"/>
+<text x="516.7" y="180.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−3</tspan></text>
+<line x1="570.0" y1="58" x2="570.0" y2="164" stroke="#e4e7eb"/>
+<text x="570.0" y="180.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−2</tspan></text>
+<line x1="623.3" y1="58" x2="623.3" y2="164" stroke="#e4e7eb"/>
+<text x="623.3" y="180.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−1</tspan></text>
+<line x1="676.7" y1="58" x2="676.7" y2="164" stroke="#e4e7eb"/>
+<text x="676.7" y="180.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">1</text>
+<line x1="730.0" y1="58" x2="730.0" y2="164" stroke="#e4e7eb"/>
+<text x="730.0" y="180.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="676.7" y1="54" x2="676.7" y2="164" stroke="#c92a2a" stroke-width="2"/>
+<text x="676.7" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#c92a2a" text-anchor="middle" font-weight="normal">limit</text>
+<text x="20.0" y="78.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">speed at the surface, from energy</text>
+<text x="20.0" y="91.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">conservation</text>
+<rect x="250" y="68" width="189.9" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="98.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">618.3 km/s against 618.3 km/s (limit 10⁻²: ten times the interpolation's 10⁻³)</text>
+<text x="20.0" y="124.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">when, from the radial Kepler orbit</text>
+<rect x="250" y="114" width="22.8" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="144.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">24.6177 days against 24.6177 days</text>
+<text x="250.0" y="198.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">share of the limit (logarithmic): under 1 passes</text>
+</svg>

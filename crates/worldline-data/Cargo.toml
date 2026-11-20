@@ -10,5 +10,9 @@ publish = false
 [dependencies]
 worldline-core = { path = "../worldline-core" }
 
+[dev-dependencies]
+# The validation report's figures (step 8.2).
+worldline-report = { path = "../worldline-report" }
+
 [lints]
 workspace = true

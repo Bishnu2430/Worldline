@@ -41,6 +41,19 @@ fn clocks_run_slow_as_worked_out_by_hand() {
         gain * 1e6,
         hand * 86_400.0 * 1e6
     );
+    let mut figure = worldline_report::margins(
+        "overlay-clocks",
+        "The clock overlay's rates, against hand calculations",
+    )
+    .check(
+        "GPS clocks' gain from gravity, GM/c²(1/R − 1/r)",
+        (ground - orbit) - hand,
+        5e-19,
+        format!(
+            "{:.2} µs a day (limit the next order, (GM/Rc²)²)",
+            gain * 1e6
+        ),
+    );
     assert!(((ground - orbit) - hand).abs() < 5e-19);
     // The Sun adds GM☉/(AU c²) = 9.87 × 10⁻⁹ at Earth: together 1.06 × 10⁻⁸.
     let sun = Body::new("Sun", GM_SUN, SOLAR_RADIUS);
@@ -54,6 +67,12 @@ fn clocks_run_slow_as_worked_out_by_hand() {
         "on Earth, with the Sun: slow by {both:.4e} ({:.3} ms a day; by hand {hand:.4e})",
         both * 86_400e3
     );
+    figure = figure.check(
+        "on Earth, with the Sun",
+        both - hand,
+        1e-15,
+        format!("slow by {both:.4e}, {:.3} ms a day", both * 86_400e3),
+    );
     assert!((both - hand).abs() < 1e-15);
     // Twice the Schwarzschild radius from a black hole: √(1 − 1/2).
     let hole = Body::new("hole", 10.0 * GM_SUN, schwarzschild_radius(10.0 * GM_SUN));
@@ -63,6 +82,12 @@ fn clocks_run_slow_as_worked_out_by_hand() {
         "at 2 r_s from a hole: clocks run at {:.10} (√½ = {:.10})",
         1.0 - there,
         0.5f64.sqrt()
+    );
+    figure = figure.check(
+        "at 2 r_s from a black hole: √½",
+        1.0 - there - 0.5f64.sqrt(),
+        1e-15,
+        format!("{:.10}", 1.0 - there),
     );
     assert!((1.0 - there - 0.5f64.sqrt()).abs() < 1e-15);
     // No clock stays at rest inside the horizon, or inside a spinning
@@ -86,6 +111,14 @@ fn clocks_run_slow_as_worked_out_by_hand() {
         "above a spinning hole's pole at 1.9 GM/c²: {:.10} (by hand {hand:.10})",
         1.0 - pole
     );
+    figure
+        .check(
+            "above a spinning hole's pole at 1.9 GM/c², Kerr's g_tt",
+            1.0 - pole - hand,
+            1e-12,
+            format!("{:.10}", 1.0 - pole),
+        )
+        .save(worldline_report::here!());
     assert!((1.0 - pole - hand).abs() < 1e-12);
 }
 
@@ -142,6 +175,30 @@ fn tides_stretch_as_worked_out_by_hand() {
         "2 m long, 1,000 km from a hole of 10 Suns: pulled apart by {pull:.0} m/s², {:.0} g",
         pull / 9.80665
     );
+    let moon_hand = 2.0 * GM_MOON * EARTH_RADIUS / MOON_DISTANCE.powi(3);
+    worldline_report::margins(
+        "overlay-tides",
+        "The tide overlay's stretch, against hand calculations, 2GM R/d³",
+    )
+    .check(
+        "the Moon's tide at Earth's surface",
+        stretch / moon_hand - 1.0,
+        1e-13,
+        format!("{stretch:.4e} m/s², {:.2} times the Sun's", stretch / solar),
+    )
+    .check(
+        "the Sun's",
+        solar / hand - 1.0,
+        1e-13,
+        format!("{solar:.4e} m/s²"),
+    )
+    .check(
+        "a body 2 m long, 1,000 km from a hole of 10 Suns",
+        pull / (4.0 * 10.0 * GM_SUN / 1e18) - 1.0,
+        1e-13,
+        format!("pulled apart by {pull:.0} m/s², {:.0} g", pull / 9.80665),
+    )
+    .save(worldline_report::here!());
     assert!((pull / (4.0 * 10.0 * GM_SUN / 1e18) - 1.0).abs() < 1e-13);
 }
 
@@ -157,6 +214,22 @@ fn space_around_a_body_is_shaped_as_worked_out_by_hand() {
     let hand = 2f64.sqrt() + (1.0 + 2f64.sqrt()).ln() - 1.0;
     println!(
         "a hole: height {height:.12} r_s at 2 r_s; the ruler {excess:.12} r_s longer (by hand {hand:.12})"
+    );
+    let mut figure = worldline_report::margins(
+        "overlay-space",
+        "The shape of space around a body, against hand calculations",
+    )
+    .check(
+        "a hole: a ruler from the horizon to 2 r_s, r_s(√2 + ln(1 + √2))",
+        excess - hand,
+        1e-12,
+        format!("{:.4} r_s long", 1.0 + excess),
+    )
+    .check(
+        "a hole: Flamm's paraboloid 2 r_s high there",
+        height - 2.0,
+        1e-12,
+        format!("{height:.12} r_s"),
     );
     assert!((height - 2.0).abs() < 1e-12 && (excess - hand).abs() < 1e-12);
     // Earth (r_s = 8.87 mm): from its surface to twice its radius a ruler
@@ -181,9 +254,20 @@ fn space_around_a_body_is_shaped_as_worked_out_by_hand() {
         hands[1],
         hands[2]
     );
-    for (value, hand) in [excess, below, above].iter().zip(hands) {
+    for ((value, hand), what) in [excess, below, above].iter().zip(hands).zip([
+        "Earth: a ruler from its surface to twice its radius, longer by",
+        "Earth: its center below its surface by",
+        "Earth: twice its radius out, above it by",
+    ]) {
+        figure = figure.check(
+            what,
+            value / hand - 1.0,
+            1e-8,
+            format!("{value:.6} m (limit: first order leaves out r_s/R = 1.4 × 10⁻⁹)"),
+        );
         assert!((value / hand - 1.0).abs() < 1e-8);
     }
+    figure.save(worldline_report::here!());
 }
 
 #[test]
@@ -249,5 +333,44 @@ fn gravitational_waves_are_as_worked_out_by_hand() {
     println!(
         "against the bodies' quadrupole: face on {face_off:.1e}, edge on {edge_off:.1e} (GM/rc² = {compact:.1e})"
     );
+    worldline_report::margins(
+        "overlay-waves",
+        "The gravitational-wave overlay's numbers, against hand calculations",
+    )
+    .check(
+        "time to merge from 100 Hz, against Peters's",
+        tau / peters - 1.0,
+        1e-12,
+        format!("{tau:.4} s"),
+    )
+    .check(
+        "the orbit's phase half a turn back",
+        turned - PI,
+        1e-12,
+        format!("{:.6} ms ago", back * 1e3),
+    )
+    .check(
+        "GW150914 face on from 410 Mpc at 100 Hz",
+        (plus - hand) / hand,
+        1e-15,
+        format!("h = {plus:.3e}"),
+    )
+    .check(
+        "against the bodies' quadrupole, face on",
+        face_off,
+        2.0 * compact,
+        format!(
+            "{:.1e} off (limit twice GM/rc² = {:.1e})",
+            face_off.abs(),
+            2.0 * compact
+        ),
+    )
+    .check(
+        "and edge on",
+        edge_off,
+        2.0 * compact,
+        format!("{:.1e} off", edge_off.abs()),
+    )
+    .save(worldline_report::here!());
     assert!(face_off.abs() < 2.0 * compact && edge_off.abs() < 2.0 * compact);
 }

@@ -136,6 +136,20 @@ fn each_is_at_its_published_distance_and_place() {
          velocity): distance {worst_distance:.3}, place {worst_angle:.3}, proper motion \
          {worst_pm:.3}, radial velocity {worst_rv:.3} ({worst_name})"
     );
+    worldline_report::margins(
+        "deep-sky-placed",
+        "Clusters, nebulae and satellite galaxies placed in the galaxy and measured back as published",
+    )
+    .check(
+        "distances",
+        worst_distance,
+        1.0,
+        format!("the worst {worst_distance:.3} of what rounding allows (10⁻¹² of the galaxy-centered place)"),
+    )
+    .check("places on the sky", worst_angle, 1.0, format!("the worst {worst_angle:.3}"))
+    .check("proper motions", worst_pm, 1.0, format!("the worst {worst_pm:.3}"))
+    .check("radial velocities", worst_rv, 1.0, format!("the worst {worst_rv:.3}"))
+    .save(worldline_report::here!());
     println!();
     println!("Some of them, as placed and as published:");
     for name in [
@@ -218,10 +232,23 @@ fn their_galactic_coordinates_are_the_catalogues() {
         }
     }
     println!("{checked} objects' galactic longitude and latitude against their catalogues':");
+    let mut figure = worldline_report::margins(
+        "deep-sky-galactic",
+        "Clusters, nebulae and satellite galaxies: galactic coordinates as their catalogues print them",
+    );
     for (kind, fraction, arcsec, name) in worst {
         println!(
             "  {}: worst {name}, off by {arcsec:.4}″, {fraction:.2} of what's allowed",
             kind.plural()
         );
+        figure = figure.check(
+            &format!("{}: the worst, {name}", kind.plural()),
+            fraction,
+            1.0,
+            format!(
+                "{arcsec:.4}″ off (limit: half the last digit printed, and 0.1″ for the frames)"
+            ),
+        );
     }
+    figure.save(worldline_report::here!());
 }

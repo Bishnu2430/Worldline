@@ -59,6 +59,10 @@ fn the_roadmap_objects_load_with_their_published_masses() {
     }
     // Step 2.1's check: the four objects the roadmap names, with exactly
     // the masses their papers publish.
+    let mut figure = worldline_report::margins(
+        "notable-masses",
+        "The roadmap's notable objects load with exactly their published masses",
+    );
     for (name, published) in [
         ("Sagittarius A*", 4.297e6),    // GRAVITY Collaboration 2022
         ("TON 618", 10f64.powf(10.82)), // Shemmer et al. 2004, log M = 10.82
@@ -67,9 +71,17 @@ fn the_roadmap_objects_load_with_their_published_masses() {
         ("PSR B1913+16 companion", 1.390),
     ] {
         let o = object(name);
+        // Exactly: the limit is one rounding of the number itself.
+        figure = figure.check(
+            name,
+            o.mass.value - published,
+            published * f64::EPSILON,
+            format!("{:e} Suns, as published", o.mass.value),
+        );
         assert_eq!(o.mass.value, published, "{name}");
         assert_eq!(o.body().gm, published * GM_SUN, "{name}");
     }
+    figure.save(worldline_report::here!());
     assert_eq!(object("TON 618").kind, ObjectKind::BlackHole);
     assert_eq!(object("PSR B1913+16").kind, ObjectKind::NeutronStar);
 }
@@ -128,6 +140,23 @@ fn sirius_b_reddens_its_light_as_hubble_measured() {
         measured / 1e3,
         error / 1e3
     );
+    worldline_report::margins(
+        "sirius-b-redshift",
+        "Sirius B's gravitational redshift from its mass and radius, against Hubble's measurement",
+    )
+    .check(
+        "predicted against measured, within their combined uncertainty",
+        predicted - measured,
+        allowed,
+        format!(
+            "{:.2} ± {:.2} km/s against Hubble's {:.2} ± {:.2} km/s",
+            predicted / 1e3,
+            spread / 1e3,
+            measured / 1e3,
+            error / 1e3
+        ),
+    )
+    .save(worldline_report::here!());
     assert!((predicted - measured).abs() < allowed);
 }
 
@@ -145,12 +174,39 @@ fn the_black_holes_look_as_big_as_the_event_horizon_telescope_saw() {
     println!(
         "M87*:           θg = {m87:.3} μas from EHT's mass and distance; EHT image 3.8 ± 0.4 μas"
     );
+    let rounding = sgr * (0.0005 / 4.297 + 0.5 / 8277.0) + 0.0005;
+    worldline_report::margins(
+        "black-hole-sizes",
+        "Black holes' sizes on the sky, θg = GM/Dc², against the Event Horizon Telescope's images",
+    )
+    .check(
+        "Sagittarius A*, against EHT's 4.8 +1.4/−0.7 μas",
+        if sgr > 4.8 {
+            (sgr - 4.8) / 1.4
+        } else {
+            (4.8 - sgr) / 0.7
+        },
+        1.0,
+        format!("{sgr:.4} μas from GRAVITY's mass and distance"),
+    )
+    .check(
+        "Sagittarius A*, against GRAVITY's 5.125 μas",
+        sgr - 5.125,
+        rounding,
+        format!("{sgr:.4} μas (limit: the published digits' rounding, {rounding:.4})"),
+    )
+    .check(
+        "M87*, against EHT's 3.8 ± 0.4 μas",
+        m87 - 3.8,
+        0.4,
+        format!("{m87:.3} μas from EHT's mass and distance"),
+    )
+    .save(worldline_report::here!());
     // EHT 2022 (ApJL 930, L12, Table 1): 4.8 +1.4/−0.7 μas.
     assert!((4.8 - 0.7..=4.8 + 1.4).contains(&sgr));
     // The same table lists GRAVITY's orbits as giving 5.125 μas: our
     // number must match to the rounding of the published mass (4.297),
-    // distance (8277) and θg (5.125).
-    let rounding = sgr * (0.0005 / 4.297 + 0.5 / 8277.0) + 0.0005;
+    // distance (8277) and θg (5.125), `rounding` above.
     assert!((sgr - 5.125).abs() < rounding, "{sgr}");
     // EHT 2019 (ApJL 875, L6): 3.8 ± 0.4 μas.
     assert!((m87 - 3.8).abs() < 0.4);
@@ -248,6 +304,25 @@ fn the_hulse_taylor_orbit_turns_as_measured() {
     );
     let relative = (simulated / orbit.periastron_advance - 1.0).abs();
     println!("simulated vs measured: {relative:.1e}");
+    worldline_report::margins(
+        "hulse-taylor-turning",
+        "The Hulse–Taylor pulsar's orbit turning, simulated with relativistic gravity",
+    )
+    .check(
+        "the turning, against 4.226585°/yr measured",
+        relative,
+        4.7e-4,
+        format!(
+            "{simulated:.6}°/yr; the formula gives {formula:.6} (limit: the masses' rounding to 0.001 Suns)"
+        ),
+    )
+    .check(
+        "the period, against the measured 7.75 h",
+        period / orbit.period - 1.0,
+        1e-6,
+        format!("{:.4} h", period / 3600.0),
+    )
+    .save(worldline_report::here!());
     assert!((period / orbit.period - 1.0).abs() < 1e-6);
     assert!(relative < 4.7e-4);
 }

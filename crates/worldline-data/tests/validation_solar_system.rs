@@ -43,6 +43,34 @@ fn one_year_errors(gravity: &dyn Gravity) -> Vec<(String, f64, f64)> {
 fn one_year_matches_jpl() {
     let newtonian = one_year_errors(&Newtonian);
     let relativistic = one_year_errors(&EinsteinInfeldHoffmann);
+    let earth = relativistic[3].1;
+    let mut figure = worldline_report::margins(
+        "one-year-vs-jpl",
+        "One year of the real solar system against NASA JPL, with relativistic gravity",
+    )
+    .check(
+        "Earth, against 1 part in 10,000 of an AU",
+        earth,
+        1e-4 * AU,
+        format!(
+            "{:.2} km off (Newtonian: {:.0} km)",
+            earth / 1e3,
+            newtonian[3].1 / 1e3
+        ),
+    );
+    for (name, error, distance) in &relativistic {
+        figure = figure.check(
+            name,
+            error / distance,
+            1e-5,
+            format!(
+                "{:.2} km off, {:.1e} of its distance",
+                error / 1e3,
+                error / distance
+            ),
+        );
+    }
+    figure.save(worldline_report::here!());
 
     println!(
         "{:<8} {:>15} {:>17} {:>13}",

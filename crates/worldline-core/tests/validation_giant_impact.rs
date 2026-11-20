@@ -140,11 +140,13 @@ fn the_canonical_impact_leaves_the_disk_canup_found() {
     );
     let (mut steps, mut next_report) = (0usize, 3.0 * 3600.0);
     let end = 27.0 * 3600.0;
+    let mut curve = vec![(0.0, 0.0)];
     while fluid.time < end {
         fluid.step();
         steps += 1;
         if fluid.time >= next_report {
             let disk = measure(&fluid.particles);
+            curve.push((fluid.time / 3600.0, disk.disk / LUNAR_MASS));
             println!(
                 "{:>4.1} h ({steps} steps, {:.0} s): disk {:.3} M_L in {} particles, escaping {:.3} M_L, \
                  planet {:.4} M_E, dt {:.1} s",
@@ -204,5 +206,26 @@ fn the_canonical_impact_leaves_the_disk_canup_found() {
         1.62 * (1.0 + noise),
         100.0 * noise
     );
+    curve.push((fluid.time / 3600.0, mass));
+    let (low, high) = (1.33 * (1.0 - noise), 1.62 * (1.0 + noise));
+    worldline_report::lines(
+        "giant-impact",
+        "The Moon-forming impact, planets of rock and iron in SPH: the disk it leaves",
+        "hours after the impact",
+        "disk mass (lunar masses)",
+    )
+    .series(&format!("simulated, {} particles", fluid.particles.len()), curve)
+    .expected(
+        "Canup's (2004) 1.33 to 1.62, widened by the disk's counting noise",
+        [(0.0, low), (27.0, low)],
+    )
+    .expected("", [(0.0, high), (27.0, high)])
+    .note(&format!(
+        "After 27 hours: {mass:.2} lunar masses in {} particles, within {low:.2} to {high:.2}. Energy kept to \
+         {energy_off:.1e}, angular momentum to {spin_off:.1e}. At 4,000 particles it fails, with 1.08, and \
+         convergence isn't shown.",
+        disk.particles
+    ))
+    .save(worldline_report::here!());
     assert!(mass >= 1.33 * (1.0 - noise) && mass <= 1.62 * (1.0 + noise));
 }

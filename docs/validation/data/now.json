@@ -1,0 +1,10 @@
+{
+  "id": "now",
+  "test": "worldline::simulation::tests::caught_up_its_clock_reads_the_computers",
+  "file": "crates/worldline-app/src/simulation.rs",
+  "kind": "margins",
+  "title": "Now: caught up to the computer's clock, the simulation's time read back in UTC",
+  "checks": [
+    {"label": "the simulation's time against the clock's", "off": 0.03423839807510376, "limit": 1.0, "shown": "0.034 s behind (limit a second)"}
+  ]
+}

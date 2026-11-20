@@ -1,0 +1,13 @@
+{
+  "id": "deep-sky-placed",
+  "test": "validation_clusters_and_galaxies::each_is_at_its_published_distance_and_place",
+  "file": "crates/worldline-data/tests/validation_clusters_and_galaxies.rs",
+  "kind": "margins",
+  "title": "Clusters, nebulae and satellite galaxies placed in the galaxy and measured back as published",
+  "checks": [
+    {"label": "distances", "off": 0.0003993078663649674, "limit": 1.0, "shown": "the worst 0.000 of what rounding allows (10⁻¹² of the galaxy-centered place)"},
+    {"label": "places on the sky", "off": 0.0008792009678297795, "limit": 1.0, "shown": "the worst 0.001"},
+    {"label": "proper motions", "off": 0.0005602812542416864, "limit": 1.0, "shown": "the worst 0.001"},
+    {"label": "radial velocities", "off": 0.0005753243839820336, "limit": 1.0, "shown": "the worst 0.001"}
+  ]
+}

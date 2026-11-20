@@ -40,8 +40,55 @@ fn sly_holds_up_at_most_about_2_05_suns() {
         100.0 * (mass / read_mass - 1.0),
         100.0 * (r14 / read_r14 - 1.0)
     );
+    worldline_report::margins(
+        "neutron-star-maximum",
+        "The heaviest neutron star the SLy equation of state holds up (general relativity's static stars)",
+    )
+    .check(
+        "the roadmap's about 2.05 Suns",
+        mass - 2.05,
+        0.005,
+        format!("{mass:.4} Suns (limit: the last digit's rounding)"),
+    )
+    .check(
+        "Read et al.'s (2009) maximum for this fit",
+        mass / read_mass - 1.0,
+        2e-3,
+        format!("{read_mass:.4} Suns (limit 0.2%: their code's older G and solar mass)"),
+    )
+    .check(
+        "Read et al.'s radius of a 1.4-Sun star",
+        r14 / read_r14 - 1.0,
+        2e-3,
+        format!("{r14:.3} km against {read_r14:.3}"),
+    )
+    .save(worldline_report::here!());
     assert!((mass / read_mass - 1.0).abs() < 2e-3);
     assert!((r14 / read_r14 - 1.0).abs() < 2e-3);
+    // The mass–radius relation, for the plot.
+    let relation: Vec<(f64, f64)> = (0..=30)
+        .filter_map(|k| {
+            let m = 0.3 + (mass - 0.3) * k as f64 / 30.0;
+            radius_for(&sly, m * GM_SUN).map(|r| (r / 1e3, m))
+        })
+        .collect();
+    worldline_report::lines(
+        "neutron-star-mass-radius",
+        "Neutron stars of the SLy equation of state: mass against radius, up to the heaviest",
+        "radius (km)",
+        "mass (Suns)",
+    )
+    .series("SLy (Douchin & Haensel 2001, Read et al.'s fit), solved", relation)
+    .dots(
+        "the heaviest it holds up",
+        [(heaviest.radius / 1e3, mass)],
+    )
+    .note(&format!(
+        "At most {mass:.3} Suns, at {:.2} km; a 1.4-Sun star is {r14:.2} km. Above the heaviest, no static \
+         star exists: it collapses to a black hole.",
+        heaviest.radius / 1e3
+    ))
+    .save(worldline_report::here!());
 }
 
 #[test]
@@ -105,6 +152,10 @@ fn merging_neutron_stars_collapse_at_once_above_the_threshold() {
         ("IUF", 1.95, 12.57, 3.05),
     ];
     let mut worst: f64 = 0.0;
+    let mut figure = worldline_report::margins(
+        "prompt-collapse",
+        "Merging neutron stars collapse at once above Bauswein et al.'s (2013) threshold",
+    );
     for (name, m_max, r16, m_thres) in table {
         let fit = prompt_collapse_threshold(m_max * GM_SUN, r16 * 1e3) / GM_SUN;
         let k_miss = ((fit - m_thres) / m_max).abs();
@@ -112,6 +163,12 @@ fn merging_neutron_stars_collapse_at_once_above_the_threshold() {
         // 0.005 (1 + k)/M_max.
         let rounding = 0.005 * (1.0 + m_thres / m_max) / m_max;
         println!("{name:>6}: threshold {m_thres} Suns, the fit {fit:.3} (k off by {k_miss:.3})");
+        figure = figure.check(
+            &format!("{name}: their fit, against their simulations"),
+            k_miss,
+            0.025 + rounding,
+            format!("threshold {m_thres} Suns, the fit {fit:.3}: k off by {k_miss:.3} (limit their 0.025, and rounding)"),
+        );
         assert!(k_miss <= 0.025 + rounding);
         worst = worst.max(k_miss);
     }
@@ -133,5 +190,13 @@ fn merging_neutron_stars_collapse_at_once_above_the_threshold() {
             "prompt collapse"
         }
     );
+    figure
+        .check(
+            "GW170817's 2.73 Suns didn't collapse at once, as its kilonova showed",
+            gw170817,
+            threshold,
+            format!("under SLy's threshold, {threshold:.2} Suns"),
+        )
+        .save(worldline_report::here!());
     assert!(gw170817 < threshold);
 }

@@ -65,10 +65,13 @@ fn a_planet_left_alone_stays_in_equilibrium() {
     let energy = fluid.energy();
     let (mut moved, mut stirred, mut steps): (f64, f64, usize) = (0.0, 0.0, 0);
     let begun = fluid.time;
+    let mut curve = vec![(0.0, 0.0)];
     while fluid.time - begun < 10.0 * t_dyn {
         fluid.step();
         steps += 1;
-        moved = moved.max((fluid.mass_radius(0.5) / RADIUS - start).abs());
+        let off = fluid.mass_radius(0.5) / RADIUS - start;
+        curve.push(((fluid.time - begun) / t_dyn, off / h));
+        moved = moved.max(off.abs());
         stirred = stirred.max(fluid.kinetic() / fluid.gravitational().abs());
     }
     let drift = (fluid.energy() - energy) / energy.abs();
@@ -88,6 +91,25 @@ fn a_planet_left_alone_stays_in_equilibrium() {
     // within a smoothing length of Lane–Emden's, 0.6062 R.
     let exact = half_mass_radius();
     println!("its half-mass radius {start:.4} R against Lane–Emden's {exact:.4} R");
+    worldline_report::lines(
+        "sph-equilibrium",
+        "Jupiter as a fluid of about 1,000 SPH particles (an n = 1 polytrope), left alone",
+        "dynamical times",
+        "half-mass radius moved (smoothing lengths)",
+    )
+    .series("simulated", curve)
+    .expected("limit: half a smoothing length", [(0.0, 0.5), (10.0, 0.5)])
+    .expected("", [(0.0, -0.5), (10.0, -0.5)])
+    .note(&format!(
+        "It neither collapses (free fall takes 1.1 dynamical times) nor flies apart: it moves {:.2} h at most. \
+         Kinetic energy at most {stirred:.1e} of the binding energy (limit {:.1e}); energy kept to {:.1e} (limit \
+         {:.1e}); its half-mass radius {start:.4} R against Lane–Emden's {exact:.4} R (limit h = {h:.3} R).",
+        moved / h,
+        (0.5 * h).powi(2),
+        drift.abs(),
+        step * step
+    ))
+    .save(worldline_report::here!());
     assert!((start - exact).abs() < h);
 }
 
@@ -111,5 +133,21 @@ fn with_more_particles_it_comes_closer_to_lane_and_emdens_structure() {
             "{n} particles: half-mass radius {r:.4} R, {error:.4} R off Lane–Emden's {exact:.4} R"
         );
     }
+    worldline_report::margins(
+        "sph-convergence",
+        "SPH converges on Lane–Emden's structure: four times the particles",
+    )
+    .check(
+        "the half-mass radius's error at 4,000 particles, against 0.4 of 1,000's",
+        errors[1].2,
+        0.4 * errors[0].2,
+        format!(
+            "{:.4} R off Lane–Emden's {exact:.4} R ({:.2}%), against {:.4} R at 1,000 (error ∝ h², h ∝ N^(−1/3))",
+            errors[1].2,
+            errors[1].2 / exact * 100.0,
+            errors[0].2
+        ),
+    )
+    .save(worldline_report::here!());
     assert!(errors[1].2 < 0.4 * errors[0].2);
 }

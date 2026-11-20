@@ -1,0 +1,12 @@
+{
+  "id": "intruder-hits-mars",
+  "test": "validation_sandbox::an_intruder_that_hits_mars_merges_and_keeps_the_momentum",
+  "file": "crates/worldline-data/tests/validation_sandbox.rs",
+  "kind": "margins",
+  "title": "A Jupiter-mass body hits Mars in the real solar system, with relativistic gravity",
+  "checks": [
+    {"label": "momentum, against relativity's 2.5 (v/c)²", "off": 1.0759385432191216e-11, "limit": 9.682837112806615e-8, "shown": "changed by 1.1e-11"},
+    {"label": "Phobos and Deimos freed by its tides first", "off": 0.0, "limit": 0.5, "shown": "[\"Phobos\", \"Deimos\"] freed after 1.2 h"},
+    {"label": "Mars absorbed by the intruder", "off": 0.0, "limit": 0.5, "shown": "at 57.49 km/s after 14.7 h"}
+  ]
+}

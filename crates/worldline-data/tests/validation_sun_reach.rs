@@ -62,6 +62,26 @@ fn sunlight_at_earth_is_1361_watts_per_square_meter() {
         faintest.1,
         faintest.0 + 1
     );
+    worldline_report::margins(
+        "sunlight",
+        "Sunlight at 1 AU against NASA SORCE's measurement",
+    )
+    .check(
+        "at 1 AU, against SORCE's 1360.8 ± 0.5 W/m²",
+        at_1au - 1360.8,
+        0.5,
+        format!("{at_1au:.2} W/m²"),
+    )
+    .check(
+        "2025's average at the simulated Earth, against 1361",
+        mean - 1361.0,
+        0.5,
+        format!(
+            "{mean:.1} W/m²; {:.1} at perihelion, {:.1} at aphelion",
+            brightest.1, faintest.1
+        ),
+    )
+    .save(worldline_report::here!());
     assert!((mean - 1361.0).abs() < 0.5);
 }
 
@@ -77,6 +97,20 @@ fn light_takes_8_3_minutes_to_reach_earth() {
     let distances = earth_distances();
     let mean = distances.iter().map(|r| r / C).sum::<f64>() / distances.len() as f64;
     println!("2025 mean: {mean:.2} s = {:.3} min", mean / 60.0);
+    worldline_report::margins("light-travel-time", "Light travel time, Sun to Earth")
+        .check(
+            "1 AU / c, against the IAU's 499.004 783 836 s",
+            tau - 499.004_783_836,
+            1e-9,
+            format!("{tau:.9} s (limit: the IAU's last digit)"),
+        )
+        .check(
+            "2025's average, against 8.3 minutes",
+            mean / 60.0 - 8.3,
+            0.05,
+            format!("{:.3} minutes (limit: 8.3's rounding)", mean / 60.0),
+        )
+        .save(worldline_report::here!());
     assert!((mean / 60.0 - 8.3).abs() < 0.05);
     // Light actually leaves the Sun's surface, and the Sun's gravity
     // delays it on the way out (the Shapiro delay).
@@ -152,6 +186,24 @@ fn the_parker_spiral_matches_the_magnetic_field_measured_at_earth() {
         std::f64::consts::TAU / wind.rotation_rate / DAY,
         wind.angle(AU, 1.0).to_degrees()
     );
+    worldline_report::margins(
+        "parker-spiral",
+        "The Parker spiral against a year of solar wind measured at Earth (NASA OMNI)",
+    )
+    .check(
+        "the year's daily difference, against 3 standard errors",
+        mean,
+        3.0 * standard_error,
+        format!(
+            "measured {:.1}°, predicted {:.1}°: difference {:+.1}° ± {:.1}° over {} days",
+            axial_mean(&all).to_degrees(),
+            axial_mean(&predicted).to_degrees(),
+            mean.to_degrees(),
+            standard_error.to_degrees(),
+            days.len()
+        ),
+    )
+    .save(worldline_report::here!());
     assert!(mean.abs() < 3.0 * standard_error);
 }
 
@@ -160,8 +212,22 @@ fn voyager_positions_match_the_published_crossings() {
     // JPL's trajectory puts each Voyager, at noon on the published day,
     // within half a tenth of an AU of the published distance: the
     // precision three of the four are given to.
+    let mut figure = worldline_report::margins(
+        "voyager-crossings",
+        "The Voyagers' heliosphere crossings: JPL's positions against the published distances",
+    );
     for c in voyager_crossings() {
         let r = c.position.length();
+        figure = figure.check(
+            &format!("{} {:?}, {}", c.spacecraft, c.boundary, c.date),
+            r - c.published_distance,
+            0.05 * AU,
+            format!(
+                "{:.3} AU against {} AU published (limit 0.05 AU)",
+                r / AU,
+                c.published_distance / AU
+            ),
+        );
         println!(
             "{} {:?} {}: Horizons {:.3} AU, published {} AU ({})",
             c.spacecraft,
@@ -173,6 +239,7 @@ fn voyager_positions_match_the_published_crossings() {
         );
         assert!((r - c.published_distance).abs() < 0.05 * AU);
     }
+    figure.save(worldline_report::here!());
     // The drawn boundaries: how far each crossing lies from the fitted
     // shape (the shape is axisymmetric; the real heliosphere isn't).
     let shell = heliosphere();

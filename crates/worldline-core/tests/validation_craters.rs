@@ -168,7 +168,9 @@ fn an_impact_finds_the_planet_not_its_barycenter() {
 }
 
 /// Prints a crater against the real one and checks it's within the spread.
-fn compare(name: &str, crater: &Crater, measured: f64) {
+/// Returns the check for a figure: how far off it is, as a factor (its
+/// logarithm), against the law's spread (likewise), and in words.
+fn compare(name: &str, crater: &Crater, measured: f64) -> (f64, f64, String) {
     let diameter = 2.0 * crater.rim_radius;
     let spread = crater.spread();
     println!(
@@ -185,6 +187,17 @@ fn compare(name: &str, crater: &Crater, measured: f64) {
         measured >= diameter / spread && measured <= diameter * spread,
         "{name}: {diameter} against {measured}"
     );
+    (
+        (measured / diameter).ln(),
+        spread.ln(),
+        format!(
+            "{:.0} m across against {measured:.0} m ({:+.0}%); the law's spread {:.0} to {:.0} m",
+            diameter,
+            100.0 * (diameter / measured - 1.0),
+            diameter / spread,
+            diameter * spread
+        ),
+    )
 }
 
 #[test]
@@ -195,7 +208,18 @@ fn meteor_crater_from_its_estimated_impactor() {
     // across.
     let ground = Ground::SOFT_ROCK;
     let crater = dig(&strike(3e8, 12e3, 45.0, EARTH_GRAVITY), &ground);
-    compare("Meteor Crater", &crater, 1186.0);
+    let (off, limit, shown) = compare("Meteor Crater", &crater, 1186.0);
+    worldline_report::margins(
+        "meteor-crater",
+        "Meteor Crater, dug by Holsapple's scaling laws from its estimated impactor",
+    )
+    .check(
+        "1,186 m across, within the published scaling's spread",
+        off,
+        limit,
+        shown,
+    )
+    .save(worldline_report::here!());
     assert!(!crater.complex);
     // If only the half that stayed whole dug the crater, as a bound.
     let half = dig(&strike(1.5e8, 12e3, 45.0, EARTH_GRAVITY), &ground);
@@ -225,7 +249,18 @@ fn chicxulub_from_its_estimated_impactor() {
     let ground = Ground::HARD_ROCK;
     let mass = sphere(17e3, 2630.0);
     let crater = dig(&strike(mass, 12e3, 60.0, EARTH_GRAVITY), &ground);
-    compare("Chicxulub", &crater, 180e3);
+    let (off, limit, shown) = compare("Chicxulub", &crater, 180e3);
+    worldline_report::margins(
+        "chicxulub",
+        "Chicxulub, dug by Holsapple's scaling laws from its estimated impactor",
+    )
+    .check(
+        "180 km across, within the published scaling's spread",
+        off,
+        limit,
+        shown,
+    )
+    .save(worldline_report::here!());
     assert!(crater.complex);
     let reach = 2.0 * crater.rim_radius * crater.spread();
     println!(

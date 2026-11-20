@@ -59,6 +59,19 @@ fn each_is_where_gaia_measured_it() {
         }
     }
     let all = gaia_nearby_stars().len();
+    worldline_report::margins(
+        "gaia-placed",
+        "Gaia's stars within 50 pc, placed in the galaxy and measured back as Gaia measured them",
+    )
+    .check(
+        &format!("all {} stars: place, distance, motions", stars.len()),
+        worst,
+        1.0,
+        format!(
+            "the worst off by {worst:.3} of what rounding allows (10⁻¹² of the places and speeds)"
+        ),
+    )
+    .save(worldline_report::here!());
     println!(
         "{} of Gaia DR3's {all} stars within 50 pc with full motions join the swarm; {} are \
          already bodies of their own (step 7.1)",
@@ -117,6 +130,10 @@ fn they_move_as_the_suns_motion_against_its_neighbors_says() {
             spread.z,
         ),
     ];
+    let mut figure = worldline_report::margins(
+        "gaia-motions",
+        "Gaia's neighbors move on average as the Sun's motion against them says (Schönrich et al. 2010)",
+    );
     for (what, got, wanted, statistical, systematic, variance) in checks {
         let of_mean = (variance / n).sqrt();
         let sigma =
@@ -127,8 +144,18 @@ fn they_move_as_the_suns_motion_against_its_neighbors_says() {
              {:.2} standard deviations (limit 3)",
             off / sigma
         );
+        figure = figure.check(
+            what,
+            off,
+            3.0 * sigma,
+            format!(
+                "{got:.2} ± {of_mean:.2} km/s against {wanted:.2}: {:.2} standard deviations (limit 3)",
+                off / sigma
+            ),
+        );
         assert!(off < 3.0 * sigma, "{what}");
     }
+    figure.save(worldline_report::here!());
     println!(
         "along the galaxy's turning (V, not checked): {:.2} km/s, against the Sun's 12.24 \
          plus the stars' lag",

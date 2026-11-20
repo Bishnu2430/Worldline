@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="1752" viewBox="0 0 760 1752">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">Small moons with measured sizes after 30 days against JPL: 7 listed residuals, not yet explained</text>
+<text x="20.0" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#6b7785" text-anchor="start" font-weight="normal">how far each result is from what's expected, as a share of the limit it must stay within</text>
+<line x1="250.0" y1="58" x2="250.0" y2="1704" stroke="#e4e7eb"/>
+<text x="250.0" y="1720.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−6</tspan></text>
+<line x1="310.0" y1="58" x2="310.0" y2="1704" stroke="#e4e7eb"/>
+<text x="310.0" y="1720.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−5</tspan></text>
+<line x1="370.0" y1="58" x2="370.0" y2="1704" stroke="#e4e7eb"/>
+<text x="370.0" y="1720.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−4</tspan></text>
+<line x1="430.0" y1="58" x2="430.0" y2="1704" stroke="#e4e7eb"/>
+<text x="430.0" y="1720.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−3</tspan></text>
+<line x1="490.0" y1="58" x2="490.0" y2="1704" stroke="#e4e7eb"/>
+<text x="490.0" y="1720.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−2</tspan></text>
+<line x1="550.0" y1="58" x2="550.0" y2="1704" stroke="#e4e7eb"/>
+<text x="550.0" y="1720.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−1</tspan></text>
+<line x1="610.0" y1="58" x2="610.0" y2="1704" stroke="#e4e7eb"/>
+<text x="610.0" y="1720.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">1</text>
+<line x1="670.0" y1="58" x2="670.0" y2="1704" stroke="#e4e7eb"/>
+<text x="670.0" y="1720.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="730.0" y1="58" x2="730.0" y2="1704" stroke="#e4e7eb"/>
+<text x="730.0" y="1720.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">2</tspan></text>
+<line x1="610.0" y1="54" x2="610.0" y2="1704" stroke="#c92a2a" stroke-width="2"/>
+<text x="610.0" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#c92a2a" text-anchor="middle" font-weight="normal">limit</text>
+<text x="20.0" y="78.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Metis</text>
+<rect x="250" y="68" width="311.7" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="94.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">3.50 km from JPL; radius 22.3 km</text>
+<text x="20.0" y="112.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Adrastea</text>
+<rect x="250" y="102" width="353.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="128.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">6.46 km from JPL; radius 8.3 km</text>
+<text x="20.0" y="146.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Amalthea</text>
+<rect x="250" y="136" width="284.8" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="162.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">4.86 km from JPL; radius 87.3 km</text>
+<text x="20.0" y="180.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Thebe</text>
+<rect x="250" y="170" width="261.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="196.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">1.11 km from JPL; radius 49.7 km</text>
+<text x="20.0" y="214.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Leda</text>
+<rect x="250" y="204" width="262.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="230.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.12 km from JPL; radius 5.0 km</text>
+<text x="20.0" y="248.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Himalia</text>
+<rect x="250" y="238" width="176.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="264.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.07 km from JPL; radius 85.0 km</text>
+<text x="20.0" y="282.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Lysithea</text>
+<rect x="250" y="272" width="245.9" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="298.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.15 km from JPL; radius 12.0 km</text>
+<text x="20.0" y="316.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Elara</text>
+<rect x="250" y="306" width="216.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="332.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.16 km from JPL; radius 40.0 km</text>
+<text x="20.0" y="350.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Ananke</text>
+<rect x="250" y="340" width="247.9" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="366.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.14 km from JPL; radius 10.0 km</text>
+<text x="20.0" y="384.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Carme</text>
+<rect x="250" y="374" width="249.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="400.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.22 km from JPL; radius 15.0 km</text>
+<text x="20.0" y="418.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Pasiphae</text>
+<rect x="250" y="408" width="244.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="434.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.21 km from JPL; radius 18.0 km</text>
+<text x="20.0" y="452.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Sinope</text>
+<rect x="250" y="442" width="252.3" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="468.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.22 km from JPL; radius 14.0 km</text>
+<text x="20.0" y="486.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Pan</text>
+<rect x="250" y="476" width="345.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="502.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">8.18 km from JPL; radius 14.3 km</text>
+<text x="20.0" y="520.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Atlas</text>
+<rect x="250" y="510" width="279.7" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="536.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.73 km from JPL; radius 15.9 km</text>
+<text x="20.0" y="554.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Prometheus</text>
+<rect x="250" y="544" width="267.6" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="570.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">1.33 km from JPL; radius 46.0 km</text>
+<text x="20.0" y="588.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Pandora</text>
+<rect x="250" y="578" width="284.3" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="604.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">2.27 km from JPL; radius 41.5 km</text>
+<text x="20.0" y="622.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Epimetheus (listed residual)</text>
+<rect x="250" y="612" width="361.6" height="14" fill="#d9480f" rx="2"/>
+<text x="250.0" y="638.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">62.16 km from JPL; radius 58.4 km</text>
+<text x="20.0" y="656.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Janus</text>
+<rect x="250" y="646" width="300.8" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="672.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">9.30 km from JPL; radius 90.3 km</text>
+<text x="20.0" y="690.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Aegaeon (listed residual)</text>
+<rect x="250" y="680" width="445.5" height="14" fill="#d9480f" rx="2"/>
+<text x="250.0" y="706.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">10.20 km from JPL; radius 0.4 km</text>
+<text x="20.0" y="724.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Methone (listed residual)</text>
+<rect x="250" y="714" width="376.7" height="14" fill="#d9480f" rx="2"/>
+<text x="250.0" y="740.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">2.81 km from JPL; radius 1.5 km</text>
+<text x="20.0" y="758.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Anthe (listed residual)</text>
+<rect x="250" y="748" width="419.3" height="14" fill="#d9480f" rx="2"/>
+<text x="250.0" y="774.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">4.86 km from JPL; radius 0.5 km</text>
+<text x="20.0" y="792.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Pallene (listed residual)</text>
+<rect x="250" y="782" width="396.0" height="14" fill="#d9480f" rx="2"/>
+<text x="250.0" y="808.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">8.97 km from JPL; radius 2.3 km</text>
+<text x="20.0" y="826.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Telesto</text>
+<rect x="250" y="816" width="264.2" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="842.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.32 km from JPL; radius 12.6 km</text>
+<text x="20.0" y="860.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Calypso</text>
+<rect x="250" y="850" width="305.7" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="876.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">1.28 km from JPL; radius 10.3 km</text>
+<text x="20.0" y="894.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Helene</text>
+<rect x="250" y="884" width="332.6" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="910.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">6.46 km from JPL; radius 18.5 km</text>
+<text x="20.0" y="928.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Polydeuces</text>
+<rect x="250" y="918" width="359.6" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="944.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">1.21 km from JPL; radius 1.2 km</text>
+<text x="20.0" y="962.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Phoebe</text>
+<rect x="250" y="952" width="165.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="978.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.06 km from JPL; radius 106.6 km</text>
+<text x="20.0" y="996.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Cordelia</text>
+<rect x="250" y="986" width="319.7" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1012.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">2.77 km from JPL; radius 13.0 km</text>
+<text x="20.0" y="1030.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Ophelia</text>
+<rect x="250" y="1020" width="324.2" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1046.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">3.79 km from JPL; radius 15.0 km</text>
+<text x="20.0" y="1064.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Bianca</text>
+<rect x="250" y="1054" width="301.7" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1080.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">2.24 km from JPL; radius 21.0 km</text>
+<text x="20.0" y="1098.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Cressida</text>
+<rect x="250" y="1088" width="309.1" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1114.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">4.40 km from JPL; radius 31.0 km</text>
+<text x="20.0" y="1132.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Desdemona</text>
+<rect x="250" y="1122" width="306.6" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1148.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">3.48 km from JPL; radius 27.0 km</text>
+<text x="20.0" y="1166.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Juliet</text>
+<rect x="250" y="1156" width="293.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1182.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">3.21 km from JPL; radius 42.0 km</text>
+<text x="20.0" y="1200.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Portia</text>
+<rect x="250" y="1190" width="275.9" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1216.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">2.15 km from JPL; radius 54.0 km</text>
+<text x="20.0" y="1234.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Rosalind</text>
+<rect x="250" y="1224" width="281.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1250.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">1.30 km from JPL; radius 27.0 km</text>
+<text x="20.0" y="1268.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Belinda</text>
+<rect x="250" y="1258" width="275.7" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1284.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">1.30 km from JPL; radius 33.0 km</text>
+<text x="20.0" y="1302.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Puck</text>
+<rect x="250" y="1292" width="261.6" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1318.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">1.76 km from JPL; radius 77.0 km</text>
+<text x="20.0" y="1336.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Naiad</text>
+<rect x="250" y="1326" width="344.1" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1352.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">15.75 km from JPL; radius 29.0 km</text>
+<text x="20.0" y="1370.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Thalassa</text>
+<rect x="250" y="1360" width="340.2" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1386.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">18.70 km from JPL; radius 40.0 km</text>
+<text x="20.0" y="1404.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Despina</text>
+<rect x="250" y="1394" width="312.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1420.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">11.92 km from JPL; radius 74.0 km</text>
+<text x="20.0" y="1438.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Galatea</text>
+<rect x="250" y="1428" width="306.3" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1454.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">10.08 km from JPL; radius 79.0 km</text>
+<text x="20.0" y="1472.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Larissa</text>
+<rect x="250" y="1462" width="328.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1488.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">28.08 km from JPL; radius 96.0 km</text>
+<text x="20.0" y="1506.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Proteus</text>
+<rect x="250" y="1496" width="265.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1522.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">5.53 km from JPL; radius 209.0 km</text>
+<text x="20.0" y="1540.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Nereid</text>
+<rect x="250" y="1530" width="259.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1556.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">3.53 km from JPL; radius 170.0 km</text>
+<text x="20.0" y="1574.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Styx (listed residual)</text>
+<rect x="250" y="1564" width="361.9" height="14" fill="#d9480f" rx="2"/>
+<text x="250.0" y="1590.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">5.59 km from JPL; radius 5.2 km</text>
+<text x="20.0" y="1608.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Nix</text>
+<rect x="250" y="1598" width="265.3" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1624.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">0.47 km from JPL; radius 18.0 km</text>
+<text x="20.0" y="1642.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Kerberos (listed residual)</text>
+<rect x="250" y="1632" width="363.7" height="14" fill="#d9480f" rx="2"/>
+<text x="250.0" y="1658.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">6.90 km from JPL; radius 6.0 km</text>
+<text x="20.0" y="1676.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Hydra</text>
+<rect x="250" y="1666" width="337.7" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="1692.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">7.85 km from JPL; radius 18.5 km</text>
+<text x="250.0" y="1738.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">share of the limit (logarithmic): under 1 passes</text>
+</svg>

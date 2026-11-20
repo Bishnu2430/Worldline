@@ -1,0 +1,16 @@
+{
+  "id": "barnards-star",
+  "test": "validation_neighbors::barnards_star_crosses_the_sky_at_its_measured_rate",
+  "file": "crates/worldline-data/tests/validation_neighbors.rs",
+  "kind": "lines",
+  "title": "Barnard's Star crosses the sky at its measured rate, speeding up as it approaches",
+  "x": "year",
+  "y": "proper motion over Gaia's 10,393.349 mas/yr (mas/yr)",
+  "log_x": false,
+  "log_y": false,
+  "note": "The worst 0.0001 mas/yr off, within Gaia's 0.036 mas/yr uncertainty.",
+  "series": [
+    {"name": "simulated, over each tenth of a year", "expected": false, "dots": true, "points": [[2016.05, 0.06422690640465589], [2016.15, 0.1926817073544953], [2016.25, 0.3211384602236649], [2016.35, 0.4495973929424508], [2016.45, 0.5780575927674363], [2016.55, 0.7065199722819671], [2016.65, 0.8349839602688007], [2016.75, 0.9634503580018645], [2016.85, 1.0919180217188114], [2016.95, 1.2203880937595386]]},
+    {"name": "Gaia DR3 at 2016.0, plus the approach's speed-up, −2μv_r/d", "expected": true, "dots": false, "points": [[2016.05, 0.06422653613844886], [2016.15, 0.19267960841716558], [2016.25, 0.3211326806958823], [2016.35, 0.449585752974599], [2016.45, 0.5780388252533157], [2016.55, 0.7064918975302135], [2016.65, 0.8349449698089302], [2016.75, 0.9633980420876469], [2016.85, 1.0918511143663636], [2016.95, 1.2203041866432613]]}
+  ]
+}

@@ -36,8 +36,8 @@ How deep an encounter goes is measured by β = r_t/r_p, r_p being the closest ap
 
 | Closest approach | Their mass lost (Table 1) | Worldline's, with 8,000 particles |
 |---|---|---|
-| 1.2 r_t (12 radii) | 0.58 | 0.574 |
-| 1.5 r_t | 0.24 | 0.235 |
+| 1.2 r_t (12 radii) | 0.58 | 0.581 |
+| 1.5 r_t | 0.24 | 0.233 |
 | 1.8 r_t | 0.027 | 0.024 |
 | 2.2 r_t | 0 | 0 |
 
@@ -61,9 +61,9 @@ Debris coming back late is debris barely bound, E near 0. For a body torn right 
 
 **The check.** The same planet passing the star at 0.5 r_t (β = 2):
 - **Set.** By twice the switch distance on the way out, each particle's orbit around the star is fixed.
-- **Bound.** 52.7% of it is bound to the star.
-- **First back:** 37 dynamical times after the closest approach.
-- **The power.** From 30 times that on, 866 particles come back. The maximum likelihood estimate of α in t^(−α) is α − 1 = n/Σ ln(t/t₁), with standard error (α − 1)/√n. It comes out at **1.676 ± 0.023**, 0.4 standard errors from 5/3.
+- **Bound.** 52.9% of it is bound to the star.
+- **First back:** 33 dynamical times after the closest approach.
+- **The power.** From 30 times that on, 956 particles come back. The maximum likelihood estimate of α in t^(−α) is α − 1 = n/Σ ln(t/t₁), with standard error (α − 1)/√n. It comes out at **1.688 ± 0.022**, 1.0 standard error from 5/3.
 - **The limit:** within 3 standard errors.
 
 ## In the app
@@ -105,10 +105,10 @@ In the app:
 |---|---|---|
 | A particle at twice the escape speed is no longer bound (`cargo test -p worldline-core sph`) | it alone leaves | it alone leaves |
 | Debris comes back after its period; the power of a rate known to fall as t^(−5/3) (`cargo test -p worldline-core tides`) | a year for Earth's orbit; 5/3 | to 10⁻¹⁵; within 2 × 10⁻³ |
-| **Disruption begins near r_t:** mass lost passing a star at 1.2, 1.5, 1.8 and 2.2 r_t | Faber, Rasio & Willems's 0.58, 0.24, 0.027, 0, within the mass in the outermost smoothing length (0.036) | 0.574, 0.235, 0.024, 0 |
-| **Debris falls back at a rate ∝ t^(−5/3):** a planet torn right through (β = 2) | within 3 standard errors of 5/3 | 1.676 ± 0.023 |
+| **Disruption begins near r_t:** mass lost passing a star at 1.2, 1.5, 1.8 and 2.2 r_t | Faber, Rasio & Willems's 0.58, 0.24, 0.027, 0, within the mass in the outermost smoothing length (0.036) | 0.581, 0.233, 0.024, 0 |
+| **Debris falls back at a rate ∝ t^(−5/3):** a planet torn right through (β = 2) | within 3 standard errors of 5/3 | 1.688 ± 0.022 |
 | In the app, from its own debris | the same law | t^(−1.66 ± 0.02), 59% bound |
 
-The GPU checks need a GPU: `cargo test --release -p worldline-render --test validation_fluid_gpu -- --ignored --nocapture --test-threads=1`. Last digits vary from run to run, as the GPU adds its sums in a varying order (another run: 0.575, 0.234, 0.024, 0; t^(−1.671 ± 0.022)).
+The GPU checks need a GPU: `cargo test --release -p worldline-render --test validation_fluid_gpu -- --ignored --nocapture --test-threads=1`. Last digits vary from run to run, as the GPU adds its sums in a varying order (other runs: 0.574, 0.235, 0.024, 0, t^(−1.676 ± 0.023); 0.575, 0.234, 0.024, 0, t^(−1.671 ± 0.022)).
 
 ![Jupiter torn apart by a black hole of 9.6 Suns: its debris scattered, and the inspector's plot of the rate it falls back at against time, following t^−5/3](../images/disruption-step-4.4.png)

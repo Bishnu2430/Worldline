@@ -1,0 +1,14 @@
+{
+  "id": "map-landmarks",
+  "test": "validation_maps::landmarks_land_on_the_right_terrain",
+  "file": "crates/worldline-app/tests/validation_maps.rs",
+  "kind": "margins",
+  "title": "Spacecraft maps placed right: IAU Gazetteer landmarks on the right terrain",
+  "checks": [
+    {"label": "Pluto: Sputnik Planitia, bright", "off": 114.03482800734822, "limit": 158.83237222901917, "shown": "158.8 on the map; average 98.8, turned halfway round 114.0"},
+    {"label": "Ceres: Cerealia Facula, bright", "off": 130.16620735808473, "limit": 252.05387712242242, "shown": "252.1 on the map; average 125.6, turned halfway round 130.2"},
+    {"label": "Io: Loki Patera, dark", "off": 94.60240747637563, "limit": 107.4483777435328, "shown": "94.6 on the map; average 107.4, turned halfway round 127.8"},
+    {"label": "Titan: Xanadu, bright", "off": 124.67648715958967, "limit": 168.41208182240842, "shown": "168.4 on the map; average 124.7, turned halfway round 77.6"},
+    {"label": "Iapetus: Roncevaux Terra, bright", "off": 112.60073384564343, "limit": 125.57397303463053, "shown": "125.6 on the map; average 112.6, turned halfway round 96.4"}
+  ]
+}

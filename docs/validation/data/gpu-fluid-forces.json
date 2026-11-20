@@ -1,0 +1,11 @@
+{
+  "id": "gpu-fluid-forces",
+  "test": "validation_fluid_gpu::the_gpus_densities_and_forces_are_the_cores",
+  "file": "crates/worldline-render/tests/validation_fluid_gpu.rs",
+  "kind": "margins",
+  "title": "The fluid on the GPU, in single precision: densities and forces against the CPU's",
+  "checks": [
+    {"label": "densities", "off": 6.124125299100669e-7, "limit": 3e-5, "shown": "off by 6.1e-7 at most (limit: the GPU's Newton tolerance, 10⁻⁵ of h, cubed)"},
+    {"label": "accelerations, of the largest", "off": 9.089603829371053e-6, "limit": 0.0001, "shown": "off by 9.1e-6 at most (limit: pressure's ρ², twice the densities', and more)"}
+  ]
+}

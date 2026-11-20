@@ -1,0 +1,10 @@
+{
+  "id": "mercury-spin-orbit",
+  "test": "validation_rotation::mercury_spins_three_times_every_two_orbits",
+  "file": "crates/worldline-data/tests/validation_rotation.rs",
+  "kind": "margins",
+  "title": "Mercury's 3:2 spin–orbit resonance",
+  "checks": [
+    {"label": "orbit period over spin period, against 3/2", "off": 3.7599190427783924e-8, "limit": 0.001, "shown": "orbit 87.969 days, spin 58.646 days: ratio 1.50000"}
+  ]
+}

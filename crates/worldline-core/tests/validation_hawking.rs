@@ -22,6 +22,10 @@ fn the_lifetime_follows_from_the_temperature_and_a_black_body() {
     let sigma = PI * PI * K_B.powi(4) / (60.0 * HBAR.powi(3) * C * C);
     println!("σ = {sigma:.9e} W/m²K⁴ (CODATA: 5.670374419e-8)");
     assert!((sigma / 5.670_374_419e-8 - 1.0).abs() < 1e-9);
+    let mut figure = worldline_report::margins(
+        "hawking-lifetimes",
+        "Black holes' lifetimes from Hawking's temperature and a black body, against 5120πG²M³/(ħc⁴)",
+    );
     for mass in [1e8, 1e11, 7.35e22, 1.989e30] {
         let gm = G * mass;
         let t = HBAR * C.powi(3) / (8.0 * PI * gm * K_B);
@@ -52,9 +56,16 @@ fn the_lifetime_follows_from_the_temperature_and_a_black_body() {
             "{mass:.3e} kg: {t:.3e} K, {p:.3e} W, lifetime {roadmap:.4e} s ({:.3e} years); integrated {radiated:.4e} s",
             roadmap / JULIAN_YEAR
         );
+        figure = figure.check(
+            &format!("{mass:.3e} kg: the time to radiate it away"),
+            radiated / roadmap - 1.0,
+            1e-12,
+            format!("{:.3e} years, at {t:.3e} K", roadmap / JULIAN_YEAR),
+        );
         assert!((lifetime(gm) / roadmap - 1.0).abs() < 1e-12);
         assert!((radiated / roadmap - 1.0).abs() < 1e-12);
     }
+    figure.save(worldline_report::here!());
 }
 
 #[test]
@@ -79,8 +90,12 @@ fn a_mini_black_hole_evaporates_on_schedule_in_the_simulation() {
     );
     let mut checked = false;
     let mut longest: f64 = 0.0;
+    let mut curve = vec![(0.0, mass)];
     while h.top.bodies.len() == 2 {
         longest = longest.max(h.step(DAY));
+        if let Some(hole) = h.top.bodies.get(1) {
+            curve.push((h.time() / JULIAN_YEAR, hole.gm / G));
+        }
         if !checked && h.time() > 0.5 * tau {
             let expected = mass * (1.0 - h.time() / tau).cbrt();
             let now = h.top.bodies[1].gm / G;
@@ -109,6 +124,28 @@ fn a_mini_black_hole_evaporates_on_schedule_in_the_simulation() {
         late / DAY,
         longest / DAY
     );
+    let expected: Vec<(f64, f64)> = (0..=400)
+        .map(|k| {
+            let t = tau * k as f64 / 400.0;
+            (t / JULIAN_YEAR, mass * (1.0 - t / tau).max(0.0).cbrt())
+        })
+        .collect();
+    worldline_report::lines(
+        "hawking-evaporation",
+        "A black hole of 10⁸ kg evaporates in the simulation (Hawking radiation, textbook model)",
+        "years",
+        "mass (kg)",
+    )
+    .series("simulated, circling the Sun 1 AU out", curve)
+    .expected("M₀ (1 − t/τ)^(1/3), τ = 5120πG²M³/(ħc⁴)", expected)
+    .note(&format!(
+        "Its lifetime is {:.6} years; it vanished {:.3} days after, within one step ({:.3} days). Halfway, its \
+         mass was the formula's to 10⁻⁹. Hawking radiation itself has never been observed.",
+        tau / JULIAN_YEAR,
+        late / DAY,
+        longest / DAY
+    ))
+    .save(worldline_report::here!());
     assert!(late >= 0.0 && late <= longest);
     assert!(checked);
     // Its last moments radiate its rest energy; before that, the step

@@ -1,0 +1,11 @@
+{
+  "id": "mercury-perihelion-margins",
+  "test": "validation_mercury::mercury_perihelion_precesses_43_arcseconds_per_century",
+  "file": "crates/worldline-core/tests/validation_mercury.rs",
+  "kind": "margins",
+  "title": "Mercury's perihelion: the fitted rates against what's expected",
+  "checks": [
+    {"label": "relativistic: general relativity's rate", "off": 4.044265177081511e-6, "limit": 0.0001, "shown": "42.9807″ a century against 42.9805″"},
+    {"label": "Newtonian: no turning", "off": 1.1921533716325979e-9, "limit": 0.001, "shown": "-0.00000″ a century against 0"}
+  ]
+}

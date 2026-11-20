@@ -1,0 +1,12 @@
+{
+  "id": "leinhardt-stewart-table-1",
+  "test": "validation_collision_outcomes::table_1s_derived_columns",
+  "file": "crates/worldline-data/tests/validation_collision_outcomes.rs",
+  "kind": "margins",
+  "title": "Leinhardt & Stewart's Table 1: everything they work out from each simulation, to its printed digits",
+  "checks": [
+    {"label": "the impact energies, against two printed digits", "off": 0.04, "limit": 0.05, "shown": "within 4.0% (limit 5%: 4.5% is the most 2-digit rounding allows)"},
+    {"label": "their predicted remnants reproduced, of 39 definable rows", "off": 0.0, "limit": 0.5, "shown": "39, each to its printed digits; the worst 0.0064 (largest), 0.0052 (second)"},
+    {"label": "rows of two equal remnants, which follow no stated rule", "off": 0.0, "limit": 0.5, "shown": "8, not reproduced"}
+  ]
+}

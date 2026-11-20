@@ -1,0 +1,13 @@
+[package]
+name = "worldline-report"
+description = "Worldline's validation report: the figures each validation test records, for the plots in docs/validation."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+
+[lints]
+workspace = true

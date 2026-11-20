@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="534" viewBox="0 0 760 534">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">The Sun, Moon and planets' altitude and azimuth from two cities in 2026, against JPL Horizons</text>
+<text x="20.0" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#6b7785" text-anchor="start" font-weight="normal">how far each result is from what's expected, as a share of the limit it must stay within</text>
+<line x1="250.0" y1="58" x2="250.0" y2="486" stroke="#e4e7eb"/>
+<text x="250.0" y="502.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−6</tspan></text>
+<line x1="318.6" y1="58" x2="318.6" y2="486" stroke="#e4e7eb"/>
+<text x="318.6" y="502.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−5</tspan></text>
+<line x1="387.1" y1="58" x2="387.1" y2="486" stroke="#e4e7eb"/>
+<text x="387.1" y="502.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−4</tspan></text>
+<line x1="455.7" y1="58" x2="455.7" y2="486" stroke="#e4e7eb"/>
+<text x="455.7" y="502.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−3</tspan></text>
+<line x1="524.3" y1="58" x2="524.3" y2="486" stroke="#e4e7eb"/>
+<text x="524.3" y="502.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−2</tspan></text>
+<line x1="592.9" y1="58" x2="592.9" y2="486" stroke="#e4e7eb"/>
+<text x="592.9" y="502.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−1</tspan></text>
+<line x1="661.4" y1="58" x2="661.4" y2="486" stroke="#e4e7eb"/>
+<text x="661.4" y="502.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">1</text>
+<line x1="730.0" y1="58" x2="730.0" y2="486" stroke="#e4e7eb"/>
+<text x="730.0" y="502.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="661.4" y1="54" x2="661.4" y2="486" stroke="#c92a2a" stroke-width="2"/>
+<text x="661.4" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#c92a2a" text-anchor="middle" font-weight="normal">limit</text>
+<text x="20.0" y="78.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Sun</text>
+<rect x="250" y="68" width="396.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="98.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">7.6″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)</text>
+<text x="20.0" y="124.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Moon</text>
+<rect x="250" y="114" width="401.6" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="144.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">9.0″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)</text>
+<text x="20.0" y="170.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Mercury</text>
+<rect x="250" y="160" width="398.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="190.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">8.1″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)</text>
+<text x="20.0" y="216.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Venus</text>
+<rect x="250" y="206" width="397.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="236.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">7.7″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)</text>
+<text x="20.0" y="262.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Mars</text>
+<rect x="250" y="252" width="398.3" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="282.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">8.0″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)</text>
+<text x="20.0" y="308.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Jupiter</text>
+<rect x="250" y="298" width="399.3" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="328.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">8.3″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)</text>
+<text x="20.0" y="354.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Saturn</text>
+<rect x="250" y="344" width="382.8" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="374.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">4.8″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)</text>
+<text x="20.0" y="400.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Uranus</text>
+<rect x="250" y="390" width="401.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="420.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">8.9″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)</text>
+<text x="20.0" y="446.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Neptune</text>
+<rect x="250" y="436" width="374.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="466.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">3.6″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)</text>
+<text x="250.0" y="520.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">share of the limit (logarithmic): under 1 passes</text>
+</svg>

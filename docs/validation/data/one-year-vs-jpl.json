@@ -1,0 +1,21 @@
+{
+  "id": "one-year-vs-jpl",
+  "test": "validation_solar_system::one_year_matches_jpl",
+  "file": "crates/worldline-data/tests/validation_solar_system.rs",
+  "kind": "margins",
+  "title": "One year of the real solar system against NASA JPL, with relativistic gravity",
+  "checks": [
+    {"label": "Earth, against 1 part in 10,000 of an AU", "off": 410.3919750100777, "limit": 14959787.07, "shown": "0.41 km off (Newtonian: 61 km)"},
+    {"label": "Sun", "off": 1.4281194792195533e-7, "limit": 1e-5, "shown": "0.14 km off, 1.4e-7 of its distance"},
+    {"label": "Mercury", "off": 3.6315370581409817e-9, "limit": 1e-5, "shown": "0.25 km off, 3.6e-9 of its distance"},
+    {"label": "Venus", "off": 1.1498021189678987e-9, "limit": 1e-5, "shown": "0.13 km off, 1.1e-9 of its distance"},
+    {"label": "Earth", "off": 2.8037322689770156e-9, "limit": 1e-5, "shown": "0.41 km off, 2.8e-9 of its distance"},
+    {"label": "Moon", "off": 1.1178454606340945e-7, "limit": 1e-5, "shown": "16.40 km off, 1.1e-7 of its distance"},
+    {"label": "Mars", "off": 8.827713106055197e-10, "limit": 1e-5, "shown": "0.19 km off, 8.8e-10 of its distance"},
+    {"label": "Jupiter", "off": 1.75261158514926e-10, "limit": 1e-5, "shown": "0.14 km off, 1.8e-10 of its distance"},
+    {"label": "Saturn", "off": 3.1176950608377575e-11, "limit": 1e-5, "shown": "0.04 km off, 3.1e-11 of its distance"},
+    {"label": "Uranus", "off": 8.290704897194338e-12, "limit": 1e-5, "shown": "0.02 km off, 8.3e-12 of its distance"},
+    {"label": "Neptune", "off": 1.554063832917987e-11, "limit": 1e-5, "shown": "0.07 km off, 1.6e-11 of its distance"},
+    {"label": "Pluto", "off": 2.291153875657066e-11, "limit": 1e-5, "shown": "0.12 km off, 2.3e-11 of its distance"}
+  ]
+}

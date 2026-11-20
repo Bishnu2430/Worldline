@@ -56,6 +56,35 @@ fn the_papers_worked_example() {
         "R_C1 {:.0} m: Q*_RD {energy:.2} J/kg (5.3), V* {speed:.2} m/s (6.5); at 45° Q′*_RD × {raised:.2} (almost 5), V′* {oblique_speed:.1} m/s (14)",
         r_c1
     );
+    worldline_report::margins(
+        "leinhardt-stewart-example",
+        "Leinhardt & Stewart's (2012) worked example, from their scaling laws",
+    )
+    .check(
+        "Q*_RD, against 5.3 J/kg",
+        energy - 5.3,
+        0.05,
+        format!("{energy:.2} J/kg (limit: the printed digits' rounding)"),
+    )
+    .check(
+        "V*, against 6.5 m/s",
+        speed - 6.5,
+        0.05,
+        format!("{speed:.2} m/s"),
+    )
+    .check(
+        "at 45°, Q′*_RD rises by almost 5",
+        (raised - 4.75).abs(),
+        0.25,
+        format!("× {raised:.2} (counted as 4.5 to 5)"),
+    )
+    .check(
+        "at 45°, V′* against 14 m/s",
+        oblique_speed - 14.0,
+        0.5,
+        format!("{oblique_speed:.1} m/s"),
+    )
+    .save(worldline_report::here!());
     assert!((energy - 5.3).abs() <= 0.05);
     assert!((speed - 6.5).abs() <= 0.05);
     assert!(raised > 4.5 && raised < 5.0);
@@ -137,6 +166,31 @@ fn table_1s_derived_columns() {
         selected.len(),
         100.0 * worst_energy
     );
+    worldline_report::margins(
+        "leinhardt-stewart-table-1",
+        "Leinhardt & Stewart's Table 1: everything they work out from each simulation, to its printed digits",
+    )
+    .check(
+        "the impact energies, against two printed digits",
+        worst_energy,
+        0.05,
+        format!("within {:.1}% (limit 5%: 4.5% is the most 2-digit rounding allows)", 100.0 * worst_energy),
+    )
+    .check(
+        "their predicted remnants reproduced, of 39 definable rows",
+        39.0 - largest_checked as f64,
+        0.5,
+        format!(
+            "{largest_checked}, each to its printed digits; the worst {worst_largest:.4} (largest), {worst_second:.4} (second)"
+        ),
+    )
+    .check(
+        "rows of two equal remnants, which follow no stated rule",
+        unstated as f64 - 8.0,
+        0.5,
+        format!("{unstated}, not reproduced"),
+    )
+    .save(worldline_report::here!());
     assert_eq!(largest_checked, 39);
     assert_eq!(unstated, 8);
     // 2-digit rounding: 4.5% at most, for 1.1e2.
@@ -153,6 +207,10 @@ fn the_catastrophic_disruption_threshold() {
     // but not counted.
     let selected = selected_impact_simulations();
     let (mut counted, mut within) = (0, 0);
+    let mut figure = worldline_report::margins(
+        "disruption-threshold",
+        "The catastrophic disruption threshold, from nothing but the bodies, against Leinhardt & Stewart's fits",
+    );
     for row in selected.iter().step_by(3) {
         let impact = impact(&row.run);
         let ours = impact.threshold(Material::RUBBLE_PILES);
@@ -177,9 +235,24 @@ fn the_catastrophic_disruption_threshold() {
         if fitted {
             counted += 1;
             within += usize::from((0.5..=2.0).contains(&ratio));
+            let missed = if (0.5..=2.0).contains(&ratio) {
+                ""
+            } else {
+                " (the one allowed to miss)"
+            };
+            figure = figure.check(
+                &format!("γ {}, b {:.2}{missed}", row.run.mass_ratio, row.run.b),
+                (ratio / 2.0).max(0.5 / ratio),
+                1.0,
+                format!(
+                    "{ours:.0} J/kg against {:.0}: × {ratio:.2} (within a factor of 2, \"usually\": all but one)",
+                    row.threshold.value
+                ),
+            );
         }
     }
     println!("{within} of {counted} within a factor of 2");
+    figure.save(worldline_report::here!());
     assert_eq!(counted, 8);
     // "Usually": all but one.
     assert!(within >= counted - 1, "{within} of {counted}");
@@ -200,6 +273,16 @@ fn the_largest_remnants_of_every_simulation() {
         let impact = impact(run);
         let outcome = impact.outcome(Material::RUBBLE_PILES);
         (outcome.largest / impact.total_mass() - run.largest).abs()
+    };
+    let pairs = |normal: bool| -> Vec<(f64, f64)> {
+        runs.iter()
+            .filter(|r| (r.b <= 0.35) == normal)
+            .map(|run| {
+                let impact = impact(run);
+                let outcome = impact.outcome(Material::RUBBLE_PILES);
+                (run.largest, outcome.largest / impact.total_mass())
+            })
+            .collect()
     };
     let near_normal: Vec<f64> = runs.iter().filter(|r| r.b <= 0.35).map(off).collect();
     let oblique: Vec<f64> = runs.iter().filter(|r| r.b > 0.35).map(off).collect();
@@ -240,6 +323,23 @@ fn the_largest_remnants_of_every_simulation() {
         "regime matches the simulation in {hits} of {}; hit-and-run in {grazing_hits} of {hit_and_runs}",
         runs.len()
     );
+    worldline_report::lines(
+        "largest-remnants",
+        "The largest remnant of each of Leinhardt & Stewart's 189 simulations, from their scaling laws alone",
+        "simulated (share of the total mass)",
+        "predicted (share of the total mass)",
+    )
+    .dots("near-normal impacts, b ≤ 0.35", pairs(true))
+    .dots("oblique impacts", pairs(false))
+    .expected("predicted = simulated", [(0.0, 0.0), (1.0, 1.0)])
+    .expected("± 10% of the total mass", [(0.0, 0.1), (0.9, 1.0)])
+    .expected("", [(0.1, 0.0), (1.0, 0.9)])
+    .note(&format!(
+        "The median error for near-normal impacts is {normal:.3} of the total mass, within their \"about 10%\"; for \
+         oblique ones, which they say are worse, {slanted:.3}. The regime matches the simulation's in {hits} of {}.",
+        runs.len()
+    ))
+    .save(worldline_report::here!());
     assert!(normal <= 0.10, "{normal}");
 }
 

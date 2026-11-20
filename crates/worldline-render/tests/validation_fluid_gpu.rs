@@ -100,6 +100,27 @@ fn the_gpus_densities_and_forces_are_the_cores() {
         "{name}, {} particles: densities off the core's by {density:.1e} at most (limit 3e-5), accelerations by {force:.1e} of the largest (limit 1e-4)",
         gpu.len()
     );
+    worldline_report::margins(
+        "gpu-fluid-forces",
+        "The fluid on the GPU, in single precision: densities and forces against the CPU's",
+    )
+    .check(
+        "densities",
+        density,
+        3e-5,
+        format!(
+            "off by {density:.1e} at most (limit: the GPU's Newton tolerance, 10⁻⁵ of h, cubed)"
+        ),
+    )
+    .check(
+        "accelerations, of the largest",
+        force,
+        1e-4,
+        format!(
+            "off by {force:.1e} at most (limit: pressure's ρ², twice the densities', and more)"
+        ),
+    )
+    .save(worldline_report::here!());
     assert!(density < 3e-5 && force < 1e-4);
 }
 
@@ -155,6 +176,29 @@ fn left_alone_on_the_gpu_a_planet_stays_in_equilibrium() {
         moved / h,
         (0.5 * h).powi(2)
     );
+    worldline_report::margins(
+        "gpu-fluid-equilibrium",
+        "Jupiter as a fluid on the GPU, left alone for ten dynamical times",
+    )
+    .check(
+        "half-mass radius moved, against half a smoothing length",
+        moved,
+        0.5 * h,
+        format!("{:.2} h at most", moved / h),
+    )
+    .check(
+        "kinetic energy, against an oscillation that size",
+        stirred,
+        (0.5 * h).powi(2),
+        format!("{stirred:.1e} of the binding energy"),
+    )
+    .check(
+        "energy kept, against the steps' error and single precision's",
+        drift,
+        limit,
+        format!("changed by {:.1e} over {steps} steps", drift.abs()),
+    )
+    .save(worldline_report::here!());
     assert!(moved < 0.5 * h && stirred < (0.5 * h).powi(2) && drift.abs() < limit);
 }
 
@@ -302,6 +346,10 @@ fn a_fluid_planet_stretches_by_its_love_number() {
             fluid.step(&device, &queue, 10);
         }
     };
+    let mut love_figure = worldline_report::margins(
+        "love-number",
+        "A fluid planet on the GPU stretches by the n = 1 polytrope's Love number, 15/π² − 1",
+    );
     for count in [1000, 8000] {
         let (particles, k) = polytrope_particles(MASS, RADIUS, count);
         let mut fluid = Fluid::new(&device, &queue, &to_gpu(&particles), 2.0);
@@ -334,8 +382,18 @@ fn a_fluid_planet_stretches_by_its_love_number() {
             100.0 * error,
             100.0 * h
         );
+        love_figure = love_figure.check(
+            &format!("{} particles", stretched.len()),
+            error,
+            h,
+            format!(
+                "k₂ = {love:.4} against {:.4} (limit: its mean smoothing length, {h:.3} R)",
+                polytrope_love_number()
+            ),
+        );
         assert!(error < h);
     }
+    love_figure.save(worldline_report::here!());
 }
 
 /// Where a body on a parabola around a mass of `mu` (G(M + m)), closest at
@@ -421,6 +479,10 @@ fn a_planet_passing_a_star_loses_what_faber_rasio_and_willems_found() {
     // short of 1 at ξ = π(1 − h/R): SPH resolves its surface no finer.
     let (device, queue, name) = gpu();
     let (_, m, _) = units();
+    let mut figure = worldline_report::margins(
+        "faber-rasio-willems",
+        "A Jupiter passing a star 1,000 times its mass: the mass it loses, against Faber, Rasio & Willems (2005)",
+    );
     for (q, published) in [(12.0, 0.58), (15.0, 0.24), (18.0, 0.027), (22.0, 0.0)] {
         let (particles, h, _) = encounter(&device, &queue, 8000, 1000.0, q, 2.0 * 53.36);
         let core = to_core(&particles);
@@ -439,8 +501,17 @@ fn a_planet_passing_a_star_loses_what_faber_rasio_and_willems_found() {
             "{name}: closest {q} radii ({:.1} r_t): lost {lost:.4} of its mass (Faber, Rasio & Willems: {published}); limit ±{limit:.3}",
             q / 10.0
         );
+        figure = figure.check(
+            &format!("closest {:.1} r_t", q / 10.0),
+            lost - published,
+            limit,
+            format!(
+                "lost {lost:.3}, they found {published} (limit: the mass in its outermost smoothing length)"
+            ),
+        );
         assert!((lost - published).abs() < limit);
     }
+    figure.save(worldline_report::here!());
 }
 
 #[test]
@@ -474,5 +545,38 @@ fn torn_right_through_its_debris_falls_back_as_t_to_the_minus_five_thirds() {
         100.0 * times.len() as f64 / particles.len() as f64,
         (power - 5.0 / 3.0).abs() / error
     );
+    // The rate the debris comes back at, in logarithmic bins of time, and
+    // t^(−5/3) carrying the same mass after 30 times the first.
+    let t1 = 30.0 * first;
+    let last = times[times.len() - 1];
+    let bins = 24;
+    let edge = |k: usize| first * (last / first).powf(k as f64 / bins as f64);
+    let rate: Vec<(f64, f64)> = (0..bins)
+        .filter_map(|k| {
+            let (a, b) = (edge(k), edge(k + 1));
+            let n = times.iter().filter(|&&t| t >= a && t < b).count();
+            (n > 0).then(|| ((a * b).sqrt(), n as f64 / (b - a)))
+        })
+        .collect();
+    let scale = later as f64 / (1.5 * t1.powf(-2.0 / 3.0));
+    worldline_report::lines(
+        "fallback-rate",
+        "Torn right through (β = 2), the planet's debris falls back as t^(−5/3)",
+        "time after the closest approach (dynamical times)",
+        "particles coming back per dynamical time",
+    )
+    .log_x()
+    .log_y()
+    .dots("simulated on the GPU, 8,000 particles", rate)
+    .expected(
+        "t^(−5/3), with the mass that comes back after 30 times the first",
+        [(t1, scale * t1.powf(-5.0 / 3.0)), (last, scale * last.powf(-5.0 / 3.0))],
+    )
+    .note(&format!(
+        "From 30 times the first return on, by maximum likelihood: t^(−{power:.3} ± {error:.3}), 5/3 within \
+         {:.1} standard errors (limit 3).",
+        (power - 5.0 / 3.0).abs() / error
+    ))
+    .save(worldline_report::here!());
     assert!((power - 5.0 / 3.0).abs() < 3.0 * error);
 }

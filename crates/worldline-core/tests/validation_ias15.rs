@@ -33,13 +33,37 @@ fn energy_error_random_walks_at_rounding_level() {
     let e0 = newtonian_energy(&system);
     let mut ias = Ias15::new();
     let (mut steps, mut max_error) = (0.0_f64, 0.0_f64);
+    // Each orbit's largest error, and the rounding bound after it.
+    let (mut errors, mut bounds) = (Vec::new(), Vec::new());
+    let mut orbit_error = 0.0_f64;
     while system.time() < end {
         let remaining = end - system.time();
         ias.step(&mut system, &Newtonian, remaining);
         steps += 1.0;
-        max_error = max_error.max(((newtonian_energy(&system) - e0) / e0).abs());
+        let error = ((newtonian_energy(&system) - e0) / e0).abs();
+        max_error = max_error.max(error);
+        orbit_error = orbit_error.max(error);
+        let orbits = (system.time() / period).floor();
+        if orbits as usize > errors.len() {
+            errors.push((orbits, orbit_error));
+            bounds.push((orbits, 10.0 * f64::EPSILON * steps.sqrt()));
+            orbit_error = 0.0;
+        }
     }
     let bound = 10.0 * f64::EPSILON * steps.sqrt();
+    worldline_report::lines(
+        "ias15-energy",
+        "Energy over 10,000 orbits (IAS15, e = 0.5): the error random-walks at rounding level",
+        "orbits",
+        "relative energy error",
+    )
+    .log_y()
+    .series("each orbit's largest error", errors)
+    .expected("rounding bound, 10 ε √(steps taken)", bounds)
+    .note(&format!(
+        "Largest error {max_error:.1e}, under the bound of {bound:.1e} after {steps} steps. Double precision's rounding, ε = 2.2 × 10⁻¹⁶ a step, adds up as a random walk: as the square root of the steps taken."
+    ))
+    .save(worldline_report::here!());
     println!(
         "10,000 orbits in {steps} steps ({:.0} per orbit): max energy error {max_error:.1e}, rounding bound {bound:.1e}",
         steps / 10_000.0

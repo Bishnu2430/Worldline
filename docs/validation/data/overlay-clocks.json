@@ -1,0 +1,13 @@
+{
+  "id": "overlay-clocks",
+  "test": "validation_overlays::clocks_run_slow_as_worked_out_by_hand",
+  "file": "crates/worldline-core/tests/validation_overlays.rs",
+  "kind": "margins",
+  "title": "The clock overlay's rates, against hand calculations",
+  "checks": [
+    {"label": "GPS clocks' gain from gravity, GM/c²(1/R − 1/r)", "off": 2.2781588045476073e-19, "limit": 5e-19, "shown": "45.65 µs a day (limit the next order, (GM/Rc²)²)"},
+    {"label": "on Earth, with the Sun", "off": 5.581553384434264e-17, "limit": 1e-15, "shown": "slow by 1.0566e-8, 0.913 ms a day"},
+    {"label": "at 2 r_s from a black hole: √½", "off": 1.1102230246251565e-16, "limit": 1e-15, "shown": "0.7071067812"},
+    {"label": "above a spinning hole's pole at 1.9 GM/c², Kerr's g_tt", "off": 2.220446049250313e-16, "limit": 1e-12, "shown": "0.3745283610"}
+  ]
+}

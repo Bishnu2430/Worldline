@@ -1,0 +1,13 @@
+{
+  "id": "rise-and-set",
+  "test": "worldline::simulation::tests::the_sun_and_moon_rise_when_the_naval_observatory_says",
+  "file": "crates/worldline-app/src/simulation.rs",
+  "kind": "margins",
+  "title": "Every rise and set of the Sun and Moon in 2026, against the U.S. Naval Observatory's tables",
+  "checks": [
+    {"label": "Washington, DC: the Sun", "off": 32.55460113286972, "limit": 60.0, "shown": "730 events, 715 in the same minute; the largest 32.6 s off (limit a minute)"},
+    {"label": "Washington, DC: the Moon", "off": 31.585103273391724, "limit": 60.0, "shown": "705 events, 697 in the same minute; the largest 31.6 s off (limit a minute)"},
+    {"label": "Sydney: the Sun", "off": 33.16570222377777, "limit": 60.0, "shown": "730 events, 715 in the same minute; the largest 33.2 s off (limit a minute)"},
+    {"label": "Sydney: the Moon", "off": 32.138389348983765, "limit": 60.0, "shown": "705 events, 690 in the same minute; the largest 32.1 s off (limit a minute)"}
+  ]
+}

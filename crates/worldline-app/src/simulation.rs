@@ -2460,6 +2460,7 @@ mod tests {
                 .collect();
         let mut worst: f64 = 0.0;
         let mut missing = Vec::new();
+        let (mut solar_dots, mut lunar_dots) = (Vec::new(), Vec::new());
         for (solar, expected) in &canon {
             let Some(ours) = found.iter().find(|e| {
                 matches!(e, Eclipse::Solar { .. }) == *solar
@@ -2508,6 +2509,12 @@ mod tests {
             };
             let off = (jd(ours.time()) - expected.jd_td) * DAY;
             worst = worst.max(off.abs());
+            let year = 2000.0 + (expected.jd_td - 2_451_545.0) / 365.25;
+            if *solar {
+                solar_dots.push((year, off));
+            } else {
+                lunar_dots.push((year, off));
+            }
             println!(
                 "{} {:<3} {} {:>+6.1} s  γ {:+.4} ({:+.4})  magnitudes {:.4?} ({:.4?})",
                 if *solar { "solar" } else { "lunar" },
@@ -2523,6 +2530,24 @@ mod tests {
             assert!(off.abs() < 60.0);
         }
         println!("worst: {worst:.1} s");
+        worldline_report::lines(
+            "eclipses-2026-2030",
+            "Every solar and lunar eclipse of 2026–2030, found in the app's own simulation",
+            "year",
+            "greatest eclipse, from NASA's canon (s)",
+        )
+        .dots("solar eclipses", solar_dots)
+        .dots("lunar eclipses", lunar_dots)
+        .expected("limit: a minute", [(2026.0, 60.0), (2031.0, 60.0)])
+        .expected("", [(2026.0, -60.0), (2031.0, -60.0)])
+        .note(&format!(
+            "{} of NASA's {} eclipses found (Five Millennium Canons, Espenak & Meeus), each of the same type, and \
+             {} found in all: none extra. The worst is {worst:.1} s from the canon's time.",
+            canon.len() - missing.len(),
+            canon.len(),
+            found.len()
+        ))
+        .save(worldline_report::here!());
         assert!(missing.is_empty() && found.len() == canon.len());
     }
 
@@ -2909,6 +2934,10 @@ mod tests {
         };
         let (year_from, year_to) = (julian_date(2026, 1, 1, 0.0), julian_date(2027, 1, 1, 0.0));
         let mut worst: f64 = 0.0;
+        let mut figure = worldline_report::margins(
+            "rise-and-set",
+            "Every rise and set of the Sun and Moon in 2026, against the U.S. Naval Observatory's tables",
+        );
         for site in worldline_data::sky_sites() {
             let place = Place {
                 latitude: site.latitude.to_radians(),
@@ -2947,11 +2976,21 @@ mod tests {
                     name,
                     theirs.len(),
                 );
+                figure = figure.check(
+                    &format!("{}: the {name}", site.name),
+                    largest,
+                    60.0,
+                    format!(
+                        "{} events, {same_minute} in the same minute; the largest {largest:.1} s off (limit a minute)",
+                        theirs.len()
+                    ),
+                );
                 assert!(in_year.abs_diff(theirs.len()) <= 1);
                 worst = worst.max(largest);
             }
         }
         println!("worst: {worst:.1} s");
+        figure.save(worldline_report::here!());
         assert!(worst < 60.0);
     }
 
@@ -2975,6 +3014,7 @@ mod tests {
         moments.dedup();
         let mut sim = Simulation::solar_system(DAY);
         let (mut worst, mut worst_at) = (0.0f64, String::new());
+        let mut each: Vec<(String, f64)> = Vec::new();
         for jd_ut in moments {
             let jd = sim.time_scales().tdb(jd_ut);
             sim.advance_by(sim.time_at(jd) - sim.time());
@@ -3016,9 +3056,26 @@ mod tests {
                     worst = off;
                     worst_at = format!("{} from {}", point.body, point.site);
                 }
+                match each.iter_mut().find(|(name, _)| *name == point.body) {
+                    Some(entry) => entry.1 = entry.1.max(off),
+                    None => each.push((point.body.clone(), off)),
+                }
             }
         }
         println!("worst: {worst:.1}″, {worst_at}");
+        let mut figure = worldline_report::margins(
+            "sky-from-a-city",
+            "The Sun, Moon and planets' altitude and azimuth from two cities in 2026, against JPL Horizons",
+        );
+        for (body, off) in each {
+            figure = figure.check(
+                &body,
+                off,
+                12.5,
+                format!("{off:.1}″ at worst (limit 12.5″: nutation's 11.4″, left out, and under 1″ more)"),
+            );
+        }
+        figure.save(worldline_report::here!());
         assert!(worst < 12.5);
     }
 
@@ -3081,6 +3138,7 @@ mod tests {
         );
         let rows = &table.rows;
         let (mut worst_across, mut worst_limit) = (0.0f64, 0.0f64);
+        let mut across_curve = Vec::new();
         for (k, row) in rows.iter().enumerate() {
             let t = sim.time_at(row.jd_ut + delta_t);
             let (central, limits) = moment(&ephemeris, t, &earth).expect("the axis meets Earth");
@@ -3097,6 +3155,7 @@ mod tests {
             let along = off.dot(way.normalize());
             let across = (off - way.normalize() * along).length();
             worst_across = worst_across.max(across);
+            across_curve.push(((row.jd_ut - from + 0.5) * 24.0, across / 1e3));
             // Each limit likewise across NASA's: the distance from its
             // line, along the ground.
             let limit_offs: Vec<String> = [|r: &PathRow| r.north, |r: &PathRow| r.south]
@@ -3134,6 +3193,27 @@ mod tests {
             worst_across / 1e3,
             worst_limit / 1e3
         );
+        worldline_report::lines(
+            "eclipse-path-2026",
+            "The total solar eclipse of 12 August 2026: the central line against NASA's path, every 2 minutes",
+            "hours UT on 12 August 2026",
+            "central line across NASA's (km)",
+        )
+        .series("the app's simulation, from its 2025 snapshot", across_curve)
+        .expected("limit: 3 km, the roadmap's few", [(16.0, 3.0), (19.0, 3.0)])
+        .note(&format!(
+            "From Siberia to Spain. The worst {:.2} km across; the path's northern and southern limits within {:.2} km (printed, not checked). At the elements' \
+             t₀, l₁ {:.6} ({:.6}), l₂ {:.6} ({:.6}), tan f₁ {:.7} ({:.7}): NASA's Besselian elements in brackets.",
+            worst_across / 1e3,
+            worst_limit / 1e3,
+            shadow.l1,
+            b.l1,
+            shadow.l2,
+            b.l2,
+            shadow.tan_f1,
+            b.tan_f1
+        ))
+        .save(worldline_report::here!());
         assert!(worst_across < 3e3);
     }
 
@@ -3150,6 +3230,10 @@ mod tests {
         let reference = worldline_data::planets_2026_10_28();
         let mut sim = Simulation::solar_system(DAY);
         sim.advance_by(sim.time_at(reference.epoch_jd_tdb));
+        let mut figure = worldline_report::margins(
+            "planets-today",
+            "Today's planets: the app's simulation from 1 January 2025 to 28 October 2026, against JPL",
+        );
         for expected in &reference.bodies {
             let simulated = &sim.bodies[sim.index_of(&expected.name).unwrap()];
             let error = (simulated.position - expected.position).length();
@@ -3160,11 +3244,30 @@ mod tests {
                 error / 1e3,
                 error / distance
             );
+            if expected.name == "Earth" {
+                figure = figure.check(
+                    "Earth, against 1 part in 10,000 of an AU",
+                    error,
+                    1e-4 * AU,
+                    format!("{:.2} km off", error / 1e3),
+                );
+            }
+            figure = figure.check(
+                &expected.name,
+                error / distance,
+                1e-5,
+                format!(
+                    "{:.1} km off, {:.1e} of its distance",
+                    error / 1e3,
+                    error / distance
+                ),
+            );
             assert!(error / distance < 1e-5, "{}", expected.name);
             if expected.name == "Earth" {
                 assert!(error < 1e-4 * AU);
             }
         }
+        figure.save(worldline_report::here!());
     }
 
     #[test]
@@ -3193,6 +3296,17 @@ mod tests {
             "the simulation reads {} UTC, {off:.3} s behind the computer's clock",
             crate::calendar::to_the_second(simulated)
         );
+        worldline_report::margins(
+            "now",
+            "Now: caught up to the computer's clock, the simulation's time read back in UTC",
+        )
+        .check(
+            "the simulation's time against the clock's",
+            off,
+            1.0,
+            format!("{off:.3} s behind (limit a second)"),
+        )
+        .save(worldline_report::here!());
         assert!(off.abs() < 1.0);
     }
 
@@ -3257,6 +3371,23 @@ mod tests {
             fluid / 1e3,
             closest / fluid
         );
+        worldline_report::margins(
+            "point-to-fluid",
+            "A planet stays a point until tides would stretch it by 1%, at 5.34 tidal radii",
+        )
+        .check(
+            "Jupiter falling toward a black hole stops there, within 1% beyond",
+            (stopped / fluid - 1.0 - REACHED / 2.0) / (REACHED / 2.0),
+            1.0,
+            format!("at {:.4} of that distance", stopped / fluid),
+        )
+        .check(
+            "never closer before",
+            fluid,
+            closest,
+            format!("closest {:.4} of it", closest / fluid),
+        )
+        .save(worldline_report::here!());
         assert_eq!(reached, Some(0));
         assert!(stopped >= fluid && stopped <= fluid * (1.0 + REACHED));
         assert!(closest >= fluid);
@@ -3463,6 +3594,26 @@ mod tests {
         let mut b = Simulation::load(&text, 10.0 * DAY).unwrap();
         a.update(1.0, GENEROUS, &Limits::default());
         b.update(1.0, GENEROUS, &Limits::default());
+        // Text compared character by character: any difference is a whole
+        // character, so the limit is half of one.
+        let differing = |x: &str, y: &str| {
+            (x.chars().zip(y.chars()).filter(|(p, q)| p != q).count() + x.len().abs_diff(y.len()))
+                as f64
+        };
+        worldline_report::margins("save-and-load", "Save and load: lossless")
+            .check(
+                "a save loads back bit for bit",
+                differing(&loaded.save(), &text),
+                0.5,
+                format!("{} characters, every number the same", text.len()),
+            )
+            .check(
+                "two loads of the same save run identically",
+                differing(&a.save(), &b.save()),
+                0.5,
+                "the same after a simulated 10 days".to_string(),
+            )
+            .save(worldline_report::here!());
         assert_eq!(a.save(), b.save());
         assert!(Simulation::load("not a save", DAY).is_err());
     }
@@ -3926,6 +4077,20 @@ mod tests {
             clock.behind,
             rate - 1.480_826_867_41e-8
         );
+        worldline_report::margins(
+            "earths-clock",
+            "Earth's clock against the solar system barycenter's, over ten years",
+        )
+        .check(
+            "its rate, against the IAU's L_C = 1.48082686741 × 10⁻⁸",
+            rate - 1.480_826_867_41e-8,
+            1.2e-13,
+            format!(
+                "{rate:.12e}; it fell {:.4} s behind (limit: Saturn's and Jupiter's long terms, left in)",
+                clock.behind
+            ),
+        )
+        .save(worldline_report::here!());
         assert!((rate - 1.480_826_867_41e-8).abs() < 1.2e-13);
     }
 }

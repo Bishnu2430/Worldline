@@ -1,0 +1,17 @@
+{
+  "id": "axial-tilts",
+  "test": "validation_rotation::axial_tilts_match_nasa",
+  "file": "crates/worldline-data/tests/validation_rotation.rs",
+  "kind": "margins",
+  "title": "Planets' axial tilts: IAU rotation models and the simulated orbits, against NASA's fact sheet",
+  "checks": [
+    {"label": "Mercury", "off": 3.2416389924579125e-5, "limit": 0.1, "shown": "0.034° against NASA's 0.034° (limit 0.1°, its last digit's rounding and a little more)"},
+    {"label": "Venus", "off": 0.038631912633348975, "limit": 0.1, "shown": "177.361° against NASA's 177.4° (limit 0.1°, its last digit's rounding and a little more)"},
+    {"label": "Earth", "off": 0.03636492282955217, "limit": 0.1, "shown": "23.436° against NASA's 23.4° (limit 0.1°, its last digit's rounding and a little more)"},
+    {"label": "Mars", "off": 0.005013193476251843, "limit": 0.1, "shown": "25.195° against NASA's 25.2° (limit 0.1°, its last digit's rounding and a little more)"},
+    {"label": "Jupiter", "off": 0.018439108953180572, "limit": 0.1, "shown": "3.118° against NASA's 3.1° (limit 0.1°, its last digit's rounding and a little more)"},
+    {"label": "Saturn", "off": 0.030688012317000357, "limit": 0.1, "shown": "26.731° against NASA's 26.7° (limit 0.1°, its last digit's rounding and a little more)"},
+    {"label": "Uranus", "off": 0.030131951097686738, "limit": 0.1, "shown": "97.770° against NASA's 97.8° (limit 0.1°, its last digit's rounding and a little more)"},
+    {"label": "Neptune", "off": 0.0501107362729698, "limit": 0.1, "shown": "28.350° against NASA's 28.3° (limit 0.1°, its last digit's rounding and a little more)"}
+  ]
+}

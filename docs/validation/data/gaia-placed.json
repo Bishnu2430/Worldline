@@ -1,0 +1,10 @@
+{
+  "id": "gaia-placed",
+  "test": "validation_gaia_nearby_stars::each_is_where_gaia_measured_it",
+  "file": "crates/worldline-data/tests/validation_gaia_nearby_stars.rs",
+  "kind": "margins",
+  "title": "Gaia's stars within 50 pc, placed in the galaxy and measured back as Gaia measured them",
+  "checks": [
+    {"label": "all 21480 stars: place, distance, motions", "off": 0.07133976346231967, "limit": 1.0, "shown": "the worst off by 0.071 of what rounding allows (10⁻¹² of the places and speeds)"}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "parker-spiral",
+  "test": "validation_sun_reach::the_parker_spiral_matches_the_magnetic_field_measured_at_earth",
+  "file": "crates/worldline-data/tests/validation_sun_reach.rs",
+  "kind": "margins",
+  "title": "The Parker spiral against a year of solar wind measured at Earth (NASA OMNI)",
+  "checks": [
+    {"label": "the year's daily difference, against 3 standard errors", "off": 0.034752866278801926, "limit": 0.06283203869667031, "shown": "measured 44.3°, predicted 41.9°: difference +2.0° ± 1.2° over 365 days"}
+  ]
+}

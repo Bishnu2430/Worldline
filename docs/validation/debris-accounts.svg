@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="800" viewBox="0 0 760 800">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">What a collision throws off: mass, momentum and energy before and after, in five regimes</text>
+<text x="20.0" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#6b7785" text-anchor="start" font-weight="normal">how far each result is from what's expected, as a share of the limit it must stay within</text>
+<line x1="250.0" y1="58" x2="250.0" y2="752" stroke="#e4e7eb"/>
+<text x="250.0" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−16</tspan></text>
+<line x1="278.2" y1="58" x2="278.2" y2="752" stroke="#e4e7eb"/>
+<text x="278.2" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−15</tspan></text>
+<line x1="306.5" y1="58" x2="306.5" y2="752" stroke="#e4e7eb"/>
+<text x="306.5" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−14</tspan></text>
+<line x1="334.7" y1="58" x2="334.7" y2="752" stroke="#e4e7eb"/>
+<text x="334.7" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−13</tspan></text>
+<line x1="362.9" y1="58" x2="362.9" y2="752" stroke="#e4e7eb"/>
+<text x="362.9" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−12</tspan></text>
+<line x1="391.2" y1="58" x2="391.2" y2="752" stroke="#e4e7eb"/>
+<text x="391.2" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−11</tspan></text>
+<line x1="419.4" y1="58" x2="419.4" y2="752" stroke="#e4e7eb"/>
+<text x="419.4" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−10</tspan></text>
+<line x1="447.6" y1="58" x2="447.6" y2="752" stroke="#e4e7eb"/>
+<text x="447.6" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−9</tspan></text>
+<line x1="475.9" y1="58" x2="475.9" y2="752" stroke="#e4e7eb"/>
+<text x="475.9" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−8</tspan></text>
+<line x1="504.1" y1="58" x2="504.1" y2="752" stroke="#e4e7eb"/>
+<text x="504.1" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−7</tspan></text>
+<line x1="532.4" y1="58" x2="532.4" y2="752" stroke="#e4e7eb"/>
+<text x="532.4" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−6</tspan></text>
+<line x1="560.6" y1="58" x2="560.6" y2="752" stroke="#e4e7eb"/>
+<text x="560.6" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−5</tspan></text>
+<line x1="588.8" y1="58" x2="588.8" y2="752" stroke="#e4e7eb"/>
+<text x="588.8" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−4</tspan></text>
+<line x1="617.1" y1="58" x2="617.1" y2="752" stroke="#e4e7eb"/>
+<text x="617.1" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−3</tspan></text>
+<line x1="645.3" y1="58" x2="645.3" y2="752" stroke="#e4e7eb"/>
+<text x="645.3" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−2</tspan></text>
+<line x1="673.5" y1="58" x2="673.5" y2="752" stroke="#e4e7eb"/>
+<text x="673.5" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−1</tspan></text>
+<line x1="701.8" y1="58" x2="701.8" y2="752" stroke="#e4e7eb"/>
+<text x="701.8" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">1</text>
+<line x1="730.0" y1="58" x2="730.0" y2="752" stroke="#e4e7eb"/>
+<text x="730.0" y="768.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="701.8" y1="54" x2="701.8" y2="752" stroke="#c92a2a" stroke-width="2"/>
+<text x="701.8" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#c92a2a" text-anchor="middle" font-weight="normal">limit</text>
+<text x="20.0" y="78.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">9 km/s, b 0.3, Merging: mass</text>
+<rect x="250" y="68" width="1.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="256.0" y="79.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
+<text x="250.0" y="94.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 0.0e0 (limit 130 ε = 2.9e-14)</text>
+<text x="20.0" y="112.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">9 km/s, b 0.3, Merging: momentum</text>
+<rect x="250" y="102" width="320.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="128.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 6.5e-19 of its scale</text>
+<text x="20.0" y="146.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">9 km/s, b 0.3, Merging: kinetic …</text>
+<rect x="250" y="136" width="1.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="162.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 3.8e-39 of the energy's scale</text>
+<text x="20.0" y="180.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">9 km/s, b 0.3, Merging: energy …</text>
+<rect x="250" y="170" width="1.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="256.0" y="181.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
+<text x="250.0" y="196.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 0.0e0; heat 3.06e31 J</text>
+<text x="20.0" y="214.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">14 km/s, b 0.3, PartialAccretion: …</text>
+<rect x="250" y="204" width="431.8" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="230.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 5.7e-15 (limit 130 ε = 2.9e-14)</text>
+<text x="20.0" y="248.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">14 km/s, b 0.3, PartialAccretion: …</text>
+<rect x="250" y="238" width="392.7" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="264.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 2.3e-16 of its scale</text>
+<text x="20.0" y="282.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">14 km/s, b 0.3, PartialAccretion: …</text>
+<rect x="250" y="272" width="350.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="298.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 7.2e-18 of the energy's scale</text>
+<text x="20.0" y="316.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">14 km/s, b 0.3, PartialAccretion: …</text>
+<rect x="250" y="306" width="1.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="256.0" y="317.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
+<text x="250.0" y="332.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 0.0e0; heat 4.46e31 J</text>
+<text x="20.0" y="350.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">40 km/s, b 0.3, Erosion: mass</text>
+<rect x="250" y="340" width="429.1" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="366.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 4.6e-15 (limit 130 ε = 2.9e-14)</text>
+<text x="20.0" y="384.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">40 km/s, b 0.3, Erosion: momentum</text>
+<rect x="250" y="374" width="407.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="400.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 7.5e-16 of its scale</text>
+<text x="20.0" y="418.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">40 km/s, b 0.3, Erosion: kinetic …</text>
+<rect x="250" y="408" width="1.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="256.0" y="419.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
+<text x="250.0" y="434.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 0.0e0 of the energy's scale</text>
+<text x="20.0" y="452.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">40 km/s, b 0.3, Erosion: energy …</text>
+<rect x="250" y="442" width="1.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="256.0" y="453.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
+<text x="250.0" y="468.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 0.0e0; heat 3.39e32 J</text>
+<text x="20.0" y="486.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">75 km/s, b 0.3, SuperCatastrophic: …</text>
+<rect x="250" y="476" width="410.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="502.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 1.0e-15 (limit 130 ε = 2.9e-14)</text>
+<text x="20.0" y="520.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">75 km/s, b 0.3, SuperCatastrophic: …</text>
+<rect x="250" y="510" width="389.1" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="536.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 1.7e-16 of its scale</text>
+<text x="20.0" y="554.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">75 km/s, b 0.3, SuperCatastrophic: …</text>
+<rect x="250" y="544" width="370.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="570.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 3.8e-17 of the energy's scale</text>
+<text x="20.0" y="588.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">75 km/s, b 0.3, SuperCatastrophic: …</text>
+<rect x="250" y="578" width="1.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="256.0" y="589.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
+<text x="250.0" y="604.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 0.0e0; heat 1.40e33 J</text>
+<text x="20.0" y="622.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">16 km/s, b 0.8, HitAndRun: mass</text>
+<rect x="250" y="612" width="432.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="638.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 6.0e-15 (limit 130 ε = 2.9e-14)</text>
+<text x="20.0" y="656.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">16 km/s, b 0.8, HitAndRun: momentum</text>
+<rect x="250" y="646" width="398.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="672.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 3.7e-16 of its scale</text>
+<text x="20.0" y="690.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">16 km/s, b 0.8, HitAndRun: kinetic …</text>
+<rect x="250" y="680" width="1.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="256.0" y="691.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
+<text x="250.0" y="706.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 0.0e0 of the energy's scale</text>
+<text x="20.0" y="724.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">16 km/s, b 0.8, HitAndRun: energy …</text>
+<rect x="250" y="714" width="1.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="256.0" y="725.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
+<text x="250.0" y="740.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">off by 0.0e0; heat 1.47e31 J</text>
+<text x="250.0" y="786.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">share of the limit (logarithmic): under 1 passes</text>
+</svg>

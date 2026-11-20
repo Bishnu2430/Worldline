@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="488" viewBox="0 0 760 488">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">The catastrophic disruption threshold, from nothing but the bodies, against Leinhardt &amp; Stewart's fits</text>
+<text x="20.0" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#6b7785" text-anchor="start" font-weight="normal">how far each result is from what's expected, as a share of the limit it must stay within</text>
+<line x1="250.0" y1="58" x2="250.0" y2="440" stroke="#e4e7eb"/>
+<text x="250.0" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−6</tspan></text>
+<line x1="318.6" y1="58" x2="318.6" y2="440" stroke="#e4e7eb"/>
+<text x="318.6" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−5</tspan></text>
+<line x1="387.1" y1="58" x2="387.1" y2="440" stroke="#e4e7eb"/>
+<text x="387.1" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−4</tspan></text>
+<line x1="455.7" y1="58" x2="455.7" y2="440" stroke="#e4e7eb"/>
+<text x="455.7" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−3</tspan></text>
+<line x1="524.3" y1="58" x2="524.3" y2="440" stroke="#e4e7eb"/>
+<text x="524.3" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−2</tspan></text>
+<line x1="592.9" y1="58" x2="592.9" y2="440" stroke="#e4e7eb"/>
+<text x="592.9" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−1</tspan></text>
+<line x1="661.4" y1="58" x2="661.4" y2="440" stroke="#e4e7eb"/>
+<text x="661.4" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">1</text>
+<line x1="730.0" y1="58" x2="730.0" y2="440" stroke="#e4e7eb"/>
+<text x="730.0" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="661.4" y1="54" x2="661.4" y2="440" stroke="#c92a2a" stroke-width="2"/>
+<text x="661.4" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#c92a2a" text-anchor="middle" font-weight="normal">limit</text>
+<text x="20.0" y="78.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">γ 1, b 0.00</text>
+<rect x="250" y="68" width="392.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="98.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">114 J/kg against 110: × 1.04 (within a factor of 2, &quot;usually&quot;: all but one)</text>
+<text x="20.0" y="124.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">γ 0.25, b 0.00</text>
+<rect x="250" y="114" width="391.9" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="144.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">125 J/kg against 130: × 0.96 (within a factor of 2, &quot;usually&quot;: all but one)</text>
+<text x="20.0" y="170.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">γ 0.25, b 0.35</text>
+<rect x="250" y="160" width="400.7" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="190.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">136 J/kg against 190: × 0.72 (within a factor of 2, &quot;usually&quot;: all but one)</text>
+<text x="20.0" y="216.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">γ 0.1, b 0.00</text>
+<rect x="250" y="206" width="398.8" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="236.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">209 J/kg against 160: × 1.31 (within a factor of 2, &quot;usually&quot;: all but one)</text>
+<text x="20.0" y="262.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">γ 0.1, b 0.35</text>
+<rect x="250" y="252" width="398.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="282.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">209 J/kg against 270: × 0.77 (within a factor of 2, &quot;usually&quot;: all but one)</text>
+<text x="20.0" y="308.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">γ 0.025, b 0.00</text>
+<rect x="250" y="298" width="391.9" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="328.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">616 J/kg against 640: × 0.96 (within a factor of 2, &quot;usually&quot;: all but one)</text>
+<text x="20.0" y="354.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">γ 0.025, b 0.35</text>
+<rect x="250" y="344" width="395.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="374.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">616 J/kg against 720: × 0.86 (within a factor of 2, &quot;usually&quot;: all but one)</text>
+<text x="20.0" y="400.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">γ 0.025, b 0.70 (the one allowed to</text>
+<text x="20.0" y="413.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">miss)</text>
+<rect x="250" y="390" width="412.7" height="14" fill="#d9480f" rx="2"/>
+<text x="250.0" y="420.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">959 J/kg against 2000: × 0.48 (within a factor of 2, &quot;usually&quot;: all but one)</text>
+<text x="250.0" y="474.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">share of the limit (logarithmic): under 1 passes</text>
+</svg>

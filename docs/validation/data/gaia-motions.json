@@ -1,0 +1,11 @@
+{
+  "id": "gaia-motions",
+  "test": "validation_gaia_nearby_stars::they_move_as_the_suns_motion_against_its_neighbors_says",
+  "file": "crates/worldline-data/tests/validation_gaia_nearby_stars.rs",
+  "kind": "margins",
+  "title": "Gaia's neighbors move on average as the Sun's motion against them says (Schönrich et al. 2010)",
+  "checks": [
+    {"label": "toward the galaxy's center (U)", "off": 1.1913610596322837, "limit": 3.832231923190271, "shown": "-9.91 ± 0.26 km/s against -11.10: 0.93 standard deviations (limit 3)"},
+    {"label": "toward its north pole (W)", "off": 0.38486649295693276, "limit": 1.9137652068434203, "shown": "-7.63 ± 0.14 km/s against -7.25: 0.60 standard deviations (limit 3)"}
+  ]
+}

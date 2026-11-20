@@ -1,0 +1,13 @@
+{
+  "id": "faber-rasio-willems",
+  "test": "validation_fluid_gpu::a_planet_passing_a_star_loses_what_faber_rasio_and_willems_found",
+  "file": "crates/worldline-render/tests/validation_fluid_gpu.rs",
+  "kind": "margins",
+  "title": "A Jupiter passing a star 1,000 times its mass: the mass it loses, against Faber, Rasio & Willems (2005)",
+  "checks": [
+    {"label": "closest 1.2 r_t", "off": 0.001006972526665817, "limit": 0.03559213155719099, "shown": "lost 0.581, they found 0.58 (limit: the mass in its outermost smoothing length)"},
+    {"label": "closest 1.5 r_t", "off": 0.006824538382928069, "limit": 0.03559210593125639, "shown": "lost 0.233, they found 0.24 (limit: the mass in its outermost smoothing length)"},
+    {"label": "closest 1.8 r_t", "off": 0.003321052119509702, "limit": 0.03559212699438252, "shown": "lost 0.024, they found 0.027 (limit: the mass in its outermost smoothing length)"},
+    {"label": "closest 2.2 r_t", "off": 0.0, "limit": 0.035592081249633756, "shown": "lost 0.000, they found 0 (limit: the mass in its outermost smoothing length)"}
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "major-moons-vs-jpl",
+  "test": "validation_moons::moons_match_jpl_after_30_days",
+  "file": "crates/worldline-data/tests/validation_moons.rs",
+  "kind": "margins",
+  "title": "21 major moons after 30 days against NASA JPL: each within its own radius",
+  "checks": [
+    {"label": "Phobos (Mars)", "off": 99.61242837239355, "limit": 11166.7, "shown": "0.10 km from JPL; radius 11 km"},
+    {"label": "Deimos (Mars)", "off": 283.40408530472644, "limit": 6300.0, "shown": "0.28 km from JPL; radius 6 km"},
+    {"label": "Io (Jupiter)", "off": 780.149991564333, "limit": 1821500.0, "shown": "0.78 km from JPL; radius 1822 km"},
+    {"label": "Europa (Jupiter)", "off": 984.9574884584927, "limit": 1560800.0, "shown": "0.98 km from JPL; radius 1561 km"},
+    {"label": "Ganymede (Jupiter)", "off": 448.82870526343424, "limit": 2631200.0, "shown": "0.45 km from JPL; radius 2631 km"},
+    {"label": "Callisto (Jupiter)", "off": 1515.9095961561557, "limit": 2410300.0, "shown": "1.52 km from JPL; radius 2410 km"},
+    {"label": "Mimas (Saturn)", "off": 12914.734381253062, "limit": 198366.7, "shown": "12.91 km from JPL; radius 198 km"},
+    {"label": "Enceladus (Saturn)", "off": 1297.6992088661264, "limit": 252100.0, "shown": "1.30 km from JPL; radius 252 km"},
+    {"label": "Tethys (Saturn)", "off": 8207.900765964867, "limit": 531000.0, "shown": "8.21 km from JPL; radius 531 km"},
+    {"label": "Dione (Saturn)", "off": 79.9075771161743, "limit": 561433.3, "shown": "0.08 km from JPL; radius 561 km"},
+    {"label": "Rhea (Saturn)", "off": 84.52644895113785, "limit": 763500.0, "shown": "0.08 km from JPL; radius 764 km"},
+    {"label": "Titan (Saturn)", "off": 257.2011482895189, "limit": 2574800.0, "shown": "0.26 km from JPL; radius 2575 km"},
+    {"label": "Hyperion (Saturn)", "off": 170.0301183882449, "limit": 138600.0, "shown": "0.17 km from JPL; radius 139 km"},
+    {"label": "Iapetus (Saturn)", "off": 56.24570827604106, "limit": 734500.0, "shown": "0.06 km from JPL; radius 734 km"},
+    {"label": "Miranda (Uranus)", "off": 799.3652447943375, "limit": 235833.30000000002, "shown": "0.80 km from JPL; radius 236 km"},
+    {"label": "Ariel (Uranus)", "off": 560.5528275171914, "limit": 578900.0, "shown": "0.56 km from JPL; radius 579 km"},
+    {"label": "Umbriel (Uranus)", "off": 181.7884646274695, "limit": 584700.0, "shown": "0.18 km from JPL; radius 585 km"},
+    {"label": "Titania (Uranus)", "off": 430.2835006140295, "limit": 788900.0, "shown": "0.43 km from JPL; radius 789 km"},
+    {"label": "Oberon (Uranus)", "off": 149.04474746245359, "limit": 761400.0, "shown": "0.15 km from JPL; radius 761 km"},
+    {"label": "Triton (Neptune)", "off": 11266.711825608727, "limit": 1352600.0, "shown": "11.27 km from JPL; radius 1353 km"},
+    {"label": "Charon (Pluto)", "off": 331.6343571690666, "limit": 606000.0, "shown": "0.33 km from JPL; radius 606 km"}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "sun-light-bending",
+  "test": "validation_lensing::light_grazing_the_sun_is_bent_by_1_75_arcseconds",
+  "file": "crates/worldline-core/tests/validation_lensing.rs",
+  "kind": "margins",
+  "title": "Light grazing the Sun is bent by 1.75″",
+  "checks": [
+    {"label": "the roadmap's 1.75″", "off": 0.0012012729478583228, "limit": 0.005, "shown": "1.7512013″ (limit: the last digit's rounding)"},
+    {"label": "Einstein's 4GM/c²R plus the next order, (15π/4)(GM/c²R)²", "off": 1.9617430706924917e-10, "limit": 1e-9, "shown": "1.7512013″: what's left is the third order, 10⁻¹⁰″"}
+  ]
+}

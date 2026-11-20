@@ -1,0 +1,12 @@
+{
+  "id": "deep-sky-galactic",
+  "test": "validation_clusters_and_galaxies::their_galactic_coordinates_are_the_catalogues",
+  "file": "crates/worldline-data/tests/validation_clusters_and_galaxies.rs",
+  "kind": "margins",
+  "title": "Clusters, nebulae and satellite galaxies: galactic coordinates as their catalogues print them",
+  "checks": [
+    {"label": "globular clusters: the worst, NGC 6638", "off": 0.9405124770416917, "limit": 1.0, "shown": "1.7738″ off (limit: half the last digit printed, and 0.1″ for the frames)"},
+    {"label": "open clusters: the worst, M48", "off": 0.983548724287262, "limit": 1.0, "shown": "17.8022″ off (limit: half the last digit printed, and 0.1″ for the frames)"},
+    {"label": "satellite galaxies: the worst, Pegasus IV", "off": 0.24798328790482274, "limit": 1.0, "shown": "0.0248″ off (limit: half the last digit printed, and 0.1″ for the frames)"}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "galaxy-swarm-density",
+  "test": "validation_galaxy_stars::left_alone_the_swarm_keeps_the_models_density",
+  "file": "crates/worldline-data/tests/validation_galaxy_stars.rs",
+  "kind": "margins",
+  "title": "The galaxy's 30,000 stars, left alone, keep McMillan's (2017) density",
+  "checks": [
+    {"label": "as drawn: χ² against the model, over its bins", "off": 145.17722453140254, "limit": 193.9363487984904, "shown": "χ² 145.2 over 137 degrees of freedom (limit 193.9: exceeded by chance once in a thousand)"},
+    {"label": "a galactic year on, 216 million years", "off": 130.34567037662535, "limit": 193.9363487984904, "shown": "χ² 130.3 over 137 degrees of freedom"}
+  ]
+}

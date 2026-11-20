@@ -1,0 +1,10 @@
+{
+  "id": "sph-convergence",
+  "test": "validation_sph::with_more_particles_it_comes_closer_to_lane_and_emdens_structure",
+  "file": "crates/worldline-core/tests/validation_sph.rs",
+  "kind": "margins",
+  "title": "SPH converges on Lane–Emden's structure: four times the particles",
+  "checks": [
+    {"label": "the half-mass radius's error at 4,000 particles, against 0.4 of 1,000's", "off": 0.0010245031096121071, "limit": 0.00480764673770433, "shown": "0.0010 R off Lane–Emden's 0.6066 R (0.17%), against 0.0120 R at 1,000 (error ∝ h², h ∝ N^(−1/3))"}
+  ]
+}

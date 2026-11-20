@@ -1,0 +1,14 @@
+{
+  "id": "notable-masses",
+  "test": "validation_notable_objects::the_roadmap_objects_load_with_their_published_masses",
+  "file": "crates/worldline-data/tests/validation_notable_objects.rs",
+  "kind": "margins",
+  "title": "The roadmap's notable objects load with exactly their published masses",
+  "checks": [
+    {"label": "Sagittarius A*", "off": 0.0, "limit": 9.541256673628595e-10, "shown": "4.297e6 Suns, as published"},
+    {"label": "TON 618", "off": 0.0, "limit": 1.4670341563940346e-5, "shown": "6.606934480075964e10 Suns, as published"},
+    {"label": "M87*", "off": 0.0, "limit": 1.4432899320127035e-6, "shown": "6.5e9 Suns, as published"},
+    {"label": "PSR B1913+16", "off": 0.0, "limit": 3.19300141882195e-16, "shown": "1.438e0 Suns, as published"},
+    {"label": "PSR B1913+16 companion", "off": 0.0, "limit": 3.086420008457935e-16, "shown": "1.39e0 Suns, as published"}
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "mars-lumpy-gravity",
+  "test": "validation_moons::mars_lumpy_gravity_keeps_phobos_and_deimos_on_track",
+  "file": "crates/worldline-data/tests/validation_moons.rs",
+  "kind": "margins",
+  "title": "Phobos and Deimos after 30 days against JPL, with and without Mars's lumpy (Tharsis) gravity",
+  "checks": [
+    {"label": "Phobos with the lumps: within its radius", "off": 99.61241219436236, "limit": 11166.7, "shown": "0.10 km from JPL; radius 11.2 km"},
+    {"label": "Deimos with the lumps: within its radius", "off": 283.4040856418275, "limit": 6300.0, "shown": "0.28 km from JPL; radius 6.3 km"},
+    {"label": "Phobos without them: farther than its radius", "off": 11166.7, "limit": 107926.24159848166, "shown": "108 km from JPL; radius 11.2 km"},
+    {"label": "Deimos without them: farther than its radius", "off": 6300.0, "limit": 175403.63907658623, "shown": "175 km from JPL; radius 6.3 km"}
+  ]
+}

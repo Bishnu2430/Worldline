@@ -99,10 +99,10 @@ To hear GW170817: `cargo run --release -- --add "GW170817 pair:30" --focus "GW17
 | With radiation reaction, an eccentric pair (e = 0.5) over 20 orbits, ending at a periastron: the energy lost against the quadrupole formula and its first correction | equal up to second order; the test allows √(GM/rc²) times the miss of the formula alone | at GM/rc² = 10⁻²: 6.6 × 10⁻⁴ (bound 5.2 × 10⁻³; the formula alone misses by 5.2%); at 3 × 10⁻³: 6.0 × 10⁻⁵ (bound 8.5 × 10⁻⁴; alone 1.6%). Both about 6.7 (GM/rc²)²: second order |
 | The radiation reaction converges (its 3.5PN part smaller than its 2.5PN part), circular orbits | yes at GM/rc² = 0.01 and 0.08, no at 0.14 (they cross near 0.11) | as expected |
 | Two neutron stars at GM/rc² = 0.05 spiral in | they merge once the reaction stops converging, and are never flung apart | merged after 0.328 s, never farther apart than they started (80 km); mass kept |
-| The Hulse–Taylor binary, 1000 orbits: its period's shrink against Peters & Mathews' formula, same masses and orbit | within √(GM/rc²) = 2.4 × 10⁻³ | 4.7 × 10⁻⁵ apart |
-| Against general relativity's prediction from the measured masses, −2.40263(5) × 10⁻¹² (Weisberg & Huang 2016) | within 8.5 × 10⁻⁴, what rounding the catalog's masses to 0.001 Suns allows | **−2.40221 × 10⁻¹²**, 1.7 × 10⁻⁴ apart |
-| The roadmap | −2.40 × 10⁻¹² s/s | −2.40221 × 10⁻¹² |
-| Against the measurement, corrected for the galaxy's pull: −2.398(4) × 10⁻¹² | (printed) | 1.1σ, as general relativity's own prediction is |
+| The Hulse–Taylor binary, 1000 orbits: its period's shrink against Peters & Mathews' formula, same masses and orbit | within √(GM/rc²) = 2.4 × 10⁻³ | 3.7 × 10⁻⁵ apart |
+| Against general relativity's prediction from the measured masses, −2.40263(5) × 10⁻¹² (Weisberg & Huang 2016) | within 8.5 × 10⁻⁴, what rounding the catalog's masses to 0.001 Suns allows | **−2.40201 × 10⁻¹²**, 2.6 × 10⁻⁴ apart |
+| The roadmap | −2.40 × 10⁻¹² s/s | −2.40201 × 10⁻¹² |
+| Against the measurement, corrected for the galaxy's pull: −2.398(4) × 10⁻¹² | (printed) | 1.0σ; general relativity's own prediction is 1.2σ |
 | The same pair without radiation reaction | the period holds, to better than the precision demanded above | drifts 6.3 × 10⁻¹⁷ (bound 2.0 × 10⁻¹⁵) |
 | Time to merge, a circular orbit | Peters' closed form (5/256) c⁵a⁴/(G³m₁m₂m), to 10⁻¹² | matches |
 

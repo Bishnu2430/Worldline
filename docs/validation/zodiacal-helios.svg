@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="588" viewBox="0 0 760 588">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">The zodiacal dust model (COBE) brightens toward the Sun as Helios measured</text>
+<line x1="151.0" y1="64" x2="151.0" y2="400" stroke="#e4e7eb"/>
+<text x="151.0" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">40</text>
+<line x1="272.9" y1="64" x2="272.9" y2="400" stroke="#e4e7eb"/>
+<text x="272.9" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">60</text>
+<line x1="394.8" y1="64" x2="394.8" y2="400" stroke="#e4e7eb"/>
+<text x="394.8" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">80</text>
+<line x1="516.7" y1="64" x2="516.7" y2="400" stroke="#e4e7eb"/>
+<text x="516.7" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">100</text>
+<line x1="638.6" y1="64" x2="638.6" y2="400" stroke="#e4e7eb"/>
+<text x="638.6" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">120</text>
+<line x1="90" y1="384.7" x2="730" y2="384.7" stroke="#e4e7eb"/>
+<text x="84.0" y="388.7" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">2.2</text>
+<line x1="90" y1="308.4" x2="730" y2="308.4" stroke="#e4e7eb"/>
+<text x="84.0" y="312.4" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">2.25</text>
+<line x1="90" y1="232.0" x2="730" y2="232.0" stroke="#e4e7eb"/>
+<text x="84.0" y="236.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">2.3</text>
+<line x1="90" y1="155.6" x2="730" y2="155.6" stroke="#e4e7eb"/>
+<text x="84.0" y="159.6" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">2.35</text>
+<line x1="90" y1="79.3" x2="730" y2="79.3" stroke="#e4e7eb"/>
+<text x="84.0" y="83.3" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end" font-weight="normal">2.4</text>
+<rect x="90" y="64" width="640" height="336" fill="none" stroke="#6b7785"/>
+<text x="410.0" y="436.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" font-weight="normal">elongation from the Sun (degrees)</text>
+<text x="18" y="232.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" transform="rotate(-90 18 232.0)">exponent: brightness as R^−n, from 1 to 0.3 AU</text>
+<path d="M90.0,117.5 L272.9,128.0 L455.7,127.2 L730.0,122.2" fill="none" stroke="#1c7ed6" stroke-width="1.8"/>
+<line x1="90" y1="452" x2="110" y2="452" stroke="#1c7ed6" stroke-width="2"/>
+<text x="118.0" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">seen from ecliptic longitude 0°</text>
+<path d="M90.0,212.9 L272.9,179.1 L455.7,162.2 L730.0,144.5" fill="none" stroke="#e8590c" stroke-width="1.8"/>
+<line x1="90" y1="468" x2="110" y2="468" stroke="#e8590c" stroke-width="2"/>
+<text x="118.0" y="472.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">seen from ecliptic longitude 90°</text>
+<path d="M90.0,232.8 L272.9,211.3 L455.7,198.8 L730.0,184.8" fill="none" stroke="#2b8a3e" stroke-width="1.8"/>
+<line x1="90" y1="484" x2="110" y2="484" stroke="#2b8a3e" stroke-width="2"/>
+<text x="118.0" y="488.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">seen from ecliptic longitude 180°</text>
+<path d="M90.0,140.9 L272.9,163.7 L455.7,167.1 L730.0,165.3" fill="none" stroke="#9c36b5" stroke-width="1.8"/>
+<line x1="90" y1="500" x2="110" y2="500" stroke="#9c36b5" stroke-width="2"/>
+<text x="118.0" y="504.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">seen from ecliptic longitude 270°</text>
+<path d="M90.0,232.0 L730.0,232.0" fill="none" stroke="#c2255c" stroke-width="1.8" stroke-dasharray="6 4"/>
+<line x1="90" y1="516" x2="110" y2="516" stroke="#c2255c" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="118.0" y="520.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Helios: 2.3</text>
+<path d="M90.0,384.7 L730.0,384.7" fill="none" stroke="#0b7285" stroke-width="1.8" stroke-dasharray="6 4"/>
+<line x1="90" y1="532" x2="110" y2="532" stroke="#0b7285" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="118.0" y="536.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Helios's ± 0.1</text>
+<path d="M90.0,79.3 L730.0,79.3" fill="none" stroke="#0b7285" stroke-width="1.8" stroke-dasharray="6 4"/>
+<text x="20.0" y="556.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">Helios 1 and 2 measured R^−(2.3 ± 0.1) at every elongation from 17.5° to 135° (Leinert et al. 1981). The model</text>
+<text x="20.0" y="572.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">is furthest from 2.3 by 0.075.</text>
+</svg>

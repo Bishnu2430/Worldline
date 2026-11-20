@@ -164,6 +164,10 @@ fn landmarks_land_on_the_right_terrain() {
             true,
         ),
     ];
+    let mut figure = worldline_report::margins(
+        "map-landmarks",
+        "Spacecraft maps placed right: IAU Gazetteer landmarks on the right terrain",
+    );
     for (body, file, landmark, lat, lon, diameter, radius, bright) in landmarks {
         let map = map(file);
         let (lat, lon) = (f64::to_radians(lat), f64::to_radians(lon));
@@ -176,12 +180,29 @@ fn landmarks_land_on_the_right_terrain() {
             "{body}, {landmark} ({}): {here:.1} on the map, {turned:.1} if the map were turned halfway round, map average {average:.1}",
             if bright { "bright" } else { "dark" }
         );
+        // Bright: brighter than both the map's average and the same place on
+        // the map turned halfway round. Dark: darker than both.
+        let (off, limit) = if bright {
+            (average.max(turned), here)
+        } else {
+            (here, average.min(turned))
+        };
+        figure = figure.check(
+            &format!(
+                "{body}: {landmark}, {}",
+                if bright { "bright" } else { "dark" }
+            ),
+            off,
+            limit,
+            format!("{here:.1} on the map; average {average:.1}, turned halfway round {turned:.1}"),
+        );
         if bright {
             assert!(here > average && here > turned, "{body}: {landmark}");
         } else {
             assert!(here < average && here < turned, "{body}: {landmark}");
         }
     }
+    figure.save(worldline_report::here!());
 }
 
 #[test]
@@ -215,6 +236,10 @@ fn pluto_and_charon_face_each_other_at_longitude_zero() {
     // pck00011 values miss by 1.5°; this test caught that, and Worldline
     // uses the New Horizons team's corrected ones.)
     let (charon, _) = relative_state("Pluto", "Charon");
+    let mut figure = worldline_report::margins(
+        "pluto-charon",
+        "Pluto and Charon face each other at longitude 0°: rotation models and JPL's positions",
+    );
     for (body, direction) in [("Pluto", charon), ("Charon", -charon)] {
         let (lat, lon) = body_fixed(body, direction);
         let off = unit(lat, lon).angle_between(DVec3::X);
@@ -225,6 +250,16 @@ fn pluto_and_charon_face_each_other_at_longitude_zero() {
             lon.to_degrees(),
             off.to_degrees(),
             PIXEL.to_degrees()
+        );
+        figure = figure.check(
+            &format!("{body}'s longitude 0° faces the other"),
+            off,
+            PIXEL,
+            format!(
+                "{:.3}° off (limit: a map pixel, {:.3}°)",
+                off.to_degrees(),
+                PIXEL.to_degrees()
+            ),
         );
         assert!(off < PIXEL, "{body}");
     }
@@ -241,5 +276,17 @@ fn pluto_and_charon_face_each_other_at_longitude_zero() {
             .angle_between(center)
             .to_degrees()
     );
+    // Inside an extent: how far from its middle, as a share of half its
+    // width, the larger of the two.
+    let inside =
+        |x: f64, low: f64, high: f64| (x - (low + high) / 2.0).abs() / ((high - low) / 2.0);
+    figure
+        .check(
+            "the point facing away from Charon lies in Sputnik Planitia",
+            inside(lat, -22.1813, 49.6135).max(inside(lon, 153.0848, 197.6598)),
+            1.0,
+            format!("{lat:.2}° N, {lon:.2}° E; the Gazetteer's extent 22.18° S to 49.61° N, 153.08° to 197.66° E"),
+        )
+        .save(worldline_report::here!());
     assert!((-22.1813..=49.6135).contains(&lat) && (153.0848..=197.6598).contains(&lon));
 }

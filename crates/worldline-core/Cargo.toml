@@ -10,5 +10,9 @@ publish = false
 [dependencies]
 glam = "0.34.0"
 
+[dev-dependencies]
+# The validation report's figures (step 8.2).
+worldline-report = { path = "../worldline-report" }
+
 [lints]
 workspace = true

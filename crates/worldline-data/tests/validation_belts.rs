@@ -62,6 +62,15 @@ fn kirkwood_gaps_open_at_jupiters_resonances() {
         "{:<6} {:>8} {:>9} {:>9} {:>8}",
         "", "a (AU)", "observed", "expected", "sigma"
     );
+    let curve = histogram(belt.iter().map(|o| o.a / AU), 2.0, 3.5, 300);
+    let mut figure = worldline_report::lines(
+        "kirkwood-gaps",
+        "Kirkwood gaps in 19,971 real main-belt asteroids, at Jupiter's resonances",
+        "semi-major axis (AU)",
+        "asteroids per 0.005 AU",
+    )
+    .series("asteroids (JPL's orbits)", curve.clone());
+    let mut sigmas = Vec::new();
     for (name, ratio) in [
         ("3:1", 1.0 / 3.0),
         ("5:2", 2.0 / 5.0),
@@ -74,8 +83,20 @@ fn kirkwood_gaps_open_at_jupiters_resonances() {
             "{name:<6} {:>8.4} {observed:>9} {expected:>9.1} {sigma:>8.1}",
             a / AU
         );
+        figure = figure.expected(
+            &format!("Jupiter's {name} resonance, {:.3} AU", a / AU),
+            mark(a / AU, tallest(&curve)),
+        );
+        sigmas.push(format!("{name} {sigma:+.1}σ"));
         assert!(sigma < -5.0, "no gap at the {name} resonance");
     }
+    figure
+        .note(&format!(
+            "Each gap against a smooth belt, judged from the bands 2–4% to either side: {}. The standard is \
+             emptier by more than 5 standard deviations of chance.",
+            sigmas.join(", ")
+        ))
+        .save(worldline_report::here!());
 }
 
 #[test]
@@ -90,6 +111,23 @@ fn hildas_crowd_into_jupiters_3_2_resonance() {
         "3:2 at {:.4} AU: {observed} observed, {expected:.1} expected, {sigma:+.1} sigma",
         a / AU
     );
+    let curve = histogram(belt.iter().map(|o| o.a / AU), 3.6, 4.4, 160);
+    worldline_report::lines(
+        "hildas",
+        "The Hildas crowd into Jupiter's 3:2 resonance",
+        "semi-major axis (AU)",
+        "asteroids per 0.005 AU",
+    )
+    .series("asteroids (JPL's orbits)", curve.clone())
+    .expected(
+        &format!("Jupiter's 3:2 resonance, {:.3} AU", a / AU),
+        mark(a / AU, tallest(&curve)),
+    )
+    .note(&format!(
+        "{observed} within 0.2% of the resonance, where a smooth belt would put {expected:.1}: {sigma:+.1} \
+         standard deviations of chance (the standard: beyond +5)."
+    ))
+    .save(worldline_report::here!());
     assert!(sigma > 5.0);
 }
 
@@ -106,7 +144,59 @@ fn plutinos_crowd_into_neptunes_3_2_resonance() {
         "Neptune 3:2 at {:.3} AU: {observed} observed, {expected:.1} expected, {sigma:+.1} sigma",
         a / AU
     );
+    let curve = histogram(kuiper.iter().map(|o| o.a / AU), 34.0, 50.0, 160);
+    worldline_report::lines(
+        "plutinos",
+        "The Plutinos crowd into Neptune's 3:2 resonance",
+        "semi-major axis (AU)",
+        "Kuiper belt objects per 0.1 AU",
+    )
+    .series("Kuiper belt objects (JPL's orbits)", curve.clone())
+    .expected(
+        &format!("Neptune's 3:2 resonance, {:.2} AU", a / AU),
+        mark(a / AU, tallest(&curve)),
+    )
+    .note(&format!(
+        "{observed} within 0.2% of the resonance, where a smooth belt would put {expected:.1}: {sigma:+.1} \
+         standard deviations of chance (the standard: beyond +5)."
+    ))
+    .save(worldline_report::here!());
     assert!(sigma > 5.0);
+}
+
+/// A histogram of `values` in `bins` equal bins from `low` to `high`, as
+/// a stepped curve for a plot: each bin's count across its width.
+fn histogram(
+    values: impl Iterator<Item = f64>,
+    low: f64,
+    high: f64,
+    bins: usize,
+) -> Vec<(f64, f64)> {
+    let width = (high - low) / bins as f64;
+    let mut counts = vec![0usize; bins];
+    for v in values {
+        if (low..high).contains(&v) {
+            counts[((v - low) / width) as usize] += 1;
+        }
+    }
+    counts
+        .iter()
+        .enumerate()
+        .flat_map(|(k, &n)| {
+            let x = low + k as f64 * width;
+            [(x, n as f64), (x + width, n as f64)]
+        })
+        .collect()
+}
+
+/// A dashed vertical line at `x` for a histogram reaching up to `top`.
+fn mark(x: f64, top: f64) -> [(f64, f64); 2] {
+    [(x, 0.0), (x, top)]
+}
+
+/// The tallest bin of a histogram.
+fn tallest(curve: &[(f64, f64)]) -> f64 {
+    curve.iter().map(|p| p.1).fold(0.0, f64::max)
 }
 
 /// Wraps an angle into (−180°, 180°], in degrees.
@@ -137,6 +227,17 @@ fn trojans_cluster_60_degrees_ahead_of_and_behind_jupiter() {
         .iter()
         .map(|o| wrap_degrees(o.mean_longitude(0.0, GM_SUN) - jupiter_longitude))
         .collect();
+    let curve = histogram(offsets.iter().copied(), -180.0, 180.0, 180);
+    let figure = worldline_report::lines(
+        "trojans",
+        "Jupiter's Trojans (4,509) cluster 60° ahead of and behind Jupiter",
+        "mean longitude from Jupiter's (degrees)",
+        "Trojans per 2°",
+    )
+    .series("Trojans (JPL's orbits)", curve.clone())
+    .expected("L4, 60° ahead", mark(60.0, tallest(&curve)))
+    .expected("L5, 60° behind", mark(-60.0, tallest(&curve)));
+    let mut clouds = Vec::new();
     for (name, ahead, target) in [("L4", true, 60.0), ("L5", false, -60.0)] {
         let mut cloud: Vec<f64> = offsets
             .iter()
@@ -150,11 +251,21 @@ fn trojans_cluster_60_degrees_ahead_of_and_behind_jupiter() {
             "{name}: {} Trojans, median {median:+.1}°, middle half {low:+.1}° to {high:+.1}°",
             cloud.len()
         );
+        clouds.push(format!(
+            "{name}, {} Trojans: median {median:+.1}°, middle half {low:+.1}° to {high:+.1}°",
+            cloud.len()
+        ));
         assert!(
             (low..=high).contains(&target),
             "{name} isn't centered on {target}°"
         );
     }
+    figure
+        .note(&format!(
+            "{}. The standard: ±60° within the middle half of each cloud.",
+            clouds.join("; ")
+        ))
+        .save(worldline_report::here!());
 }
 
 #[test]
@@ -235,6 +346,7 @@ fn the_live_belts_follow_jpl_where_fixed_ellipses_drift() {
     h.advance(year);
     h.sync_swarm();
     let (mut live, mut fixed) = (Vec::new(), Vec::new());
+    let (mut live_dots, mut fixed_dots) = (Vec::new(), Vec::new());
     for (k, sample) in samples.iter().enumerate() {
         let particle = h
             .swarm()
@@ -263,7 +375,25 @@ fn the_live_belts_follow_jpl_where_fixed_ellipses_drift() {
         );
         live.push(live_error);
         fixed.push(fixed_error);
+        live_dots.push((distance / AU, live_error));
+        fixed_dots.push((distance / AU, fixed_error));
     }
+    worldline_report::lines(
+        "live-belts-vs-jpl",
+        "The belts as live particles against NASA JPL after a year (24 sample bodies)",
+        "distance from the Sun (AU)",
+        "error, as a share of the distance",
+    )
+    .log_x()
+    .log_y()
+    .dots("live particles, feeling the planets", live_dots)
+    .dots("fixed two-body ellipses, as drawn before", fixed_dots)
+    .expected("limit: 1 part in 10,000", [(1.5, 1e-4), (60.0, 1e-4)])
+    .note(
+        "Every live particle must be within the limit, the standard for comparisons with JPL since step 1.3; \
+         the fixed ellipses' median must not be.",
+    )
+    .save(worldline_report::here!());
     live.sort_by(f64::total_cmp);
     fixed.sort_by(f64::total_cmp);
     println!(

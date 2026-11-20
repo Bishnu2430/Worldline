@@ -1,0 +1,16 @@
+{
+  "id": "fallback-rate",
+  "test": "validation_fluid_gpu::torn_right_through_its_debris_falls_back_as_t_to_the_minus_five_thirds",
+  "file": "crates/worldline-render/tests/validation_fluid_gpu.rs",
+  "kind": "lines",
+  "title": "Torn right through (β = 2), the planet's debris falls back as t^(−5/3)",
+  "x": "time after the closest approach (dynamical times)",
+  "y": "particles coming back per dynamical time",
+  "log_x": true,
+  "log_y": true,
+  "note": "From 30 times the first return on, by maximum likelihood: t^(−1.688 ± 0.022), 5/3 within 1.0 standard errors (limit 3).",
+  "series": [
+    {"name": "simulated on the GPU, 8,000 particles", "expected": false, "dots": true, "points": [[43.721789310831454, 2.328688915182511], [75.99167479994703, 9.261146473325521], [132.07910128852612, 11.65756130418053], [229.56315995284388, 6.170289493345299], [398.9975998732288, 2.9815252609669884], [693.4870766602941, 1.1848244473848424], [1205.331374543711, 0.44309747412353384], [2094.9542844489083, 0.19184147950373276], [3641.184114693994, 0.08437627624304807], [6328.644904338595, 0.028224341545206477], [10999.648758100991, 0.012828705078586949], [19118.195858744828, 0.004297792785697022], [33228.825840838, 0.001827672885354012], [57754.1351139414, 0.0005567035207137518], [100380.92043144187, 0.00023132721326907135], [174469.39802291506, 5.1190018800581524e-5], [303240.60305133375, 3.534259597844389e-5], [527054.3968224105, 2.0334352929255928e-5], [916059.1768207571, 9.749470329979223e-6], [1592178.0000258265, 2.2437420350675038e-6], [2767322.0769036226, 1.2909363661655505e-6], [4809808.625162483, 7.427398851751577e-7]]},
+    {"name": "t^(−5/3), with the mass that comes back after 30 times the first", "expected": true, "dots": false, "points": [[994.9130726529405, 0.6405919781854714], [19155699.669940952, 4.631553578873974e-8]]}
+  ]
+}

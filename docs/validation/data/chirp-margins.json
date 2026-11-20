@@ -1,0 +1,24 @@
+{
+  "id": "chirp-margins",
+  "test": "validation_chirp::the_chirp_sweeps_up_as_theory_says",
+  "file": "crates/worldline-core/tests/validation_chirp.rs",
+  "kind": "margins",
+  "title": "Two neutron stars' chirp, 20 to 40 Hz: the checks at five points",
+  "checks": [
+    {"label": "20.0 Hz: the chirp formula, to its next order", "off": 0.027991957113952304, "limit": 0.09415036265963286, "shown": "off by 2.8e-2 = 3.2 x (limit √x = 9.4e-2)"},
+    {"label": "20.0 Hz: with its first correction", "off": 0.002365181907123426, "limit": 0.00886429078894039, "shown": "off by 2.4e-3 = 30 x² (limit x = 8.9e-3)"},
+    {"label": "20.0 Hz: the amplitude", "off": 0.0039479190060612845, "limit": 0.09415036265963286, "shown": "2.848e-23 against 2.859e-23"},
+    {"label": "22.3 Hz: the chirp formula, to its next order", "off": 0.03025352812261406, "limit": 0.09767516557414271, "shown": "off by 3.0e-2 = 3.2 x (limit √x = 9.8e-2)"},
+    {"label": "22.3 Hz: with its first correction", "off": 0.0026807268277383445, "limit": 0.009540437969936194, "shown": "off by 2.7e-3 = 29 x² (limit x = 9.5e-3)"},
+    {"label": "22.3 Hz: the amplitude", "off": 0.004239480617171831, "limit": 0.09767516557414271, "shown": "3.064e-23 against 3.077e-23"},
+    {"label": "25.5 Hz: the chirp formula, to its next order", "off": 0.03324682215904806, "limit": 0.10216565065571051, "shown": "off by 3.3e-2 = 3.2 x (limit √x = 1.0e-1)"},
+    {"label": "25.5 Hz: with its first correction", "off": 0.003092967507322686, "limit": 0.010437820173904683, "shown": "off by 3.1e-3 = 28 x² (limit x = 1.0e-2)"},
+    {"label": "25.5 Hz: the amplitude", "off": 0.004622859647719135, "limit": 0.10216565065571051, "shown": "3.351e-23 against 3.367e-23"},
+    {"label": "30.4 Hz: the chirp formula, to its next order", "off": 0.03746890286750826, "limit": 0.10824504382321261, "shown": "off by 3.7e-2 = 3.2 x (limit √x = 1.1e-1)"},
+    {"label": "30.4 Hz: with its first correction", "off": 0.0036381632315045653, "limit": 0.011716989512289219, "shown": "off by 3.6e-3 = 27 x² (limit x = 1.2e-2)"},
+    {"label": "30.4 Hz: the amplitude", "off": 0.005164701270545469, "limit": 0.10824504382321261, "shown": "3.760e-23 against 3.780e-23"},
+    {"label": "38.7 Hz: the chirp formula, to its next order", "off": 0.044017676844132825, "limit": 0.11737785355304871, "shown": "off by 4.4e-2 = 3.2 x (limit √x = 1.2e-1)"},
+    {"label": "38.7 Hz: with its first correction", "off": 0.004262321943585334, "limit": 0.013777560504720949, "shown": "off by 4.3e-3 = 22 x² (limit x = 1.4e-2)"},
+    {"label": "38.7 Hz: the amplitude", "off": 0.0060271996673592065, "limit": 0.11737785355304871, "shown": "4.417e-23 against 4.444e-23"}
+  ]
+}

@@ -79,6 +79,45 @@ fn measured_profile_matches_the_published_ring_boundaries() {
          Encke Gap {encke_tau:.3} (~0), B ring core {b3_tau:.2} (1 to 5, median 3.6), \
          A ring {a_tau:.2} (0.4 to 1)"
     );
+    worldline_report::margins(
+        "ring-structure",
+        "Cassini's measured ring profile against the PDS ring boundaries",
+    )
+    .check(
+        "B ring's outer edge, 117,570 km",
+        radius - b_ring.outer,
+        100e3,
+        format!(
+            "{:.0} km against {:.0} (limit 100 km: the edge swings ±70 km)",
+            radius / 1e3,
+            b_ring.outer / 1e3
+        ),
+    )
+    .check(
+        "Cassini Division nearly empty",
+        cassini_tau,
+        0.3,
+        format!("mean optical depth {cassini_tau:.3} (PDS: 0 to 0.2; limit 0.3)"),
+    )
+    .check(
+        "Encke Gap empty",
+        encke_tau,
+        0.05,
+        format!("mean optical depth {encke_tau:.3} (limit 0.05)"),
+    )
+    .check(
+        "B ring core opaque",
+        3.0,
+        b3_tau,
+        format!("mean optical depth {b3_tau:.2}, above 3 (PDS: 1 to 5, median 3.6)"),
+    )
+    .check(
+        "A ring between 0.4 and 1",
+        (0.4 / a_tau).max(a_tau),
+        1.0,
+        format!("mean optical depth {a_tau:.2}"),
+    )
+    .save(worldline_report::here!());
     assert!(cassini_tau < 0.3);
     assert!(encke_tau < 0.05);
     assert!(b3_tau > 3.0);
@@ -104,9 +143,12 @@ fn rings_turn_edge_on_on_the_published_dates_in_2025() {
 
     let mut previous: Option<(f64, f64, f64)> = None;
     let (mut earth_crossing, mut sun_crossing) = (None, None);
+    let (mut earth_curve, mut sun_curve) = (Vec::new(), Vec::new());
     for _ in 0..=180 {
         let jd = snapshot.epoch_jd_tdb + system.time() / DAY;
         let (e, s) = (elevation(&system, earth, jd), elevation(&system, sun, jd));
+        earth_curve.push((system.time() / DAY, e));
+        sun_curve.push((system.time() / DAY, s));
         if let Some((jd0, e0, s0)) = previous {
             // Linear interpolation inside the day the sign changed.
             if e0.signum() != e.signum() {
@@ -129,6 +171,29 @@ fn rings_turn_edge_on_on_the_published_dates_in_2025() {
         earth_crossing - earth_published,
         sun_crossing - sun_published
     );
+    let start = snapshot.epoch_jd_tdb;
+    worldline_report::lines(
+        "saturn-ring-crossings",
+        "Saturn's rings turn edge-on in 2025: to Earth on 23 March, to the Sun (equinox) on 6 May",
+        "days from 1 January 2025",
+        "elevation above the ring plane (degrees)",
+    )
+    .series("Earth, seen from Saturn", earth_curve)
+    .series("the Sun, seen from Saturn", sun_curve)
+    .expected(
+        "23 March, the published date",
+        [(earth_published - start, -2.0), (earth_published - start, 2.0)],
+    )
+    .expected(
+        "6 May, the published date",
+        [(sun_published - start, -2.0), (sun_published - start, 2.0)],
+    )
+    .note(&format!(
+        "Edge-on to Earth {:+.2} days from 23 March; equinox {:+.2} days from 6 May. The dates are published to the day, so each may be off by up to a day and a half (half a day of rounding, and a day of sampling).",
+        earth_crossing - earth_published,
+        sun_crossing - sun_published
+    ))
+    .save(worldline_report::here!());
     // Published dates are given to the day.
     assert!((earth_crossing - earth_published).abs() < 1.5);
     assert!((sun_crossing - sun_published).abs() < 1.5);

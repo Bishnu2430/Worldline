@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="540" viewBox="0 0 760 540">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">The belts as live particles against NASA JPL after a year (24 sample bodies)</text>
+<line x1="419.1" y1="64" x2="419.1" y2="400" stroke="#e4e7eb"/>
+<text x="419.1" y="416.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="90" y1="346.2" x2="730" y2="346.2" stroke="#e4e7eb"/>
+<text x="84.0" y="350.2" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−7</tspan></text>
+<line x1="90" y1="278.1" x2="730" y2="278.1" stroke="#e4e7eb"/>
+<text x="84.0" y="282.1" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−6</tspan></text>
+<line x1="90" y1="210.1" x2="730" y2="210.1" stroke="#e4e7eb"/>
+<text x="84.0" y="214.1" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−5</tspan></text>
+<line x1="90" y1="142.0" x2="730" y2="142.0" stroke="#e4e7eb"/>
+<text x="84.0" y="146.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−4</tspan></text>
+<line x1="90" y1="73.9" x2="730" y2="73.9" stroke="#e4e7eb"/>
+<text x="84.0" y="77.9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="end">10<tspan dy="-5" font-size="8">−3</tspan></text>
+<rect x="90" y="64" width="640" height="336" fill="none" stroke="#6b7785"/>
+<text x="410.0" y="436.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" font-weight="normal">distance from the Sun (AU)</text>
+<text x="18" y="232.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="middle" transform="rotate(-90 18 232.0)">error, as a share of the distance</text>
+<circle cx="209.8" cy="235.6" r="2.6" fill="#1c7ed6"/>
+<circle cx="186.0" cy="216.6" r="2.6" fill="#1c7ed6"/>
+<circle cx="136.3" cy="233.9" r="2.6" fill="#1c7ed6"/>
+<circle cx="180.1" cy="244.5" r="2.6" fill="#1c7ed6"/>
+<circle cx="207.0" cy="234.8" r="2.6" fill="#1c7ed6"/>
+<circle cx="182.9" cy="214.4" r="2.6" fill="#1c7ed6"/>
+<circle cx="246.0" cy="243.9" r="2.6" fill="#1c7ed6"/>
+<circle cx="207.8" cy="246.9" r="2.6" fill="#1c7ed6"/>
+<circle cx="147.1" cy="252.1" r="2.6" fill="#1c7ed6"/>
+<circle cx="138.2" cy="214.4" r="2.6" fill="#1c7ed6"/>
+<circle cx="222.2" cy="253.1" r="2.6" fill="#1c7ed6"/>
+<circle cx="175.7" cy="206.3" r="2.6" fill="#1c7ed6"/>
+<circle cx="305.6" cy="263.8" r="2.6" fill="#1c7ed6"/>
+<circle cx="310.7" cy="260.5" r="2.6" fill="#1c7ed6"/>
+<circle cx="301.0" cy="260.3" r="2.6" fill="#1c7ed6"/>
+<circle cx="303.1" cy="271.9" r="2.6" fill="#1c7ed6"/>
+<circle cx="303.8" cy="264.3" r="2.6" fill="#1c7ed6"/>
+<circle cx="308.9" cy="267.7" r="2.6" fill="#1c7ed6"/>
+<circle cx="666.7" cy="380.8" r="2.6" fill="#1c7ed6"/>
+<circle cx="639.9" cy="373.1" r="2.6" fill="#1c7ed6"/>
+<circle cx="679.6" cy="384.5" r="2.6" fill="#1c7ed6"/>
+<circle cx="653.7" cy="376.9" r="2.6" fill="#1c7ed6"/>
+<circle cx="680.5" cy="384.7" r="2.6" fill="#1c7ed6"/>
+<circle cx="650.0" cy="376.0" r="2.6" fill="#1c7ed6"/>
+<circle cx="100" cy="452" r="3" fill="#1c7ed6"/>
+<text x="118.0" y="456.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">live particles, feeling the planets</text>
+<circle cx="209.8" cy="127.5" r="2.6" fill="#e8590c"/>
+<circle cx="186.0" cy="96.1" r="2.6" fill="#e8590c"/>
+<circle cx="136.3" cy="131.5" r="2.6" fill="#e8590c"/>
+<circle cx="180.1" cy="108.7" r="2.6" fill="#e8590c"/>
+<circle cx="207.0" cy="104.3" r="2.6" fill="#e8590c"/>
+<circle cx="182.9" cy="123.0" r="2.6" fill="#e8590c"/>
+<circle cx="246.0" cy="79.3" r="2.6" fill="#e8590c"/>
+<circle cx="207.8" cy="137.3" r="2.6" fill="#e8590c"/>
+<circle cx="147.1" cy="132.4" r="2.6" fill="#e8590c"/>
+<circle cx="138.2" cy="115.8" r="2.6" fill="#e8590c"/>
+<circle cx="222.2" cy="99.0" r="2.6" fill="#e8590c"/>
+<circle cx="175.7" cy="119.7" r="2.6" fill="#e8590c"/>
+<circle cx="305.6" cy="139.7" r="2.6" fill="#e8590c"/>
+<circle cx="310.7" cy="142.7" r="2.6" fill="#e8590c"/>
+<circle cx="301.0" cy="132.1" r="2.6" fill="#e8590c"/>
+<circle cx="303.1" cy="120.6" r="2.6" fill="#e8590c"/>
+<circle cx="303.8" cy="121.6" r="2.6" fill="#e8590c"/>
+<circle cx="308.9" cy="128.7" r="2.6" fill="#e8590c"/>
+<circle cx="666.7" cy="193.3" r="2.6" fill="#e8590c"/>
+<circle cx="639.9" cy="188.7" r="2.6" fill="#e8590c"/>
+<circle cx="679.6" cy="195.5" r="2.6" fill="#e8590c"/>
+<circle cx="653.7" cy="191.2" r="2.6" fill="#e8590c"/>
+<circle cx="680.5" cy="196.5" r="2.6" fill="#e8590c"/>
+<circle cx="650.0" cy="191.3" r="2.6" fill="#e8590c"/>
+<circle cx="100" cy="468" r="3" fill="#e8590c"/>
+<text x="118.0" y="472.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">fixed two-body ellipses, as drawn before</text>
+<path d="M90.0,142.0 L730.0,142.0" fill="none" stroke="#2b8a3e" stroke-width="1.8" stroke-dasharray="6 4"/>
+<line x1="90" y1="484" x2="110" y2="484" stroke="#2b8a3e" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="118.0" y="488.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">limit: 1 part in 10,000</text>
+<text x="20.0" y="508.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">Every live particle must be within the limit, the standard for comparisons with JPL since step 1.3; the fixed</text>
+<text x="20.0" y="524.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">ellipses' median must not be.</text>
+</svg>

@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="718" viewBox="0 0 760 718">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">Merging neutron stars collapse at once above Bauswein et al.'s (2013) threshold</text>
+<text x="20.0" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#6b7785" text-anchor="start" font-weight="normal">how far each result is from what's expected, as a share of the limit it must stay within</text>
+<line x1="250.0" y1="58" x2="250.0" y2="670" stroke="#e4e7eb"/>
+<text x="250.0" y="686.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−6</tspan></text>
+<line x1="318.6" y1="58" x2="318.6" y2="670" stroke="#e4e7eb"/>
+<text x="318.6" y="686.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−5</tspan></text>
+<line x1="387.1" y1="58" x2="387.1" y2="670" stroke="#e4e7eb"/>
+<text x="387.1" y="686.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−4</tspan></text>
+<line x1="455.7" y1="58" x2="455.7" y2="670" stroke="#e4e7eb"/>
+<text x="455.7" y="686.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−3</tspan></text>
+<line x1="524.3" y1="58" x2="524.3" y2="670" stroke="#e4e7eb"/>
+<text x="524.3" y="686.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−2</tspan></text>
+<line x1="592.9" y1="58" x2="592.9" y2="670" stroke="#e4e7eb"/>
+<text x="592.9" y="686.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−1</tspan></text>
+<line x1="661.4" y1="58" x2="661.4" y2="670" stroke="#e4e7eb"/>
+<text x="661.4" y="686.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">1</text>
+<line x1="730.0" y1="58" x2="730.0" y2="670" stroke="#e4e7eb"/>
+<text x="730.0" y="686.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="661.4" y1="54" x2="661.4" y2="670" stroke="#c92a2a" stroke-width="2"/>
+<text x="661.4" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#c92a2a" text-anchor="middle" font-weight="normal">limit</text>
+<text x="20.0" y="78.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">NL3: their fit, against their</text>
+<text x="20.0" y="91.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulations</text>
+<rect x="250" y="68" width="343.9" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="98.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">threshold 3.85 Suns, the fit 3.842: k off by 0.003 (limit their 0.025, and rounding)</text>
+<text x="20.0" y="124.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">GS1: their fit, against their</text>
+<text x="20.0" y="137.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulations</text>
+<rect x="250" y="114" width="379.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="144.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">threshold 3.85 Suns, the fit 3.822: k off by 0.010 (limit their 0.025, and rounding)</text>
+<text x="20.0" y="170.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">LS375: their fit, against their</text>
+<text x="20.0" y="183.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulations</text>
+<rect x="250" y="160" width="399.1" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="190.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">threshold 3.65 Suns, the fit 3.597: k off by 0.019 (limit their 0.025, and rounding)</text>
+<text x="20.0" y="216.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">DD2: their fit, against their</text>
+<text x="20.0" y="229.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulations</text>
+<rect x="250" y="206" width="404.8" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="236.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">threshold 3.35 Suns, the fit 3.408: k off by 0.024 (limit their 0.025, and rounding)</text>
+<text x="20.0" y="262.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Shen: their fit, against their</text>
+<text x="20.0" y="275.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulations</text>
+<rect x="250" y="252" width="373.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="282.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">threshold 3.45 Suns, the fit 3.469: k off by 0.008 (limit their 0.025, and rounding)</text>
+<text x="20.0" y="308.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">TM1: their fit, against their</text>
+<text x="20.0" y="321.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulations</text>
+<rect x="250" y="298" width="292.0" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="328.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">threshold 3.45 Suns, the fit 3.449: k off by 0.001 (limit their 0.025, and rounding)</text>
+<text x="20.0" y="354.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">SFHX: their fit, against their</text>
+<text x="20.0" y="367.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulations</text>
+<rect x="250" y="344" width="318.6" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="374.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">threshold 3.05 Suns, the fit 3.053: k off by 0.001 (limit their 0.025, and rounding)</text>
+<text x="20.0" y="400.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">GS2: their fit, against their</text>
+<text x="20.0" y="413.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulations</text>
+<rect x="250" y="390" width="380.8" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="420.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">threshold 3.25 Suns, the fit 3.227: k off by 0.011 (limit their 0.025, and rounding)</text>
+<text x="20.0" y="446.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">SFHO: their fit, against their</text>
+<text x="20.0" y="459.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulations</text>
+<rect x="250" y="436" width="390.4" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="466.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">threshold 2.95 Suns, the fit 2.981: k off by 0.015 (limit their 0.025, and rounding)</text>
+<text x="20.0" y="492.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">LS220: their fit, against their</text>
+<text x="20.0" y="505.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulations</text>
+<rect x="250" y="482" width="380.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="512.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">threshold 3.05 Suns, the fit 3.072: k off by 0.011 (limit their 0.025, and rounding)</text>
+<text x="20.0" y="538.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">TMA: their fit, against their</text>
+<text x="20.0" y="551.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulations</text>
+<rect x="250" y="528" width="383.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="558.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">threshold 3.25 Suns, the fit 3.225: k off by 0.012 (limit their 0.025, and rounding)</text>
+<text x="20.0" y="584.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">IUF: their fit, against their</text>
+<text x="20.0" y="597.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">simulations</text>
+<rect x="250" y="574" width="377.6" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="604.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">threshold 3.05 Suns, the fit 3.030: k off by 0.010 (limit their 0.025, and rounding)</text>
+<text x="20.0" y="630.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">GW170817's 2.73 Suns didn't collapse</text>
+<text x="20.0" y="643.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">at once, as its kilonova showed</text>
+<rect x="250" y="620" width="409.2" height="14" fill="#2f9e44" rx="2"/>
+<text x="250.0" y="650.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">under SLy's threshold, 2.94 Suns</text>
+<text x="250.0" y="704.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">share of the limit (logarithmic): under 1 passes</text>
+</svg>

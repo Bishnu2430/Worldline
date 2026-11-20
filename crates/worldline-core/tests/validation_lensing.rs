@@ -23,6 +23,10 @@ fn the_shadow_is_root_27_and_its_edge_where_synge_puts_it() {
     // From each distance, the edge between rays that fall in and rays that
     // get away, found by halving: against Synge's sin θ = √27 (M/r)√(1 − 2M/r).
     let mut worst: f64 = 0.0;
+    let mut figure = worldline_report::margins(
+        "black-hole-shadow",
+        "The shadow of a non-spinning black hole, by tracing rays: its edge against Synge's angle",
+    );
     for r in [3.5, 6.0, 30.0, 1e3, 1e6] {
         let distance = r * m;
         let (mut inside, mut outside) = (0.0, PI);
@@ -44,8 +48,26 @@ fn the_shadow_is_root_27_and_its_edge_where_synge_puts_it() {
             27f64.sqrt()
         );
         worst = worst.max((traced / exact - 1.0).abs());
+        figure = figure.check(
+            &format!("seen from {r} GM/c²"),
+            traced / exact - 1.0,
+            1e-6,
+            format!(
+                "the edge at {:.9}°, Synge's {:.9}°; impact parameter {b:.9} GM/c² (√27 = 5.196152423)",
+                traced.to_degrees(),
+                exact.to_degrees()
+            ),
+        );
     }
     println!("worst: {worst:.1e}");
+    figure
+        .check(
+            "from far away: √27 GM/c²",
+            critical_impact(gm) / (27f64.sqrt() * m) - 1.0,
+            1e-15,
+            "the critical impact parameter, to rounding".to_string(),
+        )
+        .save(worldline_report::here!());
     assert!(worst < 1e-6);
     // The shadow's radius seen from far away.
     assert!((critical_impact(gm) / (27f64.sqrt() * m) - 1.0).abs() < 1e-15);
@@ -59,6 +81,7 @@ fn rays_bend_as_darwins_integral_says() {
     // Darwin's exact angle; far out, by 4M/b + (15π/4)(M/b)².
     let far = 1e12 * m;
     let mut worst: f64 = 0.0;
+    let (mut traced_dots, mut weak_curve) = (Vec::new(), Vec::new());
     for b in [5.25, 5.5, 6.0, 10.0, 100.0, 1e4] {
         let psi = (b * m / far * (1.0 - 2.0 * m / far).sqrt()).asin();
         let Ray::Escapes(swept) = trace(gm, far, psi, FINE) else {
@@ -71,8 +94,31 @@ fn rays_bend_as_darwins_integral_says() {
             "b = {b} GM/c²: traced {traced:.12} rad, Darwin {exact:.12} rad, weak field {weak:.6} rad"
         );
         worst = worst.max((traced - exact).abs());
+        traced_dots.push((b, traced));
+        weak_curve.push((b, weak));
     }
     println!("worst difference: {worst:.1e} rad");
+    // Darwin's exact angle, finely, from just outside the shadow's edge.
+    let darwin: Vec<(f64, f64)> = (0..=200)
+        .map(|k| 27f64.sqrt() * (1.0 + 1e-6) * (1e4 / 27f64.sqrt()).powf(k as f64 / 200.0))
+        .map(|b| (b, deflection(gm, b * m).unwrap()))
+        .collect();
+    worldline_report::lines(
+        "light-bending",
+        "Light bent by a black hole: rays traced through its spacetime against Darwin's exact angle",
+        "impact parameter (GM/c²)",
+        "bending (radians)",
+    )
+    .log_x()
+    .log_y()
+    .dots("traced rays", traced_dots)
+    .expected("Darwin's exact angle", darwin)
+    .expected("the weak field, 4M/b + (15π/4)(M/b)²", weak_curve)
+    .note(&format!(
+        "The shadow's edge is at √27 = 5.196 GM/c², where the bending grows without bound. The traced rays are \
+         at most {worst:.1e} rad from Darwin's angle (limit 10⁻⁹)."
+    ))
+    .save(worldline_report::here!());
     assert!(worst < 1e-9);
 }
 
@@ -87,6 +133,26 @@ fn light_grazing_the_sun_is_bent_by_1_75_arcseconds() {
         "at the Sun's edge: {exact:.7}″ (Einstein's 4GM/c²R: {einstein:.7}″, plus the next order (15π/4)(GM/c²R)²: {:.7}″)",
         einstein + second
     );
+    worldline_report::margins(
+        "sun-light-bending",
+        "Light grazing the Sun is bent by 1.75″",
+    )
+    .check(
+        "the roadmap's 1.75″",
+        exact - 1.75,
+        0.005,
+        format!("{exact:.7}″ (limit: the last digit's rounding)"),
+    )
+    .check(
+        "Einstein's 4GM/c²R plus the next order, (15π/4)(GM/c²R)²",
+        exact - einstein - second,
+        1e-9,
+        format!(
+            "{:.7}″: what's left is the third order, 10⁻¹⁰″",
+            einstein + second
+        ),
+    )
+    .save(worldline_report::here!());
     // The roadmap's 1.75″, to its last digit.
     assert!((exact - 1.75).abs() <= 0.005);
     // Beyond the second order, (128/3)(GM/c²R)³ is 10⁻¹⁰″.
@@ -108,6 +174,10 @@ fn the_table_the_gpu_reads_places_the_sky_within_a_tenth_of_a_pixel() {
         Ray::Escapes(swept) => Some(swept - (PI - psi)),
         Ray::Captured => None,
     };
+    let mut figure = worldline_report::margins(
+        "bending-table",
+        "The table of bending the GPU reads: how far it moves the sky, against a tenth of a pixel",
+    );
     for r in [2.5, 8.0, 40.0, 1e4] {
         let table = BendTable::new(gm, r * m);
         let mut worst: f64 = 0.0;
@@ -130,6 +200,16 @@ fn the_table_the_gpu_reads_places_the_sky_within_a_tenth_of_a_pixel() {
             table.edge.to_degrees(),
             worst / PIXEL
         );
+        figure = figure.check(
+            &format!("seen from {r} GM/c²"),
+            worst,
+            0.1 * PIXEL,
+            format!(
+                "{:.1e} pixel at most (a full-HD screen's pixel)",
+                worst / PIXEL
+            ),
+        );
         assert!(worst < 0.1 * PIXEL);
     }
+    figure.save(worldline_report::here!());
 }

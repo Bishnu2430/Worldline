@@ -1,0 +1,14 @@
+{
+  "id": "hulse-taylor-shrinking-margins",
+  "test": "validation_gravitational_waves::the_hulse_taylor_orbit_shrinks_as_measured",
+  "file": "crates/worldline-data/tests/validation_gravitational_waves.rs",
+  "kind": "margins",
+  "title": "The Hulse–Taylor pulsar's orbit shrinking: the checks",
+  "checks": [
+    {"label": "against general relativity's prediction", "off": 0.00025711741784295583, "limit": 0.0008460968344646663, "shown": "-2.40201e-12 against -2.40263e-12 s/s (limit: the masses' rounding)"},
+    {"label": "against Peters & Mathews's formula, same masses and orbit", "off": 3.7304452142117306e-5, "limit": 0.0023657230622271025, "shown": "-2.40210e-12 s/s (limit √(GM/rc²): the next order is GM/rc²)"},
+    {"label": "the roadmap's −2.40 × 10⁻¹² s/s", "off": 2.012241978367941e-15, "limit": 5e-15, "shown": "-2.402e-12 s/s (limit: the last digit's rounding)"},
+    {"label": "the simulated period is the measured one", "off": 2.391420395042587e-12, "limit": 1e-6, "shown": "7.751939 h"},
+    {"label": "the simulated eccentricity is the measured one", "off": 0.0, "limit": 1e-6, "shown": "0.6171340 against 0.617134"}
+  ]
+}

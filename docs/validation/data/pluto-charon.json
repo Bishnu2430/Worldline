@@ -1,0 +1,12 @@
+{
+  "id": "pluto-charon",
+  "test": "validation_maps::pluto_and_charon_face_each_other_at_longitude_zero",
+  "file": "crates/worldline-app/tests/validation_maps.rs",
+  "kind": "margins",
+  "title": "Pluto and Charon face each other at longitude 0°: rotation models and JPL's positions",
+  "checks": [
+    {"label": "Pluto's longitude 0° faces the other", "off": 0.0003947758774609377, "limit": 0.0030679615757712823, "shown": "0.023° off (limit: a map pixel, 0.176°)"},
+    {"label": "Charon's longitude 0° faces the other", "off": 0.0003947758774609377, "limit": 0.0030679615757712823, "shown": "0.023° off (limit: a map pixel, 0.176°)"},
+    {"label": "the point facing away from Charon lies in Sputnik Planitia", "off": 0.3819692600549194, "limit": 1.0, "shown": "0.00° N, 180.02° E; the Gazetteer's extent 22.18° S to 49.61° N, 153.08° to 197.66° E"}
+  ]
+}

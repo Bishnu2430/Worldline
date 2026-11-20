@@ -1,0 +1,13 @@
+{
+  "id": "kepler-periods",
+  "test": "validation_kepler::orbital_periods_obey_keplers_third_law",
+  "file": "crates/worldline-core/tests/validation_kepler.rs",
+  "kind": "margins",
+  "title": "Kepler's third law: simulated orbital periods against T = 2π √(a³/GM)",
+  "checks": [
+    {"label": "Mercury-like", "off": 9.22235585283977e-9, "limit": 1e-6, "shown": "87.969027 days against 87.969026: 9.2e-9 off"},
+    {"label": "Earth-like", "off": 5.344831463542923e-9, "limit": 1e-6, "shown": "365.256345 days against 365.256343: 5.3e-9 off"},
+    {"label": "Jupiter-like", "off": 5.5864137964600036e-9, "limit": 1e-6, "shown": "4332.333219 days against 4332.333195: 5.6e-9 off"},
+    {"label": "Comet-like", "off": 5.872694028817349e-7, "limit": 1e-6, "shown": "1897.931632 days against 1897.930517: 5.9e-7 off"}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "every-moon-loads",
+  "test": "validation_small_moons::every_moon_in_jpls_list_loads",
+  "file": "crates/worldline-data/tests/validation_small_moons.rs",
+  "kind": "margins",
+  "title": "Every moon in JPL's list of planetary satellites loads",
+  "checks": [
+    {"label": "moons with mean orbits, against JPL's list", "off": 0.0, "limit": 0.5, "shown": "459 loaded; JPL lists 459"},
+    {"label": "the Moon, the major moons and the small ones", "off": 0.0, "limit": 0.5, "shown": "1 + 21 + 437 = 459"}
+  ]
+}

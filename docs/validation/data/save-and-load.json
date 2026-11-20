@@ -1,0 +1,11 @@
+{
+  "id": "save-and-load",
+  "test": "worldline::simulation::tests::a_save_loads_back_exactly_and_runs_the_same_every_time",
+  "file": "crates/worldline-app/src/simulation.rs",
+  "kind": "margins",
+  "title": "Save and load: lossless",
+  "checks": [
+    {"label": "a save loads back bit for bit", "off": 0.0, "limit": 0.5, "shown": "9695409 characters, every number the same"},
+    {"label": "two loads of the same save run identically", "off": 0.0, "limit": 0.5, "shown": "the same after a simulated 10 days"}
+  ]
+}

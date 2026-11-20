@@ -47,8 +47,9 @@ fn perihelion_angle(system: &System) -> f64 {
 }
 
 /// Simulates a century, sampling the perihelion direction daily, and
-/// returns the least-squares rate in arcseconds per century.
-fn precession_rate(gravity: &dyn Gravity) -> f64 {
+/// returns the least-squares rate in arcseconds per century, with the
+/// samples: years, and arcseconds turned.
+fn precession_rate(gravity: &dyn Gravity) -> (f64, Vec<(f64, f64)>) {
     let mut system = sun_and_mercury();
     let mut ias = Ias15::new();
     let samples = (CENTURY / DAY) as usize;
@@ -66,7 +67,11 @@ fn precession_rate(gravity: &dyn Gravity) -> f64 {
         num += (t - t_mean) * (angle - a_mean);
         den += (t - t_mean) * (t - t_mean);
     }
-    num / den * CENTURY * ARCSEC_PER_RADIAN
+    let turned = points
+        .iter()
+        .map(|(t, angle)| (t / JULIAN_YEAR, (angle - points[0].1) * ARCSEC_PER_RADIAN))
+        .collect();
+    (num / den * CENTURY * ARCSEC_PER_RADIAN, turned)
 }
 
 #[test]
@@ -76,8 +81,8 @@ fn mercury_perihelion_precesses_43_arcseconds_per_century() {
     let orbits_per_century = CENTURY / kepler_period(A, mu);
     let theory = per_orbit * orbits_per_century * ARCSEC_PER_RADIAN;
 
-    let newtonian = precession_rate(&Newtonian);
-    let relativistic = precession_rate(&EinsteinInfeldHoffmann);
+    let (newtonian, newtonian_turned) = precession_rate(&Newtonian);
+    let (relativistic, relativistic_turned) = precession_rate(&EinsteinInfeldHoffmann);
     println!("Newtonian gravity:          {newtonian:+.4}″ per century");
     println!("Einstein–Infeld–Hoffmann:   {relativistic:+.4}″ per century");
     println!("General relativity formula: {theory:+.4}″ per century");
@@ -89,6 +94,39 @@ fn mercury_perihelion_precesses_43_arcseconds_per_century() {
     // Astronomers measure the anomaly to about ±0.04″ (0.1%). The simulation
     // must match the theory far more closely than that: within 0.01%.
     let relative = (relativistic - theory).abs() / theory;
+    worldline_report::lines(
+        "mercury-perihelion",
+        "Mercury's perihelion over a century, the Sun and Mercury alone",
+        "years",
+        "perihelion turned (arcseconds)",
+    )
+    .series("relativistic gravity (Einstein–Infeld–Hoffmann)", relativistic_turned)
+    .series("Newtonian gravity", newtonian_turned)
+    .expected(
+        "general relativity, 6πGM/c²a(1 − e²) an orbit",
+        [(0.0, 0.0), (100.0, theory)],
+    )
+    .note(&format!(
+        "Fitted: {relativistic:.4}″ a century, against {theory:.4}″ (limit 10⁻⁴ of it); Newtonian {newtonian:+.4}″ (limit 0.001″). The perihelion wobbles within each orbit, as the closest point of an orbit perturbed by relativity does; the fit is over 36,525 daily samples."
+    ))
+    .save(worldline_report::here!());
+    worldline_report::margins(
+        "mercury-perihelion-margins",
+        "Mercury's perihelion: the fitted rates against what's expected",
+    )
+    .check(
+        "relativistic: general relativity's rate",
+        relative,
+        1e-4,
+        format!("{relativistic:.4}″ a century against {theory:.4}″"),
+    )
+    .check(
+        "Newtonian: no turning",
+        newtonian,
+        0.001,
+        format!("{newtonian:+.5}″ a century against 0"),
+    )
+    .save(worldline_report::here!());
     assert!(
         relative < 1e-4,
         "measured {relativistic}″ vs theory {theory}″"

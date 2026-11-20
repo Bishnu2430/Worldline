@@ -1,0 +1,12 @@
+{
+  "id": "overlay-tides",
+  "test": "validation_overlays::tides_stretch_as_worked_out_by_hand",
+  "file": "crates/worldline-core/tests/validation_overlays.rs",
+  "kind": "margins",
+  "title": "The tide overlay's stretch, against hand calculations, 2GM R/d³",
+  "checks": [
+    {"label": "the Moon's tide at Earth's surface", "off": 0.0, "limit": 1e-13, "shown": "1.1011e-6 m/s², 2.18 times the Sun's"},
+    {"label": "the Sun's", "off": 0.0, "limit": 1e-13, "shown": "5.0566e-7 m/s²"},
+    {"label": "a body 2 m long, 1,000 km from a hole of 10 Suns", "off": 0.0, "limit": 1e-13, "shown": "pulled apart by 5308 m/s², 541 g"}
+  ]
+}

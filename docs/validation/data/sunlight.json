@@ -1,0 +1,11 @@
+{
+  "id": "sunlight",
+  "test": "validation_sun_reach::sunlight_at_earth_is_1361_watts_per_square_meter",
+  "file": "crates/worldline-data/tests/validation_sun_reach.rs",
+  "kind": "margins",
+  "title": "Sunlight at 1 AU against NASA SORCE's measurement",
+  "checks": [
+    {"label": "at 1 AU, against SORCE's 1360.8 ± 0.5 W/m²", "off": 0.3664654085755501, "limit": 0.5, "shown": "1361.17 W/m²"},
+    {"label": "2025's average at the simulated Earth, against 1361", "off": 0.32396643207721354, "limit": 0.5, "shown": "1361.3 W/m²; 1407.7 at perihelion, 1317.0 at aphelion"}
+  ]
+}
