@@ -67,6 +67,13 @@ The maps of the major moons, Pluto, Charon and Ceres (`2k_*.png` in the same fol
 | Pluto, Charon | New Horizons LORRI–MVIC Global Mosaics, 300 m (July 2017) | New Horizons team (NASA, JHU APL, SwRI, LPI), via USGS |
 | Ceres | Dawn Framing Camera HAMO global clear-filter mosaic, 140 m (data set DAWN-A-FC2-5-CERESMOSAIC-V1.0) | German Aerospace Center (DLR) for the Dawn team; NASA Planetary Data System, Small Bodies Node |
 
+## Fonts
+
+| What | Source | License |
+|---|---|---|
+| Inter, the interface's typeface (Regular and SemiBold, `crates/worldline-app/assets/fonts/`) | Rasmus Andersson and the Inter Project Authors, release 4.1 (github.com/rsms/inter), fetched by `tools/fetch_fonts.py` | SIL Open Font License 1.1, its text beside the fonts |
+| Hack, Ubuntu Light, Noto Emoji and egui's icon font, for the clock and for symbols Inter lacks | Bundled with egui (`epaint_default_fonts`) | Hack: MIT, with the Bitstream Vera License; Ubuntu: Ubuntu Font Licence; Noto Emoji: SIL Open Font License; the icon font: MIT |
+
 ## Software
 
 Rust, [wgpu](https://wgpu.rs), [egui/eframe](https://github.com/emilk/egui), [glam](https://github.com/bitshifter/glam-rs), the [image](https://github.com/image-rs/image) crate and [rodio](https://github.com/RustAudio/rodio) (sound), under their respective MIT/Apache-2.0 licenses.

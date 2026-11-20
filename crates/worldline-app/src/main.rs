@@ -49,6 +49,7 @@
 //!   ton-618, white-dwarf, mini-black-hole, eclipse, moon-impact or
 //!   black-hole-flyby. It starts afresh, after the options above.
 //! - `--scenarios` opens the scenario window.
+//! - `--timings` shows the frame's timings over the view (F3 toggles them).
 
 mod app;
 mod calendar;
@@ -57,6 +58,7 @@ mod catalogue;
 mod clocks;
 mod details;
 mod eclipse_finder;
+mod feel;
 mod fluid;
 mod gpu;
 mod ground;
@@ -137,6 +139,8 @@ pub struct StartOptions {
     pub scenario: Option<String>,
     /// Start with the scenario window open.
     pub scenarios: bool,
+    /// Start showing the frame's timings.
+    pub timings: bool,
 }
 
 /// Two numbers with a comma between them.
@@ -155,6 +159,7 @@ impl StartOptions {
                 "--fluid" => options.fluid = args.next(),
                 "--sky" => options.sky = true,
                 "--scenarios" => options.scenarios = true,
+                "--timings" => options.timings = true,
                 "--scenario" => match args.next() {
                     Some(key) => options.scenario = Some(key),
                     None => eprintln!("worldline: --scenario needs a scenario's key"),
@@ -281,7 +286,8 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_title("Worldline")
             .with_inner_size([1280.0, 800.0])
-            .with_min_inner_size([800.0, 500.0]),
+            .with_min_inner_size([800.0, 500.0])
+            .with_icon(theme::icon()),
         renderer: eframe::Renderer::Wgpu,
         ..Default::default()
     };
@@ -343,6 +349,7 @@ mod tests {
             "--scenario",
             "gw150914",
             "--scenarios",
+            "--timings",
         ]
         .map(String::from)
         .into_iter();
@@ -390,6 +397,7 @@ mod tests {
                 fov: Some(3.0),
                 scenario: Some("gw150914".into()),
                 scenarios: true,
+                timings: true,
             }
         );
         assert_eq!(

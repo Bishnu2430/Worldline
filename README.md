@@ -4,6 +4,8 @@
 
 > **Status:** pre-alpha. The engine runs the real solar system in a 3D window, with relativistic gravity, all 459 of its known moons, 62 dwarf planets, asteroids and comets, 28,331 belt asteroids and Kuiper belt objects, the zodiacal dust, the Sun's reach (its wind, its heliosphere and its light), the planets' magnetospheres, and giant planets as self-gravitating fluids that tides stretch and tear apart. See the [roadmap](docs/ROADMAP.md).
 
+![Worldline with Saturn up close: the top bar's tools for time, scenarios, eclipses, the sky and building, and the inspector's cards for the bodies and the one selected](docs/images/ui-step-8.3.png)
+
 ![Worldline running the real solar system with relativistic gravity, five months after 1 January 2025](docs/images/solar-system-step-1.5.png)
 
 ![Earth on 1 January 2025: clouds, blue Rayleigh haze, the Pacific in daylight and night falling over Asia](docs/images/earth-step-1b.3.png)
@@ -133,6 +135,8 @@ The first build takes a few minutes. Then:
 - click a body to inspect it,
 - double-click a body to fly to it.
 
+Keyboard: **Space** runs or stops time, **+** and **−** change its speed, **F** follows the selected body, **Esc** closes windows, **Ctrl+S** saves, **F3** shows frames a second. See [docs/app.md](docs/app.md#the-interface).
+
 To play one of the scenario library's famous events (Mercury's perihelion, the Hulse–Taylor pulsar, GW150914, GW170817, a planet meeting a black hole, TON 618 swallowing Sagittarius A*, a white dwarf past its limit, an evaporating black hole, the next total solar eclipse, the Moon-forming impact, a black hole through the Sun's neighborhood), open **Scenarios** in the top bar, or:
 
 ```bash
@@ -229,7 +233,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 - [Validation plots](docs/validation/README.md): a plot for every claim above, drawn from what its test measured
 - [Roadmap](docs/ROADMAP.md): milestones and steps
 - [Architecture](docs/ARCHITECTURE.md): how the engine picks physics models
-- [The desktop app](docs/app.md): frame loop, double-precision 3D view, camera, trails and the sandbox tools
+- [The desktop app](docs/app.md): the interface and its keyboard shortcuts, frame loop, double-precision 3D view, camera, trails and the sandbox tools
 - [Scenarios](docs/scenarios.md): the library of famous events, each set up in one click, and what each checks
 - [What a collision leaves](docs/physics/collision-outcomes.md): merging, partial accretion, hit-and-run and disruption, from Leinhardt & Stewart's scaling laws
 - [What a collision throws off](docs/physics/debris.md): the fragments, and where every joule goes
