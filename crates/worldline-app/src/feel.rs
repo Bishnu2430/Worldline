@@ -140,6 +140,16 @@ pub struct Timings {
     pub frame: f64,
     pub physics: f64,
     pub interface: f64,
+    /// Of the interface, drawing the view (step 8.4).
+    pub view: f64,
+    /// Of the physics: steps of the solar system a frame, their time, the
+    /// galactic center's catching up, carrying the belts to now; and the
+    /// longest step lately (step 8.4).
+    pub steps: f64,
+    pub stepping: f64,
+    pub galaxy: f64,
+    pub belts: f64,
+    pub longest_step: f64,
 }
 
 impl Timings {
@@ -154,12 +164,37 @@ impl Timings {
                 frame,
                 physics,
                 interface,
+                ..*self
             };
             return;
         }
         self.frame += Self::WEIGHT * (frame - self.frame);
         self.physics += Self::WEIGHT * (physics - self.physics);
         self.interface += Self::WEIGHT * (interface - self.interface);
+    }
+
+    /// Adds the parts of a frame's physics and the view's drawing: steps
+    /// taken, and seconds.
+    pub fn record_parts(
+        &mut self,
+        steps: usize,
+        stepping: f64,
+        galaxy: f64,
+        belts: f64,
+        view: f64,
+    ) {
+        let w = Self::WEIGHT;
+        self.steps += w * (steps as f64 - self.steps);
+        self.stepping += w * (stepping - self.stepping);
+        self.galaxy += w * (galaxy - self.galaxy);
+        self.belts += w * (belts - self.belts);
+        self.view += w * (view - self.view);
+    }
+
+    /// Notes a step's time, keeping the longest of the last few seconds:
+    /// it forgets by 2% a frame.
+    pub fn record_step(&mut self, longest: f64) {
+        self.longest_step = longest.max(0.98 * self.longest_step);
     }
 
     /// Frames a second.

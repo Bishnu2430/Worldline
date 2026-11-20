@@ -140,7 +140,7 @@ impl Field {
     }
 
     /// Forgets what lies before `time`.
-    fn forget_before(&mut self, time: f64) {
+    pub(crate) fn forget_before(&mut self, time: f64) {
         while self.segments.len() > 1 && self.segments[0].t1 <= time {
             self.segments.pop_front();
         }

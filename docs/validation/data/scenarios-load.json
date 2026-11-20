@@ -5,7 +5,7 @@
   "kind": "margins",
   "title": "The scenario library: every scenario loads and plays from the menu",
   "checks": [
-    {"label": "Mercury's perihelion", "off": 0.0, "limit": 0.5, "shown": "312 bodies; 17094358.016 s of simulated time in three frames"},
+    {"label": "Mercury's perihelion", "off": 0.0, "limit": 0.5, "shown": "312 bodies; 22782282.182 s of simulated time in three frames"},
     {"label": "The Hulse–Taylor pulsar", "off": 0.0, "limit": 0.5, "shown": "313 bodies; 1080.000 s of simulated time in three frames"},
     {"label": "GW150914: two black holes merge", "off": 0.0, "limit": 0.5, "shown": "313 bodies; 0.300 s of simulated time in three frames"},
     {"label": "GW170817: two neutron stars merge", "off": 0.0, "limit": 0.5, "shown": "313 bodies; 0.300 s of simulated time in three frames"},

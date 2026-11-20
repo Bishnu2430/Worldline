@@ -489,6 +489,8 @@ pub struct Simulation {
     /// Fraction of the requested speed the last update achieved: 1.0 when
     /// physics kept up, less when it ran out of time.
     pub achieved: f64,
+    /// Where the last update's computer time went (step 8.4).
+    pub profile: Profile,
     /// The approach that slowed the last update, if one did (see
     /// [`Limits`]).
     pub slowed_by: Option<usize>,
@@ -560,7 +562,10 @@ impl Simulation {
     pub fn solar_system(speed: f64) -> Self {
         let epoch_jd_tdb = worldline_data::solar_system().epoch_jd_tdb;
         let mut hierarchy = worldline_data::full_solar_system();
-        // The belts, as live particles labeled 0, 1, 2, … belt by belt.
+        // The belts, as live particles labeled 0, 1, 2, … belt by belt,
+        // their steps on a thread of their own so none holds up a frame
+        // (step 8.4): the same steps, taken in once done.
+        hierarchy.background_swarm = true;
         hierarchy.add_particles(worldline_data::belt_particles());
         let all_small = worldline_data::small_moons();
         let small: Vec<Vec<SmallMoon>> = hierarchy
@@ -583,6 +588,7 @@ impl Simulation {
             speed,
             paused: false,
             achieved: 1.0,
+            profile: Profile::default(),
             slowed_by: None,
             parents: Vec::new(),
             sources: Vec::new(),
@@ -1588,6 +1594,7 @@ impl Simulation {
         }
         let clock = Instant::now();
         let mut reached = None;
+        self.profile = Profile::default();
         while self.time() < target && clock.elapsed() < budget {
             let mut next = target;
             for (k, approach) in limits.approaches.iter().enumerate() {
@@ -1616,15 +1623,29 @@ impl Simulation {
             if reached.is_some() {
                 break;
             }
+            let began = Instant::now();
             self.step_toward(next);
+            let took = began.elapsed().as_secs_f64();
+            self.profile.steps += 1;
+            self.profile.stepping += took;
+            self.profile.longest_step = self.profile.longest_step.max(took);
+            let parts = self.hierarchy.step_times;
+            self.profile.top += parts.top;
+            self.profile.beneath += parts.beneath;
+            self.profile.recording += parts.recording;
+            self.profile.swarm += parts.swarm;
         }
         self.achieved = if limits.until.is_some() || reached.is_some() {
             1.0
         } else {
             (self.time() - start) / requested
         };
+        let began = Instant::now();
         self.catch_up_galaxy();
+        self.profile.galaxy = began.elapsed().as_secs_f64();
+        let began = Instant::now();
         self.refresh_small_moons();
+        self.profile.belts = began.elapsed().as_secs_f64();
         reached
     }
 
@@ -1844,7 +1865,9 @@ impl Simulation {
         self.refresh();
         self.tick_clocks(Zone::GalacticCenter);
         if swarm_due {
+            let began = Instant::now();
             self.step_galaxy_swarm();
+            self.profile.galaxy_swarm = began.elapsed().as_secs_f64();
         }
     }
 
@@ -2419,11 +2442,193 @@ impl Simulation {
     }
 }
 
+/// Where an update's computer time went, s: the steps of the solar system
+/// (how many, and the longest), catching the galactic center and the nearby
+/// stars up to it, the galaxy's swarm when its turn comes (within the
+/// galactic center's), and carrying the belts to now for drawing.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Profile {
+    pub steps: usize,
+    pub stepping: f64,
+    pub longest_step: f64,
+    pub galaxy: f64,
+    pub galaxy_swarm: f64,
+    pub belts: f64,
+    /// The steps' parts (see `StepTimes`).
+    pub top: f64,
+    pub beneath: f64,
+    pub recording: f64,
+    pub swarm: f64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const GENEROUS: Duration = Duration::from_secs(10);
+
+    #[test]
+    #[ignore = "a measurement: run with --nocapture"]
+    fn how_long_the_top_levels_gravity_takes() {
+        use worldline_core::gravity::{
+            EinsteinInfeldHoffmann, Gravity, PostNewtonian, Relativistic,
+        };
+        let sim = Simulation::solar_system(30.0 * DAY);
+        let bodies = &sim.hierarchy.top.bodies;
+        let mut out = vec![DVec3::ZERO; bodies.len()];
+        let time = |g: &dyn Gravity, out: &mut [DVec3]| {
+            let began = Instant::now();
+            for _ in 0..2000 {
+                g.accelerations(0.0, bodies, out);
+            }
+            began.elapsed().as_secs_f64() / 2000.0 * 1e6
+        };
+        // Every term against the lean model, interleaved, so a busy machine
+        // slows both alike.
+        let every = PostNewtonian {
+            every_term: true,
+            ..PostNewtonian::default()
+        };
+        let (mut with_every, mut lean) = (0.0, 0.0);
+        for _ in 0..10 {
+            with_every += time(&every, &mut out) / 10.0;
+            lean += time(&PostNewtonian::default(), &mut out) / 10.0;
+        }
+        println!(
+            "post-Newtonian with every pair's terms {with_every:.1} µs, without the unresolved ones {lean:.1} µs: {:.1} times faster",
+            with_every / lean
+        );
+        let massive = bodies.iter().filter(|b| b.gm > 0.0).count();
+        println!(
+            "{} bodies ({massive} with mass): EIH {:.1} µs, post-Newtonian {:.1} µs, relativistic {:.1} µs an evaluation",
+            bodies.len(),
+            time(&EinsteinInfeldHoffmann, &mut out),
+            time(&PostNewtonian::default(), &mut out),
+            time(&Relativistic::default(), &mut out)
+        );
+        // How many of the pairs' terms are still worked out, as the model
+        // decides.
+        use worldline_core::gravity::pair_terms_bound;
+        EinsteinInfeldHoffmann.accelerations(0.0, bodies, &mut out);
+        let mut room: Vec<f64> = out
+            .iter()
+            .map(|a| f64::EPSILON / 2.0 * a.length())
+            .collect();
+        let (mut worked, mut all) = (0, 0);
+        let mut kept: Vec<String> = Vec::new();
+        for i in 0..bodies.len() {
+            for j in 0..bodies.len() {
+                if i == j {
+                    continue;
+                }
+                all += 1;
+                let (bi, bj) = (&bodies[i], &bodies[j]);
+                let r = (bj.position - bi.position).length();
+                let fastest = bi
+                    .velocity
+                    .length_squared()
+                    .max(bj.velocity.length_squared());
+                let bound = pair_terms_bound(bi.gm, bj.gm, r, fastest);
+                if bound > room[i] {
+                    worked += 1;
+                    kept.push(format!("{} from {}", bi.name, bj.name));
+                } else {
+                    room[i] -= bound;
+                }
+            }
+        }
+        println!(
+            "{worked} of {all} pair terms worked out: {}",
+            kept.join(", ")
+        );
+    }
+
+    /// Step 8.4's measurement: the default view's physics, frame by frame,
+    /// as the app runs it (a month a second, 60 frames a second asked for).
+    #[test]
+    #[ignore = "a measurement, not a check: run with --nocapture"]
+    fn where_the_default_views_physics_time_goes() {
+        let mut sim = Simulation::solar_system(30.0 * DAY);
+        let h = &sim.hierarchy;
+        println!(
+            "top level {} bodies; {} followers; {} moon systems with {} moons; swarm {} particles",
+            h.top.bodies.len(),
+            h.follower_count(),
+            h.moon_systems.len(),
+            h.moon_systems
+                .iter()
+                .map(|m| m.system.bodies.len() - 1)
+                .sum::<usize>(),
+            h.swarm().len()
+        );
+        let frames = 240;
+        let mut total = Profile::default();
+        let mut longest_frame: f64 = 0.0;
+        let mut whole = 0.0;
+        for _ in 0..frames {
+            let began = Instant::now();
+            sim.update(1.0 / 60.0, crate::app::PHYSICS_BUDGET, &Limits::default());
+            sim.focus_detail_on(0);
+            let took = began.elapsed().as_secs_f64();
+            whole += took;
+            longest_frame = longest_frame.max(took);
+            let p = sim.profile;
+            if took > 0.04 {
+                println!(
+                    "  slow frame at {:.1} days: {:.1} ms; planets {:.1}, beneath {:.1}, swarm {:.1}, galaxy {:.1} (its swarm {:.1}), belts {:.1}",
+                    sim.time() / DAY,
+                    took * 1e3,
+                    p.top * 1e3,
+                    p.beneath * 1e3,
+                    p.swarm * 1e3,
+                    p.galaxy * 1e3,
+                    p.galaxy_swarm * 1e3,
+                    p.belts * 1e3
+                );
+            }
+            total.steps += p.steps;
+            total.stepping += p.stepping;
+            total.longest_step = total.longest_step.max(p.longest_step);
+            total.galaxy += p.galaxy;
+            total.galaxy_swarm += p.galaxy_swarm;
+            total.belts += p.belts;
+            total.top += p.top;
+            total.beneath += p.beneath;
+            total.recording += p.recording;
+            total.swarm += p.swarm;
+        }
+        let n = frames as f64;
+        let ms = |s: f64| s / n * 1e3;
+        println!(
+            "{frames} frames: physics {:.1} ms a frame on average (the longest {:.1} ms), {:.0}% of the requested speed at the end",
+            ms(whole),
+            longest_frame * 1e3,
+            sim.achieved * 100.0
+        );
+        println!(
+            "  steps: {:.1} a frame, {:.1} ms (the longest step {:.1} ms)",
+            total.steps as f64 / n,
+            ms(total.stepping),
+            total.longest_step * 1e3
+        );
+        println!(
+            "  galactic center and nearby stars: {:.1} ms, of which the galaxy's swarm {:.1} ms",
+            ms(total.galaxy),
+            ms(total.galaxy_swarm)
+        );
+        println!(
+            "    of the steps: planets {:.1} ms, small bodies and moon systems {:.1} ms, recording {:.1} ms, belts' swarm {:.1} ms",
+            ms(total.top),
+            ms(total.beneath),
+            ms(total.recording),
+            ms(total.swarm)
+        );
+        println!("  the belts carried to now: {:.1} ms", ms(total.belts));
+        println!(
+            "  the rest (detail around the focus, refreshing): {:.1} ms",
+            ms(whole - total.stepping - total.galaxy - total.belts)
+        );
+    }
 
     #[test]
     #[ignore = "slow: runs the solar system to 2031"]

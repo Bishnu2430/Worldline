@@ -24,7 +24,7 @@ Putting moons in the same integration as the planets would force the whole solar
 
 **The top level** holds the Sun, the planets, and each planetary system as one point at its barycenter. It runs as before: relativistic Einstein–Infeld–Hoffmann gravity with the IAS15 integrator. Earth's Moon is simulated there too, beside Earth, so since step 5.2 Earth's bulge (J₂ to J₅ from DE440) pulls on it there (see [eclipses.md](eclipses.md)).
 
-**Each moon system** holds a planet and its moons, in their own frame centered on the system's barycenter. After every top-level step, each moon system catches up over the same interval, with its own IAS15 taking as many small steps as it needs. Inside, bodies feel:
+**Each moon system** holds a planet and its moons, in their own frame centered on the system's barycenter. After every top-level step, each moon system catches up over the same interval, with its own IAS15 taking as many small steps as it needs. None depends on another, so since step 8.4 they run side by side, each on a thread of its own, alongside the small bodies following the planets; they come out exactly as one after another. Inside, bodies feel:
 - **each other** (Newtonian gravity);
 - **the planet's gravity field** (sections 2 and 3);
 - **the moons' own shapes** (section 4);

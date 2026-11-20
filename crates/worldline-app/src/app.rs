@@ -3432,11 +3432,18 @@ impl WorldlineApp {
     fn draw_timings(&self, painter: &egui::Painter, viewport: Rect) {
         let t = self.timings;
         let lines = format!(
-            "{:.0} frames a second · {:.1} ms a frame\nphysics {:.1} ms · interface {:.1} ms",
+            "{:.0} frames a second · {:.1} ms a frame\nphysics {:.1} ms · interface {:.1} ms (view {:.1})\n\
+             {:.1} steps {:.1} ms (longest {:.0}) · galaxy {:.1} · belts {:.1}",
             t.rate(),
             t.frame * 1e3,
             t.physics * 1e3,
-            t.interface * 1e3
+            t.interface * 1e3,
+            t.view * 1e3,
+            t.steps,
+            t.stepping * 1e3,
+            t.longest_step * 1e3,
+            t.galaxy * 1e3,
+            t.belts * 1e3
         );
         let galley = painter.layout_no_wrap(lines, FontId::monospace(11.5), theme::TEXT);
         let size = galley.size() + vec2(20.0, 12.0);
@@ -4692,7 +4699,9 @@ impl eframe::App for WorldlineApp {
                     .inner_margin(egui::Margin::same(10)),
             )
             .show(ui, |ui| self.inspector(ui));
+        let view_began = Instant::now();
         egui::CentralPanel::no_frame().show(ui, |ui| self.scene(ui, frame));
+        let view = view_began.elapsed().as_secs_f64();
         self.catalogue_window(ui.ctx());
         self.scenarios_window(ui.ctx());
         self.waves_window(ui.ctx());
@@ -4712,6 +4721,10 @@ impl eframe::App for WorldlineApp {
         let work = now.elapsed().as_secs_f64();
         self.timings
             .record(elapsed, physics, (work - physics).max(0.0));
+        let p = self.simulation.profile;
+        self.timings
+            .record_parts(p.steps, p.stepping, p.galaxy, p.belts, view);
+        self.timings.record_step(p.longest_step);
     }
 }
 
