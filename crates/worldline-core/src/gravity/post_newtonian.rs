@@ -282,13 +282,40 @@ pub struct PostNewtonian {
     /// Leave out the radiation reaction, keeping only the conservative
     /// part (for checks that energy is conserved).
     pub conservative: bool,
+    /// Work out every pair's terms, even those too small to change any
+    /// body's acceleration in double precision (for checks that leaving
+    /// them out changes nothing; see [`pair_terms_bound`]).
+    pub every_term: bool,
 }
 
 impl PostNewtonian {
     /// The conservative part alone: everything but the radiation reaction.
     pub fn conservative() -> Self {
-        Self { conservative: true }
+        Self {
+            conservative: true,
+            every_term: false,
+        }
     }
+}
+
+/// What double precision can't resolve of a number: half its last digit,
+/// 2⁻⁵³ of it.
+const UNRESOLVED: f64 = f64::EPSILON / 2.0;
+
+/// A bound on the size of [`pair_terms`], all three orders together, on a
+/// body of gravitational parameter `gm1` from one of `gm2` a distance `r`
+/// away, the faster of them moving at speed √`fastest²`, m/s².
+///
+/// Every term of the 2PN, 2.5PN and 3.5PN accelerations is Gm₂/r² times
+/// a product of speeds and Gm/r's divided by c⁴, c⁵ or c⁷. Taking each
+/// speed at the faster body's (a relative speed at twice it) and each Gm/r
+/// at the pair's, every product is at most w², w^2.5 or w^3.5 times c⁴,
+/// c⁵ or c⁷, with w = max(G(m₁ + m₂)/r, v²)/c². The coefficients' sizes
+/// add up to 302.1, 78.9 and 11,789 (see `docs/physics/post-newtonian.md`).
+pub fn pair_terms_bound(gm1: f64, gm2: f64, r: f64, fastest2: f64) -> f64 {
+    let w = ((gm1 + gm2) / r).max(fastest2) / (C * C);
+    let root = w.sqrt();
+    gm2 / (r * r) * w * w * (303.0 + root * (79.0 + 11_789.0 * w))
 }
 
 impl Gravity for PostNewtonian {
@@ -306,32 +333,58 @@ impl Gravity for PostNewtonian {
 
     fn accelerations(&self, time: f64, bodies: &[Body], out: &mut [DVec3]) {
         EinsteinInfeldHoffmann.accelerations(time, bodies, out);
+        // How much of each body's pair terms may be left out unworked: what
+        // double precision can't resolve of its acceleration. A pair's
+        // terms on a body are left out while their bound fits in what's
+        // left of it, so all those left out together change it by less
+        // than its last digit. Between planets and asteroids, 10⁻¹⁹ of
+        // their accelerations or less, nearly all are; the Sun's pairs with
+        // the inner planets, and any strong-field pair, are worked out.
+        let mut room: Vec<f64> = out.iter().map(|a| UNRESOLVED * a.length()).collect();
+        let mut needed = |k: usize, bound: f64| {
+            if self.every_term || bound > room[k] {
+                return true;
+            }
+            room[k] -= bound;
+            false
+        };
         for (i, bi) in bodies.iter().enumerate() {
             for (j, bj) in bodies.iter().enumerate().skip(i + 1) {
                 if bi.gm == 0.0 && bj.gm == 0.0 {
                     continue;
                 }
-                let on_i = pair_terms(
-                    bi.gm,
-                    bj.gm,
-                    bi.position,
-                    bj.position,
-                    bi.velocity,
-                    bj.velocity,
-                );
-                let on_j = pair_terms(
-                    bj.gm,
-                    bi.gm,
-                    bj.position,
-                    bi.position,
-                    bj.velocity,
-                    bi.velocity,
-                );
-                out[i] += on_i.second;
-                out[j] += on_j.second;
-                if !self.conservative {
-                    out[i] += on_i.reaction + on_i.reaction_correction;
-                    out[j] += on_j.reaction + on_j.reaction_correction;
+                let r = (bj.position - bi.position).length();
+                let fastest = bi
+                    .velocity
+                    .length_squared()
+                    .max(bj.velocity.length_squared());
+                if needed(i, pair_terms_bound(bi.gm, bj.gm, r, fastest)) {
+                    let on_i = pair_terms(
+                        bi.gm,
+                        bj.gm,
+                        bi.position,
+                        bj.position,
+                        bi.velocity,
+                        bj.velocity,
+                    );
+                    out[i] += on_i.second;
+                    if !self.conservative {
+                        out[i] += on_i.reaction + on_i.reaction_correction;
+                    }
+                }
+                if needed(j, pair_terms_bound(bj.gm, bi.gm, r, fastest)) {
+                    let on_j = pair_terms(
+                        bj.gm,
+                        bi.gm,
+                        bj.position,
+                        bi.position,
+                        bj.velocity,
+                        bi.velocity,
+                    );
+                    out[j] += on_j.second;
+                    if !self.conservative {
+                        out[j] += on_j.reaction + on_j.reaction_correction;
+                    }
                 }
             }
         }
@@ -512,6 +565,131 @@ mod tests {
             power(second_weak, second_strong)
         );
         assert!(power(second_weak, second_strong) > 3.0);
+    }
+
+    /// A simple, repeatable source of numbers in [0, 1).
+    fn numbers(seed: u64) -> impl FnMut() -> f64 {
+        let mut state = seed;
+        move || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 11) as f64 / (1u64 << 53) as f64
+        }
+    }
+
+    #[test]
+    fn the_pair_terms_bound_holds_from_weak_fields_to_strong() {
+        // Random pairs, from planets to neutron stars a few hundred km
+        // apart (w up to 0.1), moving every which way: the three orders'
+        // sum is never past the bound, which is in fact loose (each term
+        // at its largest at once), but within a few thousand of it.
+        let mut next = numbers(7);
+        let mut closest: f64 = 0.0;
+        for _ in 0..20_000 {
+            let gm1 = GM_SUN * 10f64.powf(-12.0 + 13.0 * next());
+            let gm2 = GM_SUN * 10f64.powf(-12.0 + 13.0 * next());
+            let r = 10f64.powf(5.0 + 8.0 * next());
+            let direction = |next: &mut dyn FnMut() -> f64| {
+                DVec3::new(next() - 0.5, next() - 0.5, next() - 0.5).normalize()
+            };
+            let speed = |next: &mut dyn FnMut() -> f64| C * 10f64.powf(-6.0 + 5.5 * next());
+            let (y1, y2) = (DVec3::ZERO, direction(&mut next) * r);
+            let (v1, v2) = (
+                direction(&mut next) * speed(&mut next),
+                direction(&mut next) * speed(&mut next),
+            );
+            let terms = pair_terms(gm1, gm2, y1, y2, v1, v2);
+            let size = (terms.second + terms.reaction + terms.reaction_correction).length();
+            let bound = pair_terms_bound(gm1, gm2, r, v1.length_squared().max(v2.length_squared()));
+            assert!(size <= bound, "{size} past {bound}");
+            closest = closest.max(size / bound);
+        }
+        println!("the pair terms reach at most {closest:.2e} of their bound");
+        assert!(closest > 1e-4);
+    }
+
+    #[test]
+    fn leaving_out_unresolved_pair_terms_changes_no_acceleration_beyond_its_last_digit() {
+        // A solar system: the Sun, eight planets, the Moon beside Earth and
+        // thirty asteroids, at their distances and speeds, in random
+        // directions. Every pair's terms worked out, against those left out
+        // that double precision can't resolve. Their bound is half an
+        // acceleration's last digit, so the two may differ by that and by
+        // the rounding of the sums the left-out terms would have joined:
+        // two last digits, 2ε of the acceleration.
+        let mut next = numbers(11);
+        let mut bodies = vec![Body::new("Sun", GM_SUN, 6.957e8)];
+        let planets = [
+            (2.2032e13, 0.387),
+            (3.24859e14, 0.723),
+            (3.986e14, 1.0),
+            (4.2828e13, 1.524),
+            (1.26687e17, 5.203),
+            (3.7931e16, 9.537),
+            (5.7940e15, 19.19),
+            (6.8365e15, 30.07),
+        ];
+        let place = |gm: f64, au: f64, next: &mut dyn FnMut() -> f64| {
+            let angle = std::f64::consts::TAU * next();
+            let (s, c) = angle.sin_cos();
+            let r = au * crate::constants::AU;
+            let v = (GM_SUN / r).sqrt();
+            Body::new("body", gm, 1.0)
+                .at(DVec3::new(r * c, r * s, 1e9 * (next() - 0.5)))
+                .moving(DVec3::new(-v * s, v * c, 0.0))
+        };
+        for (gm, au) in planets {
+            bodies.push(place(gm, au, &mut next));
+        }
+        let earth = bodies[3].clone();
+        bodies.push(
+            Body::new("Moon", 4.9028e12, 1.7374e6)
+                .at(earth.position + DVec3::new(3.844e8, 0.0, 0.0))
+                .moving(earth.velocity + DVec3::new(0.0, 1.022e3, 0.0)),
+        );
+        for _ in 0..30 {
+            let gm = 1e8 * 10f64.powf(3.0 * next());
+            let au = 2.1 + 1.3 * next();
+            bodies.push(place(gm, au, &mut next));
+        }
+        let n = bodies.len();
+        let (mut full, mut lean) = (vec![DVec3::ZERO; n], vec![DVec3::ZERO; n]);
+        let every = PostNewtonian {
+            every_term: true,
+            ..PostNewtonian::default()
+        };
+        every.accelerations(0.0, &bodies, &mut full);
+        PostNewtonian::default().accelerations(0.0, &bodies, &mut lean);
+        let mut worst: f64 = 0.0;
+        let mut identical = 0;
+        for (a, b) in full.iter().zip(&lean) {
+            let off = (*a - *b).length() / a.length();
+            worst = worst.max(off);
+            identical += usize::from(a == b);
+            assert!(off <= 2.0 * f64::EPSILON, "{off:e}");
+        }
+        println!(
+            "{n} bodies: {identical} accelerations bit for bit the same, the rest within {:.2} last digits",
+            worst / f64::EPSILON
+        );
+    }
+
+    #[test]
+    fn a_strong_field_pairs_terms_are_all_worked_out() {
+        // Two neutron stars at GM/rc² = 0.01: every term counts, so the
+        // accelerations are bit for bit those with every term.
+        let (gm1, gm2) = (1.4 * GM_SUN, 1.3 * GM_SUN);
+        let (x, v) = strong_pair(gm1, gm2, 0.01);
+        let bodies = center_of_mass_pair(gm1, gm2, x, v);
+        let (mut full, mut lean) = ([DVec3::ZERO; 2], [DVec3::ZERO; 2]);
+        let every = PostNewtonian {
+            every_term: true,
+            ..PostNewtonian::default()
+        };
+        every.accelerations(0.0, &bodies, &mut full);
+        PostNewtonian::default().accelerations(0.0, &bodies, &mut lean);
+        assert_eq!(full, lean);
     }
 
     #[test]

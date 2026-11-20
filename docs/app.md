@@ -8,7 +8,7 @@ The app is a window around the physics engine. It never does physics itself. It 
 
 1. **Measure real time.** It measures how much real time has passed since the last frame, capped at 0.1 s so a stall (like dragging the window) doesn't cause a jump.
 2. **Advance the physics.** It advances by *speed × real time*. Each step runs the whole hierarchy: relativistic gravity for the Sun and planets, then each planet's moon system in its own frame (see [physics/moons.md](physics/moons.md)). These are the same models the validation tests check. After each step the app copies positions into one flat list of bodies: the Sun and planets in the snapshot's order, then the moons. A planet with moons stands in for its system's barycenter.
-3. **Respect a time budget.** Physics starts no new step once 12 ms of the frame have passed. If the chosen speed needs more, the simulation runs slower than requested and the top bar shows an amber chip with the percentage achieved. **Worldline never takes bigger, less accurate steps to keep up.** Accuracy wins over speed, and the app says so when that happens. The budget is checked between steps, though, and a single step of the whole solar system can take longer: in the default view, on an Intel Iris Xe, physics takes 54 ms a frame (step 8.3's timings). Step 8.4 profiles that.
+3. **Respect a time budget.** Physics starts no new step once 12 ms of the frame have passed. If the chosen speed needs more, the simulation runs slower than requested and the top bar shows an amber chip with the percentage achieved. **Worldline never takes bigger, less accurate steps to keep up.** Accuracy wins over speed, and the app says so when that happens. The budget is checked between steps, though, and a single step of the whole solar system can take longer: in the default view, on an Intel Iris Xe, a step takes 12 to 17 ms (see "Where a frame's time goes", below).
 4. **Point the camera.** The camera moves to the body it is following.
 5. **Draw.** It draws the panels and the 3D view: rings and trails at the back, textured globes from the GPU in the middle, dots and labels in front. See [rendering.md](rendering.md).
 
@@ -45,14 +45,26 @@ In a window narrower than 1,200 points the exploring tools show their icons alon
 
 **The camera glides.** Let go of a drag and the view carries on turning, slowing by e every 0.16 s, so a flick spins it and a drag held still stops dead. A flick at 600 points a second glides as far as the pointer moves in 0.16 s at that speed, 96 points, however fast frames come. Clicking stops it.
 
-**The frame's timings.** F3, **Display → Frame timings** or `--timings` shows, over the view's top right: frames a second, and the physics's and the interface's share of each frame, as running means over about a quarter second. On an Intel Iris Xe:
+**The frame's timings.** F3, **Display → Frame timings** or `--timings` shows, over the view's top right, as running means over about a quarter second:
+- frames a second, and how long a frame takes;
+- the physics's and the interface's share of it, and of the interface, drawing the view;
+- the physics in parts: the solar system's steps a frame and their time (with the longest step lately), catching the galactic center up, and carrying the belts to now for drawing.
 
-| View | Frames a second | A frame | Physics | Interface |
-|---|---|---|---|---|
-| The default view: the solar system, a month a second | 13 | 77 ms | 54 ms | 15 ms |
-| Earth up close, an hour a second | 44 | 23 ms | 14 ms | 7 ms |
+### Where a frame's time goes (step 8.4)
 
-What feels slow is the physics, not the interface. Step 8.4 works on it.
+Measured with those timings, the default view (the solar system, a month a second) was held up by physics, not the interface:
+- **The planets' step:** 7 to 10 ms. Their gravity worked out every pair's second-order and radiation terms, 1,056 of them for 33 bodies, though nearly all are far below the last digit of what they're added to. Each is now bounded first and left out if double precision couldn't hold it, so no acceleration changes by more than its last digit (see [physics/post-newtonian.md](physics/post-newtonian.md)): 4 ms.
+- **The moon systems and the small bodies:** one after another on one core. They don't depend on each other, so they now run side by side on threads of their own, with the same results (see [physics/moons.md](physics/moons.md)).
+- **The belts' swarm:** every 64 simulated days its 28,331 particles took their step in one go, holding up that frame for 70 to 180 ms: a stutter every two seconds. The step now runs on a thread of its own while the planets carry on, and is taken in once done, with the same result (see [physics/swarm.md](physics/swarm.md)).
+
+Before and after, alternating runs on an Intel Iris Xe (12 threads):
+
+| The default view | Frames a second | A frame | Physics | Interface | The longest frame |
+|---|---|---|---|---|---|
+| Before (step 8.3) | 15 to 18 | 54 to 65 ms | 35 to 44 ms | 14 to 16 ms | 128 to 180 ms |
+| After | 23 | 43 to 44 ms | 22 to 24 ms | 14 to 16 ms | about 45 ms |
+
+The longest frames are from a headless run of the physics alone (`cargo test --release -p worldline-app --bin worldline -- --ignored --nocapture where_the_default_views_physics_time_goes`), which prints each frame over 40 ms and what it spent the time on. Its companion, `how_long_the_top_levels_gravity_takes`, times the top level's gravity with every pair term and without those left out.
 
 ## The 3D view
 

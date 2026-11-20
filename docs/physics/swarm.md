@@ -39,6 +39,8 @@ A kick too weak to matter over its whole time needs no limit. The Sun's wobble f
 
 **Cost.** About 30 ms per 64-day step for all 28,331, shared among all cores. A simulated year with the belts live takes 2.6 s instead of 2.4 s.
 
+**Off the frame (step 8.4).** Taken all at once, that step held up the frame it came due in: 70 to 180 ms every 64 simulated days, every two seconds at a month a second, a stutter. In the app it now runs on a thread of its own, from copies of the swarm and the planets' recorded paths, while the planets carry on. It's taken in at the first step after it's done, or waited for if the next comes due first, or the swarm is saved or changed. It's the same step from the same start, so the swarm comes out bit for bit as it would have; only the belts drawn catch up a few frames later. With fragments of a collision in the swarm, the step stays where it was: a body that swallows a fragment takes back its mass, and the planets' motion mustn't depend on when a thread finishes. (Test: a ring of asteroids under the Sun and a Jupiter with a moon, 300 days, its steps held and on a thread: the particles and the planets bit for bit the same.)
+
 ## Where the belts start
 
 JPL gives the belts' orbits at its own epoch, 2026-06-09, 524 days after the snapshot (2025-01-01). Carried back on fixed ellipses, they would start off by the planets' pull over those days. Instead:

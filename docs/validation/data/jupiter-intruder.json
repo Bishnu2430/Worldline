@@ -6,7 +6,7 @@
   "title": "A Jupiter-mass planet dropped at 1.5 AU: the solar system over 10 years",
   "checks": [
     {"label": "Newtonian energy, against relativity's (v/c)²", "off": 1.926281593029245e-10, "limit": 9.682837112806615e-8, "shown": "changed by 1.9e-10; (v/c)² = 3.9e-8, limit 2.5 times it"},
-    {"label": "momentum, against the same", "off": 1.804104926302976e-11, "limit": 9.682837112806615e-8, "shown": "changed by 1.8e-11"},
+    {"label": "momentum, against the same", "off": 1.8041134874563077e-11, "limit": 9.682837112806615e-8, "shown": "changed by 1.8e-11"},
     {"label": "Earth's shift after a year, within 10× of ½ f t²", "off": 0.2282905444597744, "limit": 1.0, "shown": "6436287 km, 2.28 times the estimate of 2819340 km"}
   ]
 }

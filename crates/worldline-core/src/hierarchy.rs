@@ -38,6 +38,7 @@
 //! `docs/physics/small-moons.md`.
 
 use std::collections::BTreeMap;
+use std::time::Instant;
 
 use glam::DVec3;
 
@@ -251,6 +252,25 @@ impl MoonSystem {
     }
 }
 
+/// Where a [`Hierarchy::step`]'s computer time went, in seconds.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct StepTimes {
+    /// The top level's step.
+    pub top: f64,
+    /// The followers' and the moon systems' steps, side by side.
+    pub beneath: f64,
+    /// Recording the bodies' paths for the swarm, collisions and
+    /// evaporation.
+    pub recording: f64,
+    /// The swarm's catching up, when its turn comes.
+    pub swarm: f64,
+    /// The whole step.
+    pub whole: f64,
+}
+
+/// A step of the swarm: the swarm after it, and what it swallowed.
+type SwarmStep = (Swarm, Vec<Swallowed>);
+
 /// The solar system as a top level plus moon systems.
 pub struct Hierarchy {
     /// The Sun, planets and planetary-system barycenters.
@@ -282,6 +302,16 @@ pub struct Hierarchy {
     /// The top level's recorded state at the end of the last step, and the
     /// generation and time then: the next step's start, if nothing changed.
     last_recorded: Option<(u64, f64, Vec<[DVec3; 3]>)>,
+    /// Where the last step's computer time went.
+    pub step_times: StepTimes,
+    /// Whether the swarm's steps run on a thread of their own while the
+    /// top level carries on, rather than holding up the step they come due
+    /// in (see [`Self::step`]). Off unless asked for.
+    pub background_swarm: bool,
+    /// The swarm's step running on its thread, if one is: the time it
+    /// runs to, and then the swarm and what it swallowed, exactly as
+    /// [`Self::sync_swarm`] would have left them when it came due.
+    pending_swarm: Option<(f64, std::thread::JoinHandle<SwarmStep>)>,
     /// The next swarm label for a freed small moon.
     next_id: u32,
     /// Small moons freed since the last [`Self::take_freed_moons`].
@@ -433,6 +463,9 @@ impl Hierarchy {
             swallowed: Vec::new(),
             recording: false,
             last_recorded: None,
+            step_times: StepTimes::default(),
+            background_swarm: false,
+            pending_swarm: None,
             next_id: FREED_MOON_IDS,
             freed_moons: Vec::new(),
             debris: BTreeMap::new(),
@@ -547,6 +580,7 @@ impl Hierarchy {
 
     /// Removes the swarm particles with these labels.
     pub fn remove_particles(&mut self, ids: &[u32]) {
+        self.take_in_swarm();
         self.swarm.remove(ids);
     }
 
@@ -554,6 +588,7 @@ impl Hierarchy {
     /// clock, which must not be ahead of the top level's. Recorded paths
     /// start afresh, so the swarm is set to the top level's time.
     pub fn set_swarm(&mut self, swarm: Swarm) {
+        self.take_in_swarm();
         self.swarm = swarm;
         self.field = Field::default();
         self.add_particles([]);
@@ -561,8 +596,39 @@ impl Hierarchy {
 
     /// Brings the swarm up to the top level's time.
     pub fn sync_swarm(&mut self) {
+        self.take_in_swarm();
         let now = self.time();
         let mut swallowed = self.swarm.advance(&mut self.field, now);
+        for event in &mut swallowed {
+            self.take_back(event);
+        }
+        self.swallowed.extend(swallowed);
+    }
+
+    /// Starts the swarm's step to now on a thread of its own, from copies
+    /// of the swarm and the bodies' recorded paths: the same step
+    /// [`Self::sync_swarm`] would take, its result taken in once done.
+    fn start_swarm(&mut self) {
+        let mut swarm = self.swarm.clone();
+        let mut field = self.field.clone();
+        let now = self.time();
+        let thread = std::thread::spawn(move || {
+            let swallowed = swarm.advance(&mut field, now);
+            (swarm, swallowed)
+        });
+        self.pending_swarm = Some((now, thread));
+    }
+
+    /// Takes in the swarm's step from its thread, if one is running,
+    /// waiting for it if need be: the swarm, what it swallowed, and the
+    /// recorded paths it no longer needs let go.
+    fn take_in_swarm(&mut self) {
+        let Some((_, pending)) = self.pending_swarm.take() else {
+            return;
+        };
+        let (swarm, mut swallowed) = pending.join().expect("the swarm's step");
+        self.field.forget_before(swarm.time());
+        self.swarm = swarm;
         for event in &mut swallowed {
             self.take_back(event);
         }
@@ -870,6 +936,14 @@ impl Hierarchy {
             self.absorb_overlaps();
         }
         self.free_torn_moons();
+        // The swarm's step on its thread, if done: taken in now.
+        if self
+            .pending_swarm
+            .as_ref()
+            .is_some_and(|(_, pending)| pending.is_finished())
+        {
+            self.take_in_swarm();
+        }
         let t0 = self.top.time();
         let swarm_start =
             (self.recording || !self.swarm.is_empty()).then(|| match self.last_recorded.take() {
@@ -879,6 +953,14 @@ impl Hierarchy {
         let before: Vec<(DVec3, DVec3)> = (0..self.top.bodies.len())
             .map(|k| self.surface_center(k))
             .collect();
+        let clock = Instant::now();
+        let mut times = StepTimes::default();
+        let mut lap = || {
+            let now = clock.elapsed().as_secs_f64();
+            let lap = now - times.whole;
+            times.whole = now;
+            lap
+        };
         let track = (!self.followers.is_empty())
             .then(|| Track::starting_at(&self.top, self.gravity.as_ref()));
         // The Sun alone has nothing to integrate (and a zero force would
@@ -891,7 +973,8 @@ impl Hierarchy {
                 .step(&mut self.top, self.gravity.as_ref(), max_dt)
         };
         let t1 = self.top.time();
-        if let Some(mut track) = track {
+        let top = lap();
+        let track = track.map(|mut track| {
             track.record(&self.top, self.gravity.as_ref());
             // Followers run on a clock that starts at zero with each step.
             // Seconds since the snapshot reach 10⁸ within a few years, where
@@ -900,114 +983,43 @@ impl Hierarchy {
             // for that graininess to look like error, and would shrink its
             // steps without end.
             track.rebase(t0);
-            let gms: Vec<f64> = self.top.bodies.iter().map(|b| b.gm).collect();
-            let radii: Vec<f64> = self.top.bodies.iter().map(|b| b.radius).collect();
-            let mut hits = Vec::new();
-            for (f, follower) in self.followers.iter_mut().enumerate() {
-                let gravity = FollowerGravity {
-                    track: &track,
-                    gms: &gms,
-                    forces: follower.forces,
-                };
-                follower.system.set_time(0.0);
-                if let Some(hit) =
-                    follow(follower, &gravity, &track, &radii, t1 - t0, self.collisions)
-                {
-                    hits.push((f, hit));
+            track
+        });
+        // The followers and each moon system go through the step on their
+        // own, seen from the top level as it was and is now: none depends on
+        // another, so they run side by side, the moon systems each on a
+        // thread of its own, and come out exactly as one after another.
+        let hits = {
+            let (top, before, collisions) = (&self.top, &before, self.collisions);
+            let followers = &mut self.followers;
+            let moon_systems = &mut self.moon_systems;
+            std::thread::scope(|scope| {
+                for moons in moon_systems.iter_mut() {
+                    scope.spawn(move || step_moon_system(moons, top, before, t0, t1));
                 }
-                follower.system.set_time(t1);
-            }
-            // Massless, so absorbing one changes no momentum.
-            for (f, (k, speed, when)) in hits.into_iter().rev() {
-                let absorbed = self.followers.remove(f).system.bodies.remove(0);
-                self.happened.push(Collision {
-                    time: t0 + when,
-                    survivor: self.top.bodies[k].name.clone(),
-                    absorbed: absorbed.name,
-                    speed,
-                    dissolved_system: None,
-                    freed: Vec::new(),
-                    merger: None,
-                    outcome: None,
-                    aftermath: None,
-                    crater: None,
-                });
-            }
+                match &track {
+                    Some(track) => follow_all(followers, track, top, t1 - t0, collisions),
+                    None => Vec::new(),
+                }
+            })
+        };
+        // Massless, so absorbing one changes no momentum.
+        for (f, (k, speed, when)) in hits.into_iter().rev() {
+            let absorbed = self.followers.remove(f).system.bodies.remove(0);
+            self.happened.push(Collision {
+                time: t0 + when,
+                survivor: self.top.bodies[k].name.clone(),
+                absorbed: absorbed.name,
+                speed,
+                dissolved_system: None,
+                freed: Vec::new(),
+                merger: None,
+                outcome: None,
+                aftermath: None,
+                crater: None,
+            });
         }
-
-        for moons in &mut self.moon_systems {
-            // Everything else at the top level, seen from this system's
-            // barycenter at the start and end of the step.
-            let host = moons.host;
-            let perturbers = self
-                .top
-                .bodies
-                .iter()
-                .enumerate()
-                .filter(|(k, _)| *k != host)
-                .map(|(k, b)| Perturber {
-                    gm: b.gm,
-                    start: (before[k].0 - before[host].0, before[k].1 - before[host].1),
-                    end: (
-                        b.position - self.top.bodies[host].position,
-                        b.velocity - self.top.bodies[host].velocity,
-                    ),
-                })
-                .collect();
-            let tides = Tides { perturbers, t0, t1 };
-            let gravity = MoonSystemGravity {
-                zonal: moons.zonal.as_ref(),
-                tesseral: moons.tesseral.as_ref(),
-                figures: &moons.figures,
-                tides: &tides,
-            };
-            // A planet without major moons sits still at its system's
-            // barycenter: nothing to integrate (and its forces, zero up to
-            // rounding, would leave the integrator's error estimate
-            // nothing but noise to go on).
-            let lone = moons.system.bodies.len() == 1;
-            if moons.groups.is_empty() {
-                if !lone {
-                    let interval = t1 - moons.system.time();
-                    advance(&mut moons.system, &gravity, &mut moons.integrator, interval);
-                }
-                moons.system.set_time(t1);
-                continue;
-            }
-
-            // With small moons along, record the major moons' path step by
-            // step, as advance() would take it, for the small moons to follow.
-            let mut track = Track::starting_at(&moons.system, &gravity);
-            while moons.system.time() < t1 {
-                let remaining = t1 - moons.system.time();
-                let taken = if lone {
-                    remaining
-                } else {
-                    moons
-                        .integrator
-                        .step(&mut moons.system, &gravity, remaining)
-                };
-                assert!(taken > 0.0, "the moon system took an empty step");
-                if taken >= remaining {
-                    moons.system.set_time(t1);
-                }
-                track.record(&moons.system, &gravity);
-            }
-            let gms: Vec<f64> = moons.system.bodies.iter().map(|b| b.gm).collect();
-            for group in &mut moons.groups {
-                let gravity = SmallMoonGravity {
-                    track: &track,
-                    gms: &gms,
-                    central_gm: group.central_gm,
-                    zonal: moons.small_moon_zonal.as_ref().or(moons.zonal.as_ref()),
-                    tesseral: moons.tesseral.as_ref(),
-                    tides: &tides,
-                };
-                let interval = t1 - group.system.time();
-                advance(&mut group.system, &gravity, &mut group.integrator, interval);
-                group.system.set_time(t1);
-            }
-        }
+        let beneath = lap();
         if let Some(start) = swarm_start {
             let end = self.field_states();
             self.last_recorded = Some((self.generation, t1, end.clone()));
@@ -1027,9 +1039,33 @@ impl Hierarchy {
             self.collide(&before, t1 - t0);
         }
         self.evaporate(t1 - t0);
-        if !self.swarm.is_empty() && self.top.time() - self.swarm.time() >= CADENCE {
-            self.sync_swarm();
+        let recording = lap();
+        // The swarm's step, when it comes due. On a thread of its own, if
+        // asked for, unless fragments of a collision are among the
+        // particles: a body that swallows one takes back its mass, and the
+        // top level's motion mustn't depend on when a thread finishes.
+        // It comes due a cadence after the last one ran to; one still
+        // running then is waited for.
+        let last = self
+            .pending_swarm
+            .as_ref()
+            .map_or(self.swarm.time(), |(to, _)| *to);
+        if !self.swarm.is_empty() && self.top.time() - last >= CADENCE {
+            if self.background_swarm && self.debris.is_empty() {
+                self.take_in_swarm();
+                self.start_swarm();
+            } else {
+                self.sync_swarm();
+            }
         }
+        let swarm = lap();
+        self.step_times = StepTimes {
+            top,
+            beneath,
+            recording,
+            swarm,
+            whole: clock.elapsed().as_secs_f64(),
+        };
         taken
     }
 
@@ -1570,6 +1606,118 @@ impl Hierarchy {
     }
 }
 
+/// Every follower through a step of `duration` seconds of the top level,
+/// along `track`: the ones that hit a body, by index, with which body, how
+/// fast and when (see [`follow`]).
+fn follow_all(
+    followers: &mut [Follower],
+    track: &Track,
+    top: &System,
+    duration: f64,
+    collisions: bool,
+) -> Vec<(usize, (usize, f64, f64))> {
+    let gms: Vec<f64> = top.bodies.iter().map(|b| b.gm).collect();
+    let radii: Vec<f64> = top.bodies.iter().map(|b| b.radius).collect();
+    let end = top.time();
+    let mut hits = Vec::new();
+    for (f, follower) in followers.iter_mut().enumerate() {
+        let gravity = FollowerGravity {
+            track,
+            gms: &gms,
+            forces: follower.forces,
+        };
+        follower.system.set_time(0.0);
+        if let Some(hit) = follow(follower, &gravity, track, &radii, duration, collisions) {
+            hits.push((f, hit));
+        }
+        follower.system.set_time(end);
+    }
+    hits
+}
+
+/// A moon system through the top level's step from `t0` to `t1`: its moons
+/// pulled by everything else at the top level, seen from its barycenter as
+/// it was (`before`) and is now (`top`), and its small moons along the
+/// major moons' path.
+fn step_moon_system(
+    moons: &mut MoonSystem,
+    top: &System,
+    before: &[(DVec3, DVec3)],
+    t0: f64,
+    t1: f64,
+) {
+    // Everything else at the top level, seen from this system's
+    // barycenter at the start and end of the step.
+    let host = moons.host;
+    let perturbers = top
+        .bodies
+        .iter()
+        .enumerate()
+        .filter(|(k, _)| *k != host)
+        .map(|(k, b)| Perturber {
+            gm: b.gm,
+            start: (before[k].0 - before[host].0, before[k].1 - before[host].1),
+            end: (
+                b.position - top.bodies[host].position,
+                b.velocity - top.bodies[host].velocity,
+            ),
+        })
+        .collect();
+    let tides = Tides { perturbers, t0, t1 };
+    let gravity = MoonSystemGravity {
+        zonal: moons.zonal.as_ref(),
+        tesseral: moons.tesseral.as_ref(),
+        figures: &moons.figures,
+        tides: &tides,
+    };
+    // A planet without major moons sits still at its system's
+    // barycenter: nothing to integrate (and its forces, zero up to
+    // rounding, would leave the integrator's error estimate
+    // nothing but noise to go on).
+    let lone = moons.system.bodies.len() == 1;
+    if moons.groups.is_empty() {
+        if !lone {
+            let interval = t1 - moons.system.time();
+            advance(&mut moons.system, &gravity, &mut moons.integrator, interval);
+        }
+        moons.system.set_time(t1);
+        return;
+    }
+
+    // With small moons along, record the major moons' path step by
+    // step, as advance() would take it, for the small moons to follow.
+    let mut track = Track::starting_at(&moons.system, &gravity);
+    while moons.system.time() < t1 {
+        let remaining = t1 - moons.system.time();
+        let taken = if lone {
+            remaining
+        } else {
+            moons
+                .integrator
+                .step(&mut moons.system, &gravity, remaining)
+        };
+        assert!(taken > 0.0, "the moon system took an empty step");
+        if taken >= remaining {
+            moons.system.set_time(t1);
+        }
+        track.record(&moons.system, &gravity);
+    }
+    let gms: Vec<f64> = moons.system.bodies.iter().map(|b| b.gm).collect();
+    for group in &mut moons.groups {
+        let gravity = SmallMoonGravity {
+            track: &track,
+            gms: &gms,
+            central_gm: group.central_gm,
+            zonal: moons.small_moon_zonal.as_ref().or(moons.zonal.as_ref()),
+            tesseral: moons.tesseral.as_ref(),
+            tides: &tides,
+        };
+        let interval = t1 - group.system.time();
+        advance(&mut group.system, &gravity, &mut group.integrator, interval);
+        group.system.set_time(t1);
+    }
+}
+
 /// Advances a follower by `duration` on its local clock (which starts at
 /// zero), step by step. With `collisions` on, after each step it checks
 /// whether the follower touched a top-level body during it (from the
@@ -2043,6 +2191,45 @@ mod tests {
 
     /// A Sun, plus a "planetary system" barycenter 5 AU out holding a planet
     /// and one moon.
+    #[test]
+    fn the_swarms_steps_on_a_thread_of_their_own_come_out_the_same() {
+        // A ring of asteroids 2.5 AU out under the Sun and a Jupiter with
+        // a moon, run for 300 days (four of the swarm's steps) twice: its
+        // steps held in the top level's step, and on a thread of their own.
+        // Brought up to the same time, the particles are bit for bit the
+        // same, and so is the top level, which they don't pull on.
+        let run = |background: bool| {
+            let mut h = star_planet_moon();
+            h.background_swarm = background;
+            let r = 2.5 * AU;
+            let v = (GM_SUN / r).sqrt();
+            h.add_particles((0..200).map(|k| {
+                let angle = k as f64 * std::f64::consts::TAU / 200.0;
+                let (s, c) = angle.sin_cos();
+                Particle {
+                    position: DVec3::new(r * c, r * s, 0.0),
+                    velocity: DVec3::new(-v * s, v * c, 0.0),
+                    id: k,
+                }
+            }));
+            // Step by step, noting whether a step of the swarm ever ran on
+            // its own thread.
+            let mut threaded = false;
+            while h.time() < 300.0 * DAY {
+                h.step(300.0 * DAY - h.time());
+                threaded |= h.pending_swarm.is_some();
+            }
+            h.sync_swarm();
+            let top: Vec<DVec3> = h.top.bodies.iter().map(|b| b.position).collect();
+            assert_eq!(threaded, background);
+            (h.swarm().particles.clone(), top, h.swarm().time())
+        };
+        let (held, background) = (run(false), run(true));
+        assert_eq!(held.2, background.2);
+        assert_eq!(held.1, background.1);
+        assert_eq!(held.0, background.0);
+    }
+
     fn star_planet_moon() -> Hierarchy {
         let (gm_planet, gm_moon) = (1.267e17, 5.96e12);
         let (r, v) = periapsis_state(5.2 * AU, 0.0, GM_SUN + gm_planet + gm_moon);

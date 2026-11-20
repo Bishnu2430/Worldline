@@ -22,7 +22,7 @@ pub use newtonian::Newtonian;
 pub use nongravitational::NonGravitational;
 pub use post_newtonian::{
     PairTerms, PostNewtonian, RelativeAcceleration, center_of_mass, circular_pair, pair_terms,
-    reaction_converges, relative_acceleration,
+    pair_terms_bound, reaction_converges, relative_acceleration,
 };
 pub use relativistic::{Relativistic, TEST_BODY_NU, holding_hole, moves_in_spacetime_of};
 pub use tesseral::{TesseralField, TesseralTerm};
