@@ -50,8 +50,11 @@ use crate::theme;
 use crate::view::{self, OnScreen, ViewOptions};
 use crate::waves;
 
+mod film;
 mod scenarios;
+mod scripts;
 
+use film::Film;
 use scenarios::PerihelionWatch;
 use worldline_core::compact::{gravitational_redshift, horizon_spin, is_black_hole};
 use worldline_core::regime::Validity;
@@ -77,6 +80,9 @@ const SPEEDS: [(&str, f64); 8] = [
 const DEFAULT_SPEED: usize = 4;
 const REAL_TIME: usize = 0;
 const HOUR: usize = 1;
+const WEEK: usize = 3;
+const MONTH: usize = 4;
+const CENTURY: usize = 7;
 
 /// Most computer time physics may take per frame while catching up to the
 /// present: the 2025 snapshot is 7 s of physics behind late 2026, so at
@@ -570,6 +576,8 @@ pub struct WorldlineApp {
     /// Whether the scenario window is open, and the scenario playing.
     scenarios_open: bool,
     playing: Option<&'static str>,
+    /// The scenario's film, while it plays or until it's left (step 8.5a).
+    film: Option<Film>,
     /// A body whose perihelion is watched as it turns (Mercury's
     /// scenario).
     watch: Option<PerihelionWatch>,
@@ -728,6 +736,7 @@ impl WorldlineApp {
             go_to_total: false,
             scenarios_open: false,
             playing: None,
+            film: None,
             watch: None,
             sky_open: false,
             impact_lab: None,
@@ -868,6 +877,7 @@ impl WorldlineApp {
 
     fn reset(&mut self) {
         self.playing = None;
+        self.leave_film();
         self.watch = None;
         self.simulation = Simulation::solar_system(SPEEDS[self.speed_index].1);
         self.camera = initial_camera();
@@ -895,6 +905,10 @@ impl WorldlineApp {
         let Some(sky) = ground::sky_from(&self.simulation, place) else {
             return;
         };
+        // Standing on Earth takes the camera from a film.
+        if self.film_playing() {
+            self.leave_film();
+        }
         let sun = sky.bodies.first().map(|b| b.true_place);
         let look = sun.filter(|s| s.altitude > 0.0).unwrap_or(Horizontal {
             altitude: 20f64.to_radians(),
@@ -951,6 +965,10 @@ impl WorldlineApp {
     /// Sagittarius A* is framed with the stars around it: its horizon is
     /// tiny next to their orbits.
     fn fly_to(&mut self, index: usize, radii: f64) {
+        // Flying somewhere of one's own takes the camera from a film.
+        if self.film_playing() {
+            self.leave_film();
+        }
         self.leave_ground();
         let radius = self.simulation.bodies[index].radius;
         let to_distance = if let Some(reach) = self.simulation.cluster_reach(index) {
@@ -1244,6 +1262,8 @@ impl WorldlineApp {
                 (feel::Action::Slower, "slower"),
                 (feel::Action::FollowSelected, "follow the selected body"),
                 (feel::Action::Escape, "close the windows"),
+                (feel::Action::NextShot, "a film's next shot"),
+                (feel::Action::PreviousShot, "back a shot"),
                 (feel::Action::Save, "save the sandbox"),
                 (feel::Action::Timings, "the frame's timings"),
             ] {
@@ -1298,6 +1318,8 @@ impl WorldlineApp {
         for action in feel::pressed(ctx) {
             match action {
                 feel::Action::PlayPause => self.play_pause(),
+                feel::Action::NextShot => self.film_next(),
+                feel::Action::PreviousShot => self.film_back(),
                 feel::Action::Faster => self.set_speed(self.speed_index + 1),
                 feel::Action::Slower => self.set_speed(self.speed_index.saturating_sub(1)),
                 feel::Action::FollowSelected => self.focus_on(self.selected),
@@ -3679,15 +3701,19 @@ impl WorldlineApp {
             self.remove_selected();
         }
 
-        hint(
-            &painter,
-            viewport,
-            if self.tool.is_some() {
-                "Click to place in a circular orbit · drag to launch · Esc to stop adding"
-            } else {
-                "Drag to rotate · scroll to zoom · double-click a body to fly to it · Space to run or stop time"
-            },
-        );
+        if self.film.is_some() {
+            self.draw_film(ui.ctx(), &painter, viewport);
+        } else {
+            hint(
+                &painter,
+                viewport,
+                if self.tool.is_some() {
+                    "Click to place in a circular orbit · drag to launch · Esc to stop adding"
+                } else {
+                    "Drag to rotate · scroll to zoom · double-click a body to fly to it · Space to run or stop time"
+                },
+            );
+        }
         if self.show_timings {
             self.draw_timings(&painter, viewport);
         }
@@ -4987,6 +5013,9 @@ impl WorldlineApp {
     /// where tides make it a fluid becomes one, and the watched perihelion
     /// is sampled.
     fn physics_frame(&mut self, real_dt: f64) {
+        // A film's cut sets the speed of the shot it cuts to before time
+        // moves on.
+        self.film_frame(real_dt);
         let names = self.attended_names();
         let limits = self.limits();
         let reached = if self.live && !self.simulation.paused {
@@ -5023,6 +5052,7 @@ impl WorldlineApp {
         self.simulation.focus_detail_on(self.focus);
         self.after_events(names);
         self.aim_camera();
+        self.direct_camera();
 
         if let Some(watch) = &mut self.watch {
             watch.sample(&self.simulation);

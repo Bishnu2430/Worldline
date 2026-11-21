@@ -171,14 +171,17 @@ OBJECTS = [
 ]
 
 # (system, orbital period in days, eccentricity, periastron advance in
-# degrees per year, source).
+# degrees per year, the period's rate of change as measured and as general
+# relativity predicts it, each with its 1-sigma uncertainty, the timed
+# pulsar's spin frequency in Hz, source).
 ORBITS = [
     ("PSR B1913+16", "0.322997448918", "0.6171340", "4.226585",
-     "-2.398e-12", "0.004e-12", "-2.40263e-12", "0.00005e-12",
+     "-2.398e-12", "0.004e-12", "-2.40263e-12", "0.00005e-12", "16.940537785677",
      "Weisberg & Huang 2016, ApJ 829, 55, Table 2: Pb = 0.322997448918(3) d, e = 0.6171340(4), "
      "mean periastron advance 4.226585(4) deg/yr; intrinsic Pb-dot -(2.398 +- 0.004)e-12 "
      "(observed -2.423(1)e-12 less the galactic -(0.025 +- 0.004)e-12), and general relativity's "
-     "prediction from the measured masses (Peters & Mathews 1963) -(2.40263 +- 0.00005)e-12"),
+     "prediction from the measured masses (Peters & Mathews 1963) -(2.40263 +- 0.00005)e-12; "
+     "Table 1: the pulsar's spin frequency f = 16.940537785677(3) s^-1"),
 ]
 
 
@@ -204,7 +207,7 @@ def main():
         "Regenerate with: python tools/write_notable_objects.py",
     ] + rows(["system", "period_days", "eccentricity", "periastron_advance_deg_per_yr",
               "period_derivative", "period_derivative_sigma", "period_derivative_gr",
-              "period_derivative_gr_sigma", "source"],
+              "period_derivative_gr_sigma", "spin_frequency_hz", "source"],
              ORBITS))
 
 

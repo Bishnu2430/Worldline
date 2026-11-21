@@ -1,7 +1,7 @@
 # Compact binaries: post-Newtonian orbits, gravitational waves and the chirp (2PN, 2.5PN and 3.5PN)
 
 **Code:** `crates/worldline-core/src/gravity/post_newtonian.rs` (the gravity model), `crates/worldline-core/src/gravitational_waves.rs` (radiated power, how fast an orbit shrinks, time to merge, the strain an observer records), `crates/worldline-app/src/waves.rs` (recording a pair's waves, and their sound)
-**Data:** `crates/worldline-data/data/binary-orbits.csv`: the Hulse–Taylor orbit and its measured and predicted period derivative, written by `tools/write_notable_objects.py`
+**Data:** `crates/worldline-data/data/binary-orbits.csv`: the Hulse–Taylor orbit, its measured and predicted period derivative, and the pulsar's spin frequency (for its film, step 8.5a), written by `tools/write_notable_objects.py`
 **Tests:** `crates/worldline-data/tests/validation_gravitational_waves.rs`, `crates/worldline-core/tests/validation_chirp.rs`, plus unit tests in the code files
 **Sources:**
 - **Equations of motion:** Blanchet (2024), *Living Reviews in Relativity* 27, 4, sections "The 3.5PN acceleration and 3PN energy" and "Equations of motion in the frame of the center of mass", copied from the paper's own LaTeX. The 2PN terms are cross-checked against Kidder (1995), *Phys. Rev. D* 52, 821. Blanchet gives the 3.5PN terms in this general-frame form after Nissanke & Blanchet (2005), *Class. Quantum Grav.* 22, 1007.

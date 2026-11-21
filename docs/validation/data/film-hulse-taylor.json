@@ -1,0 +1,10 @@
+{
+  "id": "film-hulse-taylor",
+  "test": "worldline::app::scripts::tests::the_turning_the_film_measures_is_the_timed_one",
+  "file": "crates/worldline-app/src/app/scripts.rs",
+  "kind": "margins",
+  "title": "The Hulse–Taylor film: the turning it measures, against the timed one",
+  "checks": [
+    {"label": "the turning measured in the film's shot, against Weisberg & Huang's timing", "off": 0.000253216190419181, "limit": 0.00072, "shown": "4.22551° a year against 4.226585° (limit 7.2 × 10⁻⁴: the masses rounded to 0.001 Suns, and the orbit sized by Kepler's law)"}
+  ]
+}

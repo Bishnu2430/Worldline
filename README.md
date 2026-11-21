@@ -110,6 +110,7 @@ Each claim links the test that checks it and a plot of what that test measured, 
 | Clusters, nebulae and satellite galaxies as named objects at their measured places | each at its published distance and position | ✅ passing: all 251 placed in the galaxy and measured back as published, the worst at 0.001 of what rounding allows; their galactic coordinates as their catalogues print them, to the last digit printed (the worst at 0.98 of what's allowed) | [test](crates/worldline-data/tests/validation_clusters_and_galaxies.rs) · [plot](docs/validation/deep-sky-placed.svg) · [plot](docs/validation/deep-sky-galactic.svg) |
 | The galaxy's swarm drawn on the GPU, from inside and outside | from above, the drawn disk thins out with the model's scale length | ✅ passing: 2.5945 kpc drawn against McMillan's 2.6156 over 4 to 12 kpc, 0.61 of a 30,000-star sample's standard deviation (limit 3) | [test](crates/worldline-render/tests/validation_glow_gpu.rs) · [plot](docs/validation/galaxy-glow.svg) |
 | A scenario library: famous events, each set up in one click | each scenario loads and plays from a menu | ✅ passing: all 11 load and play; played to their ends, Mercury's perihelion turns 42.9806″ a century against general relativity's 42.9807″, GW150914 and GW170817 merge when their recorded chirps end (8.7 s and 173 s), and the eclipse finder goes to 12 August 2026 | [test](crates/worldline-app/src/app/scenarios.rs) · [plot](docs/validation/scenarios-load.svg) · [plot](docs/validation/scenario-mercury.svg) · [plot](docs/validation/scenarios-play-out.svg) |
+| The Hulse–Taylor pulsar as a film: shots, captions and cards beside the bodies, every number on them published or measured as it plays | the turning the film measures is the 4.226585° a year Weisberg & Huang timed; every figure in its captions follows from the data | ✅ passing: 4.22552° a year measured over the film's two years, 2.5 × 10⁻⁴ under the timed rate (limit 7.2 × 10⁻⁴: the catalog's masses rounded to 0.001 Suns, and its orbit sized by Kepler's law, which relativity makes 1.5 × 10⁻⁴ slower); the measured shrinking 0.998 ± 0.002 of general relativity's | [test](crates/worldline-app/src/app/scripts.rs) · [plot](docs/validation/film-hulse-taylor.svg) |
 | Tidal disruption begins near r_t ≈ R(M/m)^(1/3), and the debris falls back at a rate ∝ t^(−5/3) | a Jupiter-like planet passing a star loses what Faber, Rasio & Willems's simulations found (0.58, 0.24, 0.027 and 0 at 1.2, 1.5, 1.8 and 2.2 r_t); torn right through, its debris comes back as t^(−5/3) | ✅ passing: 0.581, 0.233, 0.024, 0; t^(−1.688 ± 0.022) | [test](crates/worldline-render/tests/validation_fluid_gpu.rs) · [plot](docs/validation/faber-rasio-willems.svg) · [plot](docs/validation/fallback-rate.svg) |
 | A planet stays a point until it nears its tidal radius, then becomes a fluid | a point until tides would stretch it by 1% (5.34 tidal radii for n = 1, never passed); as a fluid it stretches by the n = 1 polytrope's Love number, 15/π² − 1 = 0.520 | ✅ passing: Jupiter falling toward a black hole stops at 1.006 of that distance; the GPU fluid's Love number 0.527 with 8,000 particles; a Jupiter passing the Sun is a fluid at its closest and a point again after | [test](crates/worldline-app/src/simulation.rs) · [plot](docs/validation/point-to-fluid.svg)<br>[test](crates/worldline-render/tests/validation_fluid_gpu.rs) · [plot](docs/validation/love-number.svg) |
 | A clock near a black hole runs slow by the predicted factor (proper time) | on a circular orbit at 10 GM/c², √(1 − 3GM/rc²) = 0.836660; Earth's clock against the barycenter's, the IAU's L_C = 1.48082686741 × 10⁻⁸ | ✅ passing: 0.836660026534, carried round by the engine; Earth over 10 years 4 × 10⁻¹⁴ off L_C; GPS clocks gain 38.54 µs a day | [test](crates/worldline-core/tests/validation_proper_time.rs) · [plot](docs/validation/proper-time-orbit.svg) · [plot](docs/validation/gps-clocks.svg)<br>[test](crates/worldline-app/src/simulation.rs) · [plot](docs/validation/earths-clock.svg) |
@@ -135,7 +136,7 @@ The first build takes a few minutes. Then:
 - click a body to inspect it,
 - double-click a body to fly to it.
 
-Keyboard: **Space** runs or stops time, **+** and **−** change its speed, **F** follows the selected body, **Esc** closes windows, **Ctrl+S** saves, **F3** shows frames a second. See [docs/app.md](docs/app.md#the-interface).
+Keyboard: **Space** runs or stops time, **+** and **−** change its speed, **F** follows the selected body, **Esc** closes windows, **Ctrl+S** saves, **F3** shows frames a second, and in a film **←** and **→** skip a shot. See [docs/app.md](docs/app.md#the-interface).
 
 On a weaker computer, start with `--quality low` (or pick **Display → Quality**): the physics is the same, less is drawn. See [docs/app.md](docs/app.md#quality-presets-step-84b).
 
@@ -146,6 +147,12 @@ cargo run --release -- --scenario gw150914
 ```
 
 See [docs/scenarios.md](docs/scenarios.md) for the keys.
+
+The Hulse–Taylor pulsar plays as a two-minute film: the camera moves shot by shot, captions tell the story, and cards beside the stars give the published measurements and what the simulation measures as it plays, from the pair's discovery in 1974 to the turning and shrinking of its orbit that won the 1993 Nobel Prize:
+
+```bash
+cargo run --release -- --scenario hulse-taylor
+```
 
 To start already flown in to a body with time stopped:
 

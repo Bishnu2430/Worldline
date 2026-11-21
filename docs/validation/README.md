@@ -555,6 +555,12 @@ In the README's order.
 
 ![The scenarios that end in an event, played until it happens](scenarios-play-out.svg)
 
+### The Hulse–Taylor film: the turning it measures, against the timed one
+
+`film-hulse-taylor`, from [`the_turning_the_film_measures_is_the_timed_one`](../../crates/worldline-app/src/app/scripts.rs).
+
+![The Hulse–Taylor film: the turning it measures, against the timed one](film-hulse-taylor.svg)
+
 ### A Jupiter passing a star 1,000 times its mass: the mass it loses, against Faber, Rasio & Willems (2005)
 
 `faber-rasio-willems`, from [`a_planet_passing_a_star_loses_what_faber_rasio_and_willems_found`](../../crates/worldline-render/tests/validation_fluid_gpu.rs).

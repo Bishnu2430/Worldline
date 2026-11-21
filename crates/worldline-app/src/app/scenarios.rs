@@ -4,6 +4,7 @@
 //! app can already do (the catalogue's bodies, its windows, its views), so
 //! it runs on the same physics as everything else.
 
+use super::film::Script;
 use super::*;
 use worldline_core::orbit::{kepler_period, periapsis_vector, relativistic_advance};
 
@@ -16,12 +17,9 @@ pub struct Scenario {
     pub about: &'static str,
     /// Sets it up, on a fresh solar system.
     start: fn(&mut WorldlineApp),
+    /// Its film, if it plays as one (step 8.5a).
+    pub film: Option<&'static Script>,
 }
-
-/// The speeds' places in [`SPEEDS`].
-const WEEK: usize = 3;
-const MONTH: usize = 4;
-const CENTURY: usize = 7;
 
 /// Every scenario, in the order the roadmap lists them.
 pub const SCENARIOS: [Scenario; 11] = [
@@ -30,66 +28,77 @@ pub const SCENARIOS: [Scenario; 11] = [
         title: "Mercury's perihelion",
         about: "Everything but the Sun and Mercury is taken away, at a century a second. The orbit's closest point turns by 43 arcseconds a century, general relativity's prediction; the inspector measures it as it plays.",
         start: mercury,
+        film: None,
     },
     Scenario {
         key: "hulse-taylor",
         title: "The Hulse–Taylor pulsar",
-        about: "PSR B1913+16 and its companion on their measured orbit, every 7.75 hours, at an hour a second. Their waves shrink the orbit, its period by 2.4 trillionths of a second each second, as Hulse and Taylor's timing found (Nobel Prize, 1993). Like the mergers, it runs with the rest of the solar system taken away, so its quick steps don't hold up the planets'.",
+        about: "A film of two minutes: PSR B1913+16 and its companion on their measured orbit, every 7.75 hours. Relativity turns the orbit, and their waves shrink it, its period by 2.4 trillionths of a second each second, as Hulse and Taylor's timing found (Nobel Prize, 1993). Like the mergers, it runs with the rest of the solar system taken away, so its quick steps don't hold up the planets'.",
         start: hulse_taylor,
+        film: Some(&super::scripts::HULSE_TAYLOR),
     },
     Scenario {
         key: "gw150914",
         title: "GW150914: two black holes merge",
         about: "The first gravitational waves heard, from 36 and 31 Suns spiraling together, in real time from a 10 Hz wave: they merge nine seconds later. The waves window plays their chirp. The rest of the solar system is taken away, so their many steps a second don't hold up the planets'.",
         start: gw150914,
+        film: None,
     },
     Scenario {
         key: "gw170817",
         title: "GW170817: two neutron stars merge",
         about: "1.46 and 1.27 Suns, from a 20 Hz wave, in real time: they merge about three minutes later, into a neutron star that collapses into a black hole. The waves window plays their chirp. The rest of the solar system is taken away, so their many steps a second don't hold up the planets'.",
         start: gw170817,
+        film: None,
     },
     Scenario {
         key: "planet-black-hole",
         title: "A planet meets a black hole",
         about: "A Jupiter falls past Gaia BH1, 9.6 Suns, at half the distance its tides tear it apart at. Near it, it becomes a fluid on the GPU and is pulled apart.",
         start: planet_black_hole,
+        film: None,
     },
     Scenario {
         key: "ton-618",
         title: "TON 618 swallows Sagittarius A*",
         about: "One of the heaviest black holes known, 66 billion Suns, dropped 6,600 AU from the Milky Way's 4.3 million. Sagittarius A* falls in within half a year, at a month a second.",
         start: ton_618,
+        film: None,
     },
     Scenario {
         key: "white-dwarf",
         title: "A white dwarf past its limit",
         about: "Two copies of Sirius B, 1.02 Suns each, fall together from 0.05 AU. Together they're past Chandrasekhar's limit, 1.46 Suns: they explode as a type Ia supernova, half a day in, at an hour a second.",
         start: white_dwarf,
+        film: None,
     },
     Scenario {
         key: "mini-black-hole",
         title: "An evaporating black hole",
         about: "A hypothetical 100,000-tonne black hole, circling the Sun just outside Earth's orbit, evaporates by Hawking radiation: 2.7 years, at a month a second, faster and hotter to the end.",
         start: mini_black_hole,
+        film: None,
     },
     Scenario {
         key: "eclipse",
         title: "The next total solar eclipse",
         about: "The eclipse finder runs the simulation ahead to the total eclipse of 12 August 2026, over Greenland, Iceland and Spain, and shows the Moon's shadow on Earth.",
         start: eclipse,
+        film: None,
     },
     Scenario {
         key: "moon-impact",
         title: "The Moon-forming impact",
         about: "Canup's (2004) giant impact, a Mars-sized planet striking the young Earth, as 8,000 particles of rock and iron in a window of its own: it leaves a disk the Moon forms from.",
         start: moon_impact,
+        film: None,
     },
     Scenario {
         key: "black-hole-flyby",
         title: "A black hole through the Sun's neighborhood",
         about: "A copy of Sagittarius A*, 4.3 million Suns, crosses the Sun's neighborhood at 1,000 km/s, passing 3 pc from the Sun, at a century a second. Gaia's nearby stars near its path scatter. The planets are taken away: from parsecs off they're inside a point, and they'd hold the century a second up.",
         start: black_hole_flyby,
+        film: None,
     },
 ];
 
@@ -116,7 +125,7 @@ pub struct PerihelionWatch {
 }
 
 impl PerihelionWatch {
-    fn start(simulation: &Simulation, body: &str, around: &str) -> Option<Self> {
+    pub(super) fn start(simulation: &Simulation, body: &str, around: &str) -> Option<Self> {
         let (r, v, mu) = relative(simulation, body, around)?;
         let lrl = periapsis_vector(r, v, mu);
         let first = lrl.normalize();
@@ -151,6 +160,33 @@ impl PerihelionWatch {
                 * std::f64::consts::TAU;
         }
         self.samples.push((time, angle));
+    }
+
+    /// The direction of the periapsis when watching began.
+    pub fn first_direction(&self) -> DVec3 {
+        self.first
+    }
+
+    /// How long it has been watched, s.
+    pub fn watched_for(&self) -> f64 {
+        match (self.samples.first(), self.samples.last()) {
+            (Some(first), Some(last)) => last.0 - first.0,
+            _ => 0.0,
+        }
+    }
+
+    /// How far it has turned since, rad.
+    pub fn turned(&self) -> f64 {
+        match (self.samples.first(), self.samples.last()) {
+            (Some(first), Some(last)) => last.1 - first.1,
+            _ => 0.0,
+        }
+    }
+
+    /// Whether it's watched around the Sun (a perihelion), not a star of a
+    /// pair (a periastron).
+    pub fn around_the_sun(&self) -> bool {
+        self.around == "Sun"
     }
 
     /// The rate fitted to the samples, rad/s, and the time they span (s),
@@ -208,6 +244,9 @@ impl WorldlineApp {
         (scenario.start)(self);
         self.simulation.speed = SPEEDS[self.speed_index].1;
         self.playing = Some(scenario.title);
+        if let Some(script) = scenario.film {
+            self.start_film(scenario.title, script);
+        }
         // What it opened, so nothing appears unexplained.
         let mut opened = Vec::new();
         if self.waves.is_some() {
@@ -225,7 +264,13 @@ impl WorldlineApp {
         if self.options.overlays.tides {
             opened.push("the tides overlay");
         }
-        let message = if opened.is_empty() {
+        let message = if self.film.is_some() {
+            format!(
+                "Playing the film of {}: Space pauses it, ← and → skip a shot, and dragging \
+                 still looks around",
+                scenario.title
+            )
+        } else if opened.is_empty() {
             format!("Playing: {}", scenario.title)
         } else {
             format!(
@@ -285,6 +330,12 @@ impl WorldlineApp {
                                     play = Some(scenario);
                                 }
                                 ui.label(RichText::new(scenario.title).strong());
+                                if scenario.film.is_some() {
+                                    theme::chip(ui, "film", theme::ACCENT).on_hover_text(
+                                        "Plays as a film: shots, captions and cards, with the \
+                                         physics running as always",
+                                    );
+                                }
                             });
                             ui.label(RichText::new(scenario.about).small());
                         }
@@ -307,28 +358,45 @@ impl WorldlineApp {
         if self.simulation.bodies[self.selected].name != watch.body {
             return;
         }
-        let century = 100.0 * JULIAN_YEAR;
-        let arcsec = 180.0 / PI * 3600.0;
-        ui.label(key("Perihelion turning"));
+        // Mercury's in arcseconds a century; a pair's, turning thousands of
+        // times faster, in degrees a year, to three decimals: the rate
+        // worked out from one moment's orbit swings in the fourth around a
+        // tight pair's orbit (see docs/scenarios.md).
+        let (name, unit, scale, decimals) = if watch.around_the_sun() {
+            (
+                "Perihelion turning",
+                "arcseconds a century",
+                100.0 * JULIAN_YEAR * 180.0 / PI * 3600.0,
+                2,
+            )
+        } else {
+            (
+                "Periastron turning",
+                "degrees a year",
+                JULIAN_YEAR * 180.0 / PI,
+                3,
+            )
+        };
+        ui.label(key(name));
         ui.label(match watch.rate() {
             Some((rate, span)) => format!(
-                "{:.2} arcseconds a century, measured over {:.0} years",
-                rate * century * arcsec,
+                "{:.decimals$} {unit}, measured over {:.1} years",
+                rate * scale,
                 span / JULIAN_YEAR
             ),
             None => "measuring…".to_string(),
         })
         .on_hover_text(
             "The direction of the orbit's closest point, from the Laplace–Runge–Lenz vector, \
-             sampled every frame since the scenario began, its rate fitted by least squares",
+             sampled every frame since watching began, its rate fitted by least squares",
         );
         ui.end_row();
         ui.label(key("General relativity says"));
         ui.label(format!(
-            "{:.2} arcseconds a century: 6πGM/c²a(1 – e²) an orbit",
-            watch.theory * century * arcsec
+            "{:.decimals$} {unit}: 6πGM/c²a(1 – e²) an orbit",
+            watch.theory * scale
         ))
-        .on_hover_text("Einstein (1915), for the orbit as it was when the scenario began");
+        .on_hover_text("Einstein (1915), for the orbit as it was when watching began");
         ui.end_row();
     }
 }
@@ -398,7 +466,6 @@ fn hulse_taylor(app: &mut WorldlineApp) {
     app.fly_to(pulsar, 3e5);
     app.selected = pulsar;
     app.at_speed(HOUR);
-    app.open_waves();
 }
 
 /// The two holes from a 10 Hz wave.
@@ -610,7 +677,9 @@ mod tests {
             .expect("a pair");
         println!("Hulse–Taylor: Ṗ = {:.5e}", waves.shrink);
         assert!((waves.shrink / -2.40263e-12 - 1.0).abs() < 8.5e-4);
-        assert!(a.waves.is_some());
+        // It plays as a film, which opens the waves window at its end.
+        assert!(a.film_playing());
+        assert!(a.waves.is_none());
         // The planet's closest approach to Gaia BH1: half its tidal
         // radius, R (M/m)^(1/3).
         let mut a = app();
