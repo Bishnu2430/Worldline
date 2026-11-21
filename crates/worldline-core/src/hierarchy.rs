@@ -878,6 +878,54 @@ impl Hierarchy {
         }
     }
 
+    /// Changes the velocity of top-level body `k` by `dv`, and of everything
+    /// that goes around with it, so its system moves as one: every body,
+    /// follower and swarm particle lighter than it, bound to it, and pulled
+    /// on hardest by it (for the Sun: its planets, the Moon, its asteroids,
+    /// comets and belts, but not an interstellar visitor passing through;
+    /// for a planet: its moons, not the Sun). A planet's moon systems go
+    /// with it, being measured from it.
+    pub fn shift_system(&mut self, k: usize, dv: DVec3) {
+        self.sync_swarm();
+        let center = self.top.bodies[k].clone();
+        let tops = self.top.bodies.clone();
+        // Whether something at `position`, moving at `velocity`, of `gm`
+        // (top-level body `own`, if one) goes with body k.
+        let goes_with = |own: Option<usize>, position: DVec3, velocity: DVec3, gm: f64| {
+            if gm >= center.gm {
+                return false;
+            }
+            let r = (position - center.position).length();
+            let v = velocity - center.velocity;
+            if r == 0.0 || 0.5 * v.length_squared() >= (center.gm + gm) / r {
+                return false;
+            }
+            let pull = |b: &Body| b.gm / (b.position - position).length_squared();
+            tops.iter()
+                .enumerate()
+                .filter(|&(i, b)| Some(i) != own && b.gm > 0.0)
+                .max_by(|a, b| pull(a.1).total_cmp(&pull(b.1)))
+                .is_some_and(|(i, _)| i == k)
+        };
+        for (j, body) in tops.iter().enumerate() {
+            if j == k || goes_with(Some(j), body.position, body.velocity, body.gm) {
+                self.top.bodies[j].velocity += dv;
+            }
+        }
+        for follower in &mut self.followers {
+            let body = &mut follower.system.bodies[0];
+            if goes_with(None, body.position, body.velocity, body.gm) {
+                body.velocity += dv;
+            }
+        }
+        for particle in &mut self.swarm.particles {
+            if goes_with(None, particle.position, particle.velocity, 0.0) {
+                particle.velocity += dv;
+            }
+        }
+        self.restart_top();
+    }
+
     /// Gives body `body` of moon system `system` (0 the planet) a kick of
     /// `dv` (m/s), as seen from outside: the system's barycenter, the host
     /// at the top level, takes its share m/M of it, and every member's

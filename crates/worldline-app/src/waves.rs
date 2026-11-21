@@ -202,13 +202,21 @@ pub struct Sound {
     pub samples: Vec<f32>,
     /// How many times faster than real time it plays (1 for real time).
     pub speedup: f64,
+    /// Every frequency multiplied by this, its timing kept (1 for the
+    /// wave's own pitch; see [`pitched`]).
+    pub pitch: f64,
 }
 
-/// The wave as sound. If its frequencies are already in the range we hear
-/// well (20 Hz to 4 kHz), it plays in real time, as the strain itself
-/// would sound; otherwise it is sped up (or slowed) so its highest
-/// frequency sounds at 400 Hz. At most the last 20 s are kept.
-pub fn sound(recording: &Recording) -> Sound {
+/// The lowest frequency small speakers play well, Hz: a laptop's give out
+/// below about this.
+pub const SMALL_SPEAKERS: f64 = 200.0;
+
+/// The highest a pitched-up sound goes, Hz.
+const PITCHED_HIGHEST: f64 = 8000.0;
+
+/// The stretch of the recording a sound plays: from when, how many times
+/// faster than real time, and how many samples.
+fn played(recording: &Recording) -> (f64, f64, usize) {
     let (low, high) = recording
         .frequency
         .iter()
@@ -223,8 +231,19 @@ pub fn sound(recording: &Recording) -> Sound {
     let end = *recording.times.last().expect("a recording");
     let seconds = (end / speedup).min(MAX_SOUND);
     let start = end - seconds * speedup;
-    let count = (seconds * f64::from(RATE)) as usize;
-    let mut samples: Vec<f32> = Vec::with_capacity(count);
+    (start, speedup, (seconds * f64::from(RATE)) as usize)
+}
+
+/// For each output sample of a sound that plays from `start` at `speedup`,
+/// the recording's samples it falls between and how far along: `each` is
+/// given the index of the later one and the fraction.
+fn between(
+    recording: &Recording,
+    start: f64,
+    speedup: f64,
+    count: usize,
+    mut each: impl FnMut(usize, f64),
+) {
     let mut k = recording.times.partition_point(|&t| t < start).max(1);
     for i in 0..count {
         let t = start + i as f64 / f64::from(RATE) * speedup;
@@ -232,10 +251,85 @@ pub fn sound(recording: &Recording) -> Sound {
             k += 1;
         }
         let (t0, t1) = (recording.times[k - 1], recording.times[k]);
-        let (h0, h1) = (recording.plus[k - 1], recording.plus[k]);
-        let s = ((t - t0) / (t1 - t0)).clamp(0.0, 1.0);
-        samples.push((h0 + s * (h1 - h0)) as f32);
+        each(k, ((t - t0) / (t1 - t0)).clamp(0.0, 1.0));
     }
+}
+
+/// The wave as sound. If its frequencies are already in the range we hear
+/// well (20 Hz to 4 kHz), it plays in real time, as the strain itself
+/// would sound; otherwise it is sped up (or slowed) so its highest
+/// frequency sounds at 400 Hz. At most the last 20 s are kept.
+pub fn sound(recording: &Recording) -> Sound {
+    let (start, speedup, count) = played(recording);
+    let mut samples: Vec<f32> = Vec::with_capacity(count);
+    between(recording, start, speedup, count, |k, s| {
+        let (h0, h1) = (recording.plus[k - 1], recording.plus[k]);
+        samples.push((h0 + s * (h1 - h0)) as f32);
+    });
+    Sound {
+        samples: finished(samples),
+        speedup,
+        pitch: 1.0,
+    }
+}
+
+/// [`sound`], pitched up for small speakers, if it plays below what they
+/// play well: every frequency multiplied by the same factor, so its
+/// lowest sounds at [`SMALL_SPEAKERS`] (its highest at 8 kHz at most),
+/// with its timing and the rise of its loudness kept. Built from the
+/// wave's phase, the integral of its frequency, and its strength, the
+/// largest strain within half a cycle: their strength times cos(pitch ×
+/// phase). `None` if the wave's own pitch already plays.
+pub fn pitched(recording: &Recording) -> Option<Sound> {
+    let (start, speedup, count) = played(recording);
+    let first = recording
+        .times
+        .partition_point(|&t| t < start)
+        .saturating_sub(1);
+    let heard = &recording.frequency[first..];
+    let low = heard.iter().fold(f64::INFINITY, |m, &f| m.min(f)) * speedup;
+    let high = heard.iter().fold(0.0f64, |m, &f| m.max(f)) * speedup;
+    let pitch = (SMALL_SPEAKERS / low).min(PITCHED_HIGHEST / high);
+    // Not pitched where it already plays, nor where there's no frequency
+    // to go by (a pitch of not-a-number).
+    if pitch.is_nan() || pitch <= 1.05 {
+        return None;
+    }
+    let n = recording.times.len();
+    let mut phase = vec![0.0f64; n];
+    for k in 1..n {
+        let dt = recording.times[k] - recording.times[k - 1];
+        phase[k] = phase[k - 1]
+            + std::f64::consts::PI * (recording.frequency[k] + recording.frequency[k - 1]) * dt;
+    }
+    let strength: Vec<f64> = (0..n)
+        .map(|k| {
+            let half = 0.5 / recording.frequency[k].max(1e-12);
+            let (t, mut peak) = (recording.times[k], recording.plus[k].abs());
+            for j in (0..k).rev().take_while(|&j| t - recording.times[j] <= half) {
+                peak = peak.max(recording.plus[j].abs());
+            }
+            for j in (k + 1..n).take_while(|&j| recording.times[j] - t <= half) {
+                peak = peak.max(recording.plus[j].abs());
+            }
+            peak
+        })
+        .collect();
+    let mut samples: Vec<f32> = Vec::with_capacity(count);
+    between(recording, start, speedup, count, |k, s| {
+        let a = strength[k - 1] + s * (strength[k] - strength[k - 1]);
+        let p = phase[k - 1] + s * (phase[k] - phase[k - 1]);
+        samples.push((a * (pitch * p).cos()) as f32);
+    });
+    Some(Sound {
+        samples: finished(samples),
+        speedup,
+        pitch,
+    })
+}
+
+/// Samples scaled to peak at ±0.8, faded in and out over 10 ms.
+fn finished(mut samples: Vec<f32>) -> Vec<f32> {
     let peak = samples.iter().fold(0.0f32, |m, s| m.max(s.abs()));
     let fade = (0.01 * f64::from(RATE)) as usize;
     let n = samples.len();
@@ -252,7 +346,7 @@ pub fn sound(recording: &Recording) -> Sound {
             0.0
         };
     }
-    Sound { samples, speedup }
+    samples
 }
 
 /// The sound as a 16-bit mono WAV file.
@@ -433,6 +527,50 @@ mod tests {
         assert!((ring[0] - recording.plus[first - 1]).abs() <= strength * step);
     }
 
+    /// Zero crossings a second over the first `seconds` of a sound, halved:
+    /// its frequency there, Hz.
+    fn crossings(sound: &Sound, seconds: f64) -> f64 {
+        let n = (seconds * f64::from(RATE)) as usize;
+        let count = sound.samples[..n]
+            .windows(2)
+            .filter(|w| (w[0] < 0.0) != (w[1] < 0.0))
+            .count();
+        count as f64 / 2.0 / seconds
+    }
+
+    #[test]
+    fn pitched_up_for_small_speakers_every_frequency_is_multiplied_and_the_timing_kept() {
+        // GW150914's holes from a 30 Hz wave, in real time: under what a
+        // laptop plays. Pitched up, its lowest frequency sounds at 200 Hz:
+        // the same length, the same moments, every frequency the same
+        // number of times higher. Over its first 0.2 s, its zero crossings
+        // say a frequency of that times the wave's own, to within what
+        // counting allows: a crossing more or less in 0.2 s is 2.5 Hz, in
+        // each of the two.
+        let (a, b) = worldline_core::gravity::circular_pair(
+            Body::new("one", 35.6 * GM_SUN, 2.0 * 35.6 * GM_SUN / (C * C)),
+            Body::new("two", 30.6 * GM_SUN, 2.0 * 30.6 * GM_SUN / (C * C)),
+            30.0,
+        );
+        let recording = record(&a, &b, DVec3::new(0.0, 0.0, 400e6 * PARSEC), MAX_ORBITS);
+        let own = sound(&recording);
+        let high = pitched(&recording).expect("below small speakers");
+        assert_eq!(own.speedup, 1.0);
+        assert_eq!(own.samples.len(), high.samples.len());
+        let (f, g) = (crossings(&own, 0.2), crossings(&high, 0.2));
+        println!(
+            "pitched {:.2} times: {f:.1} Hz sounds at {g:.1} Hz ({:.1} expected)",
+            high.pitch,
+            f * high.pitch
+        );
+        assert!((30.0 * high.pitch - SMALL_SPEAKERS).abs() < 10.0);
+        assert!((g - f * high.pitch).abs() <= 2.5 * (1.0 + high.pitch));
+        // A wave already high enough isn't pitched.
+        let (a, b) = neutron_stars(400.0);
+        let recording = record(&a, &b, DVec3::new(0.0, 0.0, 40e6 * PARSEC), 20.0);
+        assert!(pitched(&recording).is_none());
+    }
+
     #[test]
     fn a_slow_pair_is_sped_up_into_hearing() {
         // Two neutron stars a million kilometers apart: their wave is at a
@@ -463,6 +601,7 @@ mod tests {
         let sound = Sound {
             samples: vec![0.0, 0.5, -0.5, 1.0],
             speedup: 1.0,
+            pitch: 1.0,
         };
         let bytes = wav(&sound);
         assert_eq!(&bytes[0..4], b"RIFF");

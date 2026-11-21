@@ -114,6 +114,8 @@ The owner asked for four things before the Windows release, now steps 8.3 to 8.6
 - **A manual inside the app.**
 - **A project website:** a landing page on GitHub Pages.
 
+On 2026-11-21 the owner added scenarios that play like films (steps 8.5a to 8.5c): each with its camera, captions and cards of information beside the bodies, compact stars drawn as their published temperatures and radii say they'd look, and the double pulsar PSR J0737−3039A/B. Where no picture of a body exists (no neutron star's surface has been imaged), what's drawn is what the physics implies, labeled as such; nothing is drawn from imagination.
+
 ## v2: committed, starts once v1 is established
 
 All of these will be built. They are ordered after v1 because they depend on its engine, not because they are optional.

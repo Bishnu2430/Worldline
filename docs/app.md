@@ -27,9 +27,13 @@ Step 8.3 gave the app its current look and feel.
 - **Time:** run or stop it (the blue button), how fast, ⟲ back to 1 January 2025, ● Now (the present, with the computer's clock).
 - **Exploring:** 🎞 Scenarios, ◑ Eclipses, ⊕ Sky. A tool whose window is open is highlighted.
 - **Building:** ✚ Add a body, Save, Load.
-- **On the right:** the clock in UTC (hover for TDB and Earth's rotation), and chips for what's happening: "● live", a note when time can't run as asked ("⚠ 13% of the speed", the full reason on hovering), the last event.
+- **On the right:** the clock in UTC (hover for TDB and Earth's rotation), and chips for what's happening: "● live", a note when time can't run as asked ("⚠ 13% of the speed", the full reason on hovering). Since step 8.4c, the ☰ menu beside the exploring tools lists every window, and the last event shows as a notice over the view (both below).
 
 In a window narrower than 1,200 points the exploring tools show their icons alone, their names on hovering.
+
+**Every window, in one menu.** ☰ in the top bar lists every window: Scenarios, Eclipses, Sky from a place, Add a body, Gravitational waves and the Moon-forming impact, each with what it's for on hovering. One that needs something first is greyed out and says what on hovering: the waves window, a pair of neutron stars or black holes selected (since step 8.4c). Some open from elsewhere too (the waves window from a pair's panel, the impact from Earth's), but here they can all be found, with the keys below.
+
+**What happened, said at the top of the view.** The last thing that happened shows for six seconds as a notice at the top of the view, wrapped to fit: a scenario started and what it opened ("Playing: The Hulse–Taylor pulsar; it opened the gravitational-waves window"), a body added, the sandbox saved, a planet becoming a fluid. It used to be a chip at the end of the top bar, where a narrow window cut it to "…".
 
 **Keyboard shortcuts** (`feel.rs`), ignored while typing in a field:
 
@@ -199,7 +203,7 @@ See [physics/compact-objects.md](physics/compact-objects.md).
 - **When you're done,** press **Done** or Esc.
 - **From the command line:** `--add jupiter:1.5` drops a Jupiter-mass planet on a circular orbit 1.5 AU from the Sun before the window opens (also `earth:`, `sun:`, or any catalogue name, like `"Gaia BH1:3"`). `--catalogue` opens the catalogue at startup, and `--waves` opens the gravitational-wave window for the focused body's pair.
 - **Near a black hole:** a body it holds circles at the hole's exact circular speed (see [physics/kerr.md](physics/kerr.md)); inside the innermost stable orbit (6 G(M + m)/c² without spin), where no circular orbit lasts, it starts at rest. Launches are capped at half the speed of light.
-- **Heavier than what it circles:** the two circle their common center of mass, rather than the new body dragging the other away.
+- **Heavier than what it circles:** the two circle their common center of mass, rather than the new body dragging the other away. The lighter one takes its system along (since step 8.4c): every body lighter than it, bound to it and pulled on hardest by it gets the same change of velocity, so the Sun goes on with its planets, moons, comets and belts around it. Before, only the Sun moved: with a copy of Sagittarius A* added, it went off at hundreds or thousands of km/s and left its planets behind, which looked, with the camera following the Sun, as if the hole pulled on everything but it. Near so heavy a body the Sun still loses what lies beyond its Hill sphere, r (m/3M)^(1/3): 0.43 AU with the hole 100 AU away, 8.5 AU with it 2,000 AU away. The inspector shows it as **Holds on within**.
 - **Around another body, from the command line:** `--add "TON 618:6600@Sagittarius A*"` puts it 6,600 AU from Sagittarius A\* instead of the Sun. `--add` can be given more than once, each around a body added before it, and `--launch` starts the last one added at a share of the circular speed.
 - **Into another body, from the command line:** `--aim 30,0.3` sends the last one added straight at what it circles, to arrive at 30 km/s with impact parameter 0.3, where 0 is head-on and 1 is grazing. `--yaw 180` turns the camera to look from that direction around the ecliptic, to see the side that was hit.
 - **The Moon-forming impact:** `--moon-impact 8000`, or **The Moon-forming impact** in Earth's inspector, runs Canup's (2004) impact as a fluid of rock and iron in a window of its own, with the disk it leaves measured beside her figures. See [physics/giant-impacts.md](physics/giant-impacts.md).
@@ -270,6 +274,7 @@ A distant body pulls the whole solar system almost equally, so it falls together
 
 `cargo test -p worldline-app` covers:
 - **The look:** every character the app's code writes has a glyph in Inter or its fallbacks; the window's icon is a disk on a clear background with a warm star at its center.
+- **A black hole beside the Sun:** a copy of Sagittarius A* added circling the Sun 2,000 AU out sends the Sun round it at 1,381 km/s, and Earth's velocity changes by the Sun's, to rounding; 30 days on, Earth (0.985 AU) and Jupiter (5.09 AU) are still bound to the Sun, inside its Hill sphere of 8.5 AU. With only the Sun moved, as before, the test fails.
 - **The quality presets:** Auto picks High for an Iris Xe with 12 threads and a discrete GPU, Medium for Intel UHD Graphics with 8, Low for it with 4 and for software rendering; each preset draws less than the one above; a 2K map is halved to 1K, each pixel the mean of four.
 - **The feel:** a flick glides 96 points at 30, 60 and 144 frames a second, and stops within a second; a drag held still before letting go doesn't glide; the shortcuts need no modifier but Ctrl+S, and Ctrl with another key does nothing; the timings average over the last frames.
 - **Durations:** light travel times read as seconds, minutes and seconds, or hours and minutes.

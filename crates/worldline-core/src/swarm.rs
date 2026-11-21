@@ -394,7 +394,7 @@ impl Swarm {
                     Outcome::Swallowed(by) => eaten.push((by, particle.id, particle.velocity)),
                 }
             }
-            for by in 0..set.names.len() {
+            for (by, name) in set.names.iter().enumerate() {
                 let (ids, velocities): (Vec<u32>, Vec<DVec3>) = eaten
                     .iter()
                     .filter(|e| e.0 == by)
@@ -402,7 +402,7 @@ impl Swarm {
                     .unzip();
                 if !ids.is_empty() {
                     swallowed.push(Swallowed {
-                        by: set.names[by].clone(),
+                        by: name.clone(),
                         ids,
                         velocities,
                         fragments: 0,

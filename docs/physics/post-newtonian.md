@@ -81,7 +81,8 @@ To see it: `cargo run --release -- --add "PSR B1913+16 pair:30" --focus "PSR B19
 
 **Seeing and hearing the waves.** For a pair that will merge, the inspector offers **See and hear its gravitational waves**. It runs a copy of the pair ahead, on its own, with the same gravity, and records the strain h₊ an observer on Earth would see, 64 times an orbit, for up to 3000 orbits or until the post-Newtonian description ends. The window plots it, gives its span and frequencies, and labels the approximations (the tail, and where the sweep turns rough):
 - **Play** turns it into sound. If its frequencies are already in the range we hear well, 20 Hz to 4 kHz, it plays in real time: that is what the strain itself would sound like. Otherwise it is sped up (or slowed) so its highest frequency sounds at 400 Hz. The last 20 seconds at most are kept.
-- **Save as WAV** writes the sound to `worldline-gravitational-waves.wav` in the current folder.
+- **Pitched up for small speakers** (step 8.4c). A wave that plays below 200 Hz, as GW150914's does (10 to 271 Hz, sped up 1.48 times), is barely heard on a laptop, whose speakers give out about there. So it plays pitched up, every frequency multiplied by the same factor (13.5 times for GW150914) so its lowest sounds at 200 Hz, its timing and the rise of its loudness kept, as LIGO pitches its recordings up to be heard. It's built from the wave's phase, the integral of its frequency, and its strength, the largest strain within half a cycle: strength × cos(factor × phase). Unticking the box plays it at its own pitch, for headphones.
+- **Save as WAV** writes what plays to `worldline-gravitational-waves.wav` (its own pitch) or `worldline-gravitational-waves-pitched-13.5x.wav` (pitched up), in the folder the app runs from.
 - **The catalogue's GW170817 and GW150914 pairs** start on a circular orbit whose wave is at 20 Hz, already falling in at the leading-order rate so that the orbit stays circular. Relativity slows an orbit of a given size, by about (3 − ν)/2 GM/rc² (1.2% for GW170817), so the separation is solved for together with the relativistic circular speed until the wave is at exactly 20 Hz.
 
 To hear GW170817: `cargo run --release -- --add "GW170817 pair:30" --focus "GW170817 heavier star" --paused --waves`.
@@ -133,7 +134,7 @@ What it shows:
 - **General relativity's chirp, with the tail,** is about 1% faster than the simulated one, as expected (above).
 - **The amplitude** matches 4 (G𝓜)^(5/3) (πf)^(2/3)/(c⁴R) to its next order.
 
-The app's recording is checked too (`cargo test -p worldline-app waves -- --nocapture`): two neutron stars chirp from 190 Hz to 793 Hz in 0.6 s and stop at the end of the post-Newtonian inspiral. Their strain grows as f^(2/3), within x = 0.10, and the sound, played in real time, crosses zero as often as the wave. A pair a million kilometers apart is sped up a million times into hearing.
+The app's recording is checked too (`cargo test -p worldline-app waves -- --nocapture`): two neutron stars chirp from 190 Hz to 793 Hz in 0.6 s and stop at the end of the post-Newtonian inspiral. Their strain grows as f^(2/3), within x = 0.10, and the sound, played in real time, crosses zero as often as the wave. A pair a million kilometers apart is sped up a million times into hearing. GW150914's holes from 30 Hz, pitched up 6.8 times for small speakers, sound at 207.5 Hz where the wave is at 30 Hz: the factor times the wave's own frequency, within what counting zero crossings over 0.2 s allows; a wave already high enough isn't pitched.
 
 ### The orbit's shrink
 

@@ -208,7 +208,33 @@ impl WorldlineApp {
         (scenario.start)(self);
         self.simulation.speed = SPEEDS[self.speed_index].1;
         self.playing = Some(scenario.title);
-        self.status = Some((format!("Playing: {}", scenario.title), Instant::now()));
+        // What it opened, so nothing appears unexplained.
+        let mut opened = Vec::new();
+        if self.waves.is_some() {
+            opened.push("the gravitational-waves window");
+        }
+        if self.eclipses_open {
+            opened.push("the eclipse finder");
+        }
+        if self.impact_lab.is_some() {
+            opened.push("the impact's window");
+        }
+        if self.sky_open {
+            opened.push("the sky window");
+        }
+        if self.options.overlays.tides {
+            opened.push("the tides overlay");
+        }
+        let message = if opened.is_empty() {
+            format!("Playing: {}", scenario.title)
+        } else {
+            format!(
+                "Playing: {}; it opened {}",
+                scenario.title,
+                opened.join(", ")
+            )
+        };
+        self.status = Some((message, Instant::now()));
     }
 
     fn at_speed(&mut self, index: usize) {

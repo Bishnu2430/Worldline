@@ -661,7 +661,22 @@ struct WaveView {
     /// "A and B".
     names: String,
     recording: waves::Recording,
+    /// The sound at the wave's own pitch, and pitched up for small
+    /// speakers if it plays below what they play well.
     sound: waves::Sound,
+    pitched: Option<waves::Sound>,
+    /// Whether the pitched-up sound is the one played and saved.
+    pitch_up: bool,
+}
+
+impl WaveView {
+    /// The sound played and saved: pitched up if asked for and made.
+    fn chosen(&self) -> &waves::Sound {
+        match &self.pitched {
+            Some(pitched) if self.pitch_up => pitched,
+            _ => &self.sound,
+        }
+    }
 }
 
 impl WorldlineApp {
@@ -1105,6 +1120,7 @@ impl WorldlineApp {
             {
                 self.sky_open = !self.sky_open;
             }
+            self.windows_menu(ui);
             divider(ui);
             self.sandbox_controls(ui, compact);
 
@@ -1113,7 +1129,6 @@ impl WorldlineApp {
                 if let Some((note, more)) = self.time_note() {
                     theme::chip(ui, &note, theme::APPROXIMATE).on_hover_text(more);
                 }
-                self.status_message(ui);
             });
         });
     }
@@ -1127,6 +1142,116 @@ impl WorldlineApp {
         if let Some(gpu) = &mut self.gpu {
             gpu.set_map_width(quality.map_width());
         }
+    }
+
+    /// Every window the app has, in one menu: what each is for, and for
+    /// one that needs something first, what (on hovering it, greyed out).
+    /// Some open from the inspector or a scenario too; here they can all be
+    /// found.
+    fn windows_menu(&mut self, ui: &mut egui::Ui) {
+        ui.menu_button("☰", |ui| {
+            ui.set_min_width(300.0);
+            ui.label(RichText::new("Windows").font(theme::strong(12.5)));
+            let item = |ui: &mut egui::Ui, open: bool, name: &str, what: &str| {
+                ui.add(egui::Button::selectable(open, name))
+                    .on_hover_text(what)
+                    .clicked()
+            };
+            if item(ui, self.scenarios_open, "Scenarios", "Famous events, each set up in one go") {
+                self.scenarios_open = !self.scenarios_open;
+                ui.close();
+            }
+            if item(
+                ui,
+                self.eclipses_open,
+                "Eclipses",
+                "Every solar and lunar eclipse of the next 5 years, and going to one",
+            ) {
+                if self.eclipses_open {
+                    self.eclipses_open = false;
+                } else {
+                    self.open_eclipses();
+                }
+                ui.close();
+            }
+            if item(
+                ui,
+                self.sky_open,
+                "Sky from a place",
+                "Stand somewhere on Earth: the Sun, Moon and planets in its sky, and when the Sun and Moon rise and set",
+            ) {
+                self.sky_open = !self.sky_open;
+                ui.close();
+            }
+            if item(
+                ui,
+                self.catalogue_open,
+                "Add a body",
+                "The catalogue: planets, stars, white dwarfs, neutron stars, black holes",
+            ) {
+                self.catalogue_open = !self.catalogue_open;
+                ui.close();
+            }
+            let pair = self.simulation.gravitational_waves(self.selected).is_some();
+            let waves = ui
+                .add_enabled(
+                    pair,
+                    egui::Button::selectable(self.waves.is_some(), "Gravitational waves"),
+                )
+                .on_hover_text(
+                    "See and hear the waves of the selected pair, as an observer on Earth records them",
+                )
+                .on_disabled_hover_text(
+                    "Select one of a pair of neutron stars or black holes close enough to send \
+                     waves we could detect: play the Hulse–Taylor, GW150914 or GW170817 scenario, \
+                     or add a pair from the catalogue",
+                );
+            if waves.clicked() {
+                self.open_waves();
+                ui.close();
+            }
+            let impact = ui
+                .add(egui::Button::selectable(
+                    self.impact_lab.is_some(),
+                    "The Moon-forming impact",
+                ))
+                .on_hover_text(
+                    "Canup's (2004) impact of a Mars-sized planet on the young Earth, as a fluid of \
+                     rock and iron, in a window of its own (also from Earth's panel)",
+                );
+            if impact.clicked() {
+                if self.impact_lab.is_none() {
+                    self.impact_lab = Some(ImpactLab::start(MOON_IMPACT_PARTICLES));
+                }
+                ui.close();
+            }
+            ui.separator();
+            ui.label(RichText::new("In the side panel").font(theme::strong(12.5)));
+            ui.label(
+                RichText::new(
+                    "Physics, Display and Overlays, under the selected body. A planet or star can \
+                     be made a fluid from its panel; one passing close to something much heavier \
+                     becomes one by itself, and the top bar says so.",
+                )
+                .small()
+                .color(theme::MUTED),
+            );
+            ui.separator();
+            ui.label(RichText::new("Keys").font(theme::strong(12.5)));
+            for (action, what) in [
+                (feel::Action::PlayPause, "run or stop time"),
+                (feel::Action::Faster, "faster"),
+                (feel::Action::Slower, "slower"),
+                (feel::Action::FollowSelected, "follow the selected body"),
+                (feel::Action::Escape, "close the windows"),
+                (feel::Action::Save, "save the sandbox"),
+                (feel::Action::Timings, "the frame's timings"),
+            ] {
+                ui.label(RichText::new(format!("{:<7} {what}", action.key())).monospace().small());
+            }
+        })
+        .response
+        .on_hover_text("Every window, and the keys");
     }
 
     /// Runs or stops time.
@@ -1183,17 +1308,40 @@ impl WorldlineApp {
         }
     }
 
-    /// The last thing that happened, for a few seconds, as a chip left of
-    /// the clock. It truncates to the room that's left, the rest on
-    /// hovering: a top bar wider than the window loses the side panel.
-    fn status_message(&mut self, ui: &mut egui::Ui) {
-        if let Some((message, since)) = &self.status {
-            if since.elapsed() < Duration::from_secs(6) {
-                theme::chip(ui, message, theme::ACCENT).on_hover_text(message.clone());
-            } else {
-                self.status = None;
-            }
+    /// The last thing that happened, for six seconds, as a notice at the
+    /// top of the view, wrapping to fit, fading over its last second: what
+    /// a scenario opened, what was added or saved, a body becoming a fluid.
+    fn draw_status(&mut self, ctx: &egui::Context, painter: &egui::Painter, viewport: Rect) {
+        let Some((message, since)) = &self.status else {
+            return;
+        };
+        let age = since.elapsed().as_secs_f32();
+        if age >= 6.0 {
+            self.status = None;
+            return;
         }
+        let fade = (6.0 - age).min(1.0);
+        let width = (viewport.width() - 80.0).clamp(200.0, 620.0);
+        let galley = painter.layout(
+            message.clone(),
+            FontId::proportional(13.0),
+            theme::TEXT.gamma_multiply(fade),
+            width,
+        );
+        let size = galley.size() + vec2(28.0, 16.0);
+        let rect = Rect::from_center_size(
+            pos2(viewport.center().x, viewport.top() + 16.0 + size.y / 2.0),
+            size,
+        );
+        painter.rect(
+            rect,
+            10.0,
+            theme::SURFACE.gamma_multiply(0.94 * fade),
+            egui::Stroke::new(1.0, theme::ACCENT.gamma_multiply(0.5 * fade)),
+            egui::StrokeKind::Inside,
+        );
+        painter.galley(rect.min + vec2(14.0, 8.0), galley, theme::TEXT);
+        ctx.request_repaint();
     }
 
     /// The simulation's time in UTC, to the second, the time scale
@@ -1724,6 +1872,7 @@ impl WorldlineApp {
             ui.end_row();
             self.catalog_rows(ui);
             self.clock_rows(ui);
+            self.hill_rows(ui);
             self.perihelion_rows(ui);
             if let Some(parent) = parent {
                 let planet = &bodies[parent];
@@ -2274,6 +2423,39 @@ impl WorldlineApp {
     /// Inspector rows for the selected body's own clock: how much more
     /// slowly it runs now than a clock far away, and how far it has fallen
     /// behind since it started (see `clocks.rs`).
+    /// How far the selected body holds on to what goes around it: its Hill
+    /// sphere, r (m/3M)^(1/3), around the body it goes around (its planet,
+    /// for a moon) or else the heavier body pulling on it hardest. Beyond
+    /// it, that body's tides pull things away: what's left of a planetary
+    /// system near a black hole.
+    fn hill_rows(&self, ui: &mut egui::Ui) {
+        let bodies = &self.simulation.bodies;
+        let body = &bodies[self.selected];
+        if body.gm <= 0.0 {
+            return;
+        }
+        let pull = |b: &Body| b.gm / (b.position - body.position).length_squared();
+        let primary = self.simulation.parent(self.selected).or_else(|| {
+            bodies
+                .iter()
+                .enumerate()
+                .filter(|&(i, b)| i != self.selected && b.gm > 0.0)
+                .max_by(|a, b| pull(a.1).total_cmp(&pull(b.1)))
+                .map(|(i, _)| i)
+        });
+        let Some(primary) = primary.map(|i| &bodies[i]).filter(|b| b.gm > body.gm) else {
+            return;
+        };
+        let d = (primary.position - body.position).length();
+        let hill = d * (body.gm / (3.0 * primary.gm)).cbrt();
+        ui.label(key("Holds on within")).on_hover_text(
+            "Its Hill sphere: within it, its own pull outweighs the tides of the body it goes \
+             around, so what circles it there stays; beyond it, those tides pull things away",
+        );
+        ui.label(format!("{} (against {})", length(hill), primary.name));
+        ui.end_row();
+    }
+
     fn clock_rows(&self, ui: &mut egui::Ui) {
         let body = &self.simulation.bodies[self.selected];
         let Some(clock) = self.simulation.clocks.get(&body.name) else {
@@ -2814,14 +2996,16 @@ impl WorldlineApp {
         let mut velocity = launch.velocity(&self.simulation, self.camera.distance, entry.gm());
         // Something heavier than what it circles takes that body around
         // their common center of mass instead of dragging it off: each
-        // gets its share of their relative motion.
+        // gets its share of their relative motion. The body it circles
+        // takes its system along: the Sun its planets, moons, comets and
+        // belts, which go on circling it as it goes.
         let around = &self.simulation.bodies[launch.around];
         let (gm, other) = (entry.gm(), around.gm);
         if gm > other {
             let relative = velocity - around.velocity;
             velocity = around.velocity + relative * (other / (gm + other));
             self.simulation
-                .shift_velocity(launch.around, -relative * (gm / (gm + other)));
+                .shift_system_velocity(launch.around, -relative * (gm / (gm + other)));
         }
         let bodies = entry.bodies(&self.simulation);
         let added: Vec<String> = bodies.iter().map(|b| b.name.clone()).collect();
@@ -3398,6 +3582,7 @@ impl WorldlineApp {
                 viewport,
                 "Drag to look around · scroll to zoom · refraction included; the sky's color is visual, and the planets are dots",
             );
+            self.draw_status(ui.ctx(), &painter, viewport);
             return;
         }
 
@@ -3506,6 +3691,7 @@ impl WorldlineApp {
         if self.show_timings {
             self.draw_timings(&painter, viewport);
         }
+        self.draw_status(ui.ctx(), &painter, viewport);
     }
 
     /// A measured run's frame: counted once a third of the run has passed,
@@ -3704,11 +3890,16 @@ impl WorldlineApp {
             .map_or(DVec3::ZERO, |i| self.simulation.bodies[i].position);
         let recording = waves::record(&a, &b, earth, waves::MAX_ORBITS);
         let sound = waves::sound(&recording);
+        let pitched = waves::pitched(&recording);
         self.stop_sound();
         self.waves = Some(WaveView {
             names: format!("{} and {}", a.name, b.name),
             recording,
             sound,
+            // Pitched up from the start where its own pitch is too low to
+            // hear on a laptop.
+            pitch_up: pitched.is_some(),
+            pitched,
         });
     }
 
@@ -3737,7 +3928,7 @@ impl WorldlineApp {
             sink.append(rodio::buffer::SamplesBuffer::new(
                 1,
                 waves::RATE,
-                view.sound.samples.clone(),
+                view.chosen().samples.clone(),
             ));
             sink.play();
         }
@@ -4064,6 +4255,7 @@ impl WorldlineApp {
         let mut play = false;
         let mut stop = false;
         let mut save = false;
+        let mut pitch_toggle: Option<bool> = None;
         egui::Window::new(format!("Gravitational waves from {}", view.names))
             .id(egui::Id::new("gravitational waves"))
             .open(&mut open)
@@ -4177,24 +4369,52 @@ impl WorldlineApp {
                     play = ui.button("▶ Play").clicked();
                     stop = ui.button("■ Stop").clicked();
                     save = ui.button("Save as WAV").clicked();
-                    let how = if view.sound.speedup == 1.0 {
-                        "in real time, as the strain itself would sound".to_string()
+                    let sound = view.chosen();
+                    let mut how = if sound.speedup == 1.0 {
+                        "in real time".to_string()
                     } else {
                         format!(
                             "{} times faster than real time, so its highest frequency sounds at 400 Hz",
-                            significant(view.sound.speedup)
+                            significant(sound.speedup)
                         )
                     };
+                    if sound.pitch > 1.0 {
+                        how += &format!(", every frequency {:.1} times higher", sound.pitch);
+                    } else if sound.speedup == 1.0 {
+                        how += ", as the strain itself would sound";
+                    }
                     ui.label(
                         RichText::new(format!(
                             "{:.1} s of sound, {how}",
-                            view.sound.samples.len() as f64 / f64::from(waves::RATE)
+                            sound.samples.len() as f64 / f64::from(waves::RATE)
                         ))
                         .small()
                         .color(theme::MUTED),
                     );
                 });
+                if let Some(pitched) = &view.pitched {
+                    let mut up = view.pitch_up;
+                    ui.checkbox(
+                        &mut up,
+                        format!("Pitched up {:.1} times for small speakers", pitched.pitch),
+                    )
+                    .on_hover_text(format!(
+                        "At its own pitch the wave sounds below {:.0} Hz, which laptop speakers \
+                         barely play. Pitched up, every frequency is {:.1} times higher and its \
+                         timing is kept, as LIGO pitches its recordings up to be heard. Off: its \
+                         own pitch, for headphones",
+                        waves::SMALL_SPEAKERS,
+                        pitched.pitch
+                    ));
+                    pitch_toggle = Some(up);
+                }
             });
+        if let (Some(up), Some(view)) = (pitch_toggle, &mut self.waves)
+            && up != view.pitch_up
+        {
+            view.pitch_up = up;
+            self.stop_sound();
+        }
         if play {
             self.play_sound();
         }
@@ -4202,10 +4422,17 @@ impl WorldlineApp {
             self.stop_sound();
         }
         if save && let Some(view) = &self.waves {
-            let path = std::env::current_dir()
-                .unwrap_or_default()
-                .join("worldline-gravitational-waves.wav");
-            let message = match std::fs::write(&path, waves::wav(&view.sound)) {
+            let sound = view.chosen();
+            let name = if sound.pitch > 1.0 {
+                format!(
+                    "worldline-gravitational-waves-pitched-{:.1}x.wav",
+                    sound.pitch
+                )
+            } else {
+                "worldline-gravitational-waves.wav".to_string()
+            };
+            let path = std::env::current_dir().unwrap_or_default().join(name);
+            let message = match std::fs::write(&path, waves::wav(sound)) {
                 Ok(()) => format!("Saved {}", path.display()),
                 Err(e) => format!("Couldn't save {}: {e}", path.display()),
             };
@@ -5023,6 +5250,59 @@ fn sky_presence(eye: DVec3, center: Option<DVec3>) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_black_hole_added_beside_the_sun_takes_the_solar_system_along() {
+        // A copy of Sagittarius A*, 4.3 million Suns, added circling the
+        // Sun 2,000 AU out, as "Add a body" adds it. The pair go round
+        // their center of mass, the hole all but at it, so the Sun goes
+        // round the hole at about 1,400 km/s, and takes its system along:
+        // Earth's velocity changes by the Sun's, to rounding. The Sun's
+        // Hill sphere there, 2,000 (1/(3 × 4.3 million))^(1/3) = 8.5 AU,
+        // holds Earth and Jupiter: after 30 days each is still bound to the
+        // Sun, at its distance from it, while the Sun has fallen toward the
+        // hole as fast as its pull says.
+        let mut app = WorldlineApp::new(&crate::StartOptions::default());
+        let entry = catalogue::entry("object:Sagittarius A*").expect("listed");
+        let at = |app: &WorldlineApp, name: &str| {
+            let b = &app.simulation.bodies[app.simulation.index_of(name).unwrap()];
+            (b.position, b.velocity, b.gm)
+        };
+        let (sun, sun_v, _) = at(&app, "Sun");
+        let (_, earth_v, _) = at(&app, "Earth");
+        let position = sun - DVec3::X * 2000.0 * AU;
+        app.place(Launch {
+            entry,
+            position,
+            around: SUN,
+            drag: position,
+            circling: 1.0,
+        });
+        let (_, sun_v1, _) = at(&app, "Sun");
+        let (_, earth_v1, _) = at(&app, "Earth");
+        let kick = sun_v1 - sun_v;
+        println!(
+            "the Sun now moves at {:.0} km/s around the hole",
+            kick.length() / 1e3
+        );
+        assert!((kick.length() / 1e3 - 1390.0).abs() < 20.0);
+        assert!(((earth_v1 - earth_v) - kick).length() < 1e-9 * kick.length());
+        // 30 days on.
+        app.simulation.advance_by(30.0 * DAY);
+        let (sun2, sun_v2, gm_sun) = at(&app, "Sun");
+        for (name, au) in [("Earth", 1.0), ("Jupiter", 5.2)] {
+            let (p, v, gm) = at(&app, name);
+            let r = (p - sun2).length();
+            let energy = 0.5 * (v - sun_v2).length_squared() - (gm_sun + gm) / r;
+            println!(
+                "{name}: {:.3} AU from the Sun, bound: {}",
+                r / AU,
+                energy < 0.0
+            );
+            assert!(energy < 0.0, "{name} left the Sun");
+            assert!((r / AU / au - 1.0).abs() < 0.1, "{name} at {} AU", r / AU);
+        }
+    }
 
     #[test]
     fn the_measured_sky_gives_way_to_the_glow_out_among_the_stars() {
