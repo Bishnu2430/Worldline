@@ -42,6 +42,7 @@ use crate::gpu::{Globe, GpuGlobes, GpuGlow, GpuSky};
 use crate::ground::{self, Ahead, PLACES};
 use crate::impact_lab::ImpactLab;
 use crate::overlays::{self, Overlays};
+use crate::quality::Quality;
 use crate::sandbox::{self, Launch};
 use crate::simulation::Simulation;
 use crate::simulation::{Approach, Computed, Limits, Removal};
@@ -364,10 +365,6 @@ const SKY_NEAR: f64 = 100.0 * PARSEC;
 /// m: the Milky Way's band would be seen from somewhere else.
 const SKY_FAR: f64 = 1000.0 * PARSEC;
 
-/// The galaxy's glow is drawn at this fraction of the view's resolution
-/// at most, one over.
-const GLOW_SCALE: f64 = 3.0;
-
 /// A column of stars of this many Suns per square parsec is shown at half
 /// brightness: about the disk's at the Sun's radius, seen from above
 /// (McMillan 2017's model has 45). Visual.
@@ -607,6 +604,16 @@ pub struct WorldlineApp {
     /// How long frames take, and whether to show it over the view.
     timings: Timings,
     show_timings: bool,
+    /// How much is drawn (step 8.4b), and whether it was picked for this
+    /// computer rather than asked for.
+    quality: Quality,
+    quality_auto: bool,
+    /// How long the app took to draw its first frame, s from the
+    /// program's start.
+    first_frame: Option<f64>,
+    /// A measured run (`--measure`): how long it lasts, s from the first
+    /// frame, and the sums of the frames' times over its last two thirds.
+    measure: Option<(f64, Measured)>,
 
     /// The GPU and the graphics interface it's driven through.
     gpu_name: String,
@@ -618,6 +625,17 @@ pub struct WorldlineApp {
     behind: f64,
     /// When the app started.
     started: Instant,
+}
+
+/// The sums of a measured run's frames' times, s, and how many.
+#[derive(Debug, Clone, Copy, Default)]
+struct Measured {
+    frames: usize,
+    frame: f64,
+    physics: f64,
+    interface: f64,
+    view: f64,
+    longest: f64,
 }
 
 /// An impact, and what the scaling laws say it leaves.
@@ -711,6 +729,10 @@ impl WorldlineApp {
             spin: Spin::default(),
             timings: Timings::default(),
             show_timings: false,
+            quality: start.quality.unwrap_or(Quality::High),
+            quality_auto: start.quality.is_none(),
+            first_frame: None,
+            measure: start.measure.map(|s| (s, Measured::default())),
             gpu_name: String::new(),
             live: false,
             behind: 0.0,
@@ -791,6 +813,7 @@ impl WorldlineApp {
         }
         app.scenarios_open = start.scenarios;
         app.show_timings = start.timings;
+        app.set_quality(app.quality);
         if let Some(key) = &start.scenario {
             match scenarios::scenario(key) {
                 Some(scenario) => app.play_scenario(scenario),
@@ -1093,6 +1116,17 @@ impl WorldlineApp {
                 self.status_message(ui);
             });
         });
+    }
+
+    /// Draws at preset `quality`: the belts' asteroids carried to now for
+    /// drawing, and the planets' maps' size on the GPU, follow it at once;
+    /// the sky's and globes' resolution from the next frame.
+    fn set_quality(&mut self, quality: Quality) {
+        self.quality = quality;
+        self.simulation.set_belt_stride(quality.belt_stride());
+        if let Some(gpu) = &mut self.gpu {
+            gpu.set_map_width(quality.map_width());
+        }
     }
 
     /// Runs or stops time.
@@ -1544,6 +1578,52 @@ impl WorldlineApp {
         ui.checkbox(&mut self.options.spin_axes, "Spin axes")
             .on_hover_text("A dot marks the end the spin points toward");
         ui.checkbox(&mut self.options.globes, "Textured globes up close");
+        ui.horizontal(|ui| {
+            ui.label("Quality");
+            let current = if self.quality_auto {
+                format!("Auto ({})", self.quality.name())
+            } else {
+                self.quality.name().to_string()
+            };
+            let mut chosen: Option<Option<Quality>> = None;
+            egui::ComboBox::from_id_salt("quality")
+                .selected_text(current)
+                .show_ui(ui, |ui| {
+                    if ui
+                        .selectable_label(self.quality_auto, "Auto")
+                        .on_hover_text("Picked for this computer's GPU and processor")
+                        .clicked()
+                    {
+                        chosen = Some(None);
+                    }
+                    for q in Quality::ALL {
+                        if ui
+                            .selectable_label(!self.quality_auto && self.quality == q, q.name())
+                            .on_hover_text(q.describe())
+                            .clicked()
+                        {
+                            chosen = Some(Some(q));
+                        }
+                    }
+                })
+                .response
+                .on_hover_text(
+                    "How much is drawn, for weaker computers; the physics is the same at every \
+                     preset. Or start with --quality low, medium or high",
+                );
+            match chosen {
+                Some(Some(q)) => {
+                    self.quality_auto = false;
+                    self.set_quality(q);
+                }
+                Some(None) => {
+                    self.quality_auto = true;
+                    // Picked again once the GPU is next looked at.
+                    self.gpu_name.clear();
+                }
+                None => {}
+            }
+        });
         ui.checkbox(&mut self.show_timings, "Frame timings")
             .on_hover_text(format!(
                 "Frames a second, and how long the physics and the interface take each frame · {}",
@@ -3428,12 +3508,67 @@ impl WorldlineApp {
         }
     }
 
+    /// A measured run's frame: counted once a third of the run has passed,
+    /// and at its end the means printed and the window closed. The window
+    /// keeps drawing meanwhile.
+    fn measured(
+        &mut self,
+        ctx: &egui::Context,
+        frame: f64,
+        physics: f64,
+        interface: f64,
+        view: f64,
+    ) {
+        let Some((seconds, sums)) = &mut self.measure else {
+            return;
+        };
+        let since = crate::since_start() - self.first_frame.unwrap_or(0.0);
+        if since >= *seconds / 3.0 {
+            sums.frames += 1;
+            for (sum, value) in [
+                (&mut sums.frame, frame),
+                (&mut sums.physics, physics),
+                (&mut sums.interface, interface),
+                (&mut sums.view, view),
+            ] {
+                *sum += value;
+            }
+            sums.longest = sums.longest.max(frame);
+        }
+        ctx.request_repaint();
+        if since >= *seconds {
+            let n = sums.frames.max(1) as f64;
+            let ms = |s: f64| s / n * 1e3;
+            let pixels = ctx.content_rect().size() * ctx.pixels_per_point();
+            println!(
+                "quality {} · {:.0}×{:.0} pixels · {} frames: {:.1} a second · a frame {:.2} ms (the longest {:.1}) · physics {:.2} ms · interface {:.2} ms (view {:.2}) · first frame after {:.2} s",
+                self.quality.name(),
+                pixels.x,
+                pixels.y,
+                sums.frames,
+                n / sums.frame,
+                ms(sums.frame),
+                sums.longest * 1e3,
+                ms(sums.physics),
+                ms(sums.interface),
+                ms(sums.view),
+                self.first_frame.unwrap_or(0.0)
+            );
+            self.measure = None;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+    }
+
     /// The frame's timings, in the view's top right corner.
     fn draw_timings(&self, painter: &egui::Painter, viewport: Rect) {
         let t = self.timings;
+        let started = self
+            .first_frame
+            .map_or(String::new(), |s| format!(" · first frame after {s:.1} s"));
         let lines = format!(
             "{:.0} frames a second · {:.1} ms a frame\nphysics {:.1} ms · interface {:.1} ms (view {:.1})\n\
-             {:.1} steps {:.1} ms (longest {:.0}) · galaxy {:.1} · belts {:.1}",
+             {:.1} steps {:.1} ms (longest {:.0}) · galaxy {:.1} · belts {:.1}\n\
+             quality {}{started}",
             t.rate(),
             t.frame * 1e3,
             t.physics * 1e3,
@@ -3443,7 +3578,8 @@ impl WorldlineApp {
             t.stepping * 1e3,
             t.longest_step * 1e3,
             t.galaxy * 1e3,
-            t.belts * 1e3
+            t.belts * 1e3,
+            self.quality.name()
         );
         let galley = painter.layout_no_wrap(lines, FontId::monospace(11.5), theme::TEXT);
         let size = galley.size() + vec2(20.0, 12.0);
@@ -4221,7 +4357,11 @@ impl WorldlineApp {
             fov_y: self.camera.fov_y as f32,
             exposure: (1.0 / GLOW_REFERENCE) as f32,
         };
-        view.size = glow_size(full, glow_coverage(&view, &stars), 1.0 / GLOW_SCALE);
+        view.size = glow_size(
+            full,
+            glow_coverage(&view, &stars),
+            1.0 / self.quality.glow_divisor(),
+        );
         let gpu = self.glow.get_or_insert_with(|| GpuGlow::new(state));
         gpu.draw(state, &view, &stars)
     }
@@ -4302,10 +4442,13 @@ impl WorldlineApp {
         // Traced rays cost a hundred steps or more each: at half the
         // screen's resolution, a pixel spans about what a texel of the sky
         // map does (1.5 × 10⁻³ rad at the usual field of view), so the sky
-        // loses little.
-        if traced.is_some() {
-            size = size.map(|s| s.div_ceil(2));
-        }
+        // loses little. Lower presets draw it coarser still.
+        let scale = if traced.is_some() {
+            self.quality.traced_scale()
+        } else {
+            self.quality.render_scale()
+        };
+        size = size.map(|s| (s as f32 * scale).round().max(1.0) as u32);
         let disk = self
             .disk
             .as_ref()
@@ -4369,6 +4512,11 @@ impl WorldlineApp {
         if self.gpu_name.is_empty() {
             let info = state.adapter.get_info();
             self.gpu_name = format!("{}, {:?}", info.name, info.backend);
+            // Auto: the preset for this GPU and processor, once known.
+            if self.quality_auto {
+                let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
+                self.set_quality(Quality::auto(&info.name, info.device_type, threads));
+            }
         }
         // The trials wait for the app to settle: in its first seconds
         // (loading, the GPU clocking up) and during the camera's flight,
@@ -4589,17 +4737,21 @@ impl WorldlineApp {
             .chain(fluids.iter().map(|f| f.center.length() - 1.5 * f.scale))
             .fold(f32::INFINITY, f32::min);
         let (forward, _, up) = self.camera.basis();
+        let scale = pixels_per_point * self.quality.render_scale();
         let view = View {
             size: [
-                (viewport.width() * pixels_per_point).round() as u32,
-                (viewport.height() * pixels_per_point).round() as u32,
+                (viewport.width() * scale).round().max(1.0) as u32,
+                (viewport.height() * scale).round().max(1.0) as u32,
             ],
             fov_y: self.camera.fov_y as f32,
             forward: forward.as_vec3(),
             up: up.as_vec3(),
             near: (0.5 * nearest_surface).max(1.0),
         };
-        let gpu = self.gpu.get_or_insert_with(|| GpuGlobes::new(state));
+        let map_width = self.quality.map_width();
+        let gpu = self
+            .gpu
+            .get_or_insert_with(|| GpuGlobes::new(state, map_width));
         gpu.draw(state, view, &globes, &fluids)
     }
 
@@ -4719,6 +4871,10 @@ impl eframe::App for WorldlineApp {
             ui.ctx().request_repaint();
         }
         let work = now.elapsed().as_secs_f64();
+        if self.first_frame.is_none() {
+            self.first_frame = Some(crate::since_start());
+        }
+        self.measured(ui.ctx(), elapsed, physics, (work - physics).max(0.0), view);
         self.timings
             .record(elapsed, physics, (work - physics).max(0.0));
         let p = self.simulation.profile;

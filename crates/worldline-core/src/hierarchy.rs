@@ -699,6 +699,16 @@ impl Hierarchy {
     /// its center. Within the swarm's step of at most 64 days, that leaves
     /// out only the other bodies' pulls.
     pub fn swarm_positions(&self, out: &mut Vec<DVec3>) {
+        self.swarm_positions_of(|_| true, out);
+    }
+
+    /// [`Self::swarm_positions`], of the particles `wanted` only; the
+    /// others' places are left not-a-number, so each still has its slot.
+    pub fn swarm_positions_of(
+        &self,
+        wanted: impl Fn(&Particle) -> bool + Sync,
+        out: &mut Vec<DVec3>,
+    ) {
         out.clear();
         let particles = &self.swarm.particles;
         let dt = self.time() - self.swarm.time();
@@ -730,6 +740,9 @@ impl Hierarchy {
             (then, now)
         };
         let place = |(p, &c): (&Particle, &u32)| {
+            if !wanted(p) {
+                return DVec3::NAN;
+            }
             let c = c as usize;
             match (then.get(c), now.get(c).copied().flatten()) {
                 (Some(&(at, moving)), Some(k)) => {

@@ -66,6 +66,39 @@ Before and after, alternating runs on an Intel Iris Xe (12 threads):
 
 The longest frames are from a headless run of the physics alone (`cargo test --release -p worldline-app --bin worldline -- --ignored --nocapture where_the_default_views_physics_time_goes`), which prints each frame over 40 ms and what it spent the time on. Its companion, `how_long_the_top_levels_gravity_takes`, times the top level's gravity with every pair term and without those left out.
 
+### Quality presets (step 8.4b)
+
+**Display → Quality** picks how much is drawn, for weaker computers: Auto, Low, Medium or High. The physics is the same at every preset; only the drawing changes. Or start with `--quality low` (or `medium`, `high`).
+
+| | Low | Medium | High |
+|---|---|---|---|
+| The sky and the globes, as a fraction of the screen's resolution | 1/2 | 3/4 | 1 |
+| Rays traced near a black hole | 1/4 | 0.35 | 1/2 |
+| The galaxy's glow, at most | 1/5 | 1/4 | 1/3 |
+| The belts' asteroids drawn, and carried to now for drawing | 1 in 4 | 1 in 2 | all |
+| The planets' surface maps on the GPU | 1K | 2K | 2K |
+
+**Auto** picks from the GPU and the processor:
+- **High:** a discrete GPU, or a newer integrated one with 8 or more processor threads (an Intel Iris Xe laptop like the owner's).
+- **Medium:** other integrated GPUs, Intel's HD and UHD Graphics among them.
+- **Low:** software rendering, a virtual GPU, or 4 processor threads or fewer with anything but a discrete GPU.
+
+The fluid needs no preset: it already finds this GPU's particle budget by trial (step 4.2).
+
+**Measured** on the Intel Iris Xe, 1,600 × 1,000 pixels, frames uncapped (`--no-vsync`), each run measuring itself (`--measure 21`: the last two thirds of 21 seconds, then it prints and closes):
+
+| The default view, a day a second | Frames a second | A frame | Physics | Interface (the view) |
+|---|---|---|---|---|
+| High (three runs) | 65 to 71 | 14.1 to 15.5 ms | 6.6 to 7.0 ms | 5.1 to 6.3 ms (3.7 to 4.5) |
+| Medium (two) | 77 to 81 | 12.3 to 13.0 ms | 5.6 to 5.9 ms | 4.6 to 4.8 ms (2.9 to 3.0) |
+| Low (three) | 92 to 96 | 10.4 to 10.9 ms | 4.9 to 5.0 ms | 3.8 to 4.1 ms (2.2 to 2.3) |
+
+On this computer the gain is the belts: fewer asteroids carried to now (the physics's share) and drawn (the view's). Drawing the sky and the globes is cheap on it: with time stopped, a frame takes 8 to 9 ms at every preset, 2 to 3 ms of it the GPU's, so their resolution barely shows. They're for weaker GPUs, where that share grows with the number of pixels: Low draws a quarter as many. That hasn't been measured on a weaker computer yet.
+
+**Memory:** 430 to 470 MB at every preset, much of it the simulation's own (28,331 belt bodies, 30,000 of the galaxy's stars and Gaia's 21,480, the catalogues) and the GPU driver's. A surface map takes 8 MB on the GPU at 2K and 2 MB at 1K, so Low saves 6 MB for each body seen up close.
+
+**Starting:** the first frame comes 1.6 to 1.9 s after the program starts.
+
 ## The 3D view
 
 - **Projected in double precision.** Every position is taken relative to the camera in double precision, and only the final screen coordinates become single precision. GPUs work in single precision (about 7 digits), which can't place Neptune (4.5 × 10¹² m out) to better than about a kilometer. Projecting relative to the camera keeps positions precise at any zoom; a unit test nudges a body 30 AU out by 1 km and checks that it moves on screen by exactly the right amount.
@@ -237,6 +270,7 @@ A distant body pulls the whole solar system almost equally, so it falls together
 
 `cargo test -p worldline-app` covers:
 - **The look:** every character the app's code writes has a glyph in Inter or its fallbacks; the window's icon is a disk on a clear background with a warm star at its center.
+- **The quality presets:** Auto picks High for an Iris Xe with 12 threads and a discrete GPU, Medium for Intel UHD Graphics with 8, Low for it with 4 and for software rendering; each preset draws less than the one above; a 2K map is halved to 1K, each pixel the mean of four.
 - **The feel:** a flick glides 96 points at 30, 60 and 144 frames a second, and stops within a second; a drag held still before letting go doesn't glide; the shortcuts need no modifier but Ctrl+S, and Ctrl with another key does nothing; the timings average over the last frames.
 - **Durations:** light travel times read as seconds, minutes and seconds, or hours and minutes.
 - **Calendar:** known dates, including J2000, Sputnik 1 and the first Gregorian day, and rounding at midnight.

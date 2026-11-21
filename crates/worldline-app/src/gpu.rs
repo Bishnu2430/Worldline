@@ -47,14 +47,28 @@ pub struct GpuGlobes {
     materials: HashMap<String, (Material, bool)>,
     /// The renderer's output, registered with egui so it can be painted.
     texture: Option<TextureId>,
+    /// The widest a surface map is uploaded, pixels (see
+    /// `Quality::map_width`).
+    map_width: u32,
 }
 
 impl GpuGlobes {
-    pub fn new(state: &RenderState) -> Self {
+    pub fn new(state: &RenderState, map_width: u32) -> Self {
         Self {
             renderer: Renderer::new(&state.device, &state.queue),
             materials: HashMap::new(),
             texture: None,
+            map_width,
+        }
+    }
+
+    /// Sets the widest a surface map is uploaded. The maps already
+    /// uploaded at another width are let go, to be uploaded again as
+    /// they're next needed.
+    pub fn set_map_width(&mut self, width: u32) {
+        if width != self.map_width {
+            self.map_width = width;
+            self.materials.clear();
         }
     }
 
@@ -70,7 +84,7 @@ impl GpuGlobes {
     ) -> Option<TextureId> {
         for globe in globes {
             if !self.materials.contains_key(&globe.name) {
-                let material = load_material(&self.renderer, state, globe);
+                let material = load_material(&self.renderer, state, globe, self.map_width);
                 self.materials.insert(globe.name.clone(), material);
             }
         }
@@ -213,11 +227,18 @@ impl GpuSky {
 
 /// Decodes and uploads a body's maps (and ring profile), returning the
 /// material and whether it has clouds.
-fn load_material(renderer: &Renderer, state: &RenderState, globe: &Globe) -> (Material, bool) {
+fn load_material(
+    renderer: &Renderer,
+    state: &RenderState,
+    globe: &Globe,
+    map_width: u32,
+) -> (Material, bool) {
     let c = globe.color;
     let flat_color = [c.r(), c.g(), c.b(), 255];
     let maps = textures::surface_maps(&globe.name);
-    let decode = |bytes: Option<&'static [u8]>| bytes.map(textures::decode);
+    let decode = |bytes: Option<&'static [u8]>| {
+        bytes.map(|b| crate::quality::fit_map(textures::decode(b), map_width))
+    };
     let surface = decode(maps.as_ref().map(|m| m.surface));
     let night = decode(maps.as_ref().and_then(|m| m.night));
     let clouds = decode(maps.as_ref().and_then(|m| m.clouds));
