@@ -76,6 +76,10 @@ pub enum Action {
     Save,
     /// F3: show or hide the frame's timings.
     Timings,
+    /// →: a film's next shot.
+    NextShot,
+    /// ←: back a shot.
+    PreviousShot,
 }
 
 impl Action {
@@ -89,6 +93,8 @@ impl Action {
             Action::Escape => "Esc",
             Action::Save => "Ctrl+S",
             Action::Timings => "F3",
+            Action::NextShot => "→",
+            Action::PreviousShot => "←",
         }
     }
 }
@@ -105,6 +111,8 @@ pub fn action(key: Key, modifiers: Modifiers) -> Option<Action> {
         Key::F => Some(Action::FollowSelected),
         Key::Escape => Some(Action::Escape),
         Key::F3 => Some(Action::Timings),
+        Key::ArrowRight => Some(Action::NextShot),
+        Key::ArrowLeft => Some(Action::PreviousShot),
         _ => None,
     }
 }
@@ -258,6 +266,8 @@ mod tests {
         assert_eq!(action(Key::Minus, none), Some(Action::Slower));
         assert_eq!(action(Key::F, none), Some(Action::FollowSelected));
         assert_eq!(action(Key::Escape, none), Some(Action::Escape));
+        assert_eq!(action(Key::ArrowRight, none), Some(Action::NextShot));
+        assert_eq!(action(Key::ArrowLeft, none), Some(Action::PreviousShot));
         assert_eq!(action(Key::S, Modifiers::COMMAND), Some(Action::Save));
         assert_eq!(action(Key::S, none), None);
         // Ctrl with another key is the system's or another program's.

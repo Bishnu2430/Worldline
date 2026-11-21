@@ -111,6 +111,8 @@ pub struct BinaryOrbit {
     /// General relativity's prediction of it from the measured masses
     /// (Peters & Mathews 1963), with its 1σ uncertainty.
     pub period_derivative_gr: (f64, f64),
+    /// The timed pulsar's spin frequency, Hz, if it was published.
+    pub spin_frequency: Option<f64>,
     /// Where it was published.
     pub source: String,
 }
@@ -232,7 +234,8 @@ pub fn binary_orbits() -> Vec<BinaryOrbit> {
             periastron_advance: number(&f[3]),
             period_derivative: (number(&f[4]), number(&f[5])),
             period_derivative_gr: (number(&f[6]), number(&f[7])),
-            source: f[8].clone(),
+            spin_frequency: optional(&f[8]),
+            source: f[9].clone(),
         })
         .collect()
 }
@@ -256,5 +259,8 @@ mod tests {
                 .all(|o| o.mass.value > 0.0 && o.radius.value > 0.0)
         );
         assert_eq!(binary_orbits().len(), 1);
+        // The Hulse–Taylor pulsar's spin, as Weisberg & Huang's Table 1
+        // prints it.
+        assert_eq!(binary_orbits()[0].spin_frequency, Some(16.940537785677));
     }
 }

@@ -33,7 +33,9 @@ In a window narrower than 1,200 points the exploring tools show their icons alon
 
 **Every window, in one menu.** ☰ in the top bar lists every window: Scenarios, Eclipses, Sky from a place, Add a body, Gravitational waves and the Moon-forming impact, each with what it's for on hovering. One that needs something first is greyed out and says what on hovering: the waves window, a pair of neutron stars or black holes selected (since step 8.4c). Some open from elsewhere too (the waves window from a pair's panel, the impact from Earth's), but here they can all be found, with the keys below.
 
-**What happened, said at the top of the view.** The last thing that happened shows for six seconds as a notice at the top of the view, wrapped to fit: a scenario started and what it opened ("Playing: The Hulse–Taylor pulsar; it opened the gravitational-waves window"), a body added, the sandbox saved, a planet becoming a fluid. It used to be a chip at the end of the top bar, where a narrow window cut it to "…".
+**What happened, said at the top of the view.** The last thing that happened shows for six seconds as a notice at the top of the view, wrapped to fit: a scenario started and what it opened ("Playing: GW150914: two black holes merge; it opened the gravitational-waves window"), a body added, the sandbox saved, a planet becoming a fluid. It used to be a chip at the end of the top bar, where a narrow window cut it to "…".
+
+**Films** (since step 8.5a). A scenario with a film plays as one: shots, captions, cards beside the bodies, and a bar at the bottom to pause, skip and leave it. See [scenarios.md](scenarios.md#films-step-85a).
 
 **Keyboard shortcuts** (`feel.rs`), ignored while typing in a field:
 
@@ -46,6 +48,8 @@ In a window narrower than 1,200 points the exploring tools show their icons alon
 | Esc | Close the open windows (while adding bodies: stop adding) |
 | Ctrl+S | Save the sandbox |
 | F3 | Show or hide the frame's timings |
+| → | A film's next shot |
+| ← | Back to a film's shot's start, or the one before within its first two seconds |
 
 **The camera glides.** Let go of a drag and the view carries on turning, slowing by e every 0.16 s, so a flick spins it and a drag held still stops dead. A flick at 600 points a second glides as far as the pointer moves in 0.16 s at that speed, 96 points, however fast frames come. Clicking stops it.
 
