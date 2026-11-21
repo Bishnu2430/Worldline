@@ -63,7 +63,7 @@ Far out it becomes Peters' formula; close in it is much shorter.
 
 **Launching a body around a black hole** (click to circle) uses the hole's exact circular speed, Ω = 1/(r^(3/2) + a) in units of GM/c² and c. Without spin that is Newton's √(G(M + m)/r) exactly. Inside the innermost stable orbit, a body starts at rest and falls in.
 
-**Something heavier than what it circles** takes that body around their common center of mass rather than dragging it away.
+**Something heavier than what it circles** takes that body around their common center of mass rather than dragging it away, and the body takes its own system along: a black hole added beside the Sun sends the Sun round it with its planets, moons, comets and belts, which keep circling the Sun within its Hill sphere (since step 8.4c; see [app.md](../app.md)).
 
 ![Sagittarius A* 6,600 AU from TON 618, whose horizon arcs across the left: the inspector shows it moving in TON 618's exact spacetime, reaching the innermost stable orbit and plunging in 10,530 years (Peters' leading-order formula says 32,485)](../images/emri-step-2.5.png)
 

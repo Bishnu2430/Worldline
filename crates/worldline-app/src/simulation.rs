@@ -895,6 +895,32 @@ impl Simulation {
         self.shift_velocity(index, target.velocity + way * start - body.velocity);
     }
 
+    /// [`Self::shift_velocity`], and everything that goes around with
+    /// the body (see `Hierarchy::shift_system`): the Sun with its planets,
+    /// moons, comets and belts; a planet with its moons. What a much
+    /// heavier body arriving takes around their common center moves as a
+    /// system, rather than the body alone leaving it behind.
+    pub fn shift_system_velocity(&mut self, index: usize, dv: DVec3) {
+        match self.sources[index] {
+            Source::Top(k) => self.hierarchy.shift_system(k, dv),
+            Source::Moon { system, body: 0 } => {
+                let host = self.hierarchy.moon_systems[system].host;
+                self.hierarchy.shift_system(host, dv);
+            }
+            Source::Galactic(Far::Top(k)) => {
+                let g = self.galaxy.as_mut().expect("the galactic center");
+                g.hierarchy.shift_system(k, dv);
+            }
+            Source::Neighbor(k) => {
+                let n = self.neighbors.as_mut().expect("the neighborhood");
+                n.hierarchy.shift_system(k, dv);
+            }
+            _ => return self.shift_velocity(index, dv),
+        }
+        self.refresh();
+        self.refresh_small_moons();
+    }
+
     pub fn shift_velocity(&mut self, index: usize, dv: DVec3) {
         match self.sources[index] {
             Source::Top(k) => {
