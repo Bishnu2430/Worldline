@@ -491,6 +491,9 @@ pub struct Simulation {
     pub achieved: f64,
     /// Where the last update's computer time went (step 8.4).
     pub profile: Profile,
+    /// One in this many of the belts' asteroids carried to now for drawing
+    /// (step 8.4b's quality presets); all of them move in the physics.
+    pub belt_stride: u32,
     /// The approach that slowed the last update, if one did (see
     /// [`Limits`]).
     pub slowed_by: Option<usize>,
@@ -589,6 +592,7 @@ impl Simulation {
             paused: false,
             achieved: 1.0,
             profile: Profile::default(),
+            belt_stride: 1,
             slowed_by: None,
             parents: Vec::new(),
             sources: Vec::new(),
@@ -2395,13 +2399,31 @@ impl Simulation {
     /// system in focus, from JPL's mean orbits for the rest. Done once per
     /// update rather than every step, since the mean orbits can be
     /// evaluated at any time. The belts likewise.
+    /// Sets how many of the belts' asteroids are carried to now for
+    /// drawing, one in `stride`, and carries them at once.
+    pub fn set_belt_stride(&mut self, stride: u32) {
+        if stride != self.belt_stride {
+            self.belt_stride = stride;
+            self.belts_time = f64::NAN;
+            self.refresh_small_moons();
+        }
+    }
+
     fn refresh_small_moons(&mut self) {
         let time = self.time();
         if time != self.belts_time {
             // The swarm's particles, carried from its clock to now on their
             // two-body orbits (shared among all cores), sorted out by label:
             // the belts in their ranges, then the freed moons.
-            self.hierarchy.swarm_positions(&mut self.swarm_positions);
+            // Every freed moon and fragment of a collision, and one in
+            // `belt_stride` of the belts' asteroids; the others' slots left
+            // not-a-number.
+            let stride = self.belt_stride.max(1);
+            let debris = self.hierarchy.debris();
+            self.hierarchy.swarm_positions_of(
+                |p| p.id >= FREED_MOON_IDS || p.id % stride == 0 || debris.contains_key(&p.id),
+                &mut self.swarm_positions,
+            );
             let particles = &self.hierarchy.swarm().particles;
             let mut next = 0;
             for k in 0..self.belts.len() {
@@ -2411,9 +2433,11 @@ impl Simulation {
                     next += 1;
                 }
                 self.belts[k].positions.clear();
-                self.belts[k]
-                    .positions
-                    .extend_from_slice(&self.swarm_positions[start..next]);
+                self.belts[k].positions.extend(
+                    self.swarm_positions[start..next]
+                        .iter()
+                        .filter(|p| !p.x.is_nan()),
+                );
             }
             self.belts_time = time;
         }

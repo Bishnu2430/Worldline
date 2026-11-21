@@ -50,6 +50,12 @@
 //!   black-hole-flyby. It starts afresh, after the options above.
 //! - `--scenarios` opens the scenario window.
 //! - `--timings` shows the frame's timings over the view (F3 toggles them).
+//! - `--quality low`, `medium` or `high` draws at that preset rather than
+//!   the one picked for this computer (see `quality.rs`).
+//! - `--no-vsync` draws frames as fast as they come, for measuring what
+//!   drawing costs.
+//! - `--measure SECONDS` measures the frames for that long (the last two
+//!   thirds of it), prints their mean timings on one line and closes.
 
 mod app;
 mod calendar;
@@ -64,6 +70,7 @@ mod gpu;
 mod ground;
 mod impact_lab;
 mod overlays;
+mod quality;
 mod sandbox;
 mod simulation;
 mod sky;
@@ -141,6 +148,15 @@ pub struct StartOptions {
     pub scenarios: bool,
     /// Start showing the frame's timings.
     pub timings: bool,
+    /// The quality preset to draw at, rather than the one picked for this
+    /// computer.
+    pub quality: Option<quality::Quality>,
+    /// Draw frames as fast as they come, not in step with the screen's
+    /// refresh: for measuring what drawing costs.
+    pub no_vsync: bool,
+    /// Measure the frames for this many seconds, print their timings and
+    /// close (step 8.4b).
+    pub measure: Option<f64>,
 }
 
 /// Two numbers with a comma between them.
@@ -160,6 +176,15 @@ impl StartOptions {
                 "--sky" => options.sky = true,
                 "--scenarios" => options.scenarios = true,
                 "--timings" => options.timings = true,
+                "--quality" => match args.next().as_deref().and_then(quality::Quality::parse) {
+                    Some(q) => options.quality = Some(q),
+                    None => eprintln!("--quality takes low, medium or high"),
+                },
+                "--no-vsync" => options.no_vsync = true,
+                "--measure" => match args.next().and_then(|s| s.parse::<f64>().ok()) {
+                    Some(s) if s > 0.0 => options.measure = Some(s),
+                    _ => eprintln!("--measure takes a number of seconds"),
+                },
                 "--scenario" => match args.next() {
                     Some(key) => options.scenario = Some(key),
                     None => eprintln!("worldline: --scenario needs a scenario's key"),
@@ -280,7 +305,19 @@ impl StartOptions {
     }
 }
 
+/// When the program started, for how long its first frame took.
+static STARTED: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+
+/// Seconds since the program started.
+pub fn since_start() -> f64 {
+    STARTED
+        .get_or_init(std::time::Instant::now)
+        .elapsed()
+        .as_secs_f64()
+}
+
 fn main() -> eframe::Result {
+    STARTED.get_or_init(std::time::Instant::now);
     let start = StartOptions::parse(std::env::args().skip(1));
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -291,6 +328,16 @@ fn main() -> eframe::Result {
         renderer: eframe::Renderer::Wgpu,
         ..Default::default()
     };
+    let mut options = options;
+    // Measured runs open in the same place, on the main screen, so their
+    // windows have the same number of pixels.
+    if start.measure.is_some() {
+        options.viewport = options.viewport.with_position([40.0, 40.0]);
+    }
+    if start.no_vsync {
+        options.wgpu_options.surface.present_mode =
+            eframe::egui_wgpu::wgpu::PresentMode::AutoNoVsync;
+    }
     eframe::run_native(
         "Worldline",
         options,
@@ -350,6 +397,11 @@ mod tests {
             "gw150914",
             "--scenarios",
             "--timings",
+            "--quality",
+            "low",
+            "--no-vsync",
+            "--measure",
+            "20",
         ]
         .map(String::from)
         .into_iter();
@@ -398,6 +450,9 @@ mod tests {
                 scenario: Some("gw150914".into()),
                 scenarios: true,
                 timings: true,
+                quality: Some(quality::Quality::Low),
+                no_vsync: true,
+                measure: Some(20.0),
             }
         );
         assert_eq!(

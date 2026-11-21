@@ -137,6 +137,8 @@ The first build takes a few minutes. Then:
 
 Keyboard: **Space** runs or stops time, **+** and **−** change its speed, **F** follows the selected body, **Esc** closes windows, **Ctrl+S** saves, **F3** shows frames a second. See [docs/app.md](docs/app.md#the-interface).
 
+On a weaker computer, start with `--quality low` (or pick **Display → Quality**): the physics is the same, less is drawn. See [docs/app.md](docs/app.md#quality-presets-step-84b).
+
 To play one of the scenario library's famous events (Mercury's perihelion, the Hulse–Taylor pulsar, GW150914, GW170817, a planet meeting a black hole, TON 618 swallowing Sagittarius A*, a white dwarf past its limit, an evaporating black hole, the next total solar eclipse, the Moon-forming impact, a black hole through the Sun's neighborhood), open **Scenarios** in the top bar, or:
 
 ```bash
