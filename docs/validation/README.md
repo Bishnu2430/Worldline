@@ -561,6 +561,18 @@ In the README's order.
 
 ![The Hulse–Taylor film: the turning it measures, against the timed one](film-hulse-taylor.svg)
 
+### A blackbody's color from the CIE's colour-matching functions: illuminant A
+
+`star-colors`, from [`illuminant_a_comes_out_as_the_cie_publishes_it`](../../crates/worldline-data/tests/validation_star_colors.rs).
+
+![A blackbody's color from the CIE's colour-matching functions: illuminant A](star-colors.svg)
+
+### Light from a neutron star's surface: the grazing ray against Darwin's exact bending
+
+`neutron-star-light`, from [`a_neutron_stars_own_light_is_half_of_darwins_ray`](../../crates/worldline-core/tests/validation_lensing.rs).
+
+![Light from a neutron star's surface: the grazing ray against Darwin's exact bending](neutron-star-light.svg)
+
 ### A Jupiter passing a star 1,000 times its mass: the mass it loses, against Faber, Rasio & Willems (2005)
 
 `faber-rasio-willems`, from [`a_planet_passing_a_star_loses_what_faber_rasio_and_willems_found`](../../crates/worldline-render/tests/validation_fluid_gpu.rs).

@@ -62,6 +62,7 @@ mod calendar;
 mod camera;
 mod catalogue;
 mod clocks;
+mod compact_view;
 mod details;
 mod eclipse_finder;
 mod feel;

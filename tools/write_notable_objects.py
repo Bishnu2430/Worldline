@@ -185,6 +185,27 @@ ORBITS = [
 ]
 
 
+# Effective temperatures of the stars drawn the color of their temperature
+# (step 8.5b): (name, kelvin, 1-sigma uncertainty, source). Copied by hand
+# from each source; the Sun's is the IAU's nominal value, exact by
+# definition. No neutron star in the catalog has a measured temperature of
+# its whole surface, so none is listed.
+TEMPERATURES = [
+    ("Sun", "5772", "",
+     "IAU 2015 Resolution B3 (Prsa et al. 2016, AJ 152, 41): the nominal solar effective temperature"),
+    ("Sirius A", "9900", "200",
+     "Kervella et al. 2003, A&A 408, 681, section 2.4: adopted following Lemke 1989"),
+    ("Sirius B", "25922", "296",
+     "Joyce et al. 2018, MNRAS 481, 2361, Table 3: the average of four HST STIS spectra"),
+    ("Alpha Centauri A", "5795", "19",
+     "Kervella et al. 2017, A&A 597, A137, Table 5: from its bolometric flux and interferometric radius"),
+    ("Alpha Centauri B", "5231", "21",
+     "Kervella et al. 2017, A&A 597, A137, Table 5: from its bolometric flux and interferometric radius"),
+    ("Proxima Centauri", "3054", "79",
+     "Boyajian et al. 2012, ApJ 757, 112, Table 6 (GJ 551): from its bolometric flux and interferometric radius"),
+]
+
+
 def rows(header, records):
     out = io.StringIO()
     writer = csv.writer(out, lineterminator="\n")
@@ -202,6 +223,11 @@ def main():
         "radius_basis says whether a radius is measured, estimated, assumed or an event horizon "
         "(computed from the mass and spin; non-spinning if the spin isn't measured)",
     ] + rows(COLUMNS, OBJECTS))
+    write(DATA / "star-temperatures.csv", [
+        "# Worldline: effective temperatures of stars, for drawing them the color of a blackbody at that "
+        "temperature. Regenerate with: python tools/write_notable_objects.py",
+        "# kelvin; error: 1 sigma, as published (none for the Sun's nominal value, exact by definition)",
+    ] + rows(["name", "kelvin", "error", "source"], TEMPERATURES))
     write(DATA / "binary-orbits.csv", [
         "# Worldline: measured orbits of binaries in notable-objects.csv. "
         "Regenerate with: python tools/write_notable_objects.py",
