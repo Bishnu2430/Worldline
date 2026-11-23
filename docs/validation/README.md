@@ -561,6 +561,18 @@ In the README's order.
 
 ![The Hulse–Taylor film: the turning it measures, against the timed one](film-hulse-taylor.svg)
 
+### The double pulsar's orbit turning, simulated with relativistic gravity
+
+`double-pulsar-turning`, from [`the_double_pulsars_orbit_turns_as_measured`](../../crates/worldline-data/tests/validation_notable_objects.rs).
+
+![The double pulsar's orbit turning, simulated with relativistic gravity](double-pulsar-turning.svg)
+
+### The double pulsar's orbit shrinking: Peters & Mathews's formula and the measurement
+
+`double-pulsar-shrinking`, from [`the_double_pulsars_orbit_shrinks_as_measured`](../../crates/worldline-data/tests/validation_gravitational_waves.rs).
+
+![The double pulsar's orbit shrinking: Peters &amp; Mathews's formula and the measurement](double-pulsar-shrinking.svg)
+
 ### A blackbody's color from the CIE's colour-matching functions: illuminant A
 
 `star-colors`, from [`illuminant_a_comes_out_as_the_cie_publishes_it`](../../crates/worldline-data/tests/validation_star_colors.rs).

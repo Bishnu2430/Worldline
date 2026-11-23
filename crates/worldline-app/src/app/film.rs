@@ -48,12 +48,16 @@ pub struct Shot {
     pub orbits: bool,
     /// Done as it begins (watching something, say).
     pub begin: Option<fn(&mut WorldlineApp)>,
+    /// If given, the shot holds at its end until this is true: until
+    /// something it waits for has happened (an eclipse found).
+    pub hold: Option<fn(&WorldlineApp) -> bool>,
 }
 
 /// Where the camera looks from during a shot: from its start to its end,
 /// eased in and out.
 pub struct Look {
-    /// The bodies whose center of mass it looks at.
+    /// The bodies whose center of mass it looks at; none, the body the
+    /// camera follows.
     pub at: &'static [&'static str],
     /// How far from it, m.
     pub distance: (f64, f64),
@@ -61,6 +65,9 @@ pub struct Look {
     pub yaw: (f64, f64),
     /// And above the ecliptic plane, degrees.
     pub pitch: (f64, f64),
+    /// Whether the yaw is measured from the direction toward the Sun, so
+    /// the camera stays on its sunlit side whatever the date (an eclipse).
+    pub facing_sun: bool,
 }
 
 /// Where a card sits.
@@ -335,10 +342,23 @@ impl WorldlineApp {
     /// shot it cuts to.
     pub(super) fn film_frame(&mut self, dt: f64) {
         let paused = self.simulation.paused;
+        let waiting = self.film.as_ref().is_some_and(|f| {
+            !f.reel.ended
+                && f.script.shots[f.reel.shot]
+                    .hold
+                    .is_some_and(|ready| !ready(self))
+        });
         let Some(film) = &mut self.film else {
             return;
         };
         film.reel.paused = paused;
+        // A shot waiting for something stays just short of its end.
+        let shot_seconds = film.script.shots[film.reel.shot].seconds;
+        let dt = if waiting {
+            dt.min((shot_seconds - 1e-3 - film.reel.into).max(0.0))
+        } else {
+            dt
+        };
         let lengths = film.script.lengths();
         let was_over = film.reel.ended;
         let began = film.reel.advance(&lengths, dt);
@@ -368,14 +388,28 @@ impl WorldlineApp {
             film.offset.ln_distance += now.ln_distance - set.ln_distance;
         }
         let shot = &film.script.shots[film.reel.shot];
-        let Some(center) = center_of(&self.simulation, shot.look.at) else {
+        // Nothing named: the body the camera follows (a copy whose name is
+        // only known once it's added).
+        let center = if shot.look.at.is_empty() {
+            Some(self.simulation.bodies[self.focus].position)
+        } else {
+            center_of(&self.simulation, shot.look.at)
+        };
+        let Some(center) = center else {
             return;
         };
         let look = &shot.look;
         let t = smooth(film.reel.into / shot.seconds);
         let between = |(a, b): (f64, f64)| a + (b - a) * t;
+        // Toward the Sun, if the yaw is measured from it.
+        let sun_yaw = if look.facing_sun && self.simulation.has_sun() {
+            let toward = self.simulation.bodies[0].position - center;
+            toward.y.atan2(toward.x)
+        } else {
+            0.0
+        };
         let scripted = Framing {
-            yaw: between(look.yaw).to_radians() + film.offset.yaw,
+            yaw: sun_yaw + between(look.yaw).to_radians() + film.offset.yaw,
             pitch: (between(look.pitch).to_radians() + film.offset.pitch).clamp(-HIGHEST, HIGHEST),
             ln_distance: between((look.distance.0.ln(), look.distance.1.ln()))
                 + film.offset.ln_distance,
@@ -517,11 +551,15 @@ impl WorldlineApp {
             Some(Asked::Next) => self.film_next(),
             Some(Asked::GoTo(k)) => self.film_go_to(k),
             Some(Asked::Again) => {
-                if self.simulation.paused {
-                    self.play_pause();
+                // The scenario again from its start: time doesn't run back,
+                // and an event, once happened (a merger), can't be shown
+                // again by going back to its shot.
+                let title = self.film.as_ref().map(|f| f.title);
+                if let Some(scenario) =
+                    title.and_then(|t| scenarios::SCENARIOS.iter().find(|s| s.title == t))
+                {
+                    self.play_scenario(scenario);
                 }
-                self.options.grid = false;
-                self.film_go_to(0);
             }
             Some(Asked::Leave) => self.leave_film(),
             None => {}

@@ -120,7 +120,8 @@ fn square_to(axis: DVec3) -> (DVec3, DVec3) {
 }
 
 /// A pulsar's spin frequency, Hz, if it's one the data times: the binary
-/// orbits list the pulsar of each pair by name.
+/// orbits list each pair's timed pulsar by the pair's name, the pulsar
+/// named as the pair (PSR B1913+16) or as its A (PSR J0737-3039A).
 pub fn spin_frequency(simulation: &Simulation, index: usize) -> Option<f64> {
     use std::sync::OnceLock;
     static ORBITS: OnceLock<Vec<worldline_data::BinaryOrbit>> = OnceLock::new();
@@ -128,7 +129,7 @@ pub fn spin_frequency(simulation: &Simulation, index: usize) -> Option<f64> {
     ORBITS
         .get_or_init(worldline_data::binary_orbits)
         .iter()
-        .find(|o| o.system == name)
+        .find(|o| o.system == name || format!("{}A", o.system) == name)
         .and_then(|o| o.spin_frequency)
 }
 

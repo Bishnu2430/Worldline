@@ -244,6 +244,7 @@ const fn at_pair(distance: (f64, f64), yaw: (f64, f64), pitch: (f64, f64)) -> Lo
         distance,
         yaw,
         pitch,
+        facing_sun: false,
     }
 }
 
@@ -282,6 +283,7 @@ pub static HULSE_TAYLOR: Script = Script {
             trails: true,
             orbits: false,
             begin: None,
+            hold: None,
         },
         Shot {
             name: "Two neutron stars",
@@ -314,6 +316,7 @@ pub static HULSE_TAYLOR: Script = Script {
             trails: true,
             orbits: false,
             begin: None,
+            hold: None,
         },
         Shot {
             name: "The orbit",
@@ -339,6 +342,7 @@ pub static HULSE_TAYLOR: Script = Script {
             trails: false,
             orbits: true,
             begin: None,
+            hold: None,
         },
         Shot {
             name: "Relativity turns it",
@@ -366,6 +370,7 @@ pub static HULSE_TAYLOR: Script = Script {
             trails: false,
             orbits: true,
             begin: Some(watch_turning),
+            hold: None,
         },
         Shot {
             name: "Waves shrink it",
@@ -390,6 +395,7 @@ pub static HULSE_TAYLOR: Script = Script {
             trails: false,
             orbits: true,
             begin: None,
+            hold: None,
         },
         Shot {
             name: "Timed, not seen",
@@ -417,6 +423,7 @@ pub static HULSE_TAYLOR: Script = Script {
             trails: false,
             orbits: true,
             begin: None,
+            hold: None,
         },
         Shot {
             name: "1993",
@@ -445,6 +452,7 @@ pub static HULSE_TAYLOR: Script = Script {
             trails: false,
             orbits: true,
             begin: None,
+            hold: None,
         },
     ],
     end: open_the_waves,

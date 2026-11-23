@@ -1,69 +1,73 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="626" viewBox="0 0 760 626">
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="672" viewBox="0 0 760 672">
 <rect width="100%" height="100%" fill="white"/>
 <text x="20.0" y="30.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#1f2933" text-anchor="start" font-weight="bold">The scenario library: every scenario loads and plays from the menu</text>
 <text x="20.0" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#6b7785" text-anchor="start" font-weight="normal">how far each result is from what's expected, as a share of the limit it must stay within</text>
-<line x1="250.0" y1="58" x2="250.0" y2="578" stroke="#e4e7eb"/>
-<text x="250.0" y="594.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−6</tspan></text>
-<line x1="318.6" y1="58" x2="318.6" y2="578" stroke="#e4e7eb"/>
-<text x="318.6" y="594.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−5</tspan></text>
-<line x1="387.1" y1="58" x2="387.1" y2="578" stroke="#e4e7eb"/>
-<text x="387.1" y="594.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−4</tspan></text>
-<line x1="455.7" y1="58" x2="455.7" y2="578" stroke="#e4e7eb"/>
-<text x="455.7" y="594.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−3</tspan></text>
-<line x1="524.3" y1="58" x2="524.3" y2="578" stroke="#e4e7eb"/>
-<text x="524.3" y="594.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−2</tspan></text>
-<line x1="592.9" y1="58" x2="592.9" y2="578" stroke="#e4e7eb"/>
-<text x="592.9" y="594.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−1</tspan></text>
-<line x1="661.4" y1="58" x2="661.4" y2="578" stroke="#e4e7eb"/>
-<text x="661.4" y="594.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">1</text>
-<line x1="730.0" y1="58" x2="730.0" y2="578" stroke="#e4e7eb"/>
-<text x="730.0" y="594.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
-<line x1="661.4" y1="54" x2="661.4" y2="578" stroke="#c92a2a" stroke-width="2"/>
+<line x1="250.0" y1="58" x2="250.0" y2="624" stroke="#e4e7eb"/>
+<text x="250.0" y="640.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−6</tspan></text>
+<line x1="318.6" y1="58" x2="318.6" y2="624" stroke="#e4e7eb"/>
+<text x="318.6" y="640.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−5</tspan></text>
+<line x1="387.1" y1="58" x2="387.1" y2="624" stroke="#e4e7eb"/>
+<text x="387.1" y="640.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−4</tspan></text>
+<line x1="455.7" y1="58" x2="455.7" y2="624" stroke="#e4e7eb"/>
+<text x="455.7" y="640.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−3</tspan></text>
+<line x1="524.3" y1="58" x2="524.3" y2="624" stroke="#e4e7eb"/>
+<text x="524.3" y="640.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−2</tspan></text>
+<line x1="592.9" y1="58" x2="592.9" y2="624" stroke="#e4e7eb"/>
+<text x="592.9" y="640.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle">10<tspan dy="-5" font-size="8">−1</tspan></text>
+<line x1="661.4" y1="58" x2="661.4" y2="624" stroke="#e4e7eb"/>
+<text x="661.4" y="640.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">1</text>
+<line x1="730.0" y1="58" x2="730.0" y2="624" stroke="#e4e7eb"/>
+<text x="730.0" y="640.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="middle" font-weight="normal">10</text>
+<line x1="661.4" y1="54" x2="661.4" y2="624" stroke="#c92a2a" stroke-width="2"/>
 <text x="661.4" y="50.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#c92a2a" text-anchor="middle" font-weight="normal">limit</text>
 <text x="20.0" y="78.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">Mercury's perihelion</text>
 <rect x="250" y="68" width="1.5" height="14" fill="#2f9e44" rx="2"/>
 <text x="256.0" y="79.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
-<text x="250.0" y="98.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">312 bodies; 22782282.182 s of simulated time in three frames</text>
+<text x="250.0" y="98.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">312 bodies; 31017791.789 s of simulated time in three frames</text>
 <text x="20.0" y="124.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">The Hulse–Taylor pulsar</text>
 <rect x="250" y="114" width="1.5" height="14" fill="#2f9e44" rx="2"/>
 <text x="256.0" y="125.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
 <text x="250.0" y="144.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">313 bodies; 1080.000 s of simulated time in three frames</text>
-<text x="20.0" y="170.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">GW150914: two black holes merge</text>
+<text x="20.0" y="170.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">The double pulsar</text>
 <rect x="250" y="160" width="1.5" height="14" fill="#2f9e44" rx="2"/>
 <text x="256.0" y="171.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
-<text x="250.0" y="190.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">313 bodies; 0.300 s of simulated time in three frames</text>
-<text x="20.0" y="216.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">GW170817: two neutron stars merge</text>
+<text x="250.0" y="190.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">313 bodies; 1080.000 s of simulated time in three frames</text>
+<text x="20.0" y="216.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">GW150914: two black holes merge</text>
 <rect x="250" y="206" width="1.5" height="14" fill="#2f9e44" rx="2"/>
 <text x="256.0" y="217.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
 <text x="250.0" y="236.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">313 bodies; 0.300 s of simulated time in three frames</text>
-<text x="20.0" y="262.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">A planet meets a black hole</text>
+<text x="20.0" y="262.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">GW170817: two neutron stars merge</text>
 <rect x="250" y="252" width="1.5" height="14" fill="#2f9e44" rx="2"/>
 <text x="256.0" y="263.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
-<text x="250.0" y="282.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">843 bodies; 77476.345 s of simulated time in three frames</text>
-<text x="20.0" y="308.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">TON 618 swallows Sagittarius A*</text>
+<text x="250.0" y="282.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">313 bodies; 0.300 s of simulated time in three frames</text>
+<text x="20.0" y="308.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">A planet meets a black hole</text>
 <rect x="250" y="298" width="1.5" height="14" fill="#2f9e44" rx="2"/>
 <text x="256.0" y="309.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
-<text x="250.0" y="328.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">842 bodies; 77476.345 s of simulated time in three frames</text>
-<text x="20.0" y="354.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">A white dwarf past its limit</text>
+<text x="250.0" y="328.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">843 bodies; 124649.350 s of simulated time in three frames</text>
+<text x="20.0" y="354.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">TON 618 swallows Sagittarius A*</text>
 <rect x="250" y="344" width="1.5" height="14" fill="#2f9e44" rx="2"/>
 <text x="256.0" y="355.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
-<text x="250.0" y="374.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">843 bodies; 1080.000 s of simulated time in three frames</text>
-<text x="20.0" y="400.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">An evaporating black hole</text>
+<text x="250.0" y="374.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">842 bodies; 139406.749 s of simulated time in three frames</text>
+<text x="20.0" y="400.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">A white dwarf past its limit</text>
 <rect x="250" y="390" width="1.5" height="14" fill="#2f9e44" rx="2"/>
 <text x="256.0" y="401.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
-<text x="250.0" y="420.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">842 bodies; 77476.345 s of simulated time in three frames</text>
-<text x="20.0" y="446.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">The next total solar eclipse</text>
+<text x="250.0" y="420.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">843 bodies; 1080.000 s of simulated time in three frames</text>
+<text x="20.0" y="446.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">An evaporating black hole</text>
 <rect x="250" y="436" width="1.5" height="14" fill="#2f9e44" rx="2"/>
 <text x="256.0" y="447.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
-<text x="250.0" y="466.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">841 bodies; 77476.345 s of simulated time in three frames</text>
-<text x="20.0" y="492.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">The Moon-forming impact</text>
+<text x="250.0" y="466.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">842 bodies; 343325.891 s of simulated time in three frames</text>
+<text x="20.0" y="492.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">The next total solar eclipse</text>
 <rect x="250" y="482" width="1.5" height="14" fill="#2f9e44" rx="2"/>
 <text x="256.0" y="493.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
-<text x="250.0" y="512.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">841 bodies; waits paused, as it should</text>
-<text x="20.0" y="538.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">A black hole through the Sun's</text>
-<text x="20.0" y="551.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">neighborhood</text>
+<text x="250.0" y="512.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">841 bodies; 1080.000 s of simulated time in three frames</text>
+<text x="20.0" y="538.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">The Moon-forming impact</text>
 <rect x="250" y="528" width="1.5" height="14" fill="#2f9e44" rx="2"/>
 <text x="256.0" y="539.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
-<text x="250.0" y="558.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">312 bodies; 946728000.000 s of simulated time in three frames</text>
-<text x="250.0" y="612.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">share of the limit (logarithmic): under 1 passes</text>
+<text x="250.0" y="558.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">841 bodies; 0.300 s of simulated time in three frames</text>
+<text x="20.0" y="584.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">A black hole through the Sun's</text>
+<text x="20.0" y="597.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" text-anchor="start" font-weight="normal">neighborhood</text>
+<rect x="250" y="574" width="1.5" height="14" fill="#2f9e44" rx="2"/>
+<text x="256.0" y="585.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">exact</text>
+<text x="250.0" y="604.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">312 bodies; 946728000.000 s of simulated time in three frames</text>
+<text x="250.0" y="658.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" fill="#6b7785" text-anchor="start" font-weight="normal">share of the limit (logarithmic): under 1 passes</text>
 </svg>

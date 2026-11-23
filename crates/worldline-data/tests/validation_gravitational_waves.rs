@@ -327,3 +327,53 @@ fn without_radiation_reaction_the_period_holds() {
     println!("without radiation reaction: dP/dt = {drift:.2e} (bound {bound:.1e})");
     assert!(drift.abs() < bound);
 }
+
+#[test]
+fn the_double_pulsars_orbit_shrinks_as_measured() {
+    // The double pulsar's orbit shrinks from gravitational waves faster than
+    // any other measured: Kramer et al. (2021) found it −1.247782(79) ×
+    // 10⁻¹² s/s, 6 × 10⁻⁵ of itself. Peters & Mathews's formula, for the
+    // catalog's masses and the measured orbit, must give their prediction
+    // at the same (quadrupole) order, −1.247810 × 10⁻¹², within the masses'
+    // rounding to 10⁻⁶ Suns (dP/dt goes as m₁m₂(m₁+m₂)^(−1/3): 5 × 10⁻⁷/1.338
+    // + 5 × 10⁻⁷/1.249 + (1/3)(10⁻⁶/2.587) = 9 × 10⁻⁷) and its own
+    // uncertainty (7 × 10⁻¹⁸, 5.6 × 10⁻⁶ of it); and the measurement must be
+    // that within twice its uncertainty. (The engine's radiation reaction
+    // itself is checked over a thousand simulated orbits of the Hulse–Taylor
+    // pair, above.)
+    let a_star = notable_object("PSR J0737-3039A").expect("in the catalog");
+    let b_star = notable_object("PSR J0737-3039B").expect("in the catalog");
+    let orbit = binary_orbits()
+        .into_iter()
+        .find(|o| o.system == "PSR J0737-3039")
+        .expect("the orbit is in the catalog");
+    let formula = period_derivative(a_star.gm(), b_star.gm(), orbit.period, orbit.eccentricity);
+    let (measured, sigma) = orbit.period_derivative;
+    let (predicted, predicted_sigma) = orbit.period_derivative_gr;
+    let allowed = 9e-7 + (predicted_sigma / predicted).abs();
+    println!(
+        "double pulsar: Peters & Mathews {formula:.6e}, Kramer et al.'s prediction {predicted:.6e} ({:.1e} apart, limit {allowed:.1e}); measured {measured:.6e} ± {sigma:.1e} ({:+.2}σ); merges in {:.1} million years",
+        (formula / predicted - 1.0).abs(),
+        (measured - predicted) / sigma,
+        merger_time(a_star.gm(), b_star.gm(), orbit.period, orbit.eccentricity) / JULIAN_YEAR / 1e6
+    );
+    worldline_report::margins(
+        "double-pulsar-shrinking",
+        "The double pulsar's orbit shrinking: Peters & Mathews's formula and the measurement",
+    )
+    .check(
+        "the formula for the catalog's masses, against Kramer et al.'s prediction at the same order",
+        formula / predicted - 1.0,
+        allowed,
+        format!("{formula:.6e} against {predicted:.6e} s/s (limit: the masses' rounding and the prediction's uncertainty)"),
+    )
+    .check(
+        "the measurement, against the prediction",
+        measured - predicted,
+        2.0 * sigma,
+        format!("{measured:.6e} ± {sigma:.1e} s/s (limit: twice the measurement's uncertainty)"),
+    )
+    .save(worldline_report::here!());
+    assert!((formula / predicted - 1.0).abs() < allowed);
+    assert!((measured - predicted).abs() < 2.0 * sigma);
+}

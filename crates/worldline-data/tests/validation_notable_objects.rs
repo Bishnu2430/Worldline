@@ -69,6 +69,8 @@ fn the_roadmap_objects_load_with_their_published_masses() {
         ("M87*", 6.5e9),                // Event Horizon Telescope 2019
         ("PSR B1913+16", 1.438),        // Weisberg & Huang 2016
         ("PSR B1913+16 companion", 1.390),
+        ("PSR J0737-3039A", 1.338185), // Kramer et al. 2021
+        ("PSR J0737-3039B", 1.248868),
     ] {
         let o = object(name);
         // Exactly: the limit is one rounding of the number itself.
@@ -325,4 +327,59 @@ fn the_hulse_taylor_orbit_turns_as_measured() {
     .save(worldline_report::here!());
     assert!((period / orbit.period - 1.0).abs() < 1e-6);
     assert!(relative < 4.7e-4);
+}
+
+#[test]
+fn the_double_pulsars_orbit_turns_as_measured() {
+    // The double pulsar, PSR J0737−3039A and B, orbit every 2.45 hours;
+    // relativity turns the orbit's long axis 16.899323 ± 0.000013 degrees
+    // a year (Kramer et al. 2021, Table IV). As for the Hulse–Taylor pair,
+    // the orbit is resized until its simulated period is the measured one,
+    // and the masses, which Kramer et al. found from this turning and the
+    // Shapiro delay, must give it back. Simulated at first post-Newtonian
+    // order (Einstein–Infeld–Hoffmann), it misses the next order, which
+    // Kramer et al. measured at 35σ of the turning's uncertainty (their
+    // section VI.1): 35 × 0.000013/16.899323 = 2.7 × 10⁻⁵. With the masses'
+    // rounding to 10⁻⁶ Suns, (2/3)(2 × 10⁻⁶/2.587) = 5 × 10⁻⁷, the limit is
+    // 2.8 × 10⁻⁵.
+    let (a_star, b_star) = (object("PSR J0737-3039A"), object("PSR J0737-3039B"));
+    let orbit = binary_orbits()
+        .into_iter()
+        .find(|o| o.system == "PSR J0737-3039")
+        .expect("the orbit is in the catalog");
+    let pair = || (a_star.body(), b_star.body());
+    let gm = a_star.gm() + b_star.gm();
+    let e = orbit.eccentricity;
+    let mut a = (gm * (orbit.period / TAU).powi(2)).cbrt();
+    let (_, period) = turning(pair(), a, e, orbit.period);
+    a *= (orbit.period / period).powf(2.0 / 3.0);
+    let (simulated, period) = turning(pair(), a, e, orbit.period);
+    let relative = simulated / orbit.periastron_advance - 1.0;
+    println!(
+        "double pulsar: period {:.6} h (measured {:.6} h); turning {simulated:.6}°/yr against {}°/yr: {relative:.1e}",
+        period / 3600.0,
+        orbit.period / 3600.0,
+        orbit.periastron_advance
+    );
+    worldline_report::margins(
+        "double-pulsar-turning",
+        "The double pulsar's orbit turning, simulated with relativistic gravity",
+    )
+    .check(
+        "the turning, against 16.899323°/yr measured (Kramer et al. 2021)",
+        relative,
+        2.8e-5,
+        format!(
+            "{simulated:.6}°/yr (limit: the next post-Newtonian order, which Kramer et al. measured, and the masses' rounding)"
+        ),
+    )
+    .check(
+        "the period, against the measured 2.45 h",
+        period / orbit.period - 1.0,
+        1e-6,
+        format!("{:.6} h", period / 3600.0),
+    )
+    .save(worldline_report::here!());
+    assert!((period / orbit.period - 1.0).abs() < 1e-6);
+    assert!(relative.abs() < 2.8e-5);
 }

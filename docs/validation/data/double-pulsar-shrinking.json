@@ -1,0 +1,11 @@
+{
+  "id": "double-pulsar-shrinking",
+  "test": "validation_gravitational_waves::the_double_pulsars_orbit_shrinks_as_measured",
+  "file": "crates/worldline-data/tests/validation_gravitational_waves.rs",
+  "kind": "margins",
+  "title": "The double pulsar's orbit shrinking: Peters & Mathews's formula and the measurement",
+  "checks": [
+    {"label": "the formula for the catalog's masses, against Kramer et al.'s prediction at the same order", "off": 3.0329630229530835e-7, "limit": 6.5098284193907725e-6, "shown": "-1.247810e-12 against -1.247810e-12 s/s (limit: the masses' rounding and the prediction's uncertainty)"},
+    {"label": "the measurement, against the prediction", "off": 2.8000000000007555e-17, "limit": 1.58e-16, "shown": "-1.247782e-12 ± 7.9e-17 s/s (limit: twice the measurement's uncertainty)"}
+  ]
+}
