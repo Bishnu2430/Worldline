@@ -213,3 +213,45 @@ fn the_table_the_gpu_reads_places_the_sky_within_a_tenth_of_a_pixel() {
     }
     figure.save(worldline_report::here!());
 }
+
+/// Step 8.5b: light from a neutron star's own surface. A ray grazing the
+/// surface, impact parameter R/√(1 − 2GM/c²R), is half of a ray from far
+/// away whose closest approach is the surface: the surface's ψ out and
+/// back, less the π a straight line sweeps, is Darwin's exact bending. The
+/// two are worked out independently (quadrature against Carlson's
+/// elliptic integral), so they agree to rounding: 10⁻¹² rad. Without
+/// gravity, half the body shows (ψ = 90°); for the Hulse–Taylor pulsar,
+/// 1.438 Suns in 11.9 km, 76.8%.
+#[test]
+fn a_neutron_stars_own_light_is_half_of_darwins_ray() {
+    use worldline_core::lensing::{grazing_impact, surface_angle};
+    let gm = 1.438 * GM_SUN;
+    let m = gm / (C * C);
+    let mut figure = worldline_report::margins(
+        "neutron-star-light",
+        "Light from a neutron star's surface: the grazing ray against Darwin's exact bending",
+    );
+    for r in [3.2, 4.0, 5.6, 10.0, 100.0] {
+        let radius = r * m;
+        let b = grazing_impact(gm, radius);
+        let psi = surface_angle(gm, radius, f64::INFINITY, b).expect("the grazing ray");
+        let darwin = deflection(gm, b).expect("not captured");
+        let off = 2.0 * psi - PI - darwin;
+        println!(
+            "R = {r} GM/c²: shows {:.1}% of its surface, looks {:.4} times its size; 2ψ − π − Darwin = {off:.1e}",
+            50.0 * (1.0 - psi.min(PI).cos()),
+            b / radius
+        );
+        figure = figure.check(
+            &format!("R = {r} GM/c²: 2ψ − π against Darwin's bending"),
+            off,
+            1e-12,
+            format!(
+                "{:.1}% of the surface in view (limit 10⁻¹² rad: rounding)",
+                50.0 * (1.0 - psi.min(PI).cos())
+            ),
+        );
+        assert!(off.abs() < 1e-12, "R = {r}");
+    }
+    figure.save(worldline_report::here!());
+}

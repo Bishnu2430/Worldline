@@ -281,9 +281,189 @@ impl BendTable {
     }
 }
 
+/// The largest impact parameter light leaving the surface of a body of
+/// `gm` and `radius` (m) can have, in m: a ray grazing it, R/√(1 − 2GM/c²R).
+/// Seen from far away, the body looks this big: its own gravity bends light
+/// from behind it into view. Only for a body bigger than its photon sphere.
+pub fn grazing_impact(gm: f64, radius: f64) -> f64 {
+    radius / (1.0 - 2.0 * gm / (C * C * radius)).sqrt()
+}
+
+/// How far round a body of `gm` and `radius` (m), bigger than its photon
+/// sphere, a ray from its surface with impact parameter `b` (m) carries
+/// light on its way to an observer `observer` m from its center
+/// (`f64::INFINITY` for far away): the angle ψ at the center between where
+/// it left the surface and the observer, in rad. `None` for b past the
+/// grazing ray's.
+///
+/// Exactly ψ = ∫ du/√(1/b² − u² + 2u³) from the observer's u to the
+/// surface's, u = GM/c²r and b in GM/c² (Pechenick, Ftaclas & Cohen 1983);
+/// here by Gauss–Legendre quadrature, after substitutions that leave the
+/// integrand smooth even for the grazing ray, whose 1/√ blows up at the
+/// surface. Without gravity it's asin(b/R), half the body seen; a neutron
+/// star shows more than half (see `docs/physics/lensing.md`).
+pub fn surface_angle(gm: f64, radius: f64, observer: f64, b: f64) -> Option<f64> {
+    let m = gm / (C * C);
+    let (surface, far, b) = (m / radius, m / observer, b / m);
+    let grazing = grazing_impact(gm, radius) / m;
+    if b > grazing * (1.0 + 1e-12) || far >= surface {
+        return None;
+    }
+    if b <= 0.0 {
+        return Some(0.0);
+    }
+    // u = surface − Δs²: G(u) = G(surface) + Δs² q(u), with q(u) = (u +
+    // surface) − 2(u² + u·surface + surface²), positive outside the photon
+    // sphere. G(surface) = 1/b² − (surface² − 2 surface³) = 1/b² −
+    // 1/grazing², written so, it's exactly 0 for the grazing ray rather than
+    // what's left of cancelling terms. Then s = σ², which spreads the nodes
+    // where G(surface) is small but not zero.
+    let span = surface - far;
+    let at_surface = ((grazing * grazing - b * b) / (b * b * grazing * grazing)).max(0.0);
+    let integrand = |sigma: f64| {
+        let s = sigma * sigma;
+        let u = surface - span * s * s;
+        let q = (u + surface) - 2.0 * (u * u + u * surface + surface * surface);
+        // dψ = du/√G, du = 2Δs ds, ds = 2σ dσ.
+        4.0 * span * s * sigma / (at_surface + span * s * s * q).sqrt()
+    };
+    Some(
+        gauss_legendre()
+            .iter()
+            .map(|&(x, w)| 0.5 * w * integrand(0.5 * (x + 1.0)))
+            .sum(),
+    )
+}
+
+/// The angle from the direction to a body's center at which an observer at
+/// rest `observer` m from it (of `gm`) sees a ray of impact parameter `b`
+/// (m) arrive: sin δ = (b/r)√(1 − 2GM/c²r), as `trace` takes it.
+pub fn arrival_angle(gm: f64, observer: f64, b: f64) -> f64 {
+    ((b / observer) * (1.0 - 2.0 * gm / (C * C * observer)).sqrt())
+        .min(1.0)
+        .asin()
+}
+
+/// 64-point Gauss–Legendre nodes and weights on [−1, 1], by Newton's
+/// method on the Legendre polynomial (e.g. Press et al. 2007, §4.6):
+/// exact for polynomials up to degree 127.
+fn gauss_legendre() -> &'static [(f64, f64)] {
+    static NODES: std::sync::OnceLock<Vec<(f64, f64)>> = std::sync::OnceLock::new();
+    NODES.get_or_init(|| {
+        const N: usize = 64;
+        (0..N)
+            .map(|i| {
+                let mut x = (PI * (i as f64 + 0.75) / (N as f64 + 0.5)).cos();
+                let mut derivative = 0.0;
+                for _ in 0..100 {
+                    let (mut p0, mut p1) = (1.0, x);
+                    for k in 2..=N {
+                        let k = k as f64;
+                        (p0, p1) = (p1, ((2.0 * k - 1.0) * x * p1 - (k - 1.0) * p0) / k);
+                    }
+                    derivative = N as f64 * (x * p1 - p0) / (x * x - 1.0);
+                    let step = p1 / derivative;
+                    x -= step;
+                    if step.abs() < 1e-16 {
+                        break;
+                    }
+                }
+                (x, 2.0 / ((1.0 - x * x) * derivative * derivative))
+            })
+            .collect()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gauss_legendre_integrates_polynomials_exactly() {
+        let nodes = gauss_legendre();
+        let total: f64 = nodes.iter().map(|&(_, w)| w).sum();
+        assert!((total - 2.0).abs() < 1e-13);
+        // ∫ x¹²⁶ dx over [−1, 1] = 2/127.
+        let high: f64 = nodes.iter().map(|&(x, w)| w * x.powi(126)).sum();
+        assert!((high - 2.0 / 127.0).abs() < 1e-14);
+    }
+
+    #[test]
+    fn a_grazing_ray_from_the_surface_is_half_of_darwins_ray() {
+        // A ray from far away whose closest approach is the surface,
+        // impact parameter R/√(1 − 2GM/c²R), is turned by Darwin's exact
+        // 2∫du/√G − π: the surface's ψ, out and back, less the π a straight
+        // line sweeps. From a little outside the photon sphere to far out.
+        // The two agree to rounding: 10⁻¹² rad.
+        let gm = 1.0e20;
+        let m = gm / (C * C);
+        for r in [3.2, 4.0, 5.8, 10.0, 100.0, 1e4] {
+            let radius = r * m;
+            let b = grazing_impact(gm, radius);
+            let psi = surface_angle(gm, radius, f64::INFINITY, b).expect("the grazing ray");
+            let darwin = deflection(gm, b).expect("not captured");
+            println!(
+                "R = {r} GM/c²: 2ψ − π = {:.15}, Darwin {darwin:.15}",
+                2.0 * psi - PI
+            );
+            assert!((2.0 * psi - PI - darwin).abs() < 1e-12, "R = {r}");
+        }
+    }
+
+    #[test]
+    fn without_gravity_half_the_body_shows() {
+        // A body far larger than its gravity's reach: ψ = asin(b/R), and
+        // the grazing ray reaches 90°.
+        let (gm, radius) = (1.0, 1.0e6);
+        for b in [0.0, 0.3e6, 0.7e6, 1.0e6] {
+            let psi = surface_angle(gm, radius, f64::INFINITY, b).expect("on the surface");
+            assert!((psi - (b / radius).asin()).abs() < 1e-9, "b = {b}");
+        }
+        assert!(surface_angle(gm, radius, f64::INFINITY, 1.01e6).is_none());
+    }
+
+    #[test]
+    fn a_neutron_star_shows_more_than_half_of_itself() {
+        // The Hulse–Taylor pulsar, 1.438 Suns in 11.9 km, 5.6 GM/c²: its
+        // grazing ray left the surface 122.4° round from the line of sight,
+        // so 76.8% of its surface shows, and it looks 1.247 times its size.
+        // Seen from 100 km, a little less of it.
+        let gm = 1.438 * crate::constants::GM_SUN;
+        let radius = 11.9e3;
+        let b = grazing_impact(gm, radius);
+        let far = surface_angle(gm, radius, f64::INFINITY, b).expect("grazing");
+        let near = surface_angle(gm, radius, 100e3, b).expect("grazing");
+        let shown = (1.0 - far.cos()) / 2.0;
+        println!(
+            "looks {:.4} times its size; grazing ray from {:.2}° ({:.2}° seen from 100 km): {:.1}% of the surface",
+            b / radius,
+            far.to_degrees(),
+            near.to_degrees(),
+            100.0 * shown
+        );
+        assert!((b / radius - 1.247).abs() < 5e-4);
+        assert!((far.to_degrees() - 122.43).abs() < 5e-3);
+        assert!(near < far);
+        // More light bent round the closer the star is to its photon
+        // sphere: monotonic in b.
+        let mut last = -1.0;
+        for k in 0..=50 {
+            let psi = surface_angle(gm, radius, f64::INFINITY, b * f64::from(k) / 50.0).unwrap();
+            assert!(psi > last);
+            last = psi;
+        }
+    }
+
+    #[test]
+    fn the_angle_a_ray_arrives_at_matches_synges_shadow_edge() {
+        // For the ray grazing the photon sphere, b = √27 GM/c², the
+        // arrival angle is the shadow's: Synge's formula, as
+        // `shadow_angle` has it.
+        let gm = 1.0e20;
+        let distance = 40.0 * gm / (C * C);
+        let at = arrival_angle(gm, distance, critical_impact(gm));
+        assert!((at - shadow_angle(gm, distance)).abs() < 1e-14);
+    }
     use crate::constants::GM_SUN;
 
     #[test]

@@ -1895,6 +1895,7 @@ impl WorldlineApp {
             self.catalog_rows(ui);
             self.clock_rows(ui);
             self.hill_rows(ui);
+            self.appearance_rows(ui);
             self.perihelion_rows(ui);
             if let Some(parent) = parent {
                 let planet = &bodies[parent];
@@ -2476,6 +2477,107 @@ impl WorldlineApp {
         );
         ui.label(format!("{} (against {})", length(hill), primary.name));
         ui.end_row();
+    }
+
+    /// How the selected body is drawn, if it's a star (step 8.5b): each
+    /// visual choice, and whether it's measured or an illustration.
+    fn appearance_rows(&self, ui: &mut egui::Ui) {
+        let sim = &self.simulation;
+        let index = self.selected;
+        let body = &sim.bodies[index];
+        let kind = sim.kind(index);
+        let star = sim.shines(index) || kind == Some(ObjectKind::NeutronStar);
+        if !star {
+            return;
+        }
+        // (what, how it's drawn, measured rather than illustration)
+        let mut rows: Vec<(&str, String, bool)> = Vec::new();
+        match sim.temperature(index) {
+            Some(t) => {
+                rows.push((
+                    "Color",
+                    format!(
+                        "A blackbody's at {} K{}: {}",
+                        t.kelvin,
+                        t.error.map_or(String::new(), |e| format!(" ± {e}")),
+                        t.source
+                    ),
+                    true,
+                ));
+                if index == 0 && sim.has_sun() {
+                    rows.push((
+                        "Surface",
+                        "The texture's pattern, recolored to that: an artist's map, its hue not measured"
+                            .to_string(),
+                        false,
+                    ));
+                }
+            }
+            None if kind == Some(ObjectKind::NeutronStar) => rows.push((
+                "Color",
+                "Up close, white: the temperature of its whole surface isn't measured".to_string(),
+                false,
+            )),
+            None => rows.push((
+                "Color",
+                "By its kind: its temperature isn't in the data yet".to_string(),
+                false,
+            )),
+        }
+        if kind == Some(ObjectKind::NeutronStar)
+            && let Some(bending) =
+                crate::compact_view::Bending::new(body.gm, body.radius, f64::INFINITY)
+        {
+            let compact = 2.0 * body.gm / (C * C * body.radius);
+            rows.push((
+                "Size up close",
+                format!(
+                    "{:.3} times its radius, {:.1}% of its surface in view: its gravity bends light \
+                     from behind it round (exact, in Schwarzschild spacetime)",
+                    bending.grazing() / body.radius,
+                    100.0 * bending.shown()
+                ),
+                true,
+            ));
+            rows.push((
+                "Its light",
+                format!(
+                    "Loses {:.0}% of its energy climbing out of its gravity: it looks as a body \
+                     {:.0}% cooler would",
+                    100.0 * (1.0 - (1.0 - compact).sqrt()),
+                    100.0 * (1.0 - (1.0 - compact).sqrt())
+                ),
+                true,
+            ));
+            rows.push((
+                "Grid",
+                "Lines of latitude and longitude every 30°, drawn to show the bending".to_string(),
+                false,
+            ));
+            if let Some(f) = crate::compact_view::spin_frequency(sim, index) {
+                rows.push((
+                    "Beams",
+                    format!(
+                        "Its radio beams, invisible to the eye, sweep round {f:.2} times a second \
+                         (measured); their tilt (45°), width (10°) and length, and the spin axis \
+                         along the orbit's, are illustration"
+                    ),
+                    false,
+                ));
+            }
+        }
+        for (what, how, measured) in rows {
+            ui.label(key(what));
+            ui.horizontal_wrapped(|ui| {
+                ui.label(how);
+                if measured {
+                    theme::chip(ui, "measured", theme::WITHIN);
+                } else {
+                    theme::chip(ui, "illustration", theme::APPROXIMATE);
+                }
+            });
+            ui.end_row();
+        }
     }
 
     fn clock_rows(&self, ui: &mut egui::Ui) {
@@ -3661,6 +3763,19 @@ impl WorldlineApp {
             &layout,
             attention,
         );
+        // Neutron stars up close, as their own gravity shows them.
+        for item in &layout {
+            if crate::compact_view::drawn_here(&self.simulation, item.index, item.radius) {
+                crate::compact_view::draw(
+                    &painter,
+                    viewport,
+                    &self.camera,
+                    &self.simulation,
+                    item.index,
+                    self.frame_seconds,
+                );
+            }
+        }
         let readouts = overlays::draw(
             &overlays::Scene {
                 painter: &painter,
@@ -4921,9 +5036,15 @@ impl WorldlineApp {
                 })
             })
             .collect();
+        // A neutron star up close is drawn with its light bent instead (see
+        // `compact_view.rs`).
         let globes: Vec<Globe> = layout
             .iter()
-            .filter(|item| item.globe && Some(item.index) != fluid_index)
+            .filter(|item| {
+                item.globe
+                    && Some(item.index) != fluid_index
+                    && !crate::compact_view::drawn_here(&self.simulation, item.index, item.radius)
+            })
             .map(|item| {
                 let body = &bodies[item.index];
                 // Relative to the camera, in double precision, before the
@@ -4967,6 +5088,10 @@ impl WorldlineApp {
                     orientation,
                     sun_direction: sun_direction(body),
                     emissive: self.simulation.shines(item.index),
+                    tint: self
+                        .simulation
+                        .temperature(item.index)
+                        .map(|t| view::blackbody_color(t.kelvin)),
                     night_glow: if body.name == "Earth" { 1.0 } else { 0.0 },
                     rings,
                     atmosphere,

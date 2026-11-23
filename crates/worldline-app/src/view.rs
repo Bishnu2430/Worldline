@@ -147,6 +147,11 @@ fn light_time_label(distance: f64) -> String {
 /// sandbox, by its kind (the sandbox's pink for copies of solar-system
 /// bodies).
 pub fn color(simulation: &Simulation, index: usize) -> Color32 {
+    // A star with a published temperature, the color of a blackbody at it
+    // (step 8.5b).
+    if let Some(t) = simulation.temperature(index) {
+        return blackbody_color(t.kelvin);
+    }
     // Clusters, the nebula and galaxies by kind: the colors only tell them
     // apart.
     if let Some(o) = simulation.deep_sky(index) {
@@ -173,6 +178,26 @@ pub fn color(simulation: &Simulation, index: usize) -> Color32 {
     } else {
         body_color(&simulation.bodies[index].name)
     }
+}
+
+/// The color a blackbody at `kelvin` shows on a screen, at full
+/// brightness: from Planck's law and the CIE 1931 colour-matching
+/// functions (see `docs/physics/star-colors.md`). Worked out once for each
+/// temperature asked for.
+pub fn blackbody_color(kelvin: f64) -> Color32 {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    static TABLE: OnceLock<Vec<[f64; 4]>> = OnceLock::new();
+    static MADE: OnceLock<Mutex<HashMap<u64, Color32>>> = OnceLock::new();
+    let made = MADE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut made = made.lock().unwrap_or_else(|e| e.into_inner());
+    *made.entry(kelvin.to_bits()).or_insert_with(|| {
+        let table = TABLE.get_or_init(worldline_data::cie_1931);
+        let [r, g, b] =
+            worldline_core::blackbody::display(worldline_core::blackbody::blackbody(table, kelvin));
+        let channel = |c: f64| (c * 255.0).round().clamp(0.0, 255.0) as u8;
+        Color32::from_rgb(channel(r), channel(g), channel(b))
+    })
 }
 
 /// Display color for a body.

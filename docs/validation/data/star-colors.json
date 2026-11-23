@@ -1,0 +1,11 @@
+{
+  "id": "star-colors",
+  "test": "validation_star_colors::illuminant_a_comes_out_as_the_cie_publishes_it",
+  "file": "crates/worldline-data/tests/validation_star_colors.rs",
+  "kind": "margins",
+  "title": "A blackbody's color from the CIE's colour-matching functions: illuminant A",
+  "checks": [
+    {"label": "x, against CIE 015:2018's 0.44757", "off": 3.548571614164775e-6, "limit": 7.870031476809309e-6, "shown": "0.447574 (limit 7.9e-6: the published rounding, and how far the sums CIE 015 allows spread)"},
+    {"label": "y, against CIE 015:2018's 0.40745", "off": 1.0607309392118847e-5, "limit": 1.3227240329006235e-5, "shown": "0.407439 (limit 1.3e-5)"}
+  ]
+}

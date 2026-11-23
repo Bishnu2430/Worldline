@@ -4,6 +4,7 @@
 //! so every physical claim it makes can be checked by headless tests.
 //! All quantities are `f64` in SI units.
 
+pub mod blackbody;
 pub mod body;
 pub mod collision;
 pub mod compact;

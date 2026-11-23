@@ -92,7 +92,7 @@ Seven shots, 1 minute 56 seconds:
 
 **Why a month a second for the turning.** At an hour a second the long axis turns 0.0005° a second, too slowly to see. At a month a second it turns 0.35° a second: 8° over the shot. The pair then goes round 93 times a second, more often than frames come, so the film draws each star's orbit as it is at each moment (its osculating ellipse) rather than a trail. The physics keeps up: 7.3 ms a frame on the development laptop, inside the 12 ms budget.
 
-**Why the orbits, not trails.** A trail adds a point each time a body has moved 0.0087 of its distance from the solar system's barycenter. The pair is 30 AU out, so that's 0.26 AU, ten times the pair's whole orbit across.
+**Why the orbits, not trails.** At a month a second a trail, sampled once a frame, would cut across the orbit. Shots 1 and 2, at an hour a second, show the stars' trails: since step 8.5b a pair far from the barycenter keeps its trail around its own center of mass (see [app.md](app.md#the-3d-view)); before, 30 AU out, it added a point only every 0.26 AU, ten times its whole orbit.
 
 **How much earlier each closest approach comes.** An orbit whose period is P + Ṗt reaches its N-th closest approach at N P + ½ Ṗ P N². Against an orbit that keeps its size, which gets there at N P = t, that's ½ (Ṗ/P) t² earlier. For the measured Ṗ = −2.398 × 10⁻¹² and P = 0.322997448918 days, that's 38.5 s after 30 years.
 

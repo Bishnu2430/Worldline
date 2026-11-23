@@ -5,6 +5,7 @@
 
 mod atmosphere;
 mod belts;
+mod cie;
 mod deep_sky;
 mod eclipses;
 mod gaia_nearby;
@@ -28,6 +29,7 @@ mod time;
 
 pub use atmosphere::{Atmosphere, atmosphere};
 pub use belts::{Belt, BeltKind, BeltSample, belt_particles, belt_samples, belts};
+pub use cie::{CieRow, cie_1931};
 pub use deep_sky::{DeepSkyKind, DeepSkyObject, Printed as PrintedPlace, deep_sky_objects};
 pub use eclipses::{
     Besselian, CanonEclipse, CanonPath, LatLon, PathRow, eclipse_path_2026_08_12,
@@ -58,8 +60,8 @@ pub use neighbors::{
     neighbors, sky_axes,
 };
 pub use notable::{
-    BinaryOrbit, Distance, Measured, NotableObject, ObjectKind, RadiusBasis, binary_orbits,
-    notable_object, notable_objects,
+    BinaryOrbit, Distance, Measured, NotableObject, ObjectKind, RadiusBasis, StarTemperature,
+    binary_orbits, notable_object, notable_objects, star_temperature, star_temperatures,
 };
 pub use rings::{RingFeature, RingProfile, saturn_ring_features, saturn_rings};
 pub use rotation::{rotation_model, triaxial_radii};

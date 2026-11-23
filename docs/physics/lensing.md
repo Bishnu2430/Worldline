@@ -1,7 +1,8 @@
 # Light bent by a black hole, and the sky behind everything
 
 **Code:**
-- `crates/worldline-core/src/lensing.rs`: rays through a non-spinning hole's spacetime, the shadow, and the table the GPU reads;
+- `crates/worldline-core/src/lensing.rs`: rays through a non-spinning hole's spacetime, the shadow, and the table the GPU reads; light from a neutron star's surface (step 8.5b);
+- `crates/worldline-app/src/compact_view.rs`: a neutron star up close, drawn as its own gravity shows it (step 8.5b);
 - `crates/worldline-core/src/kerr_light.rs`: rays through a spinning hole's spacetime, its shadow, and the thin disk around it (step 3.2);
 - `crates/worldline-render/src/sky.rs` and `sky.wgsl`: the sky pass, which also traces rays past a spinning hole;
 - `crates/worldline-app/src/sky.rs`: the sky map;
@@ -34,6 +35,27 @@ To see it: `cargo run --release -- --add "Gaia BH1:1" --focus "Gaia BH1" --zoom 
 ![Cygnus X-1, spinning at 0.9985, from 29.5 GM/c² and 9° above its disk: the shadow flattened on the left, where light circling with the spin gets closest; the disk's far side lensed over the top; its near side brightest on the left, coming toward you](../images/kerr-step-3.2.png)
 
 To see it: `cargo run --release -- --add "Cygnus X-1:3" --focus "Cygnus X-1" --zoom 28 --pitch 9 --paused`.
+
+## A neutron star's own light (step 8.5b)
+
+A neutron star is only about three times bigger than a black hole of its mass would be, so its gravity bends the light leaving its own surface far round. Up close, Worldline draws it as that light shows it:
+
+- **It looks bigger than it is.** The ray that grazes the surface leaves it with impact parameter R/√(1 − 2GM/c²R): the Hulse–Taylor pulsar, 1.438 Suns in 11.9 km (5.6 GM/c²), looks 1.247 times its size from far away.
+- **More than half of it shows.** Light from points past the edge we'd see without gravity bends round to us: from far away, everything within 122.4° of the line of sight, 76.8% of its surface. A star within about 3.5 GM/c² would show all of itself, some of it twice.
+- **How it's drawn.** Each point of a grid on its surface (every 30° of latitude and longitude, around its spin axis) is drawn where its light arrives. A surface point at angle ψ from the line of sight, seen from the center, sends light to the camera along the ray whose impact parameter b carries it round exactly ψ:
+
+  ψ(b) = ∫ du / √(1/b² − u² + 2u³), from the camera's u to the surface's, with u = GM/c²r and b in units of GM/c²
+
+  (Pechenick, Ftaclas & Cohen 1983, *ApJ* 274, 846), worked out for the camera's own distance by 64-point Gauss–Legendre quadrature, after substitutions that keep the integrand smooth up to the grazing ray. The camera sees that ray arrive at sin δ = (b/r)√(1 − 2GM/c²r) from the star's center. A point whose ψ is past the grazing ray's doesn't show. A dashed circle shows how big the star would look without gravity.
+- **Its light is redshifted.** Climbing out, light loses 1 − √(1 − 2GM/c²R) of its energy: 20% for the Hulse–Taylor pulsar. A blackbody seen far away looks that much cooler. The inspector says so; the color isn't changed, as no whole surface's temperature is measured here.
+
+**What's illustration.** The grid exists only to show the bending. The star is white up close because the temperature of its whole surface isn't measured. A pulsar's radio beams, invisible to the eye, are drawn from its magnetic poles: their tilt from the spin axis (45°), width (10°) and length (8 radii), and the spin axis itself (along the orbit's), are chosen, not measured. Only how fast they sweep is measured: 16.94 times a second for the Hulse–Taylor pulsar (Weisberg & Huang 2016, Table 1). When the beams would turn more than a tenth of a turn between frames (at any speed but paused), the cones they sweep are drawn instead of where they point. The beams are drawn straight, without the bending. The inspector lists each choice and marks it measured or illustration.
+
+**Checked** (`a_neutron_stars_own_light_is_half_of_darwins_ray`, in `validation_lensing.rs`): a ray from far away whose closest approach is the surface is turned by exactly 2ψ − π, the surface's ψ out and back less the π a straight line sweeps. The quadrature matches Darwin's exact elliptic integral, worked out independently by Carlson's method, to rounding (under 10⁻¹⁴ rad, limit 10⁻¹²), from 3.2 GM/c² out to 100. Without gravity, ψ = asin(b/R) and half the body shows. Up close, a point lands within 1.2 × 10⁻⁵ of the disk's radius of where the exact bending puts it (`compact_view.rs`, limit 10⁻³, a tenth of a point on a disk 100 points across).
+
+![The Hulse–Taylor pulsar from 71 km, paused: its white disk 1.25 times its true size (dashed red), the grid on its surface wrapping round past the far pole, and its two radio beams](../images/neutron-star-step-8.5b.png)
+
+To see it: `cargo run --release -- --add "PSR B1913+16 pair:30" --focus "PSR B1913+16" --zoom 6 --paused`. Run time to see the beams' sweep.
 
 ## Why it matters
 

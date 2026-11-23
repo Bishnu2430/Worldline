@@ -44,9 +44,13 @@ use worldline_data::{
 use crate::catalogue::{self, Entry};
 use crate::clocks::{Clocks, Reading};
 
-/// The recent path of one body around the Sun: about one orbit's worth.
-/// Moons have none; they are shown with their current orbit (see
-/// `view.rs`).
+/// The recent path of one body: about one orbit's worth. Moons have none;
+/// they are shown with their current orbit (see `view.rs`).
+///
+/// It's kept relative to its region's origin (the solar system's
+/// barycenter, or the galactic center's), or, for a body in a pair whose
+/// orbit is far smaller than its distance from there, relative to the
+/// pair's center of mass (see [`Simulation::trail_partner`]).
 #[derive(Debug, Clone, Default)]
 pub struct Trail {
     points: VecDeque<DVec3>,
@@ -54,6 +58,9 @@ pub struct Trail {
     length: f64,
     /// The last state seen: time (s), position and velocity.
     last: Option<(f64, DVec3, DVec3)>,
+    /// The body whose center of mass with this one the trail is kept
+    /// around, by name; `None` for the region's origin.
+    around: Option<String>,
 }
 
 impl Trail {
@@ -68,7 +75,10 @@ impl Trail {
     /// interpolation of the positions and velocities at both ends, so the
     /// trail stays smooth however long the steps (it's a drawing aid: the
     /// physics doesn't use it).
-    fn record(&mut self, time: f64, position: DVec3, velocity: DVec3) {
+    ///
+    /// It keeps `keep` m of path if given (a pair's whole ellipse), else
+    /// one circle at the body's distance.
+    fn record(&mut self, time: f64, position: DVec3, velocity: DVec3, keep: Option<f64>) {
         if let Some((t0, p0, v0)) = self.last {
             let h = time - t0;
             let pieces = ((position - p0).length() / (Self::SPACING * position.length())).ceil();
@@ -80,15 +90,15 @@ impl Trail {
                         + v0 * (h * (s3 - 2.0 * s2 + s))
                         + position * (-2.0 * s3 + 3.0 * s2)
                         + velocity * (h * (s3 - s2));
-                    self.add(point);
+                    self.add(point, keep);
                 }
             }
         }
         self.last = Some((time, position, velocity));
-        self.add(position);
+        self.add(position, keep);
     }
 
-    fn add(&mut self, position: DVec3) {
+    fn add(&mut self, position: DVec3, keep: Option<f64>) {
         let step = self.points.back().map(|last| (position - *last).length());
         if step.is_some_and(|s| s <= Self::SPACING * position.length()) {
             return;
@@ -96,8 +106,10 @@ impl Trail {
         self.points.push_back(position);
         self.length += step.unwrap_or(0.0);
         // Keep the path no longer than one circle at the body's distance
-        // from the barycenter: roughly one orbit, whatever its size.
-        let one_orbit = std::f64::consts::TAU * position.length();
+        // from the barycenter: roughly one orbit, whatever its size. Near
+        // the closest point of a stretched orbit that's too little, so a
+        // pair's trail is given its ellipse's length.
+        let one_orbit = keep.unwrap_or(std::f64::consts::TAU * position.length());
         while self.points.len() > 2 {
             let oldest = (self.points[1] - self.points[0]).length();
             if self.length - oldest < one_orbit && self.points.len() <= Self::CAPACITY {
@@ -108,10 +120,19 @@ impl Trail {
         }
     }
 
-    /// The recorded positions, oldest first, in m.
+    /// The recorded positions, oldest first, in m, relative to what it's
+    /// kept around (see [`Simulation::trail_origin`]).
     pub fn points(&self) -> impl ExactSizeIterator<Item = DVec3> + '_ {
         self.points.iter().copied()
     }
+}
+
+/// The length of an ellipse `a` across its long half with eccentricity
+/// `e`: Ramanujan's (1914) approximation, good to 10⁻⁵ of it below e = 0.9
+/// and to 0.4% at e = 1.
+fn ellipse_length(a: f64, e: f64) -> f64 {
+    let b = a * (1.0 - e * e).max(0.0).sqrt();
+    std::f64::consts::PI * (3.0 * (a + b) - ((3.0 * a + b) * (a + 3.0 * b)).sqrt())
 }
 
 /// One belt of asteroids or Kuiper belt objects, placed for drawing.
@@ -1288,6 +1309,60 @@ impl Simulation {
             .and_then(|(_, key)| catalogue::entry(key))
     }
 
+    /// The published effective temperature of body `index`, if it's a star
+    /// the data has one for (step 8.5b): the Sun, a catalogue or nearby
+    /// star, or a copy of one.
+    pub fn temperature(&self, index: usize) -> Option<worldline_data::StarTemperature> {
+        use std::collections::HashMap;
+        use std::sync::OnceLock;
+        static KNOWN: OnceLock<HashMap<String, worldline_data::StarTemperature>> = OnceLock::new();
+        let known = KNOWN.get_or_init(|| {
+            worldline_data::star_temperatures()
+                .into_iter()
+                .map(|t| (t.name.clone(), t))
+                .collect()
+        });
+        let body = &self.bodies[index].name;
+        let name = if index == 0 && self.has_sun() {
+            "Sun"
+        } else if let Some(entry) = self.entry(index) {
+            if entry.key == "copy:Sun" {
+                "Sun"
+            } else {
+                entry.object().map_or(body.as_str(), |o| o.name.as_str())
+            }
+        } else if let Some(star) = self.neighbor(index) {
+            star.body.name.as_str()
+        } else {
+            body.as_str()
+        };
+        known.get(name).cloned()
+    }
+
+    /// The catalog object body `index` is, or was copied from, if any: by
+    /// its catalogue entry, or else its name.
+    pub fn catalog_object(&self, index: usize) -> Option<worldline_data::NotableObject> {
+        self.entry(index)
+            .and_then(Entry::object)
+            .cloned()
+            .or_else(|| worldline_data::notable_object(&self.bodies[index].name))
+    }
+
+    /// The axis of body `index`'s orbit around what it's bound to and
+    /// pulled on hardest by, if it is bound: r × v, normalized.
+    pub fn orbit_axis(&self, index: usize) -> Option<DVec3> {
+        let k = self.attractor(index)?;
+        let (body, other) = (&self.bodies[index], &self.bodies[k]);
+        let (r, v) = (
+            body.position - other.position,
+            body.velocity - other.velocity,
+        );
+        let mu = body.gm + other.gm;
+        (mu > 0.0 && v.length_squared() / 2.0 < mu / r.length())
+            .then(|| r.cross(v).try_normalize())
+            .flatten()
+    }
+
     /// Whether the Sun is still there: something that hits it can absorb
     /// it (a black hole, or a heavier star) and take its place as body 0.
     /// Without it there is no sunlight, solar wind or heliosphere.
@@ -2236,7 +2311,7 @@ impl Simulation {
         let top = self.region_top(index);
         // Where it is in its region's own frame, as the region's bodies are:
         // the galactic center's is offset from the solar system's.
-        let here = body.position - self.trail_origin(index);
+        let here = body.position - self.region_origin(index);
         match self.parents[index] {
             Some(planet) => Some(planet),
             None => top
@@ -2369,32 +2444,118 @@ impl Simulation {
             body.velocity = velocity;
         }
         // Trails in the galactic center are kept relative to it, so they
-        // don't stretch out as the region moves past the solar system.
+        // don't stretch out as the region moves past the solar system; a
+        // pair's, relative to its center of mass (see `trail_partner`).
         let time = self.hierarchy.time();
-        let (origin, drift) = self
-            .galaxy
-            .as_ref()
-            .map_or((DVec3::ZERO, DVec3::ZERO), |g| (g.origin, g.drift));
-        for (((trail, body), parent), source) in self
-            .trails
-            .iter_mut()
-            .zip(&self.bodies)
-            .zip(&self.parents)
-            .zip(&self.sources)
-        {
-            if parent.is_none() {
-                if let Source::Galactic(_) | Source::DeepSky(_) = source {
-                    trail.record(time, body.position - origin, body.velocity - drift);
-                } else {
-                    trail.record(time, body.position, body.velocity);
-                }
+        for index in 0..self.trails.len() {
+            if self.parents[index].is_some() {
+                continue;
             }
+            let partner = self
+                .trail_partner(index)
+                .map(|k| self.bodies[k].name.clone());
+            if partner != self.trails[index].around {
+                // Kept around something else from now: a fresh start.
+                self.trails[index] = Trail {
+                    around: partner,
+                    ..Trail::default()
+                };
+            }
+            let (origin, drift) = self.trail_frame(index);
+            let keep = self.trail_length(index);
+            let body = &self.bodies[index];
+            let (position, velocity) = (body.position - origin, body.velocity - drift);
+            self.trails[index].record(time, position, velocity, keep);
         }
     }
 
-    /// What body `index`'s trail is kept relative to: the galactic center's
-    /// origin for a body there, else the solar system's barycenter.
+    /// How much path body `index`'s trail keeps, m, if it's kept around a
+    /// pair's center of mass: its own ellipse around it, a twentieth more
+    /// so it closes, from their two-body orbit as it is now.
+    fn trail_length(&self, index: usize) -> Option<f64> {
+        let k = self.index_of(self.trails[index].around.as_deref()?)?;
+        let (body, other) = (&self.bodies[index], &self.bodies[k]);
+        let mu = body.gm + other.gm;
+        let (r, v) = (
+            body.position - other.position,
+            body.velocity - other.velocity,
+        );
+        let a = 1.0 / (2.0 / r.length() - v.length_squared() / mu);
+        let e = worldline_core::orbit::periapsis_vector(r, v, mu).length() / mu;
+        (a > 0.0 && e < 1.0).then(|| 1.05 * ellipse_length(a * other.gm / mu, e))
+    }
+
+    /// The body that body `index`'s trail is kept around with, if any: the
+    /// one it's bound to and pulled on hardest by, when the orbit around
+    /// their center of mass is far smaller than its distance from its
+    /// region's origin. A trail adds a point each time a body moves 0.0087
+    /// of its distance from what it's kept around, so measured from the
+    /// solar system's barycenter a pair 30 AU out (0.26 AU between points)
+    /// would record nothing of its orbit, 0.026 AU across; α Centauri A and
+    /// B, 1.3 pc out, nothing of theirs. The planets of the Sun at home
+    /// keep the barycenter: their orbits are as big as their distances.
+    /// Taken up past 10 times, let go under 5, so it doesn't flicker.
+    fn trail_partner(&self, index: usize) -> Option<usize> {
+        if !matches!(
+            self.sources[index],
+            Source::Top(_)
+                | Source::Follower(_)
+                | Source::Neighbor(_)
+                | Source::Galactic(Far::Top(_))
+        ) {
+            return None;
+        }
+        let k = self.attractor(index)?;
+        let (body, other) = (&self.bodies[index], &self.bodies[k]);
+        let mu = body.gm + other.gm;
+        let (r, v) = (
+            body.position - other.position,
+            body.velocity - other.velocity,
+        );
+        if mu <= 0.0 || v.length_squared() / 2.0 >= mu / r.length() {
+            return None;
+        }
+        let center = (body.position * body.gm + other.position * other.gm) / mu;
+        let from_origin = (body.position - self.region_origin(index)).length();
+        let around = (body.position - center).length();
+        let kept = self.trails[index].around.as_deref() == Some(other.name.as_str());
+        let needed = if kept { 5.0 } else { 10.0 };
+        (from_origin > needed * around).then_some(k)
+    }
+
+    /// Where body `index`'s trail is kept relative to, and how fast that
+    /// moves: its pair's center of mass, or else its region's origin.
+    fn trail_frame(&self, index: usize) -> (DVec3, DVec3) {
+        if let Some(k) = self.trails[index]
+            .around
+            .as_deref()
+            .and_then(|name| self.index_of(name))
+        {
+            let (a, b) = (&self.bodies[index], &self.bodies[k]);
+            let gm = a.gm + b.gm;
+            if gm > 0.0 {
+                return (
+                    (a.position * a.gm + b.position * b.gm) / gm,
+                    (a.velocity * a.gm + b.velocity * b.gm) / gm,
+                );
+            }
+        }
+        match (self.sources[index], &self.galaxy) {
+            (Source::Galactic(_) | Source::DeepSky(_), Some(g)) => (g.origin, g.drift),
+            _ => (DVec3::ZERO, DVec3::ZERO),
+        }
+    }
+
+    /// What body `index`'s trail is kept relative to, where it is now: its
+    /// pair's center of mass (see `trail_partner`), or else its region's
+    /// origin.
     pub fn trail_origin(&self, index: usize) -> DVec3 {
+        self.trail_frame(index).0
+    }
+
+    /// Body `index`'s region's origin: the galactic center's for a body
+    /// there, else the solar system's barycenter.
+    fn region_origin(&self, index: usize) -> DVec3 {
         match (self.sources[index], &self.galaxy) {
             (Source::Galactic(_) | Source::DeepSky(_), Some(g)) => g.origin,
             _ => DVec3::ZERO,
@@ -4254,6 +4415,67 @@ mod tests {
         let merged = &sim.bodies[sim.index_of("Earth").unwrap()];
         assert_eq!(merged.gm, 2.0 * earth.gm);
         assert!(!sim.is_added(sim.index_of("Earth").unwrap()));
+    }
+
+    #[test]
+    fn a_pair_far_out_keeps_a_trail_of_its_own_orbit() {
+        // The Hulse–Taylor pair 30 AU above the Sun, for one orbit: the
+        // pulsar's trail, kept around the pair's center of mass, has many
+        // points and reaches from its closest to its farthest, share ×
+        // a(1 ∓ e) with share = m₂/(m₁ + m₂), to within its spacing (0.87%).
+        // Earth's stays around the barycenter.
+        use worldline_core::constants::AU;
+        let mut sim = Simulation::solar_system(1.0);
+        let pair = catalogue::entry("binary:PSR B1913+16").expect("listed");
+        for body in pair.bodies(&sim) {
+            let place = body.position + DVec3::Z * 30.0 * AU;
+            let velocity = body.velocity;
+            sim.add_body(body.at(place).moving(velocity), &pair.key);
+        }
+        let (i, j) = (
+            sim.index_of("PSR B1913+16").expect("the pulsar"),
+            sim.index_of("PSR B1913+16 companion")
+                .expect("its companion"),
+        );
+        let orbit = worldline_data::binary_orbits()
+            .into_iter()
+            .find(|o| o.system == "PSR B1913+16")
+            .expect("the orbit");
+        for _ in 0..400 {
+            sim.advance_by(orbit.period / 400.0);
+        }
+        let trail = &sim.trails[i];
+        assert_eq!(trail.around.as_deref(), Some("PSR B1913+16 companion"));
+        let (p, q) = (&sim.bodies[i], &sim.bodies[j]);
+        let gm = p.gm + q.gm;
+        let a = (gm * (orbit.period / std::f64::consts::TAU).powi(2)).cbrt();
+        let share = q.gm / gm;
+        let e = orbit.eccentricity;
+        let (near, far) = trail
+            .points()
+            .map(|x| x.length())
+            .fold((f64::MAX, 0.0f64), |(lo, hi), d| (lo.min(d), hi.max(d)));
+        println!(
+            "{} points, from {near:.4e} to {far:.4e} m from the center of mass (expected {:.4e} to {:.4e})",
+            trail.points().len(),
+            share * a * (1.0 - e),
+            share * a * (1.0 + e)
+        );
+        assert!(trail.points().len() > 100);
+        assert!((near / (share * a * (1.0 - e)) - 1.0).abs() < 0.0087 + 1e-3);
+        assert!((far / (share * a * (1.0 + e)) - 1.0).abs() < 0.0087 + 1e-3);
+        // Drawn around where the pair's center of mass is now.
+        let center = (p.position * p.gm + q.position * q.gm) / gm;
+        assert!((sim.trail_origin(i) - center).length() < 1e-3);
+        assert_eq!(sim.trails[3].around, None, "Earth");
+    }
+
+    #[test]
+    fn ramanujans_ellipse_is_a_circle_and_a_flat_line_at_its_ends() {
+        let a = 2.0;
+        assert!((ellipse_length(a, 0.0) - std::f64::consts::TAU * a).abs() < 1e-12);
+        // Squashed flat, it's four times its long half, to Ramanujan's 0.4%.
+        assert!((ellipse_length(a, 1.0) / (4.0 * a) - 1.0).abs() < 4.5e-3);
     }
 
     #[test]

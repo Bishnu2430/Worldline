@@ -117,6 +117,21 @@ pub struct BinaryOrbit {
     pub source: String,
 }
 
+/// A star's published effective temperature: the temperature of a
+/// blackbody that gives off as much light from each square metre.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StarTemperature {
+    /// The star, as the simulation and the catalog name it.
+    pub name: String,
+    /// K.
+    pub kelvin: f64,
+    /// Its 1σ uncertainty, K; `None` for a value exact by definition (the
+    /// Sun's nominal one).
+    pub error: Option<f64>,
+    /// Where it was published.
+    pub source: String,
+}
+
 /// Splits a CSV line, where quoted fields may hold commas.
 fn fields(line: &str) -> Vec<String> {
     let mut out = vec![String::new()];
@@ -240,6 +255,23 @@ pub fn binary_orbits() -> Vec<BinaryOrbit> {
         .collect()
 }
 
+/// The stars whose effective temperatures are in the data.
+pub fn star_temperatures() -> Vec<StarTemperature> {
+    rows(include_str!("../data/star-temperatures.csv"))
+        .map(|f| StarTemperature {
+            name: f[0].clone(),
+            kelvin: number(&f[1]),
+            error: optional(&f[2]),
+            source: f[3].clone(),
+        })
+        .collect()
+}
+
+/// Star `name`'s published effective temperature, if it's in the data.
+pub fn star_temperature(name: &str) -> Option<StarTemperature> {
+    star_temperatures().into_iter().find(|t| t.name == name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -262,5 +294,20 @@ mod tests {
         // The Hulse–Taylor pulsar's spin, as Weisberg & Huang's Table 1
         // prints it.
         assert_eq!(binary_orbits()[0].spin_frequency, Some(16.940537785677));
+        // Each star with a temperature is one the simulation or the
+        // catalog has, by the same name.
+        let temperatures = star_temperatures();
+        assert_eq!(temperatures.len(), 6);
+        for t in &temperatures {
+            assert!(
+                t.name == "Sun" || objects.iter().any(|o| o.name == t.name),
+                "{}",
+                t.name
+            );
+        }
+        assert_eq!(
+            star_temperature("Sirius B").map(|t| t.kelvin),
+            Some(25922.0)
+        );
     }
 }

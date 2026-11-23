@@ -30,6 +30,9 @@ pub struct Globe {
     pub sun_direction: Vec3,
     /// The Sun shines by itself.
     pub emissive: bool,
+    /// For a star with a surface map, the color of a blackbody at its
+    /// temperature: the map is recolored to it, its pattern kept.
+    pub tint: Option<Color32>,
     /// Night-side glow (Earth's city lights).
     pub night_glow: f32,
     /// Rings, with their measured profile.
@@ -227,6 +230,32 @@ impl GpuSky {
 
 /// Decodes and uploads a body's maps (and ring profile), returning the
 /// material and whether it has clouds.
+/// A star's surface map recolored to `tint`, the color of a blackbody at
+/// its temperature: each pixel keeps its brightness against the map's
+/// mean (the granulation, the sunspots), in the tint's hue. A visual
+/// choice: the maps are artists' renderings, their hue not measured.
+fn recolor((_, _, rgba): &mut (u32, u32, Vec<u8>), tint: Color32) {
+    let brightness = |p: &[u8; 4]| {
+        0.2126 * f32::from(p[0]) + 0.7152 * f32::from(p[1]) + 0.0722 * f32::from(p[2])
+    };
+    let pixels = (rgba.len() / 4).max(1) as f32;
+    let mean = rgba.as_chunks::<4>().0.iter().map(brightness).sum::<f32>() / pixels;
+    if mean <= 0.0 {
+        return;
+    }
+    let tint = [
+        f32::from(tint.r()),
+        f32::from(tint.g()),
+        f32::from(tint.b()),
+    ];
+    for pixel in rgba.as_chunks_mut::<4>().0 {
+        let k = brightness(pixel) / mean;
+        for (channel, t) in pixel.iter_mut().zip(tint) {
+            *channel = (t * k).round().clamp(0.0, 255.0) as u8;
+        }
+    }
+}
+
 fn load_material(
     renderer: &Renderer,
     state: &RenderState,
@@ -239,7 +268,10 @@ fn load_material(
     let decode = |bytes: Option<&'static [u8]>| {
         bytes.map(|b| crate::quality::fit_map(textures::decode(b), map_width))
     };
-    let surface = decode(maps.as_ref().map(|m| m.surface));
+    let mut surface = decode(maps.as_ref().map(|m| m.surface));
+    if let (Some(map), Some(tint)) = (&mut surface, globe.tint) {
+        recolor(map, tint);
+    }
     let night = decode(maps.as_ref().and_then(|m| m.night));
     let clouds = decode(maps.as_ref().and_then(|m| m.clouds));
     fn image(decoded: &(u32, u32, Vec<u8>)) -> Image<'_> {
