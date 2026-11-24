@@ -80,9 +80,25 @@ pub enum Action {
     NextShot,
     /// ←: back a shot.
     PreviousShot,
+    /// F1: open or close the manual.
+    Manual,
 }
 
 impl Action {
+    /// Every shortcut, in the order the manual and the ☰ menu list them.
+    pub const ALL: [Action; 10] = [
+        Action::PlayPause,
+        Action::Faster,
+        Action::Slower,
+        Action::FollowSelected,
+        Action::Escape,
+        Action::Save,
+        Action::Timings,
+        Action::Manual,
+        Action::NextShot,
+        Action::PreviousShot,
+    ];
+
     /// The key that does it, as the interface writes it.
     pub fn key(self) -> &'static str {
         match self {
@@ -95,6 +111,23 @@ impl Action {
             Action::Timings => "F3",
             Action::NextShot => "→",
             Action::PreviousShot => "←",
+            Action::Manual => "F1",
+        }
+    }
+
+    /// What it does, in a few words.
+    pub fn what(self) -> &'static str {
+        match self {
+            Action::PlayPause => "run or stop time",
+            Action::Faster => "faster",
+            Action::Slower => "slower",
+            Action::FollowSelected => "follow the selected body",
+            Action::Escape => "close the windows",
+            Action::Save => "save the sandbox",
+            Action::Timings => "the frame's timings",
+            Action::Manual => "the manual",
+            Action::NextShot => "a film's next shot",
+            Action::PreviousShot => "back a shot",
         }
     }
 }
@@ -111,6 +144,7 @@ pub fn action(key: Key, modifiers: Modifiers) -> Option<Action> {
         Key::F => Some(Action::FollowSelected),
         Key::Escape => Some(Action::Escape),
         Key::F3 => Some(Action::Timings),
+        Key::F1 => Some(Action::Manual),
         Key::ArrowRight => Some(Action::NextShot),
         Key::ArrowLeft => Some(Action::PreviousShot),
         _ => None,
@@ -268,6 +302,27 @@ mod tests {
         assert_eq!(action(Key::Escape, none), Some(Action::Escape));
         assert_eq!(action(Key::ArrowRight, none), Some(Action::NextShot));
         assert_eq!(action(Key::ArrowLeft, none), Some(Action::PreviousShot));
+        assert_eq!(action(Key::F1, none), Some(Action::Manual));
+        // ALL lists every shortcut once: each one's key, as written, is
+        // different.
+        let mut keys: Vec<&str> = Action::ALL.iter().map(|a| a.key()).collect();
+        keys.dedup();
+        assert_eq!(keys.len(), Action::ALL.len());
+        for a in Action::ALL {
+            // Exhaustive: a new shortcut must be added to ALL.
+            match a {
+                Action::PlayPause
+                | Action::Faster
+                | Action::Slower
+                | Action::FollowSelected
+                | Action::Escape
+                | Action::Save
+                | Action::Timings
+                | Action::Manual
+                | Action::NextShot
+                | Action::PreviousShot => {}
+            }
+        }
         assert_eq!(action(Key::S, Modifiers::COMMAND), Some(Action::Save));
         assert_eq!(action(Key::S, none), None);
         // Ctrl with another key is the system's or another program's.

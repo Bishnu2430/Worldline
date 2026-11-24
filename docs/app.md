@@ -35,6 +35,25 @@ In a window narrower than 1,200 points the exploring tools show their icons alon
 
 **What happened, said at the top of the view.** The last thing that happened shows for six seconds as a notice at the top of the view, wrapped to fit: a scenario started and what it opened ("Playing: GW150914: two black holes merge; it opened the gravitational-waves window"), a body added, the sandbox saved, a planet becoming a fluid. It used to be a chip at the end of the top bar, where a narrow window cut it to "…".
 
+**The manual** (since step 8.6). **?** in the top bar, F1, or **Manual** in the ☰ menu opens it; `--manual` opens it at the start. Its seven chapters lead a newcomer from the first launch to every feature:
+1. getting started;
+2. the controls;
+3. the view;
+4. every window and tool;
+5. the scenarios;
+6. each physics model with its limits;
+7. where the numbers come from.
+
+Its **▶** buttons do what they say: fly to Saturn, open the scenarios, play a film. On a first launch with nothing else asked for, the notice at the top of the view says where it is.
+
+It's written as plain text, `crates/worldline-app/assets/manual.md`, in a little Markdown (`manual.rs` reads and draws it). Its tests keep it complete as the app grows:
+- every physics model's page in `docs/physics` is named, with its limits, in its physics chapter;
+- every key is in it;
+- every scenario has a button, and every window the ☰ menu lists is named;
+- every button does something that exists;
+- every character it shows has a glyph;
+- every chapter draws, off-screen.
+
 **How a star is drawn** (since step 8.5b). The inspector lists, for a star, white dwarf or neutron star, each visual choice and whether it's measured or an illustration: its color (a blackbody's at its published temperature, see [star-colors.md](physics/star-colors.md)), and for a neutron star its size up close and how much of its surface shows (its gravity bends its light, see [lensing.md](physics/lensing.md#a-neutron-stars-own-light-step-85b)), the grid drawn on it, and a pulsar's radio beams.
 
 **Films** (since step 8.5a). A scenario with a film plays as one: shots, captions, cards beside the bodies, and a bar at the bottom to pause, skip and leave it. See [scenarios.md](scenarios.md#films-step-85a).
@@ -50,6 +69,7 @@ In a window narrower than 1,200 points the exploring tools show their icons alon
 | Esc | Close the open windows (while adding bodies: stop adding) |
 | Ctrl+S | Save the sandbox |
 | F3 | Show or hide the frame's timings |
+| F1 | Open or close the manual |
 | → | A film's next shot |
 | ← | Back to a film's shot's start, or the one before within its first two seconds |
 
