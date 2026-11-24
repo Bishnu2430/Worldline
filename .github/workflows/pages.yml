@@ -24,10 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Encoders for the screenshots (WebP) and the typeface (WOFF2)
+      - name: The typeface's encoder (WOFF2); the screenshots are WebP already
         run: |
           sudo apt-get update
-          sudo apt-get install -y webp woff2
+          sudo apt-get install -y woff2
       - name: Build
         run: python3 tools/build_site.py --compress --out target/site
       - name: Hand it to Pages

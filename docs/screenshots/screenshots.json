@@ -3,7 +3,8 @@
     "name": "interface",
     "file": "interface.webp",
     "shows": "Saturn up close: along the top, time, the scenarios, eclipses, the sky, the manual and the tools to add bodies; on the right, every body, and the one selected with the physics that moves it",
-    "command": "cargo run --release -- --focus Saturn --zoom 8 --pitch 20 --paused --capture interface.png --at 2"
+    "command": "cargo run --release -- --focus Saturn --zoom 8 --pitch 20 --paused --capture interface.png --at 2",
+    "social": "social.jpg"
   },
   {
     "name": "solar-system",
