@@ -313,20 +313,21 @@ fn icon_sample(x: f32, y: f32) -> [f32; 4] {
     [color[0], color[1], color[2], 1.0]
 }
 
+/// A context with the theme applied and its fonts loaded, for tests.
+#[cfg(test)]
+pub fn themed() -> egui::Context {
+    let ctx = egui::Context::default();
+    apply(&ctx);
+    // Fonts load at the start of the first frame. Its textures go to no GPU
+    // here, so they're let go of.
+    let mut output = ctx.run_ui(Default::default(), |_| {});
+    output.textures_delta.clear();
+    ctx
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// A context with the theme applied and its fonts loaded.
-    fn themed() -> egui::Context {
-        let ctx = egui::Context::default();
-        apply(&ctx);
-        // Fonts load at the start of the first frame. Its textures go to
-        // no GPU here, so they're let go of.
-        let mut output = ctx.run_ui(Default::default(), |_| {});
-        output.textures_delta.clear();
-        ctx
-    }
 
     #[test]
     fn every_character_the_interface_writes_has_a_glyph() {

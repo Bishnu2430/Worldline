@@ -577,6 +577,9 @@ pub struct WorldlineApp {
     /// Whether the scenario window is open, and the scenario playing.
     scenarios_open: bool,
     playing: Option<&'static str>,
+    /// Whether the manual is open, and at which chapter (step 8.6).
+    manual_open: bool,
+    manual_chapter: usize,
     /// The scenario's film, while it plays or until it's left (step 8.5a).
     film: Option<Film>,
     /// A body whose perihelion is watched as it turns (Mercury's
@@ -736,6 +739,8 @@ impl WorldlineApp {
             go_to_when_found: None,
             go_to_total: false,
             scenarios_open: false,
+            manual_open: false,
+            manual_chapter: 0,
             playing: None,
             film: None,
             watch: None,
@@ -837,6 +842,14 @@ impl WorldlineApp {
             }
         }
         app.scenarios_open = start.scenarios;
+        app.manual_open = start.manual;
+        if start.scenario.is_none() && !start.manual && !start.scenarios {
+            app.status = Some((
+                "New to Worldline? The manual, ? in the top bar or F1, starts at the beginning"
+                    .to_string(),
+                Instant::now(),
+            ));
+        }
         app.show_timings = start.timings;
         app.set_quality(app.quality);
         if let Some(key) = &start.scenario {
@@ -1139,6 +1152,16 @@ impl WorldlineApp {
             {
                 self.sky_open = !self.sky_open;
             }
+            if ui
+                .add(theme::tool_button(named("?", "Manual"), self.manual_open))
+                .on_hover_text(
+                    "Manual: getting started, the controls, every window and tool, the scenarios, \
+                     and each physics model with its limits (F1)",
+                )
+                .clicked()
+            {
+                self.manual_open = !self.manual_open;
+            }
             self.windows_menu(ui);
             divider(ui);
             self.sandbox_controls(ui, compact);
@@ -1176,6 +1199,16 @@ impl WorldlineApp {
                     .on_hover_text(what)
                     .clicked()
             };
+            if item(
+                ui,
+                self.manual_open,
+                "Manual",
+                "Getting started, the controls, every window and tool, the scenarios, and each \
+                 physics model with its limits",
+            ) {
+                self.manual_open = !self.manual_open;
+                ui.close();
+            }
             if item(ui, self.scenarios_open, "Scenarios", "Famous events, each set up in one go") {
                 self.scenarios_open = !self.scenarios_open;
                 ui.close();
@@ -1257,22 +1290,54 @@ impl WorldlineApp {
             );
             ui.separator();
             ui.label(RichText::new("Keys").font(theme::strong(12.5)));
-            for (action, what) in [
-                (feel::Action::PlayPause, "run or stop time"),
-                (feel::Action::Faster, "faster"),
-                (feel::Action::Slower, "slower"),
-                (feel::Action::FollowSelected, "follow the selected body"),
-                (feel::Action::Escape, "close the windows"),
-                (feel::Action::NextShot, "a film's next shot"),
-                (feel::Action::PreviousShot, "back a shot"),
-                (feel::Action::Save, "save the sandbox"),
-                (feel::Action::Timings, "the frame's timings"),
-            ] {
-                ui.label(RichText::new(format!("{:<7} {what}", action.key())).monospace().small());
+            for action in feel::Action::ALL {
+                ui.label(
+                    RichText::new(format!("{:<7} {}", action.key(), action.what()))
+                        .monospace()
+                        .small(),
+                );
             }
         })
         .response
         .on_hover_text("Every window, and the keys");
+    }
+
+    /// Does what a button in the manual says: opens a window, plays a
+    /// scenario or flies to a body. Returns whether it knew how.
+    fn manual_action(&mut self, action: &str) -> bool {
+        match action.split_once(':') {
+            Some(("play", key)) => match scenarios::scenario(key) {
+                Some(scenario) => {
+                    self.play_scenario(scenario);
+                    true
+                }
+                None => false,
+            },
+            Some(("fly", name)) => match self.simulation.index_of(name) {
+                Some(index) => {
+                    self.focus_on(index);
+                    true
+                }
+                None => false,
+            },
+            Some(_) => false,
+            None => {
+                match action {
+                    "scenarios" => self.scenarios_open = true,
+                    "eclipses" => self.open_eclipses(),
+                    "sky" => self.sky_open = true,
+                    "catalogue" => self.catalogue_open = true,
+                    "timings" => self.show_timings = true,
+                    "impact" => {
+                        if self.impact_lab.is_none() {
+                            self.impact_lab = Some(ImpactLab::start(MOON_IMPACT_PARTICLES));
+                        }
+                    }
+                    _ => return false,
+                }
+                true
+            }
+        }
     }
 
     /// Runs or stops time.
@@ -1312,6 +1377,7 @@ impl WorldlineApp {
         self.eclipses_open = false;
         self.sky_open = false;
         self.catalogue_open = false;
+        self.manual_open = false;
     }
 
     /// What the keyboard's shortcuts do (see `feel.rs`).
@@ -1320,6 +1386,7 @@ impl WorldlineApp {
             match action {
                 feel::Action::PlayPause => self.play_pause(),
                 feel::Action::NextShot => self.film_next(),
+                feel::Action::Manual => self.manual_open = !self.manual_open,
                 feel::Action::PreviousShot => self.film_back(),
                 feel::Action::Faster => self.set_speed(self.speed_index + 1),
                 feel::Action::Slower => self.set_speed(self.speed_index.saturating_sub(1)),
@@ -5246,6 +5313,11 @@ impl eframe::App for WorldlineApp {
         egui::CentralPanel::no_frame().show(ui, |ui| self.scene(ui, frame));
         let view = view_began.elapsed().as_secs_f64();
         self.catalogue_window(ui.ctx());
+        if let Some(action) =
+            crate::manual::window(ui.ctx(), &mut self.manual_open, &mut self.manual_chapter)
+        {
+            self.manual_action(&action);
+        }
         self.scenarios_window(ui.ctx());
         self.waves_window(ui.ctx());
         self.eclipses_window(ui.ctx());
@@ -5414,6 +5486,63 @@ fn sky_presence(eye: DVec3, center: Option<DVec3>) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_button_in_the_manual_does_what_it_says() {
+        // Each pressed on the solar system as the app starts, as a newcomer
+        // would: it opens its window or flies to its body; a scenario's
+        // plays one that exists. And the manual has a button for every
+        // scenario, and names every window the menu lists.
+        let mut app = WorldlineApp::new(&crate::StartOptions::default());
+        let mut played = std::collections::BTreeSet::new();
+        let mut text = String::new();
+        for chapter in crate::manual::chapters() {
+            for block in &chapter.blocks {
+                match block {
+                    crate::manual::Block::Button { label, action } => {
+                        // A scenario's button plays one that exists (every
+                        // film is played in films.rs's tests); the others
+                        // are pressed.
+                        if let Some(key) = action.strip_prefix("play:") {
+                            assert!(scenarios::scenario(key).is_some(), "{label}: {key}");
+                            played.insert(key.to_string());
+                            continue;
+                        }
+                        assert!(app.manual_action(action), "{label}: do:{action}");
+                        if let Some(name) = action.strip_prefix("fly:") {
+                            assert_eq!(app.simulation.bodies[app.focus].name, name);
+                        }
+                    }
+                    crate::manual::Block::Heading(h) => text += h,
+                    crate::manual::Block::Paragraph(s) | crate::manual::Block::Point(s) => {
+                        text.extend(s.iter().map(|s| s.text.as_str()));
+                    }
+                }
+            }
+        }
+        for scenario in &scenarios::SCENARIOS {
+            assert!(
+                played.contains(scenario.key),
+                "no button plays {}",
+                scenario.key
+            );
+        }
+        for window in [
+            "Scenarios",
+            "Eclipses",
+            "Sky from a place",
+            "Add a body",
+            "Gravitational waves",
+            "The Moon-forming impact",
+        ] {
+            assert!(text.contains(window), "{window} isn't in the manual");
+        }
+        // A play button does play, and an action it doesn't know does
+        // nothing.
+        assert!(app.manual_action("play:mercury") && app.film_playing());
+        assert!(!app.manual_action("teleport"));
+        assert!(!app.manual_action("play:no-such-scenario"));
+    }
 
     #[test]
     fn a_black_hole_added_beside_the_sun_takes_the_solar_system_along() {

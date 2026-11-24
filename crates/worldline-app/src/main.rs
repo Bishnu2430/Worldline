@@ -49,6 +49,7 @@
 //!   ton-618, white-dwarf, mini-black-hole, eclipse, moon-impact or
 //!   black-hole-flyby. It starts afresh, after the options above.
 //! - `--scenarios` opens the scenario window.
+//! - `--manual` opens the manual (step 8.6).
 //! - `--timings` shows the frame's timings over the view (F3 toggles them).
 //! - `--quality low`, `medium` or `high` draws at that preset rather than
 //!   the one picked for this computer (see `quality.rs`).
@@ -70,6 +71,7 @@ mod fluid;
 mod gpu;
 mod ground;
 mod impact_lab;
+mod manual;
 mod overlays;
 mod quality;
 mod sandbox;
@@ -147,6 +149,8 @@ pub struct StartOptions {
     pub scenario: Option<String>,
     /// Start with the scenario window open.
     pub scenarios: bool,
+    /// Start with the manual open.
+    pub manual: bool,
     /// Start showing the frame's timings.
     pub timings: bool,
     /// The quality preset to draw at, rather than the one picked for this
@@ -176,6 +180,7 @@ impl StartOptions {
                 "--fluid" => options.fluid = args.next(),
                 "--sky" => options.sky = true,
                 "--scenarios" => options.scenarios = true,
+                "--manual" => options.manual = true,
                 "--timings" => options.timings = true,
                 "--quality" => match args.next().as_deref().and_then(quality::Quality::parse) {
                     Some(q) => options.quality = Some(q),
@@ -401,6 +406,7 @@ mod tests {
             "--quality",
             "low",
             "--no-vsync",
+            "--manual",
             "--measure",
             "20",
         ]
@@ -450,6 +456,7 @@ mod tests {
                 fov: Some(3.0),
                 scenario: Some("gw150914".into()),
                 scenarios: true,
+                manual: true,
                 timings: true,
                 quality: Some(quality::Quality::Low),
                 no_vsync: true,

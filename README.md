@@ -139,7 +139,9 @@ The first build takes a few minutes. Then:
 - click a body to inspect it,
 - double-click a body to fly to it.
 
-Keyboard: **Space** runs or stops time, **+** and **−** change its speed, **F** follows the selected body, **Esc** closes windows, **Ctrl+S** saves, **F3** shows frames a second, and in a film **←** and **→** skip a shot. See [docs/app.md](docs/app.md#the-interface).
+Keyboard: **Space** runs or stops time, **+** and **−** change its speed, **F** follows the selected body, **Esc** closes windows, **Ctrl+S** saves, **F3** shows frames a second, **F1** opens the manual, and in a film **←** and **→** skip a shot.
+
+New to it? The manual inside the app (**?** in the top bar, or F1) starts at the beginning: getting started, the controls, every window and tool, the scenarios, and each physics model with its limits, with buttons that do what it describes. See [docs/app.md](docs/app.md#the-interface).
 
 On a weaker computer, start with `--quality low` (or pick **Display → Quality**): the physics is the same, less is drawn. See [docs/app.md](docs/app.md#quality-presets-step-84b).
 
