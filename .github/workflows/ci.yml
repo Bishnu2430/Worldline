@@ -27,3 +27,5 @@ jobs:
         run: cargo test -- --nocapture
       - name: Validation plots are drawn from their recorded data
         run: python3 tools/validation_report.py && git diff --exit-code docs/validation
+      - name: Every library in the Windows release is under a license it can carry
+        run: cargo fetch --locked && python3 tools/third_party_licenses.py --check

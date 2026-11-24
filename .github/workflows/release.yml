@@ -12,6 +12,7 @@ on:
     paths:
       - ".github/workflows/release.yml"
       - "tools/check_exe.py"
+      - "tools/third_party_licenses.py"
       - "tools/release/**"
       - "crates/worldline-app/src/main.rs"
       - "crates/worldline-app/src/capture.rs"
@@ -60,6 +61,8 @@ jobs:
           Copy-Item tools/release/README.txt $folder
           Copy-Item LICENSE (Join-Path $folder "LICENSE.txt")
           Copy-Item CREDITS.md $folder
+          python tools/third_party_licenses.py --out (Join-Path $folder "THIRD-PARTY-LICENSES.txt")
+          if ($LASTEXITCODE -ne 0) { throw "The third-party licenses couldn't be gathered" }
           Compress-Archive -Path $folder -DestinationPath "dist/$name.zip"
           $hash = (Get-FileHash "dist/$name.zip" -Algorithm SHA256).Hash.ToLower()
           "$hash  $name.zip" | Out-File -Encoding ascii "dist/$name.zip.sha256"

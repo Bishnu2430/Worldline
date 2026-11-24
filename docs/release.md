@@ -16,6 +16,7 @@ Step 8.8a. Worldline for Windows is a zip with one program in it, `worldline.exe
 | `README.txt` | how to run it, what it needs, and some places to start |
 | `LICENSE.txt` | its license, the PolyForm Noncommercial License 1.0.0: free for non-commercial use |
 | `CREDITS.md` | where its data, maps and images come from, and their licenses |
+| `THIRD-PARTY-LICENSES.txt` | the 165 libraries the program is built with, and their licenses' texts (since 1.0.1) |
 
 **Nothing to install.** The program carries everything it uses:
 - **Data and images:** the solar system's data, the planets' maps, the sky and the typeface are built into it (`include_bytes!` and `include_str!`), so it reads no files except the saves you make.
@@ -59,6 +60,19 @@ These virtual machines have no graphics card. The program finds Windows' softwar
 The machine isn't bare: GitHub's Windows images come with many programs installed. What shows that the program uses none of them is the first check, which lists everything it loads.
 
 **Not shown:** a run on Windows 10, and on other graphics cards. It's been run on Windows 11 with an Intel Iris Xe, and on GitHub's Windows Server images with WARP.
+
+## The libraries' licenses
+
+The program is built with 165 Rust libraries: egui, wgpu, winit and what they use. Most are under the MIT or Apache 2.0 licenses, which ask that their copyright notices and terms go with every copy of the program. So the zip carries `THIRD-PARTY-LICENSES.txt`, which `tools/third_party_licenses.py` writes from `Cargo.lock`:
+- **Which libraries:** those the program needs on 64-bit Windows, not those only its tests or build scripts use.
+- **Their texts:** for each, the license files it ships. Libraries with the same text share one copy, which keeps the file to about 400 kB.
+- **The 17 that ship no license file** (egui among them) get the standard text of a license they offer:
+  - MIT's, with their authors as the copyright holders;
+  - or one another library in the program ships word for word (Apache 2.0's, Boost's).
+
+Where a library offers a choice of licenses, MIT comes first.
+
+**It also guards the release.** CI runs it with `--check`, which fails if a library is under a license the release can't carry. Only permissive ones pass: MIT, Apache 2.0, BSD, ISC, Zlib, Boost, Unicode's, the Unlicense, 0BSD, CC0, and the fonts' OFL and Ubuntu Font License. So a dependency under the GPL, say, can't slip into this non-commercial release unnoticed. Today all 165 pass: 145 taken under MIT and 12 under Apache 2.0; two each under Zlib and Boost; one under ISC; and three under MIT together with Apache 2.0's, Unicode's or the fonts' licenses.
 
 ## Publishing a release
 
