@@ -1,0 +1,52 @@
+name: Website
+
+# Builds the website (site/ and tools/build_site.py) on every pull request, to
+# catch a broken page early, and publishes it to GitHub Pages from main.
+# See docs/website.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; one in progress finishes rather than being cut off.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Encoders for the screenshots (WebP) and the typeface (WOFF2)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webp woff2
+      - name: Build
+        run: python3 tools/build_site.py --compress --out target/site
+      - name: Hand it to Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: target/site
+
+  deploy:
+    name: Publish to GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,585 @@
+/* Worldline's website. The colors are the app's own (theme.rs in worldline-app),
+   and so is the typeface, Inter. */
+
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/Inter-Regular.ttf");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/Inter-SemiBold.ttf");
+  font-weight: 600;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+  --background: #090b10;
+  --surface: #0f121a;
+  --raised: #171c27;
+  --border: #212837;
+  --text: #e2e7f0;
+  --soft: #c6cdd9;
+  --muted: #7c8698;
+  --accent: #6ea0ff;
+  --accent-fill: #2c60d2;
+  --within: #6ecd8c;
+  --approximate: #f0b450;
+  --beyond: #f06e64;
+  --radius: 12px;
+  --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, Menlo, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 72px;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--text);
+  font: 16px/1.6 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+a:hover {
+  color: #9dbfff;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  margin: 0 0 0.6em;
+}
+h1 {
+  font-size: clamp(2.2rem, 6vw, 3.75rem);
+  letter-spacing: -0.03em;
+}
+h2 {
+  font-size: clamp(1.6rem, 3.4vw, 2.25rem);
+  margin-bottom: 1.2em;
+}
+h3 {
+  font-size: 1.3rem;
+}
+p {
+  margin: 0 0 1em;
+}
+
+code,
+kbd,
+pre {
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+code {
+  background: var(--raised);
+  border-radius: 5px;
+  padding: 0.1em 0.35em;
+}
+p code {
+  white-space: nowrap;
+}
+kbd {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0.05em 0.4em;
+  white-space: nowrap;
+}
+pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 0.8em 0 1.2em;
+  overflow-x: auto;
+  line-height: 1.55;
+}
+pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.wrap {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+.wrap.narrow {
+  max-width: 800px;
+}
+@media (min-width: 640px) {
+  .wrap {
+    padding: 0 28px;
+  }
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: 16px;
+  top: 12px;
+  z-index: 10;
+  background: var(--raised);
+  padding: 8px 12px;
+}
+
+/* The bar along the top, like the app's. */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgba(9, 11, 16, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 60px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+.brand:hover {
+  color: var(--text);
+}
+.nav {
+  display: flex;
+  gap: 22px;
+  margin-right: auto;
+}
+.nav a {
+  color: var(--soft);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+.nav a:hover {
+  color: var(--text);
+}
+@media (max-width: 640px) {
+  .nav {
+    display: none;
+  }
+  .brand {
+    margin-right: auto;
+  }
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--raised);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.button:hover {
+  color: var(--text);
+  border-color: #3a4862;
+  background: #1e2532;
+}
+.button.primary {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: #fff;
+}
+.button.primary:hover {
+  background: #3770e6;
+}
+.button.small {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 0.9rem;
+}
+
+/* The opening. */
+.hero {
+  padding: 72px 0 40px;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(44, 96, 210, 0.22), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 85% 30%, rgba(240, 180, 80, 0.06), transparent 70%);
+}
+.eyebrow {
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  margin-bottom: 1em;
+}
+.lead {
+  font-size: 1.15rem;
+  color: var(--soft);
+  max-width: 50em;
+}
+.hero .lead {
+  font-size: clamp(1.05rem, 2.2vw, 1.25rem);
+  max-width: 44em;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 28px 0 40px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 40px;
+}
+@media (min-width: 760px) {
+  .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.stats div {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.stats dt {
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.stats dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Screenshots: the app's window, framed. */
+.shot {
+  display: block;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.9);
+}
+.hero-shot {
+  box-shadow:
+    0 30px 80px -30px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(110, 160, 255, 0.08),
+    0 0 120px -40px rgba(44, 96, 210, 0.5);
+}
+.shot figcaption {
+  padding: 12px 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+.section {
+  padding: 72px 0;
+}
+.section.alt {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.section.alt .shot,
+.section.alt pre {
+  background: var(--background);
+}
+@media (max-width: 640px) {
+  .section {
+    padding: 52px 0;
+  }
+  .hero {
+    padding-top: 48px;
+  }
+}
+
+/* What it does: a screenshot beside each feature, sides alternating. */
+.feature {
+  display: grid;
+  gap: 20px 48px;
+  align-items: center;
+  margin-bottom: 64px;
+}
+.feature-text p {
+  color: var(--soft);
+}
+.feature-text p:last-child {
+  margin-bottom: 0;
+}
+@media (min-width: 860px) {
+  .feature {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+  .feature:nth-of-type(even) .shot {
+    order: 2;
+  }
+}
+
+.honest {
+  background: linear-gradient(180deg, rgba(110, 205, 140, 0.07), rgba(110, 205, 140, 0.02));
+  border: 1px solid rgba(110, 205, 140, 0.25);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+}
+.honest h3 {
+  color: var(--within);
+}
+.honest p {
+  color: var(--soft);
+  margin: 0;
+  max-width: 60em;
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
+  gap: 28px 24px;
+}
+.gallery figure {
+  margin: 0;
+}
+.gallery figcaption {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+.gallery a.shot:hover {
+  border-color: #3a4862;
+}
+
+/* The checks, each with its plot. */
+.checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 20px;
+}
+.checks.featured {
+  margin-bottom: 28px;
+}
+.check {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.check[hidden] {
+  display: none;
+}
+.check .plot {
+  display: block;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+}
+.check .plot img {
+  width: 100%;
+  height: 250px;
+  object-fit: contain;
+  padding: 6px;
+}
+.check-body {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.check h3 {
+  font-size: 1rem;
+  line-height: 1.35;
+  letter-spacing: 0;
+  margin: 0;
+}
+.check p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.check .label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.check .expected {
+  color: var(--soft);
+}
+.check .evidence {
+  margin-top: auto;
+  padding-top: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.05em 0.6em;
+  margin-right: 0.35em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 0.1em;
+}
+.badge.pass {
+  color: var(--within);
+  background: rgba(110, 205, 140, 0.12);
+}
+.badge.partly {
+  color: var(--approximate);
+  background: rgba(240, 180, 80, 0.12);
+}
+.badge.fail {
+  color: var(--beyond);
+  background: rgba(240, 110, 100, 0.12);
+}
+
+.all-checks summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--raised);
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+.all-checks summary:hover {
+  border-color: #3a4862;
+}
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  color: var(--soft);
+  margin-bottom: 8px;
+}
+.filter[hidden] {
+  display: none;
+}
+.filter input {
+  flex: 1 1 260px;
+  max-width: 420px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.filter-count {
+  color: var(--muted);
+  font-size: 0.9rem;
+  min-height: 1.5em;
+}
+
+/* Run it. */
+.steps {
+  padding-left: 1.3em;
+  margin: 0 0 1.5em;
+}
+.steps li {
+  margin-bottom: 0.8em;
+  padding-left: 0.3em;
+}
+.steps li::marker {
+  color: var(--accent);
+  font-weight: 600;
+}
+.note {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.docs {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.docs li {
+  color: var(--soft);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.docs a {
+  font-weight: 600;
+}
+
+.footer {
+  border-top: 1px solid var(--border);
+  padding: 36px 0 44px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.footer p {
+  max-width: 70em;
+}
+.footer a {
+  color: var(--soft);
+}

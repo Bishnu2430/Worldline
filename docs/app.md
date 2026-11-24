@@ -199,7 +199,7 @@ See [physics/galactic-center.md](physics/galactic-center.md).
 
 ## Scenarios
 
-**Scenarios** in the top bar opens the library: eleven famous events and experiments, from Mercury's perihelion to GW150914 and a black hole through the Sun's neighborhood. **Play** sets one up afresh from the 2025 solar system, replacing what's running: its bodies, its view, its speed and any window it needs. `--scenario KEY` plays one from the command line. See [scenarios.md](scenarios.md).
+**Scenarios** in the top bar opens the library: twelve famous events and experiments, from Mercury's perihelion to GW150914 and a black hole through the Sun's neighborhood. **Play** sets one up afresh from the 2025 solar system, replacing what's running: its bodies, its view, its speed and any window it needs. `--scenario KEY` plays one from the command line. See [scenarios.md](scenarios.md).
 
 ## Sandbox tools
 

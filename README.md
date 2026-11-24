@@ -2,6 +2,8 @@
 
 **A relativistic universe sandbox.** Drop black holes, neutron stars and planets into the real universe and watch general relativity play out. Every physics model is validated against theory and observation.
 
+**Website:** [bishnu2430.github.io/Worldline](https://bishnu2430.github.io/Worldline/)
+
 > **Status:** pre-alpha. The engine runs the real solar system in a 3D window, with relativistic gravity, all 459 of its known moons, 62 dwarf planets, asteroids and comets, 28,331 belt asteroids and Kuiper belt objects, the zodiacal dust, the Sun's reach (its wind, its heliosphere and its light), the planets' magnetospheres, and giant planets as self-gravitating fluids that tides stretch and tear apart. See the [roadmap](docs/ROADMAP.md).
 
 ![Worldline with Saturn up close: the top bar's tools for time, scenarios, eclipses, the sky and building, and the inspector's cards for the bodies and the one selected](docs/images/ui-step-8.3.png)
@@ -251,6 +253,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 ## Docs
 
 - [Scope](docs/SCOPE.md): what v1 includes and excludes, and why
+- [The website](docs/website.md): the landing page, built from this README's claims and published by a workflow
 - [Validation plots](docs/validation/README.md): a plot for every claim above, drawn from what its test measured
 - [Roadmap](docs/ROADMAP.md): milestones and steps
 - [Architecture](docs/ARCHITECTURE.md): how the engine picks physics models
