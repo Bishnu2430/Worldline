@@ -80,4 +80,6 @@ The maps of the major moons, Pluto, Charon and Ceres (`2k_*.png` in the same fol
 
 ## Software
 
+The program's zip carries every library's license text, in `THIRD-PARTY-LICENSES.txt` (`tools/third_party_licenses.py`; see [docs/release.md](docs/release.md#the-libraries-licenses)).
+
 Rust, [wgpu](https://wgpu.rs), [egui/eframe](https://github.com/emilk/egui), [glam](https://github.com/bitshifter/glam-rs), the [image](https://github.com/image-rs/image) crate and [rodio](https://github.com/RustAudio/rodio) (sound), under their respective MIT/Apache-2.0 licenses.

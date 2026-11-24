@@ -63,4 +63,6 @@ worldline.exe   the program
 LICENSE.txt     its license: free for non-commercial use (PolyForm
                 Noncommercial 1.0.0); commercial use needs permission
 CREDITS.md      where its data, maps and images come from, and their licenses
+THIRD-PARTY-LICENSES.txt
+                the libraries it's built with, and their licenses' texts
 README.txt      this file
