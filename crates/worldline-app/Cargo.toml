@@ -26,3 +26,8 @@ worldline-report = { path = "../worldline-report" }
 
 [lints]
 workspace = true
+
+# The message box that says why the program stopped, with no console to
+# print to (step 8.8a).
+[target."cfg(windows)".dependencies]
+rfd = { version = "0.18.0", default-features = false }

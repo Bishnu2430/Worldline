@@ -45,9 +45,9 @@
 //! - `--fluid Jupiter` models Jupiter as a self-gravitating fluid of SPH
 //!   particles on the GPU, as many as it steps smoothly.
 //! - `--scenario mercury` plays a scenario from the library (step 8.1):
-//!   mercury, hulse-taylor, gw150914, gw170817, planet-black-hole,
-//!   ton-618, white-dwarf, mini-black-hole, eclipse, moon-impact or
-//!   black-hole-flyby. It starts afresh, after the options above.
+//!   mercury, hulse-taylor, double-pulsar, gw150914, gw170817,
+//!   planet-black-hole, ton-618, white-dwarf, mini-black-hole, eclipse,
+//!   moon-impact or black-hole-flyby. It starts afresh, after the options above.
 //! - `--scenarios` opens the scenario window.
 //! - `--manual` opens the manual (step 8.6).
 //! - `--timings` shows the frame's timings over the view (F3 toggles them).
@@ -57,6 +57,24 @@
 //!   drawing costs.
 //! - `--measure SECONDS` measures the frames for that long (the last two
 //!   thirds of it), prints their mean timings on one line and closes.
+//! - `--smoke-test frame.png` draws the solar system for a few dozen
+//!   frames, saves the last to frame.png, says whether it was drawn and
+//!   the physics ran, and closes, failing (exit code 1) if not (step 8.8a).
+//!   Its window opens as `--offscreen` does.
+//! - `--offscreen` opens the window off the screen and without taking the
+//!   keyboard and mouse, for runs that capture frames.
+//! - `--software` draws with the processor (Windows' WARP) rather than the
+//!   graphics card: slow, for computers whose graphics driver fails.
+//!
+//! A release build on Windows opens no console window; what it would
+//! print shows when its output is redirected (`worldline.exe --smoke-test
+//! frame.png | Out-Host`), and an error that stops it opens a message box.
+
+// No console window behind the app in a release build on Windows.
+#![cfg_attr(
+    all(windows, not(debug_assertions), not(test)),
+    windows_subsystem = "windows"
+)]
 
 mod app;
 mod calendar;
@@ -77,6 +95,7 @@ mod quality;
 mod sandbox;
 mod simulation;
 mod sky;
+mod smoke;
 mod textures;
 mod theme;
 mod view;
@@ -162,6 +181,14 @@ pub struct StartOptions {
     /// Measure the frames for this many seconds, print their timings and
     /// close (step 8.4b).
     pub measure: Option<f64>,
+    /// Draw a few dozen frames, save the last here, check it and close
+    /// (step 8.8a).
+    pub smoke_test: Option<std::path::PathBuf>,
+    /// Open the window off the screen, without taking the keyboard and
+    /// mouse.
+    pub offscreen: bool,
+    /// Draw with the processor rather than the graphics card.
+    pub software: bool,
 }
 
 /// Two numbers with a comma between them.
@@ -187,6 +214,12 @@ impl StartOptions {
                     None => eprintln!("--quality takes low, medium or high"),
                 },
                 "--no-vsync" => options.no_vsync = true,
+                "--smoke-test" => match args.next() {
+                    Some(path) => options.smoke_test = Some(path.into()),
+                    None => eprintln!("worldline: --smoke-test needs a file to save the frame to"),
+                },
+                "--offscreen" => options.offscreen = true,
+                "--software" => options.software = true,
                 "--measure" => match args.next().and_then(|s| s.parse::<f64>().ok()) {
                     Some(s) if s > 0.0 => options.measure = Some(s),
                     _ => eprintln!("--measure takes a number of seconds"),
@@ -322,9 +355,49 @@ pub fn since_start() -> f64 {
         .as_secs_f64()
 }
 
-fn main() -> eframe::Result {
+fn main() {
     STARTED.get_or_init(std::time::Instant::now);
     let start = StartOptions::parse(std::env::args().skip(1));
+    // Runs that check or measure say what went wrong in their output;
+    // anyone else gets a message box, as there may be no console to read.
+    let automated = start.smoke_test.is_some() || start.measure.is_some();
+    if !automated {
+        let printed = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            printed(info);
+            failed(&format!("Worldline stopped unexpectedly:\n\n{info}"));
+        }));
+    }
+    let smoke = start.smoke_test.is_some();
+    if let Err(e) = run(start) {
+        eprintln!("worldline: {e}");
+        if !automated {
+            failed(&format!(
+                "Worldline couldn't start:\n\n{e}\n\nIt draws with the graphics card, through DirectX 12 or Vulkan. Updating its driver may help, or `worldline.exe --software` draws with the processor instead, slowly."
+            ));
+        }
+        std::process::exit(1);
+    }
+    if smoke && smoke::PASSED.get() != Some(&true) {
+        std::process::exit(1);
+    }
+}
+
+/// Says why the program stopped, in a message box on Windows.
+fn failed(message: &str) {
+    #[cfg(windows)]
+    rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Error)
+        .set_title("Worldline")
+        .set_description(message)
+        .set_buttons(rfd::MessageButtons::Ok)
+        .show();
+    #[cfg(not(windows))]
+    let _ = message;
+}
+
+/// Opens the window and runs the app until it closes.
+fn run(start: StartOptions) -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Worldline")
@@ -343,6 +416,27 @@ fn main() -> eframe::Result {
     if start.no_vsync {
         options.wgpu_options.surface.present_mode =
             eframe::egui_wgpu::wgpu::PresentMode::AutoNoVsync;
+    }
+    // Off the screen and never active, so a run that captures frames
+    // doesn't take the keyboard and mouse from whoever is at the computer.
+    if start.offscreen || start.smoke_test.is_some() {
+        options.viewport = options
+            .viewport
+            .with_position([-10_000.0, -10_000.0])
+            .with_active(false)
+            .with_taskbar(false);
+    }
+    if start.software {
+        use eframe::egui_wgpu::{WgpuSetup, wgpu};
+        if let WgpuSetup::CreateNew(setup) = &mut options.wgpu_options.wgpu_setup {
+            setup.native_adapter_selector = Some(std::sync::Arc::new(|adapters, _| {
+                adapters
+                    .iter()
+                    .find(|a| a.get_info().device_type == wgpu::DeviceType::Cpu)
+                    .cloned()
+                    .ok_or_else(|| "no adapter draws with the processor here".to_string())
+            }));
+        }
     }
     eframe::run_native(
         "Worldline",
@@ -409,6 +503,10 @@ mod tests {
             "--manual",
             "--measure",
             "20",
+            "--smoke-test",
+            "frame.png",
+            "--offscreen",
+            "--software",
         ]
         .map(String::from)
         .into_iter();
@@ -461,6 +559,9 @@ mod tests {
                 quality: Some(quality::Quality::Low),
                 no_vsync: true,
                 measure: Some(20.0),
+                smoke_test: Some("frame.png".into()),
+                offscreen: true,
+                software: true,
             }
         );
         assert_eq!(

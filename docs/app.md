@@ -2,6 +2,11 @@
 
 **Code:** `crates/worldline-app/` · **Run:** `cargo run --release` (options: `-- --focus Jupiter --zoom 40 --pitch 20 --paused --advance 7`; `--zoom` sets how many of the focused body's radii away the camera starts, `--pitch` how many degrees above the ecliptic plane it looks from (default 34), `--overlays tides,clocks` starts with those overlays on (any of models, clocks, tides, embedding, waves and time), `--speed hour` how fast time runs (hour, day, week, month, year, decade or century per second), and `--advance` runs the physics that many years past the 2025 snapshot before the window opens)
 
+**On Windows, a release build** (step 8.8a) opens no console window behind it. If it can't start, for example because no graphics adapter works, or if it stops unexpectedly, it says why in a message box. What it prints reaches a file or pipe its output is redirected to. Three options are for checking it rather than using it:
+- `--smoke-test frame.png` draws the solar system for 60 frames, saves the last to `frame.png`, says whether it was drawn and whether the physics ran, and closes, with exit code 1 if not. The release workflow runs it on a clean machine (see [release.md](release.md)).
+- `--offscreen` opens the window off the screen, without taking the keyboard and mouse and without a taskbar button. The smoke test opens this way.
+- `--software` draws with the processor through Windows' own WARP renderer, rather than the graphics card. It's slow, but works when the graphics driver doesn't.
+
 The app is a window around the physics engine. It never does physics itself. It asks `worldline-core` to advance the simulation, then draws the result.
 
 ## Each frame
