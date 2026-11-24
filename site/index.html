@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worldline · a relativistic universe sandbox</title>
+<meta name="description" content="Drop black holes, neutron stars and planets into the real solar system and watch general relativity play out. Every physics model is validated against theory and observation.">
+<meta name="theme-color" content="#090b10">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Worldline: a relativistic universe sandbox">
+<meta property="og:description" content="Drop black holes, neutron stars and planets into the real solar system and watch general relativity play out. Every physics model is validated against theory and observation.">
+<meta property="og:url" content="https://bishnu2430.github.io/Worldline/">
+<meta property="og:image" content="https://raw.githubusercontent.com/Bishnu2430/Worldline/main/docs/images/ui-step-8.3.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="generator" content="tools/build_site.py">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!--
+  Worldline's website, step 8.7. Written by hand; `python tools/build_site.py`
+  fills in the validation section from the README and copies the screenshots,
+  plots and fonts it uses next to it. See docs/website.md.
+-->
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="bar">
+  <div class="wrap bar-inner">
+    <a class="brand" href="#top"><img src="favicon.svg" alt="" width="28" height="28">Worldline</a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#features">Features</a>
+      <a href="#screenshots">Screenshots</a>
+      <a href="#validation">Validation</a>
+      <a href="#run">Run it</a>
+    </nav>
+    <a class="button small" href="https://github.com/Bishnu2430/Worldline">GitHub</a>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <p class="eyebrow">A relativistic universe sandbox</p>
+    <h1>Drop a black hole into the solar system.</h1>
+    <p class="lead">Worldline starts from the real solar system and lets you add black holes, neutron stars and planets, then watch general relativity play out: orbits turn, binaries spiral together as they radiate gravitational waves, black holes merge, and planets are torn apart by tides. Every physics model is checked against theory and observation.</p>
+    <div class="actions">
+      <a class="button primary" href="#run">Run it</a>
+      <a class="button" href="#validation">See the evidence</a>
+      <a class="button" href="https://github.com/Bishnu2430/Worldline">Source on GitHub</a>
+    </div>
+    <dl class="stats">
+      <div><dt>{{CHECKS}}</dt><dd>claims, each checked by a test and plotted</dd></div>
+      <div><dt>459</dt><dd>known moons, from NASA JPL</dd></div>
+      <div><dt>28,331</dt><dd>belt asteroids and Kuiper belt objects</dd></div>
+      <div><dt>12</dt><dd>famous events, each played as a film</dd></div>
+    </dl>
+    <figure class="shot hero-shot">
+      <img src="images/ui-step-8.3.png" alt="Worldline with Saturn up close: the top bar's tools for time, scenarios, eclipses, the sky and building, and the inspector's cards for the bodies and the one selected">
+      <figcaption>Saturn up close. Along the top, time, the scenarios, eclipses, the sky and the tools to add bodies; on the right, every body, and the one selected with the physics that moves it.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="wrap">
+    <h2>What it does</h2>
+
+    <article class="feature">
+      <figure class="shot">
+        <img src="images/earth-step-1b.3.png" alt="Earth on 1 January 2025: clouds, blue Rayleigh haze, the Pacific in daylight and night falling over Asia" loading="lazy">
+      </figure>
+      <div class="feature-text">
+        <h3>The real solar system</h3>
+        <p>It starts from NASA JPL's positions: the Sun, the planets, all 459 known moons, 62 dwarf planets, asteroids and comets, and 28,331 belt asteroids and Kuiper belt objects. Planets turn as the IAU's rotation models say, Saturn wears its rings as Cassini measured them, and the moons carry their spacecraft maps.</p>
+        <p>Run it for a year and Earth ends within 0.41 km of JPL's. Press <strong>Now</strong> and it shows the solar system as it is today.</p>
+      </div>
+    </article>
+
+    <article class="feature">
+      <figure class="shot">
+        <img src="images/scenario-mercury-step-8.1.png" alt="Mercury's scenario after more than a century of play: the Sun alone with Mercury, the inspector reading 42.98 arcseconds a century measured, and general relativity's 42.98" loading="lazy">
+      </figure>
+      <div class="feature-text">
+        <h3>Gravity as Einstein wrote it</h3>
+        <p>Every massive body pulls on every other in relativistic N-body gravity (Einstein, Infeld and Hoffmann), with the higher-order terms that make close pairs lose energy to gravitational waves.</p>
+        <p>Mercury's perihelion turns 42.9807″ a century, where general relativity says 42.9805″. The Hulse–Taylor pulsar's orbit shrinks 1.0σ from the rate its timing measured.</p>
+        <p><a href="repo:docs/physics/post-newtonian.md">The physics of close pairs</a></p>
+      </div>
+    </article>
+
+    <article class="feature">
+      <figure class="shot">
+        <img src="images/overlays-waves-step-3.3.png" alt="GW150914's two black holes at 20 Hz: their gravitational waves' crests spiral out at the speed of light, and the clock-rate heatmap glows where clocks run slowest" loading="lazy">
+      </figure>
+      <div class="feature-text">
+        <h3>Gravitational waves, seen and heard</h3>
+        <p>Pairs spiral together as they radiate, and the waves window plays their chirp. The overlays draw the waves' crests spiraling out at the speed of light, and how fast clocks run.</p>
+        <p>GW150914 replayed: two black holes spiral in from 20 Hz and merge into one of 63.03 Suns spinning at 0.683. LIGO measured 62 ± 4 Suns and 0.67.</p>
+        <p><a href="repo:docs/physics/mergers.md">Black-hole mergers</a></p>
+      </div>
+    </article>
+
+    <article class="feature">
+      <figure class="shot">
+        <img src="images/lensing-step-3.1.png" alt="Gaia BH1 from 570 km: its shadow, 7.27° across exactly as Synge's formula puts it, and the Milky Way bent into an arc around it" loading="lazy">
+      </figure>
+      <div class="feature-text">
+        <h3>Black holes up close</h3>
+        <p>Near a black hole, bodies move in its exact spacetime (Kerr's, when it spins), down to the innermost stable orbit. Its shadow and the sky bent around it are traced ray by ray.</p>
+        <p>From 570 km, Gaia BH1's shadow is 7.27° across, exactly as Synge's formula puts it.</p>
+        <p><a href="repo:docs/physics/kerr.md">Motion near a black hole</a></p>
+      </div>
+    </article>
+
+    <article class="feature">
+      <figure class="shot">
+        <img src="images/neutron-star-step-8.5b.png" alt="The Hulse–Taylor pulsar from 71 km: its white disk 1.25 times its true size (dashed red), the grid on its surface wrapping round past the far pole, and its two radio beams" loading="lazy">
+      </figure>
+      <div class="feature-text">
+        <h3>Stars held up by quantum mechanics</h3>
+        <p>White dwarfs reach Chandrasekhar's limit, 1.4563 Suns for carbon and oxygen. Neutron stars, built from the SLy equation of state, top out at 2.048 Suns. Small black holes evaporate by Hawking radiation, labeled theoretical.</p>
+        <p>Up close, a neutron star is drawn as its own gravity bends its light: the Hulse–Taylor pulsar looks 1.25 times its size, with 67% of its surface in view.</p>
+        <p><a href="repo:docs/physics/neutron-stars.md">Neutron stars</a> · <a href="repo:docs/physics/white-dwarfs.md">White dwarfs</a></p>
+      </div>
+    </article>
+
+    <article class="feature">
+      <figure class="shot">
+        <img src="images/tides-step-4.3.png" alt="A Jupiter-mass planet passing the Sun at 3 tidal radii: a fluid of 8,144 particles stretched by the Sun's tides, cut open to its hot core" loading="lazy">
+      </figure>
+      <div class="feature-text">
+        <h3>Tides and collisions</h3>
+        <p>A planet that nears a star or a black hole becomes a fluid of thousands of particles, stepped on the GPU, and tides pull it apart. A collision leaves what Leinhardt and Stewart's scaling laws say; a crater is as wide as Holsapple's give.</p>
+        <p>The Moon-forming impact, two planets of rock and iron, leaves 1.38 lunar masses in orbit, inside the 1.33 to 1.62 that Canup's simulations find. Whether that holds at higher resolution isn't shown yet.</p>
+        <p><a href="repo:docs/physics/giant-impacts.md">Giant impacts</a></p>
+      </div>
+    </article>
+
+    <article class="feature">
+      <figure class="shot">
+        <img src="images/sky-totality-step-5.4.png" alt="The total solar eclipse of 12 August 2026 from Reykjavík at 17:48:31 UTC: the Moon's black disk covering the Sun, with the corona around it" loading="lazy">
+      </figure>
+      <div class="feature-text">
+        <h3>Eclipses and the sky</h3>
+        <p>The eclipse finder searches the simulation itself. It finds all 24 solar and lunar eclipses of 2026 to 2030 in NASA's Five Millennium Canon, and no others, the worst 5.0 seconds off, and draws each one's path across the globe.</p>
+        <p>Stand anywhere on Earth to watch the sky. Through 2026, all 2,870 rises and sets of the Sun and Moon in the U.S. Naval Observatory's tables for Washington and Sydney come out to the minute.</p>
+      </div>
+    </article>
+
+    <article class="feature">
+      <figure class="shot">
+        <img src="images/galaxy-glow-step-7.4.png" alt="The Milky Way from 40 kiloparsecs, drawn as light: a mottled bluish disk brightening to an orange bulge, the Sun on its path round the center" loading="lazy">
+      </figure>
+      <div class="feature-text">
+        <h3>The Milky Way</h3>
+        <p>Leave the solar system: the nearest and brightest stars at their measured places and motions, Gaia's 21,480 stars within 50 parsecs, and 251 star clusters, nebulae and satellite galaxies.</p>
+        <p>The rest of the galaxy is 30,000 stars drawn in balance with its mass, and each feels anything heavy you drop among them.</p>
+        <p><a href="repo:docs/physics/galaxy-stars.md">The galaxy's stars</a></p>
+      </div>
+    </article>
+
+    <article class="feature">
+      <figure class="shot">
+        <img src="images/film-hulse-taylor-step-8.5a.png" alt="The Hulse–Taylor film's fourth shot: the two stars' orbits around their center of mass, the pulsar's long axis now and where it pointed 1.3 years before, and a card measuring the turning against general relativity" loading="lazy">
+      </figure>
+      <div class="feature-text">
+        <h3>Famous events, as films</h3>
+        <p>Twelve scenarios: Mercury's perihelion, the Hulse–Taylor and double pulsars, GW150914 and GW170817, a planet meeting a black hole, TON 618 swallowing Sagittarius A*, a white dwarf pushed past its limit, an evaporating black hole, the next total solar eclipse, the Moon-forming impact and a black hole through the Sun's neighborhood.</p>
+        <p>Each plays as a film: the camera moves shot by shot, captions tell the story, and cards beside the bodies set the published measurements next to what the simulation measures.</p>
+        <p><a href="repo:docs/scenarios.md">The scenarios</a></p>
+      </div>
+    </article>
+
+    <aside class="honest">
+      <h3>Honest about what it knows</h3>
+      <p>Every body names the physics model moving it, and grades it: within range, approximate, or beyond its model. What's an illustration rather than a measurement says so. Where physics is unknown, inside a black hole or past the published equations of state, it's labeled, not invented. And the manual inside the app (<kbd>F1</kbd>) explains each model and where it stops being right.</p>
+    </aside>
+  </div>
+</section>
+
+<section class="section alt" id="screenshots">
+  <div class="wrap">
+    <h2>More screenshots</h2>
+    <div class="gallery">
+      <figure>
+        <a class="shot" href="images/saturn-2032-step-1b.3.png"><img src="images/saturn-2032-step-1b.3.png" alt="Saturn in April 2032 from below the ring plane: Cassini's measured ring structure, Saturn's shadow across the rings" loading="lazy"></a>
+        <figcaption>Saturn in April 2032, from below its rings: Cassini's measured ring structure and Saturn's shadow across it.</figcaption>
+      </figure>
+      <figure>
+        <a class="shot" href="images/belts-step-1b.7.png"><img src="images/belts-step-1b.7.png" alt="The asteroid belt (tan) and Jupiter's two Trojan clouds (gold), 60° ahead of and behind Jupiter, from 28,331 real orbits, with the zodiacal dust glowing around the Sun" loading="lazy"></a>
+        <figcaption>The asteroid belt and Jupiter's two Trojan clouds, 60° ahead of and behind it, from 28,331 real orbits.</figcaption>
+      </figure>
+      <figure>
+        <a class="shot" href="images/eclipse-path-step-5.3.png"><img src="images/eclipse-path-step-5.3.png" alt="The path of totality of 12 August 2026 seen from above the shadow at greatest eclipse: red limits and a pale central line arcing past Greenland and Iceland to Spain" loading="lazy"></a>
+        <figcaption>The path of totality of 12 August 2026, from Greenland and Iceland to Spain.</figcaption>
+      </figure>
+      <figure>
+        <a class="shot" href="images/kerr-step-3.2.png"><img src="images/kerr-step-3.2.png" alt="Cygnus X-1, spinning at 0.9985, from 29.5 GM/c² and 9° above its disk: the shadow flattened on the left, the disk's far side lensed over the top, its near side brightest on the left" loading="lazy"></a>
+        <figcaption>Cygnus X-1, spinning at 0.9985: its shadow flattened on the side where light circles with the spin, and its disk's far side lensed over the top.</figcaption>
+      </figure>
+      <figure>
+        <a class="shot" href="images/moon-impact-step-6.4.png"><img src="images/moon-impact-step-6.4.png" alt="The Moon-forming impact in its window at 2.5 hours: Earth with the impactor's material wrapped around its iron core, and a long arm of debris from the impactor" loading="lazy"></a>
+        <figcaption>The Moon-forming impact at 2.5 hours: the impactor's rock wrapped round Earth's iron core, and a long arm of debris.</figcaption>
+      </figure>
+      <figure>
+        <a class="shot" href="images/debris-step-6.2.png"><img src="images/debris-step-6.2.png" alt="A second Earth struck Earth at 30 km/s: an arc of orange fragments flies off, and the inspector shows erosion, 27% of the mass left, 73% thrown off" loading="lazy"></a>
+        <figcaption>A second Earth strikes Earth at 30 km/s: 73% of the mass flies off as fragments.</figcaption>
+      </figure>
+      <figure>
+        <a class="shot" href="images/magnetosphere-step-1b.9.png"><img src="images/magnetosphere-step-1b.9.png" alt="Earth's magnetosphere: radiation belts along dipole field lines around the tilted magnetic axis, inside the magnetopause set by the solar wind's pressure" loading="lazy"></a>
+        <figcaption>Earth's magnetosphere: the radiation belts on its field lines, inside the magnetopause the solar wind's pressure sets.</figcaption>
+      </figure>
+      <figure>
+        <a class="shot" href="images/gaia-nearby-stars-step-7.2.png"><img src="images/gaia-nearby-stars-step-7.2.png" alt="The Sun's neighborhood from 45 parsecs: Gaia's stars as white dots all around, thickest in the Hyades; the nearest and brightest stars as colored dots near the Sun" loading="lazy"></a>
+        <figcaption>The Sun's neighborhood from 45 parsecs: Gaia's stars, thickest in the Hyades.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="validation">
+  <div class="wrap">
+    <h2>Validated against reality</h2>
+    <p class="lead">Every claim links the test that checks it and a plot of what that test measured. {{TALLY}} The limits come from theory, rounding or the roadmap, never guesses, and the plots are drawn from the tests' own output (<a href="repo:docs/validation/README.md">how</a>).</p>
+    <div class="checks featured">
+<!-- FEATURED mercury-perihelion hulse-taylor-shrinking gw150914 black-hole-shadow eclipses-2026-2030 chandrasekhar-limit -->
+    </div>
+    <details class="all-checks">
+      <summary>All {{CHECKS}} checks, with their {{PLOTS}} plots</summary>
+      <label class="filter" hidden>Find a check <input type="search" id="filter" placeholder="Mercury, black hole, eclipse…" autocomplete="off"></label>
+      <p class="filter-count" id="filter-count" aria-live="polite"></p>
+      <div class="checks" id="all-checks">
+<!-- VALIDATION -->
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="section alt" id="run">
+  <div class="wrap narrow">
+    <h2>Run it</h2>
+    <p>Worldline is written in Rust. The Windows download comes with the v1 release; for now it builds from source.</p>
+    <ol class="steps">
+      <li>Install Rust from <a href="https://rustup.rs">rustup.rs</a>.</li>
+      <li>Get the code and run it. The first build takes a few minutes.
+<pre><code>git clone https://github.com/Bishnu2430/Worldline
+cd Worldline
+cargo run --release</code></pre></li>
+      <li>Drag to rotate, scroll to zoom, double-click a body to fly to it. <kbd>Space</kbd> runs or stops time, <kbd>+</kbd> and <kbd>−</kbd> change its speed, and <kbd>F1</kbd> opens the manual, which starts at the beginning.</li>
+    </ol>
+    <p>Some places to start:</p>
+<pre><code>cargo run --release -- --scenario gw150914      # two black holes merge
+cargo run --release -- --scenario hulse-taylor  # the pulsar, as a film
+cargo run --release -- --eclipse 7              # the eclipse of 12 August 2026
+cargo run --release -- --manual                 # open the manual
+cargo run --release -- --quality low            # for a weaker computer</code></pre>
+    <p>To run the checks yourself: <code>cargo test</code>, and the slow ones with <code>cargo test --release -- --ignored</code>.</p>
+    <p class="note">Developed on Windows 11 with an Intel Iris Xe. The continuous integration builds it and runs its tests on Linux.</p>
+  </div>
+</section>
+
+<section class="section" id="docs">
+  <div class="wrap narrow">
+    <h2>How it's built</h2>
+    <ul class="docs">
+      <li><a href="repo:docs/ARCHITECTURE.md">Architecture</a>: the crates, and how the engine picks a physics model for each body</li>
+      <li><a href="repo:docs/physics">The physics models</a>: one page each, with its equations, source, validity range and validation test</li>
+      <li><a href="repo:docs/SCOPE.md">Scope</a>: what v1 includes and excludes, and why</li>
+      <li><a href="repo:docs/app.md">The desktop app</a>: the interface, the frame loop, the double-precision 3D view</li>
+      <li><a href="repo:docs/ROADMAP.md">Roadmap</a>: the milestones, step by step</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>Worldline · <a href="repo:LICENSE">MIT License</a> · built with Rust, wgpu and egui · data from NASA JPL, NAIF, ESA's Gaia and the papers each model cites.</p>
+    <p>The screenshots show planet, Moon and Sun maps from <a href="https://www.solarsystemscope.com/textures/">Solar System Scope</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>) and the Milky Way from ESA/Gaia/DPAC, acknowledgement A. Moitinho (<a href="https://creativecommons.org/licenses/by-sa/3.0/igo/">CC BY-SA 3.0 IGO</a>). Every source is in the <a href="repo:CREDITS.md">credits</a>. The typeface is Inter (<a href="fonts/Inter-LICENSE.txt">SIL Open Font License</a>).</p>
+  </div>
+</footer>
+
+<script>
+  // Find a check: filters the cards as you type. Without scripts, all show.
+  (function () {
+    var input = document.getElementById("filter");
+    var count = document.getElementById("filter-count");
+    var cards = document.querySelectorAll("#all-checks .check");
+    input.parentElement.hidden = false;
+    input.addEventListener("input", function () {
+      var words = input.value.toLowerCase().split(/\s+/).filter(Boolean);
+      var shown = 0;
+      cards.forEach(function (card) {
+        var text = card.textContent.toLowerCase();
+        var match = words.every(function (w) { return text.indexOf(w) !== -1; });
+        card.hidden = !match;
+        if (match) shown += 1;
+      });
+      count.textContent = words.length ? shown + " of " + cards.length + " checks" : "";
+    });
+  })();
+</script>
+</body>
+</html>

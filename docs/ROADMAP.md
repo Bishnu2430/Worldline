@@ -117,7 +117,7 @@ Added 2026-10-22 at the owner's request: the galaxy's stars, cheaply. Famous obj
 | 8.5b | Scenarios as films, what compact stars look like (added 2026-11-21): stars and white dwarfs the color of their temperature, neutron stars with the light their own gravity bends round them, pulsars' beams, every visual choice labeled | Each drawn as published temperatures and radii give; what's illustration rather than measurement says so | ✅ |
 | 8.5c | Scenarios as films, all of them (added 2026-11-21): the double pulsar PSR J0737−3039A/B added from its published timing, and every scenario scripted, with what each event shows and how it was found | Each scenario plays as a film; the double pulsar's orbit turns and shrinks as Kramer et al. (2021) measured | ✅ |
 | 8.6 | A manual inside the app (added 2026-11-20): getting started, the controls, every window and tool, the scenarios, and each physics model with its limits | Opened from the top bar, it leads a newcomer from the first launch to every feature | ✅ |
-| 8.7 | A project website (added 2026-11-20): a GitHub Pages landing page with screenshots, features, the validation plots and how to run it | The site is live at its URL, deployed from the repository by a workflow | ⬜ |
+| 8.7 | A project website (added 2026-11-20): a GitHub Pages landing page with screenshots, features, the validation plots and how to run it | The site is live at its URL, deployed from the repository by a workflow | ✅ |
 | 8.8 | README with GIFs, physics docs, Windows release build | A fresh machine can download and run it | ⬜ |
 
 ## After v1

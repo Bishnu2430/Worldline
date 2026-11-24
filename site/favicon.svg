@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-32 -32 64 64">
+  <!-- The app's own icon (theme::icon in worldline-app): a tilted orbit, a planet on it, and its star. -->
+  <defs>
+    <radialGradient id="glow">
+      <stop offset="0" stop-color="#ffdb80" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#ffdb80" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle r="31" fill="#0f141f"/>
+  <ellipse rx="24" ry="10" transform="rotate(25)" fill="none" stroke="#6ea0ff" stroke-width="2"/>
+  <circle r="14" fill="url(#glow)"/>
+  <circle r="6" fill="#ffdb80"/>
+  <circle cx="16.4" cy="-1.2" r="3.4" fill="#d9ebff"/>
+</svg>
