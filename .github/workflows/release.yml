@@ -1,0 +1,128 @@
+name: Release
+
+# The Windows release (step 8.8a). Builds worldline.exe with the C runtime
+# inside it, checks it needs nothing but Windows, and starts it on a clean
+# machine that has only the zip. Pushing a tag such as v1.0.0 also
+# publishes the zip as a GitHub release. See docs/release.md.
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "tools/check_exe.py"
+      - "tools/release/**"
+      - "crates/worldline-app/src/main.rs"
+      - "crates/worldline-app/src/smoke.rs"
+      - "crates/worldline-app/Cargo.toml"
+      - "Cargo.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build for Windows
+    runs-on: windows-latest
+    outputs:
+      name: ${{ steps.version.outputs.name }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-static
+      - name: The version, which a tag must match
+        id: version
+        shell: bash
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | python -c "import json, sys; print(next(p['version'] for p in json.load(sys.stdin)['packages'] if p['name'] == 'worldline-app'))")
+          echo "Worldline $version"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::The tag $GITHUB_REF_NAME doesn't match the version in Cargo.toml, v$version"
+            exit 1
+          fi
+          echo "name=Worldline-$version-windows-x64" >> "$GITHUB_OUTPUT"
+      - name: Build, with the C runtime inside the program
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+        run: cargo build --release --locked -p worldline-app
+      - name: It needs nothing but Windows
+        run: python tools/check_exe.py target/release/worldline.exe
+      - name: Package
+        shell: pwsh
+        run: |
+          $name = "${{ steps.version.outputs.name }}"
+          $folder = New-Item -ItemType Directory -Force "dist/$name"
+          Copy-Item target/release/worldline.exe $folder
+          Copy-Item tools/release/README.txt $folder
+          Copy-Item LICENSE (Join-Path $folder "LICENSE.txt")
+          Copy-Item CREDITS.md $folder
+          Compress-Archive -Path $folder -DestinationPath "dist/$name.zip"
+          $hash = (Get-FileHash "dist/$name.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.zip" | Out-File -Encoding ascii "dist/$name.zip.sha256"
+          Get-ChildItem dist -File | Format-Table Name, Length
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.version.outputs.name }}
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+
+  clean-machine:
+    name: Start it on a clean machine
+    needs: build
+    runs-on: windows-latest
+    steps:
+      # No checkout and no Rust: only the zip, as someone who downloads it has.
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.name }}
+      - name: Unzip it and start it
+        shell: pwsh
+        run: |
+          $name = "${{ needs.build.outputs.name }}"
+          Expand-Archive "$name.zip" -DestinationPath .
+          Get-ChildItem $name | Format-Table Name, Length
+          # A windowed program: its output is read from files, and it's
+          # waited for, as a person double-clicking it isn't.
+          $run = Start-Process "$name/worldline.exe" -ArgumentList "--smoke-test", "frame.png" `
+            -PassThru -NoNewWindow -RedirectStandardOutput out.txt -RedirectStandardError err.txt
+          $null = $run.Handle
+          $finished = $run.WaitForExit(600000)
+          Get-Content out.txt
+          Get-Content err.txt | Select-Object -Last 20
+          if (-not $finished) { Stop-Process -Id $run.Id; throw "It didn't finish in 10 minutes" }
+          if ($run.ExitCode -ne 0) { throw "The smoke test failed (exit code $($run.ExitCode))" }
+      - name: Keep the frame it drew
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frame-on-a-clean-machine
+          path: frame.png
+          if-no-files-found: warn
+
+  publish:
+    name: Publish the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, clean-machine]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.name }}
+          path: dist
+      - name: Release it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp tools/release/notes.md notes.md
+          printf '\nSHA-256 of the zip: `%s`\n' "$(cut -d' ' -f1 dist/*.sha256)" >> notes.md
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.sha256 \
+            --title "Worldline $GITHUB_REF_NAME" --notes-file notes.md --verify-tag

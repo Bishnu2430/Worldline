@@ -626,6 +626,8 @@ pub struct WorldlineApp {
     /// A measured run (`--measure`): how long it lasts, s from the first
     /// frame, and the sums of the frames' times over its last two thirds.
     measure: Option<(f64, Measured)>,
+    /// The clean-machine check (`--smoke-test`, step 8.8a).
+    smoke: Option<crate::smoke::Smoke>,
 
     /// The GPU and the graphics interface it's driven through.
     gpu_name: String,
@@ -763,6 +765,7 @@ impl WorldlineApp {
             quality_auto: start.quality.is_none(),
             first_frame: None,
             measure: start.measure.map(|s| (s, Measured::default())),
+            smoke: start.smoke_test.clone().map(crate::smoke::Smoke::new),
             gpu_name: String::new(),
             live: false,
             behind: 0.0,
@@ -5310,7 +5313,10 @@ impl eframe::App for WorldlineApp {
             )
             .show(ui, |ui| self.inspector(ui));
         let view_began = Instant::now();
-        egui::CentralPanel::no_frame().show(ui, |ui| self.scene(ui, frame));
+        let view_rect = egui::CentralPanel::no_frame()
+            .show(ui, |ui| self.scene(ui, frame))
+            .response
+            .rect;
         let view = view_began.elapsed().as_secs_f64();
         self.catalogue_window(ui.ctx());
         if let Some(action) =
@@ -5338,6 +5344,9 @@ impl eframe::App for WorldlineApp {
             self.first_frame = Some(crate::since_start());
         }
         self.measured(ui.ctx(), elapsed, physics, (work - physics).max(0.0), view);
+        if let Some(smoke) = &mut self.smoke {
+            smoke.frame(ui.ctx(), view_rect, self.simulation.time(), &self.gpu_name);
+        }
         self.timings
             .record(elapsed, physics, (work - physics).max(0.0));
         let p = self.simulation.profile;

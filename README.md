@@ -254,6 +254,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 
 - [Scope](docs/SCOPE.md): what v1 includes and excludes, and why
 - [The website](docs/website.md): the landing page, built from this README's claims and published by a workflow
+- [The Windows release](docs/release.md): one program that needs nothing but Windows, checked on a clean machine before it's published
 - [Validation plots](docs/validation/README.md): a plot for every claim above, drawn from what its test measured
 - [Roadmap](docs/ROADMAP.md): milestones and steps
 - [Architecture](docs/ARCHITECTURE.md): how the engine picks physics models

@@ -118,7 +118,9 @@ Added 2026-10-22 at the owner's request: the galaxy's stars, cheaply. Famous obj
 | 8.5c | Scenarios as films, all of them (added 2026-11-21): the double pulsar PSR J0737−3039A/B added from its published timing, and every scenario scripted, with what each event shows and how it was found | Each scenario plays as a film; the double pulsar's orbit turns and shrinks as Kramer et al. (2021) measured | ✅ |
 | 8.6 | A manual inside the app (added 2026-11-20): getting started, the controls, every window and tool, the scenarios, and each physics model with its limits | Opened from the top bar, it leads a newcomer from the first launch to every feature | ✅ |
 | 8.7 | A project website (added 2026-11-20): a GitHub Pages landing page with screenshots, features, the validation plots and how to run it | The site is live at its URL, deployed from the repository by a workflow | ✅ |
-| 8.8 | README with GIFs, physics docs, Windows release build | A fresh machine can download and run it | ⬜ |
+| 8.8a | The Windows release (8.8 split in three on 2026-11-24): one program with the C runtime inside it, and no console window; a workflow builds it, checks it, starts it on a clean machine with only the zip, and publishes it from a version tag | Its header lists only Windows' own DLLs; on a clean Windows machine in CI, unzipped, it draws the solar system and its physics runs | ✅ |
+| 8.8b | Fresh screenshots and GIFs (added 2026-11-24): the app records its own frames, off the screen and without taking the mouse; every screenshot in the README retaken in today's interface; GIFs of the films | Every image in the README shows the current interface, and one command takes them all again | ⬜ |
+| 8.8c | The website restyled, and v1.0.0 (added 2026-11-24): the app's theme as the site's one source of colors; a more modern page with the GIFs; the README's last pass; the release published | A fresh machine can download v1.0.0 and run it | ⬜ |
 
 ## After v1
 
