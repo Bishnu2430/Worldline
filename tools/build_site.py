@@ -1,27 +1,35 @@
-"""Builds Worldline's website, the landing page on GitHub Pages (step 8.7).
+"""Builds Worldline's website, the landing page on GitHub Pages (steps 8.7 and 8.8c).
 
     python tools/build_site.py               # into target/site
-    python tools/build_site.py --compress    # screenshots as WebP, fonts as WOFF2
+    python tools/build_site.py --compress    # the typeface as WOFF2
     python tools/build_site.py --out DIR
 
 The page, site/index.html, and its stylesheet are written by hand. This script:
-- fills in the validation section from the README's table, so the site and the
-  README can never disagree;
-- copies every file the page uses next to it: screenshots from docs/images,
-  plots from docs/validation, and the app's own typeface;
-- turns `repo:` links into links to the repository on GitHub;
-- gives each image its width and height, so the page doesn't jump as they load.
+- gives the stylesheet the app's own theme, read from the app's source
+  (crates/worldline-app/src/theme.rs): every color, the corners' radii and
+  the animations' length. The stylesheet may name no color of its own, so
+  the site and the app can't drift apart;
+- fills in the screenshots and recordings from docs/screenshots, which the
+  app captured of itself (tools/capture.py), with what each shows;
+- fills in the validation section from the README's table, so the site and
+  the README can never disagree;
+- copies every file the page uses next to it, and turns `repo:` links into
+  links to the repository on GitHub;
+- gives each image and video its width and height, so the page doesn't
+  jump as they load.
 
 It fails if anything the page uses or links to in the repository is missing,
-if a link inside the page leads nowhere, or if the README's table has a row it
-can't read. `--compress` needs `cwebp` and `woff2_compress` (the Ubuntu
-packages webp and woff2); the workflow that publishes the site installs them.
+if a link inside the page leads nowhere, if the theme or the README's table
+has something it can't read, or if the stylesheet names a color itself.
+`--compress` needs `woff2_compress` (the Ubuntu package woff2); the workflow
+that publishes the site installs it.
 
 Python's standard library only. See docs/website.md.
 """
 
 import argparse
 import html
+import json
 import re
 import shutil
 import struct
@@ -33,10 +41,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
 README = ROOT / "README.md"
+THEME = ROOT / "crates" / "worldline-app" / "src" / "theme.rs"
+SCREENSHOTS = ROOT / "docs" / "screenshots"
 REPOSITORY = "https://github.com/Bishnu2430/Worldline"
 # The page's files, by the first folder of the path the page uses for them.
 FOLDERS = {
-    "images": ROOT / "docs" / "images",
+    "screenshots": SCREENSHOTS,
     "validation": ROOT / "docs" / "validation",
     "fonts": ROOT / "crates" / "worldline-app" / "assets" / "fonts",
 }
@@ -48,13 +58,121 @@ STATUSES = [
     ("🟨", "partly", "in part"),
     ("❌", "fail", "failing"),
 ]
+# The app's colors the site uses, by their names in theme.rs, and the CSS
+# variable each becomes.
+COLORS = {
+    "BACKGROUND": "background",
+    "SURFACE": "surface",
+    "RAISED": "raised",
+    "BORDER": "border",
+    "TEXT": "text",
+    "MUTED": "muted",
+    "ACCENT": "accent",
+    "ACCENT_FILL": "accent-fill",
+    "WITHIN": "within",
+    "APPROXIMATE": "approximate",
+    "BEYOND": "beyond",
+}
+# Where the stylesheet's theme goes.
+THEME_MARKER = "/* THEME */"
 
 
 def fail(message):
     sys.exit(f"build_site: {message}")
 
 
-# --- The README's validation table ------------------------------------------
+# --- The app's theme --------------------------------------------------------------
+
+
+def read_theme():
+    """The app's colors, radii and animation length, from theme.rs, as CSS."""
+    source = THEME.read_text(encoding="utf-8")
+    found = {
+        name: (int(r), int(g), int(b))
+        for name, r, g, b in re.findall(
+            r"pub const (\w+): Color32 = Color32::from_rgb\((\d+),\s*(\d+),\s*(\d+)\);", source
+        )
+    }
+    missing = [name for name in COLORS if name not in found]
+    if missing:
+        fail(f"theme.rs no longer has {', '.join(missing)}, which the site's colors come from")
+    colors = {COLORS[name]: found[name] for name in COLORS}
+
+    def one(pattern, what):
+        match = re.search(pattern, source)
+        if not match:
+            fail(f"theme.rs no longer says {what} the way this script reads it")
+        return match.groups()
+
+    # Labels' and body text's color: the noninteractive widgets' text.
+    colors["soft"] = tuple(int(x) for x in one(
+        r"widgets\.noninteractive\.fg_stroke = Stroke::new\([\d.]+,\s*Color32::from_rgb\((\d+),\s*(\d+),\s*(\d+)\)\)",
+        "its labels' text color"))
+    radii = {
+        "radius-window": one(r"visuals\.window_corner_radius = CornerRadius::same\((\d+)\)", "its windows' corners")[0],
+        "radius-card": one(r"visuals\.menu_corner_radius = CornerRadius::same\((\d+)\)", "its menus' corners")[0],
+        "radius-control": one(r"let radius = CornerRadius::same\((\d+)\);", "its widgets' corners")[0],
+    }
+    animation = one(r"pub const ANIMATION: f32 = ([\d.]+);", "its animations' length")[0]
+
+    lines = ["/* The app's own theme, from crates/worldline-app/src/theme.rs, written in by tools/build_site.py. */",
+             ":root {", "  color-scheme: dark;"]
+    for name, (r, g, b) in colors.items():
+        lines.append(f"  --{name}: rgb({r} {g} {b});")
+        lines.append(f"  --{name}-rgb: {r} {g} {b};")
+    for name, pixels in radii.items():
+        lines.append(f"  --{name}: {pixels}px;")
+    lines.append(f"  --animation: {float(animation):g}s;")
+    lines.append("}")
+    return "\n".join(lines), colors
+
+
+def check_no_colors_of_its_own(style):
+    """The stylesheet names no color itself: they all come from the app."""
+    without_comments = re.sub(r"/\*.*?\*/", "", style, flags=re.S)
+    own = re.findall(
+        r"#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(\s*\d[^)]*\)|(?<![\w-])(?:white|black)(?![\w-])", without_comments
+    )
+    if own:
+        fail(f"site/style.css names colors of its own ({', '.join(sorted(set(own)))}): "
+             "use the app's, var(--name) or rgb(var(--name-rgb) / alpha)")
+
+
+# --- The screenshots ----------------------------------------------------------------
+
+
+def read_screenshots():
+    index = SCREENSHOTS / "screenshots.json"
+    if not index.is_file():
+        fail("docs/screenshots/screenshots.json isn't there: run tools/capture.py")
+    return {entry["name"]: entry for entry in json.loads(index.read_text(encoding="utf-8"))}
+
+
+def fill_screenshots(page, shots):
+    """{{shot:name}}, {{video:name}} and {{shows:name}}, from what the app captured."""
+
+    def entry(name, key="file"):
+        if name not in shots or key not in shots[name]:
+            fail(f"the page uses the screenshot {name!r}{' as video' if key == 'video' else ''}, "
+                 "which docs/screenshots doesn't have")
+        return shots[name]
+
+    def shot(match):
+        e = entry(match.group(1))
+        return f'<img src="screenshots/{e["file"]}" alt="{html.escape(e["shows"])}" loading="lazy" decoding="async">'
+
+    def video(match):
+        e = entry(match.group(1), "video")
+        return (f'<video src="screenshots/{e["video"]}" aria-label="{html.escape(e["shows"])}" '
+                f'autoplay muted loop playsinline preload="metadata"></video>')
+
+    page = re.sub(r"\{\{shot:([\w-]+)\}\}", shot, page)
+    page = re.sub(r"\{\{video:([\w-]+)\}\}", video, page)
+    page = re.sub(r"\{\{shows:([\w-]+)\}\}", lambda m: html.escape(entry(m.group(1))["shows"]), page)
+    return page
+
+
+# --- The README's validation table ------------------------------------------------
 
 
 class Check:
@@ -139,7 +257,7 @@ def card(check, plot=None):
     tests = ", ".join(f'<a href="{repository_link(t)}">{Path(t).name}</a>' for t in check.tests)
     plots = ", ".join(f'<a href="validation/{Path(p).name}">{Path(p).stem}</a>' for p in check.plots)
     return f"""<article class="check">
-  <a class="plot" href="validation/{name}"><img src="validation/{name}" alt="{html.escape(title)}" loading="lazy"></a>
+  <a class="plot" href="validation/{name}"><img src="validation/{name}" alt="{html.escape(title)}" loading="lazy" decoding="async"></a>
   <div class="check-body">
     <h3>{inline(check.test)}</h3>
     <p class="expected"><span class="label">Expected</span>{inline(check.expected)}</p>
@@ -149,7 +267,7 @@ def card(check, plot=None):
 </article>"""
 
 
-# --- Files --------------------------------------------------------------------
+# --- Files ------------------------------------------------------------------------
 
 
 def svg_size(path):
@@ -173,6 +291,46 @@ def png_size(path):
     if head[:8] != b"\x89PNG\r\n\x1a\n":
         fail(f"{path.name} isn't a PNG")
     return struct.unpack(">II", head[16:24])
+
+
+def webp_size(path):
+    """A WebP's size, from whichever of its three headers it has."""
+    with open(path, "rb") as f:
+        head = f.read(32)
+    if head[:4] != b"RIFF" or head[8:12] != b"WEBP":
+        fail(f"{path.name} isn't a WebP")
+    chunk = head[12:16]
+    if chunk == b"VP8X":  # extended (animated, alpha): the canvas, 24-bit, less one
+        return (int.from_bytes(head[24:27], "little") + 1, int.from_bytes(head[27:30], "little") + 1)
+    if chunk == b"VP8 ":  # lossy: after the frame tag and start code, 14 bits each
+        width, height = struct.unpack("<HH", head[26:30])
+        return width & 0x3FFF, height & 0x3FFF
+    if chunk == b"VP8L":  # lossless: 14 bits each, less one, after the signature
+        bits = int.from_bytes(head[21:25], "little")
+        return (bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1
+    fail(f"{path.name} has a WebP header this script doesn't read: {chunk!r}")
+
+
+def mp4_size(path):
+    """An MP4's picture size, from its video track's header (tkhd)."""
+    data = path.read_bytes()
+    at = 0
+    while True:
+        at = data.find(b"tkhd", at)
+        if at < 0:
+            fail(f"{path.name} has no track with a picture")
+        version = data[at + 4]
+        # After the version and flags: times, track and duration (wider in
+        # version 1), reserved, layer, group, volume, reserved and matrix.
+        offset = at + 4 + 4 + (32 if version == 1 else 20) + 8 + 8 + 36
+        width, height = struct.unpack(">II", data[offset : offset + 8])
+        if width and height:
+            return width >> 16, height >> 16
+        at += 4
+
+
+def size_of(source):
+    return {".svg": svg_size, ".png": png_size, ".webp": webp_size, ".mp4": mp4_size}[source.suffix](source)
 
 
 def source_of(reference):
@@ -199,7 +357,7 @@ def repository_link(target):
 
 def local_references(page, style):
     """Every file the page and its stylesheet use, in the order they appear."""
-    found = re.findall(r'\b(?:src|href)="([^"]+)"', page) + re.findall(r'url\("([^"]+)"\)', style)
+    found = re.findall(r'\b(?:src|href|poster)="([^"]+)"', page) + re.findall(r'url\("([^"]+)"\)', style)
     seen = []
     for reference in found:
         if re.match(r"[a-z]+:|#|//", reference):
@@ -210,18 +368,18 @@ def local_references(page, style):
 
 
 def sized(page):
-    """Each image given its width and height, read from the file."""
+    """Each image and video given its width and height, read from the file."""
 
     def size(match):
         tag = match.group(0)
-        if " width=" in tag:
+        src = re.search(r'\bsrc="([^"]+)"', tag)
+        # One already sized, or with no picture yet (the lightbox's).
+        if " width=" in tag or src is None:
             return tag
-        src = re.search(r'\bsrc="([^"]+)"', tag).group(1)
-        source = source_of(src)
-        width, height = svg_size(source) if source.suffix == ".svg" else png_size(source)
+        width, height = size_of(source_of(src.group(1)))
         return tag[:-1] + f' width="{width}" height="{height}">'
 
-    return re.sub(r"<img\b[^>]*>", size, page)
+    return re.sub(r"<(?:img|video)\b[^>]*>", size, page)
 
 
 class Anchors(HTMLParser):
@@ -237,7 +395,7 @@ class Anchors(HTMLParser):
                 if value in self.ids:
                     fail(f"the page has two elements with id {value}")
                 self.ids.add(value)
-            if name == "href" and value and value.startswith("#"):
+            if name == "href" and value and value.startswith("#") and len(value) > 1:
                 self.links.add(value[1:])
 
 
@@ -245,20 +403,33 @@ def run(command):
     try:
         subprocess.run(command, check=True, capture_output=True)
     except FileNotFoundError:
-        fail(f"--compress needs {command[0]} (Ubuntu: apt install webp woff2)")
+        fail(f"--compress needs {command[0]} (Ubuntu: apt install woff2)")
     except subprocess.CalledProcessError as error:
         fail(f"{' '.join(command)} failed: {error.stderr.decode(errors='replace')[:300]}")
 
 
-# --- The build ----------------------------------------------------------------
+# --- The build --------------------------------------------------------------------
 
 
 def build(out, compress):
     checks = read_checks()
+    shots = read_screenshots()
+    theme, colors = read_theme()
     page = (SITE / "index.html").read_text(encoding="utf-8")
     style = (SITE / "style.css").read_text(encoding="utf-8")
     if GENERATOR not in page:
         fail("site/index.html lost its generator line, which marks what this script may replace")
+    check_no_colors_of_its_own(style)
+    if style.count(THEME_MARKER) != 1:
+        fail(f"site/style.css needs one {THEME_MARKER} line, where the app's theme goes")
+    style = style.replace(THEME_MARKER, theme)
+
+    # The screenshots and recordings, from what the app captured, and the
+    # theme's colors where the page names one (the browser's bar).
+    page = fill_screenshots(page, shots)
+    page = re.sub(r"\{\{color:([\w-]+)\}\}",
+                  lambda m: "#{:02x}{:02x}{:02x}".format(*colors[m.group(1)]) if m.group(1) in colors
+                  else fail(f"the theme has no color {m.group(1)!r}"), page)
 
     # The validation section, from the README.
     featured = re.search(r"<!-- FEATURED ([^>]*) -->", page)
@@ -279,7 +450,7 @@ def build(out, compress):
     page = page.replace("{{CHECKS}}", str(len(checks)))
     page = page.replace("{{PLOTS}}", str(len(plots)))
     page = page.replace("{{TALLY}}", tally(checks))
-    left = re.search(r"\{\{\w*\}\}", page)
+    left = re.search(r"\{\{[\w:-]*\}\}", page)
     if left:
         fail(f"site/index.html has {left.group(0)}, which this script doesn't fill in")
 
@@ -302,17 +473,12 @@ def build(out, compress):
 
     # The files the page uses, copied, or made smaller.
     total = 0
-    references = local_references(page, style)
+    references = [r for r in local_references(page, style) if r != "style.css"]
     for reference in references:
-        if reference == "style.css":
-            continue  # written below, with its own references renamed
         source = source_of(reference)
         target = out / reference
         target.parent.mkdir(parents=True, exist_ok=True)
-        if compress and source.suffix == ".png":
-            target = target.with_suffix(".webp")
-            run(["cwebp", "-quiet", "-q", "85", "-m", "6", "-sharp_yuv", str(source), "-o", str(target)])
-        elif compress and source.suffix == ".ttf":
+        if compress and source.suffix == ".ttf":
             shutil.copyfile(source, target)
             run(["woff2_compress", str(target)])
             target.unlink()
@@ -328,8 +494,12 @@ def build(out, compress):
     (out / "index.html").write_text(page, encoding="utf-8", newline="\n")
     (out / "style.css").write_text(style, encoding="utf-8", newline="\n")
     total += (out / "index.html").stat().st_size + (out / "style.css").stat().st_size
-    print(f"{len(checks)} checks ({tally(checks)}), {len(plots)} plots")
-    print(f"{len(references) + 1} files, {total / 1e6:.1f} MB, in {out}")
+    used = sum(1 for name in shots if f"screenshots/{shots[name]['file']}" in references
+               or f"screenshots/{shots[name].get('video', '')}" in references)
+    print(f"{len(checks)} checks ({tally(checks)}), {len(plots)} plots; {used} of {len(shots)} captures; "
+          f"the theme from theme.rs")
+    print(f"{len(references) + 2} files, {total / 1e6:.1f} MB, in {out}")
+    return page
 
 
 def main():
@@ -337,7 +507,7 @@ def main():
         stream.reconfigure(errors="backslashreplace")
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--out", type=Path, default=ROOT / "target" / "site", help="where to write it (default target/site)")
-    parser.add_argument("--compress", action="store_true", help="screenshots as WebP and fonts as WOFF2 (needs cwebp and woff2_compress)")
+    parser.add_argument("--compress", action="store_true", help="the typeface as WOFF2 (needs woff2_compress)")
     args = parser.parse_args()
     build(args.out.resolve(), args.compress)
 

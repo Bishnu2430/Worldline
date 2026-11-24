@@ -4,7 +4,7 @@
 
 **Website:** [bishnu2430.github.io/Worldline](https://bishnu2430.github.io/Worldline/)
 
-> **Status:** pre-alpha. The engine runs the real solar system in a 3D window, with relativistic gravity, all 459 of its known moons, 62 dwarf planets, asteroids and comets, 28,331 belt asteroids and Kuiper belt objects, the zodiacal dust, the Sun's reach (its wind, its heliosphere and its light), the planets' magnetospheres, and giant planets as self-gravitating fluids that tides stretch and tear apart. See the [roadmap](docs/ROADMAP.md).
+> **Version 1.0, for Windows:** [download it](https://github.com/Bishnu2430/Worldline/releases/latest), unzip it and double-click `worldline.exe`; there's nothing to install. The engine runs the real solar system in a 3D window, with relativistic gravity, all 459 of its known moons, 62 dwarf planets, asteroids and comets, 28,331 belt asteroids and Kuiper belt objects, the zodiacal dust, the Sun's reach (its wind, its heliosphere and its light), the planets' magnetospheres, and giant planets as self-gravitating fluids that tides stretch and tear apart. See the [roadmap](docs/ROADMAP.md).
 
 ![Worldline with Saturn up close: along the top, time, the scenarios, eclipses, the sky, the manual and the tools to add bodies; on the right, every body, and the one selected with the physics that moves it](docs/screenshots/interface.webp)
 
@@ -27,7 +27,7 @@
 
 Every image here is the app capturing its own frames, made again by one command: see [docs/screenshots](docs/screenshots/README.md).
 
-## What v1 will do
+## What v1 does
 
 - Start from the real solar system (NASA JPL data) and a catalog of notable objects: Sagittarius A\*, TON 618, M87\* and the Hulse–Taylor binary pulsar.
 - Add, drag and launch bodies, with time running anywhere from real time to millions of years per second.
@@ -132,7 +132,9 @@ Each claim links the test that checks it and a plot of what that test measured, 
 
 ## Run it
 
-You need [Rust](https://rustup.rs). From the repository root:
+**On Windows,** download the zip from the [latest release](https://github.com/Bishnu2430/Worldline/releases/latest), unzip it and double-click `worldline.exe`. It needs Windows 10 or 11 (64-bit) and a graphics card that draws through DirectX 12 or Vulkan. The program isn't signed with a paid certificate, so the first time Windows may say *Windows protected your PC*: press **More info**, then **Run anyway**. Before each release is published, a clean Windows machine with only the zip starts it and checks what it draws: see [docs/release.md](docs/release.md).
+
+**From source,** you need [Rust](https://rustup.rs). From the repository root:
 
 ```bash
 cargo run --release

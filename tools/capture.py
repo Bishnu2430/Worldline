@@ -16,7 +16,9 @@ Into docs/screenshots/ go:
   GIF in full color, at a tenth of a GIF's size), and as an MP4, 1280 wide,
   for the website;
 - screenshots.json and README.md, listing each with what it shows and the
-  command that makes it.
+  command that makes it;
+- social.jpg, the interface as the picture a shared link to the website
+  shows.
 
 Needs the release build, which it makes first (`cargo build --release`), and
 ffmpeg. Python's standard library only.
@@ -45,6 +47,9 @@ class Shot:
     shows: str
     args: list
     at: float = 2.0
+    # Also as the picture a link to the website shows when shared: a JPEG,
+    # 1200 by 630, the top of the frame.
+    social: bool = False
 
 
 @dataclass
@@ -62,7 +67,7 @@ class Film:
 
 SHOTS = [
     Shot("interface", "Saturn up close: along the top, time, the scenarios, eclipses, the sky, the manual and the tools to add bodies; on the right, every body, and the one selected with the physics that moves it",
-         ["--focus", "Saturn", "--zoom", "8", "--pitch", "20", "--paused"]),
+         ["--focus", "Saturn", "--zoom", "8", "--pitch", "20", "--paused"], social=True),
     Shot("solar-system", "The real solar system five months after 1 January 2025, with relativistic gravity: the planets' orbits, the asteroid belt and the comets",
          [], at=5.0),
     Shot("earth", "Earth on 1 January 2025: clouds, blue Rayleigh haze, the Pacific in daylight and night falling over Asia",
@@ -145,12 +150,17 @@ def take_shot(shot, work):
         return None, said
     webp = OUT / f"{shot.name}.webp"
     ffmpeg("-i", str(png), "-c:v", "libwebp", "-quality", "90", "-compression_level", "6", str(webp))
-    return {
+    made = {
         "name": shot.name,
         "file": webp.name,
         "shows": shot.shows,
         "command": command(shot.args, ["--capture", f"{shot.name}.png", "--at", f"{shot.at:g}"]),
-    }, said
+    }
+    if shot.social:
+        ffmpeg("-i", str(png), "-vf", "crop=iw:iw*630/1200:0:0,scale=1200:630:flags=lanczos", "-q:v", "3",
+               str(OUT / "social.jpg"))
+        made["social"] = "social.jpg"
+    return made, said
 
 
 def take_film(film, work):

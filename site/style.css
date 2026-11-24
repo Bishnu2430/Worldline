@@ -1,5 +1,13 @@
-/* Worldline's website. The colors are the app's own (theme.rs in worldline-app),
-   and so is the typeface, Inter. */
+/* Worldline's website (steps 8.7 and 8.8c).
+
+   Its theme is the app's own: tools/build_site.py writes the colors, the
+   corners' radii and the animations' length in where THEME is below,
+   read from crates/worldline-app/src/theme.rs. This file names no color
+   of its own (the build fails if it does): only var(--name), or
+   rgb(var(--name-rgb) / alpha) for one seen through. So the site and the
+   app can't drift apart. The typeface is the app's too, Inter. */
+
+/* THEME */
 
 @font-face {
   font-family: "Inter";
@@ -15,21 +23,10 @@
 }
 
 :root {
-  color-scheme: dark;
-  --background: #090b10;
-  --surface: #0f121a;
-  --raised: #171c27;
-  --border: #212837;
-  --text: #e2e7f0;
-  --soft: #c6cdd9;
-  --muted: #7c8698;
-  --accent: #6ea0ff;
-  --accent-fill: #2c60d2;
-  --within: #6ecd8c;
-  --approximate: #f0b450;
-  --beyond: #f06e64;
-  --radius: 12px;
+  --wrap: 1180px;
   --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, Menlo, monospace;
+  /* A shadow is darkness: the background's color, deeper. */
+  --shadow: 0 24px 64px -28px rgb(var(--background-rgb) / 0.95), 0 2px 6px rgb(var(--background-rgb) / 0.5);
 }
 
 *,
@@ -40,19 +37,25 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 72px;
+  scroll-padding-top: 76px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 body {
   margin: 0;
   background: var(--background);
   color: var(--text);
-  font: 16px/1.6 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 16px/1.65 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-img {
+img,
+video {
   display: block;
   max-width: 100%;
   height: auto;
@@ -62,34 +65,36 @@ a {
   color: var(--accent);
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
+  transition: color var(--animation);
 }
 a:hover {
-  color: #9dbfff;
+  color: var(--text);
 }
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
-  border-radius: 4px;
+  border-radius: var(--radius-control);
 }
 
 h1,
 h2,
 h3 {
   font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.015em;
-  margin: 0 0 0.6em;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.55em;
 }
 h1 {
-  font-size: clamp(2.2rem, 6vw, 3.75rem);
-  letter-spacing: -0.03em;
+  font-size: clamp(2.5rem, 7vw, 4.6rem);
+  letter-spacing: -0.035em;
 }
 h2 {
-  font-size: clamp(1.6rem, 3.4vw, 2.25rem);
-  margin-bottom: 1.2em;
+  font-size: clamp(1.75rem, 3.8vw, 2.6rem);
+  max-width: 22em;
 }
 h3 {
-  font-size: 1.3rem;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
 }
 p {
   margin: 0 0 1em;
@@ -118,31 +123,29 @@ kbd {
   white-space: nowrap;
 }
 pre {
-  background: var(--surface);
+  background: var(--background);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   padding: 14px 16px;
-  margin: 0.8em 0 1.2em;
+  margin: 0.8em 0 1.1em;
   overflow-x: auto;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 pre code {
   background: none;
   padding: 0;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
+  color: var(--soft);
 }
 
 .wrap {
-  max-width: 1160px;
+  max-width: var(--wrap);
   margin: 0 auto;
   padding: 0 16px;
 }
-.wrap.narrow {
-  max-width: 800px;
-}
 @media (min-width: 640px) {
   .wrap {
-    padding: 0 28px;
+    padding: 0 32px;
   }
 }
 
@@ -153,25 +156,25 @@ pre code {
 .skip:focus {
   left: 16px;
   top: 12px;
-  z-index: 10;
+  z-index: 20;
   background: var(--raised);
   padding: 8px 12px;
 }
 
-/* The bar along the top, like the app's. */
+/* The bar along the top: the app's top bar. */
 .bar {
   position: sticky;
   top: 0;
-  z-index: 5;
-  background: rgba(9, 11, 16, 0.82);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
+  z-index: 10;
+  background: rgb(var(--background-rgb) / 0.78);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border-bottom: 1px solid rgb(var(--border-rgb) / 0.8);
 }
 .bar-inner {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 28px;
   height: 60px;
 }
 .brand {
@@ -180,7 +183,8 @@ pre code {
   gap: 10px;
   color: var(--text);
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 1.08rem;
+  letter-spacing: -0.01em;
   text-decoration: none;
 }
 .brand:hover {
@@ -188,18 +192,26 @@ pre code {
 }
 .nav {
   display: flex;
-  gap: 22px;
+  gap: 6px;
   margin-right: auto;
 }
 .nav a {
   color: var(--soft);
   text-decoration: none;
-  font-size: 0.95rem;
+  font-size: 0.93rem;
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  transition: background var(--animation), color var(--animation);
 }
 .nav a:hover {
   color: var(--text);
+  background: var(--raised);
 }
-@media (max-width: 640px) {
+.bar-actions {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 820px) {
   .nav {
     display: none;
   }
@@ -207,14 +219,20 @@ pre code {
     margin-right: auto;
   }
 }
+@media (max-width: 420px) {
+  .hide-narrow {
+    display: none;
+  }
+}
 
+/* Buttons: the app's, the primary one in its accent. */
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  min-height: 42px;
   padding: 0 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border);
   background: var(--raised);
   color: var(--text);
@@ -222,61 +240,177 @@ pre code {
   font-size: 0.95rem;
   text-decoration: none;
   white-space: nowrap;
+  transition: background var(--animation), border-color var(--animation), transform var(--animation),
+    box-shadow var(--animation);
 }
 .button:hover {
   color: var(--text);
-  border-color: #3a4862;
-  background: #1e2532;
+  border-color: rgb(var(--accent-rgb) / 0.35);
+  background: rgb(var(--raised-rgb) / 0.6);
 }
 .button.primary {
   background: var(--accent-fill);
   border-color: var(--accent-fill);
-  color: #fff;
+  box-shadow: 0 8px 24px -10px rgb(var(--accent-fill-rgb) / 0.9);
 }
 .button.primary:hover {
-  background: #3770e6;
+  background: var(--accent-fill);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px -10px rgb(var(--accent-fill-rgb) / 1);
+}
+.button.ghost {
+  background: transparent;
 }
 .button.small {
-  min-height: 36px;
+  min-height: 34px;
   padding: 0 14px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+}
+.button.large {
+  min-height: 50px;
+  padding: 0 24px;
+  font-size: 1rem;
 }
 
-/* The opening. */
-.hero {
-  padding: 72px 0 40px;
-  background:
-    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(44, 96, 210, 0.22), transparent 70%),
-    radial-gradient(ellipse 40% 30% at 85% 30%, rgba(240, 180, 80, 0.06), transparent 70%);
+/* The chips and dots of the app's model indicator. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgb(var(--surface-rgb) / 0.7);
+  color: var(--soft);
+  font-size: 0.85rem;
+  margin-bottom: 22px;
 }
-.eyebrow {
-  color: var(--accent);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 0.8rem;
-  margin-bottom: 1em;
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.dot.within {
+  background: var(--within);
+  box-shadow: 0 0 10px rgb(var(--within-rgb) / 0.6);
+}
+.dot.approximate {
+  background: var(--approximate);
+  box-shadow: 0 0 10px rgb(var(--approximate-rgb) / 0.6);
+}
+.dot.beyond {
+  background: var(--beyond);
+  box-shadow: 0 0 10px rgb(var(--beyond-rgb) / 0.6);
+}
+
+/* The opening: a night sky behind it, drawn with the theme's own colors. */
+.hero {
+  position: relative;
+  padding: 88px 0 64px;
+  overflow: hidden;
+}
+.sky {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 0%, rgb(var(--accent-fill-rgb) / 0.32), transparent 70%),
+    radial-gradient(ellipse 35% 30% at 85% 22%, rgb(var(--approximate-rgb) / 0.07), transparent 70%),
+    radial-gradient(ellipse 30% 30% at 12% 40%, rgb(var(--accent-rgb) / 0.07), transparent 70%),
+    radial-gradient(1px 1px at 12% 18%, rgb(var(--text-rgb) / 0.7), transparent 60%),
+    radial-gradient(1px 1px at 28% 62%, rgb(var(--text-rgb) / 0.5), transparent 60%),
+    radial-gradient(1.5px 1.5px at 44% 30%, rgb(var(--text-rgb) / 0.6), transparent 60%),
+    radial-gradient(1px 1px at 63% 12%, rgb(var(--text-rgb) / 0.6), transparent 60%),
+    radial-gradient(1px 1px at 78% 48%, rgb(var(--text-rgb) / 0.5), transparent 60%),
+    radial-gradient(1.5px 1.5px at 90% 70%, rgb(var(--text-rgb) / 0.55), transparent 60%),
+    radial-gradient(1px 1px at 6% 82%, rgb(var(--text-rgb) / 0.45), transparent 60%),
+    radial-gradient(1px 1px at 55% 88%, rgb(var(--text-rgb) / 0.4), transparent 60%),
+    radial-gradient(1px 1px at 35% 8%, rgb(var(--text-rgb) / 0.5), transparent 60%),
+    radial-gradient(1px 1px at 70% 35%, rgb(var(--accent-rgb) / 0.7), transparent 60%);
+  mask-image: linear-gradient(to bottom, var(--background) 55%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, var(--background) 55%, transparent);
+}
+.hero-copy {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hero h1 {
+  max-width: 14em;
+}
+.glow {
+  background: linear-gradient(100deg, var(--accent) 10%, var(--text) 55%, var(--approximate) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 .lead {
-  font-size: 1.15rem;
+  font-size: 1.12rem;
   color: var(--soft);
-  max-width: 50em;
+  max-width: 46em;
 }
 .hero .lead {
-  font-size: clamp(1.05rem, 2.2vw, 1.25rem);
-  max-width: 44em;
+  font-size: clamp(1.05rem, 2.2vw, 1.22rem);
+  max-width: 40em;
 }
 .actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
-  margin: 28px 0 40px;
+  margin: 26px 0 12px;
 }
+.fineprint {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-bottom: 52px;
+}
+
+/* A capture in a window like the app's. */
+.window {
+  margin: 0 auto;
+  max-width: 1040px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-window);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow:
+    var(--shadow),
+    0 0 0 1px rgb(var(--accent-rgb) / 0.06),
+    0 0 140px -50px rgb(var(--accent-fill-rgb) / 0.7);
+}
+.window-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.window video,
+.window img {
+  width: 100%;
+}
+.window figcaption {
+  padding: 12px 16px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  border-top: 1px solid var(--border);
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  margin: 0 0 40px;
+  margin: 40px auto 0;
+  max-width: 1040px;
 }
 @media (min-width: 760px) {
   .stats {
@@ -284,13 +418,13 @@ pre code {
   }
 }
 .stats div {
-  background: var(--surface);
+  background: linear-gradient(180deg, var(--surface), rgb(var(--surface-rgb) / 0.4));
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
 }
 .stats dt {
-  font-size: 1.7rem;
+  font-size: 1.85rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -298,137 +432,224 @@ pre code {
 .stats dd {
   margin: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   line-height: 1.4;
 }
 
-/* Screenshots: the app's window, framed. */
-.shot {
-  display: block;
-  margin: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--surface);
-  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.9);
-}
-.hero-shot {
-  box-shadow:
-    0 30px 80px -30px rgba(0, 0, 0, 0.9),
-    0 0 0 1px rgba(110, 160, 255, 0.08),
-    0 0 120px -40px rgba(44, 96, 210, 0.5);
-}
-.shot figcaption {
-  padding: 12px 16px;
-  color: var(--muted);
-  font-size: 0.9rem;
-  border-top: 1px solid var(--border);
-}
-
+/* Sections. */
 .section {
-  padding: 72px 0;
+  padding: 96px 0;
 }
-.section.alt {
-  background: var(--surface);
+.section.band {
+  background: linear-gradient(180deg, var(--surface), rgb(var(--surface-rgb) / 0.55));
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
-.section.alt .shot,
-.section.alt pre {
-  background: var(--background);
-}
 @media (max-width: 640px) {
   .section {
-    padding: 52px 0;
+    padding: 64px 0;
   }
   .hero {
-    padding-top: 48px;
+    padding-top: 56px;
   }
 }
+.eyebrow {
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  margin-bottom: 12px;
+}
 
-/* What it does: a screenshot beside each feature, sides alternating. */
-.feature {
+/* What it simulates: tiles like the app's cards, some twice as wide. */
+.bento {
   display: grid;
-  gap: 20px 48px;
-  align-items: center;
-  margin-bottom: 64px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 18px;
+  margin-top: 36px;
 }
-.feature-text p {
-  color: var(--soft);
-}
-.feature-text p:last-child {
-  margin-bottom: 0;
-}
-@media (min-width: 860px) {
-  .feature {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+@media (min-width: 980px) {
+  .bento {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .feature:nth-of-type(even) .shot {
-    order: 2;
+  .tile.wide {
+    grid-column: span 2;
   }
 }
-
-.honest {
-  background: linear-gradient(180deg, rgba(110, 205, 140, 0.07), rgba(110, 205, 140, 0.02));
-  border: 1px solid rgba(110, 205, 140, 0.25);
-  border-radius: var(--radius);
-  padding: 24px 28px;
+.tile {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-window);
+  overflow: hidden;
+  transition: transform calc(var(--animation) * 2), border-color calc(var(--animation) * 2),
+    box-shadow calc(var(--animation) * 2);
 }
-.honest h3 {
-  color: var(--within);
+.tile:hover {
+  transform: translateY(-3px);
+  border-color: rgb(var(--accent-rgb) / 0.3);
+  box-shadow: var(--shadow);
 }
-.honest p {
+/* A tile shows only the capture's 3D view: the app's panel takes the
+   right third of the frame (the view ends at 1,062 of its 1,600 pixels),
+   so the picture is drawn 1600/1062 times as wide and its left edge kept. */
+.media {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+}
+.media img,
+.media video {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 150.7%;
+  max-width: none;
+  height: auto;
+  transform: translateY(-50%);
+  transform-origin: 33% 50%;
+  transition: transform calc(var(--animation) * 4);
+}
+.tile:hover .media img {
+  transform: translateY(-50%) scale(1.03);
+}
+.tile.wide .media {
+  aspect-ratio: 16 / 8;
+}
+.tile-text {
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.tile-text p {
   color: var(--soft);
-  margin: 0;
-  max-width: 60em;
+  font-size: 0.94rem;
 }
-
-.gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
-  gap: 28px 24px;
-}
-.gallery figure {
-  margin: 0;
-}
-.gallery figcaption {
+.tile-text .more {
+  margin: auto 0 0;
+  font-size: 0.88rem;
   color: var(--muted);
+}
+
+/* Honest about its limits: beside an inspector card like the app's. */
+.split {
+  display: grid;
+  gap: 40px 64px;
+  align-items: center;
+}
+@media (min-width: 920px) {
+  .split {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+  }
+}
+.split-text p {
+  color: var(--soft);
+}
+.verdicts {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2em;
+  display: grid;
+  gap: 10px;
+}
+.verdicts li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--soft);
+}
+.inspector {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
   font-size: 0.9rem;
-  margin-top: 10px;
+}
+.inspector p {
+  margin: 0 0 10px;
+}
+.inspector-title {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.inspector-heading {
+  font-weight: 600;
+}
+.inspector-text {
+  color: var(--soft);
   line-height: 1.5;
 }
-.gallery a.shot:hover {
-  border-color: #3a4862;
+.verdict {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  color: var(--soft);
+  line-height: 1.5;
+}
+.verdict .dot {
+  transform: translateY(1px);
+}
+.inspector-grid {
+  display: grid;
+  grid-template-columns: 7em 1fr;
+  gap: 6px 12px;
+  margin: 14px 0 0;
+}
+.inspector-grid dt {
+  color: var(--muted);
+}
+.inspector-grid dd {
+  margin: 0;
+}
+.inspector-note {
+  margin: 16px 0 0 !important;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 /* The checks, each with its plot. */
 .checks {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
-  gap: 20px;
+  gap: 18px;
 }
 .checks.featured {
-  margin-bottom: 28px;
+  margin: 36px 0 28px;
 }
 .check {
   display: flex;
   flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   overflow: hidden;
+  transition: border-color var(--animation);
+}
+.check:hover {
+  border-color: rgb(var(--accent-rgb) / 0.3);
 }
 .check[hidden] {
   display: none;
 }
+/* The plots are drawn on paper: the theme's text color, the lightest. */
 .check .plot {
   display: block;
-  background: #fff;
+  background: var(--text);
   border-bottom: 1px solid var(--border);
 }
 .check .plot img {
   width: 100%;
-  height: 250px;
+  height: 240px;
   object-fit: contain;
   padding: 6px;
 }
@@ -453,9 +674,9 @@ pre code {
 .check .label {
   display: block;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 .check .expected {
@@ -465,47 +686,47 @@ pre code {
   margin-top: auto;
   padding-top: 6px;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   overflow-wrap: anywhere;
 }
 .badge {
   display: inline-block;
   border-radius: 999px;
   padding: 0.05em 0.6em;
-  margin-right: 0.35em;
-  font-size: 0.75rem;
+  margin-right: 0.4em;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   vertical-align: 0.1em;
 }
 .badge.pass {
   color: var(--within);
-  background: rgba(110, 205, 140, 0.12);
+  background: rgb(var(--within-rgb) / 0.12);
 }
 .badge.partly {
   color: var(--approximate);
-  background: rgba(240, 180, 80, 0.12);
+  background: rgb(var(--approximate-rgb) / 0.12);
 }
 .badge.fail {
   color: var(--beyond);
-  background: rgba(240, 110, 100, 0.12);
+  background: rgb(var(--beyond-rgb) / 0.12);
 }
-
 .all-checks summary {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
   padding: 0 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border);
   background: var(--raised);
   font-weight: 600;
   cursor: pointer;
   margin-bottom: 20px;
+  transition: border-color var(--animation);
 }
 .all-checks summary:hover {
-  border-color: #3a4862;
+  border-color: rgb(var(--accent-rgb) / 0.35);
 }
 .filter {
   display: flex;
@@ -523,9 +744,9 @@ pre code {
   max-width: 420px;
   min-height: 40px;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--background);
   color: var(--text);
   font: inherit;
 }
@@ -535,51 +756,156 @@ pre code {
   min-height: 1.5em;
 }
 
+/* The gallery, each picture opening full size. */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 24px 20px;
+  margin-top: 32px;
+}
+.gallery figure {
+  margin: 0;
+}
+.zoom {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--background);
+  cursor: zoom-in;
+  transition: border-color var(--animation), transform calc(var(--animation) * 2);
+}
+.zoom:hover {
+  border-color: rgb(var(--accent-rgb) / 0.4);
+  transform: translateY(-2px);
+}
+.gallery figcaption {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-top: 10px;
+}
+.lightbox {
+  max-width: min(96vw, 1600px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-window);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.lightbox::backdrop {
+  background: rgb(var(--background-rgb) / 0.85);
+  backdrop-filter: blur(6px);
+}
+.lightbox img {
+  width: 100%;
+}
+.lightbox-caption {
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--soft);
+  font-size: 0.9rem;
+}
+.lightbox .close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgb(var(--background-rgb) / 0.8);
+  color: var(--text);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
 /* Run it. */
-.steps {
-  padding-left: 1.3em;
-  margin: 0 0 1.5em;
+.cards-2 {
+  display: grid;
+  gap: 18px;
+  margin-top: 32px;
 }
-.steps li {
-  margin-bottom: 0.8em;
-  padding-left: 0.3em;
+@media (min-width: 860px) {
+  .cards-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
-.steps li::marker {
-  color: var(--accent);
-  font-weight: 600;
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-window);
+  padding: 24px 26px;
+}
+.card p {
+  color: var(--soft);
+}
+.card.start {
+  margin-top: 18px;
 }
 .note {
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
 }
 
 .docs {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 32px 0 0;
   display: grid;
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 14px;
 }
 .docs li {
-  color: var(--soft);
-  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--background);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 16px;
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+  transition: border-color var(--animation);
+}
+.docs li:hover {
+  border-color: rgb(var(--accent-rgb) / 0.35);
 }
 .docs a {
   font-weight: 600;
 }
+.docs span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
 
 .footer {
-  border-top: 1px solid var(--border);
-  padding: 36px 0 44px;
+  padding: 44px 0 56px;
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.86rem;
 }
 .footer p {
-  max-width: 70em;
+  max-width: 72em;
 }
 .footer a {
   color: var(--soft);
+}
+.footer-brand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--soft);
+}
+
+/* Easing in as they arrive: only when scripts run and motion is welcome. */
+.motion .reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity calc(var(--animation) * 5) ease-out, transform calc(var(--animation) * 5) ease-out;
+}
+.motion .reveal.in {
+  opacity: 1;
+  transform: none;
 }

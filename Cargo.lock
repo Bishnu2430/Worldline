@@ -4132,7 +4132,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "worldline-app"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "eframe",
  "glam",
@@ -4147,7 +4147,7 @@ dependencies = [
 
 [[package]]
 name = "worldline-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "glam",
  "worldline-report",
@@ -4155,7 +4155,7 @@ dependencies = [
 
 [[package]]
 name = "worldline-data"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "worldline-core",
  "worldline-report",
@@ -4163,7 +4163,7 @@ dependencies = [
 
 [[package]]
 name = "worldline-render"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bytemuck",
  "glam",
@@ -4177,7 +4177,7 @@ dependencies = [
 
 [[package]]
 name = "worldline-report"
-version = "0.1.0"
+version = "1.0.0"
 
 [[package]]
 name = "x11-dl"
