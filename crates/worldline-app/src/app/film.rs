@@ -318,6 +318,14 @@ impl WorldlineApp {
         self.film.as_ref().is_some_and(|f| !f.reel.ended)
     }
 
+    /// How far into its film a scenario is, s of the film's own time, if
+    /// one is playing. It stands still while the film waits, for the
+    /// eclipse finder for example.
+    pub(super) fn film_seconds(&self) -> Option<f64> {
+        let film = self.film.as_ref().filter(|f| !f.reel.ended)?;
+        Some(film.reel.elapsed(&film.script.lengths()))
+    }
+
     /// What's done as shot `k` begins: its speed, what's drawn, its own
     /// start, and the camera eased from where it is.
     fn begin_shot(&mut self, k: usize) {
@@ -436,7 +444,7 @@ impl WorldlineApp {
         end(self);
         self.status = Some((
             format!("{title}: the film has ended, and {note}. The scenario plays on."),
-            Instant::now(),
+            self.app_time,
         ));
     }
 
@@ -492,7 +500,7 @@ impl WorldlineApp {
         if self.film.take().is_some() && playing {
             self.status = Some((
                 "Left the film: the camera is yours, and the scenario plays on".to_string(),
-                Instant::now(),
+                self.app_time,
             ));
         }
     }

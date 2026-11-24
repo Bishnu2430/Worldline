@@ -6,23 +6,26 @@
 
 > **Status:** pre-alpha. The engine runs the real solar system in a 3D window, with relativistic gravity, all 459 of its known moons, 62 dwarf planets, asteroids and comets, 28,331 belt asteroids and Kuiper belt objects, the zodiacal dust, the Sun's reach (its wind, its heliosphere and its light), the planets' magnetospheres, and giant planets as self-gravitating fluids that tides stretch and tear apart. See the [roadmap](docs/ROADMAP.md).
 
-![Worldline with Saturn up close: the top bar's tools for time, scenarios, eclipses, the sky and building, and the inspector's cards for the bodies and the one selected](docs/images/ui-step-8.3.png)
+![Worldline with Saturn up close: along the top, time, the scenarios, eclipses, the sky, the manual and the tools to add bodies; on the right, every body, and the one selected with the physics that moves it](docs/screenshots/interface.webp)
 
-![Worldline running the real solar system with relativistic gravity, five months after 1 January 2025](docs/images/solar-system-step-1.5.png)
+<p>
+  <img src="docs/screenshots/hulse-taylor.webp" width="49%" alt="The Hulse–Taylor pulsar's film: at a month a second, the orbit's closest point turns 4.2° a year, as general relativity says">
+  <img src="docs/screenshots/saturn-moons.webp" width="49%" alt="Saturn's moons at a day a second, each on its own orbit in the plane of the rings">
+</p>
 
-![Earth on 1 January 2025: clouds, blue Rayleigh haze, the Pacific in daylight and night falling over Asia](docs/images/earth-step-1b.3.png)
+*Left:* the Hulse–Taylor pulsar's film, its orbit turning 4.2° a year as general relativity says. *Right:* Saturn's moons at a day a second.
 
-![Saturn in April 2032 from below the ring plane: Cassini's measured ring structure, Saturn's shadow across the rings](docs/images/saturn-2032-step-1b.3.png)
+| | |
+|---|---|
+| ![Gaia BH1 nearly edge on to a disk drawn around it, the disk's far side bent over the top and under the bottom by its gravity](docs/screenshots/black-hole.webp) A black hole's shadow, rays traced through its spacetime; the disk is an illustration | ![Cygnus X-1, spinning at 0.9985, its shadow flattened on one side and its disk's far side lensed over the top](docs/screenshots/spinning-black-hole.webp) A spinning black hole, Cygnus X-1, in its exact (Kerr) spacetime |
+| ![The Hulse–Taylor pulsar from close by, 1.25 times its size with more than half its surface in view, and its two radio beams](docs/screenshots/neutron-star.webp) A neutron star, drawn as its own gravity bends its light | ![GW150914's two black holes, their gravitational waves' crests spiraling out, and the clock-rate map](docs/screenshots/gravitational-waves.webp) GW150914's black holes and their gravitational waves |
+| ![Earth on 1 January 2025: clouds, blue haze, its magnetic field lines](docs/screenshots/earth.webp) Earth on 1 January 2025, with its magnetic field | ![Saturn in April 2032 from below its rings, its shadow across them](docs/screenshots/saturn-2032.webp) Saturn in 2032, from below its rings |
+| ![The asteroid belt and Jupiter's two Trojan clouds, from 28,331 real orbits](docs/screenshots/belts.webp) The asteroid belt and Jupiter's Trojans: 28,331 real orbits | ![The Milky Way from 35 kiloparsecs, drawn as light](docs/screenshots/milky-way.webp) The Milky Way from 35 kiloparsecs |
+| ![The total solar eclipse of 12 August 2026 at its greatest: the Moon's shadow on Earth and its path](docs/screenshots/eclipse-path.webp) The eclipse of 12 August 2026, found in the app's own simulation | ![The same eclipse from Reykjavík at totality](docs/screenshots/totality.webp) The same eclipse from Reykjavík, at totality |
+| ![Chicxulub's estimated impactor's crater, 25 hours later in the noon Sun](docs/screenshots/crater.webp) Chicxulub's crater, from its estimated impactor | ![A second Earth strikes Earth at 30 km/s: the fragments it throws off](docs/screenshots/collision.webp) A second Earth strikes Earth at 30 km/s |
+| ![The Scenarios window: twelve famous events, each played as a film](docs/screenshots/scenarios.webp) Twelve famous events, each played as a film | ![The manual inside the app, at its beginning](docs/screenshots/manual.webp) The manual inside the app (F1) |
 
-![Saturn and its moons on 1 January 2025: each moon's current orbit, all in the plane of the nearly edge-on rings](docs/images/saturn-moons-step-1b.4.png)
-
-![The asteroid belt (tan) and Jupiter's two Trojan clouds (gold), 60° ahead of and behind Jupiter, from 28,331 real orbits, with the zodiacal dust glowing around the Sun](docs/images/belts-step-1b.7.png)
-
-![The Parker spiral: the solar wind's magnetic field winding out from the Sun through the inner solar system](docs/images/parker-spiral-step-1b.8.png)
-
-![Earth's magnetosphere: radiation belts along dipole field lines around the tilted magnetic axis, inside the magnetopause set by the solar wind's pressure](docs/images/magnetosphere-step-1b.9.png)
-
-![Halley's Comet at perihelion on 28 July 2061, simulated from its 2025 position: its path dives in from the outer solar system past the asteroids' orbits](docs/images/halley-2061-step-1b.6.png)
+Every image here is the app capturing its own frames, made again by one command: see [docs/screenshots](docs/screenshots/README.md).
 
 ## What v1 will do
 
@@ -255,6 +258,7 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 - [Scope](docs/SCOPE.md): what v1 includes and excludes, and why
 - [The website](docs/website.md): the landing page, built from this README's claims and published by a workflow
 - [The Windows release](docs/release.md): one program that needs nothing but Windows, checked on a clean machine before it's published
+- [Screenshots and recordings](docs/screenshots/README.md): every image above, the app capturing its own frames, each with the command that makes it again
 - [Validation plots](docs/validation/README.md): a plot for every claim above, drawn from what its test measured
 - [Roadmap](docs/ROADMAP.md): milestones and steps
 - [Architecture](docs/ARCHITECTURE.md): how the engine picks physics models

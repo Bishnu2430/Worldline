@@ -286,7 +286,7 @@ impl WorldlineApp {
                 opened.join(", ")
             )
         };
-        self.status = Some((message, Instant::now()));
+        self.status = Some((message, self.app_time));
     }
 
     fn at_speed(&mut self, index: usize) {

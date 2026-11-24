@@ -7,6 +7,18 @@
 - `--offscreen` opens the window off the screen, without taking the keyboard and mouse and without a taskbar button. The smoke test opens this way.
 - `--software` draws with the processor through Windows' own WARP renderer, rather than the graphics card. It's slow, but works when the graphics driver doesn't.
 
+**The app takes its own screenshots and recordings** (step 8.8b, `capture.rs`):
+- `--capture shot.png --at 4` saves the frame 4 s in, then closes.
+- `--record frames --at 2 --for 6 --fps 15` saves the frames from 2 s to 8 s, 15 a second, into the folder `frames`, then closes.
+
+Both open the window as `--offscreen` does, and save each frame as the GPU drew it: exactly what a person would see, with no screen around it. They also differ from a normal run in four ways:
+- **A fixed clock.** Each frame is 1/fps of a second of the app's time (1/30 for a still), however long the computer takes to draw and save it. So a recording plays at the pace a person would see, and the same command gives the same picture. Since step 8.8b the app keeps its own clock for this: real time in a normal run, a fixed step a frame while capturing. Notices and the camera's flights run on it.
+- **No waiting on the physics.** It may take as long as it needs each frame (10 s, against 12 ms normally), so it never falls behind what was asked.
+- **The film's own time.** While a scenario's film plays, `--at` counts the film's time. That stands still while the film waits, as the eclipse film does for the eclipse finder, which searches in real time. So a capture is the same moment of the film on any computer.
+- **No notice** about the manual on a first launch.
+
+`python tools/capture.py` takes every screenshot and recording in the README again, each with the command listed beside it in [docs/screenshots](screenshots/README.md). It turns the screenshots into WebP and the recordings into animated WebP (for the README: a GIF in full color, at a tenth of the size) and MP4 (for the website), with ffmpeg.
+
 The app is a window around the physics engine. It never does physics itself. It asks `worldline-core` to advance the simulation, then draws the result.
 
 ## Each frame

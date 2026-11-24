@@ -94,6 +94,10 @@ const CATCH_UP_BUDGET: Duration = Duration::from_millis(50);
 /// more, the simulation runs slower than requested and says so.
 pub(crate) const PHYSICS_BUDGET: Duration = Duration::from_millis(12);
 
+/// Most computer time physics may take per frame while capturing on a
+/// fixed clock: enough that it never runs slower than asked.
+const CAPTURE_BUDGET: Duration = Duration::from_secs(10);
+
 /// Particles in the Moon-forming impact when it starts from the inspector.
 const MOON_IMPACT_PARTICLES: usize = 8000;
 
@@ -514,7 +518,8 @@ struct Flight {
     from_target: DVec3,
     from_distance: f64,
     to_distance: f64,
-    start: Instant,
+    /// When it began, s of the app's time.
+    start: f64,
     /// How long it lasts, in s: longer when it crosses far more space than
     /// it starts or ends seeing.
     seconds: f64,
@@ -559,7 +564,7 @@ pub struct WorldlineApp {
     /// A body being placed, while its launch is dragged.
     launch: Option<Launch>,
     /// A message in the top bar, and when it appeared.
-    status: Option<(String, Instant)>,
+    status: Option<(String, f64)>,
     /// Open the selected body's branch of the list and scroll to it, once
     /// it has been picked somewhere other than the list.
     reveal: bool,
@@ -626,8 +631,13 @@ pub struct WorldlineApp {
     /// A measured run (`--measure`): how long it lasts, s from the first
     /// frame, and the sums of the frames' times over its last two thirds.
     measure: Option<(f64, Measured)>,
-    /// The clean-machine check (`--smoke-test`, step 8.8a).
-    smoke: Option<crate::smoke::Smoke>,
+    /// Saving frames the GPU drew: the clean-machine check, a still or a
+    /// recording (`capture.rs`, steps 8.8a and 8.8b).
+    capture: Option<crate::capture::Capture>,
+    /// The app's own clock, s since its first frame: real time, or a fixed
+    /// step a frame while capturing. Notices and the camera's flights run
+    /// on it, so a recording shows them as a person would see them.
+    app_time: f64,
 
     /// The GPU and the graphics interface it's driven through.
     gpu_name: String,
@@ -765,7 +775,10 @@ impl WorldlineApp {
             quality_auto: start.quality.is_none(),
             first_frame: None,
             measure: start.measure.map(|s| (s, Measured::default())),
-            smoke: start.smoke_test.clone().map(crate::smoke::Smoke::new),
+            capture: start
+                .capture()
+                .map(|(kind, path)| crate::capture::Capture::new(kind, path)),
+            app_time: 0.0,
             gpu_name: String::new(),
             live: false,
             behind: 0.0,
@@ -846,11 +859,15 @@ impl WorldlineApp {
         }
         app.scenarios_open = start.scenarios;
         app.manual_open = start.manual;
-        if start.scenario.is_none() && !start.manual && !start.scenarios {
+        // A first launch's notice, but not in a still or a recording.
+        let still_or_film = start
+            .capture()
+            .is_some_and(|(kind, _)| kind != crate::capture::Kind::Smoke);
+        if start.scenario.is_none() && !start.manual && !start.scenarios && !still_or_film {
             app.status = Some((
                 "New to Worldline? The manual, ? in the top bar or F1, starts at the beginning"
                     .to_string(),
-                Instant::now(),
+                app.app_time,
             ));
         }
         app.show_timings = start.timings;
@@ -1003,7 +1020,7 @@ impl WorldlineApp {
             from_target: self.camera.target,
             from_distance: self.camera.distance,
             to_distance,
-            start: Instant::now(),
+            start: self.app_time,
             seconds: if far {
                 2.5 * FLIGHT_SECONDS
             } else {
@@ -1030,7 +1047,7 @@ impl WorldlineApp {
             self.camera.target = target;
             return;
         };
-        let t = (flight.start.elapsed().as_secs_f64() / flight.seconds).min(1.0);
+        let t = ((self.app_time - flight.start) / flight.seconds).min(1.0);
         let eased = t * t * (3.0 - 2.0 * t);
         self.camera.target = flight.from_target.lerp(target, eased);
         // Zoom evenly in scale, so going from 4 AU to 25,000 km looks smooth.
@@ -1367,7 +1384,7 @@ impl WorldlineApp {
             Ok(path) => format!("Saved {}", path.display()),
             Err(e) => format!("Couldn't save: {e}"),
         };
-        self.status = Some((message, Instant::now()));
+        self.status = Some((message, self.app_time));
     }
 
     /// Esc: closes the open windows. While adding bodies, the view takes
@@ -1408,7 +1425,7 @@ impl WorldlineApp {
         let Some((message, since)) = &self.status else {
             return;
         };
-        let age = since.elapsed().as_secs_f32();
+        let age = (self.app_time - since) as f32;
         if age >= 6.0 {
             self.status = None;
             return;
@@ -3135,7 +3152,7 @@ impl WorldlineApp {
             parts.push(message);
         }
         parts.extend(notices.last().cloned());
-        self.status = Some((parts.join("; "), Instant::now()));
+        self.status = Some((parts.join("; "), self.app_time));
     }
 
     /// Finds the followed and selected bodies again by name; the Sun if
@@ -3215,7 +3232,7 @@ impl WorldlineApp {
         self.reattend(names);
         self.selected = self.simulation.index_of(&added[0]).unwrap_or(self.selected);
         self.reveal = true;
-        self.status = Some((format!("Added {}", added.join(" and ")), Instant::now()));
+        self.status = Some((format!("Added {}", added.join(" and ")), self.app_time));
     }
 
     /// Removes the selected body, if it can be.
@@ -3229,7 +3246,7 @@ impl WorldlineApp {
         let (focus, removed) = self.attended_names();
         self.simulation.remove(self.selected);
         self.reattend((focus, removed.clone()));
-        self.status = Some((format!("Removed {removed}"), Instant::now()));
+        self.status = Some((format!("Removed {removed}"), self.app_time));
     }
 
     /// Replaces the simulation with a saved one.
@@ -3252,10 +3269,10 @@ impl WorldlineApp {
                         "Loaded {}",
                         path.file_stem().unwrap_or_default().to_string_lossy()
                     ),
-                    Instant::now(),
+                    self.app_time,
                 ));
             }
-            Err(e) => self.status = Some((format!("Couldn't load: {e}"), Instant::now())),
+            Err(e) => self.status = Some((format!("Couldn't load: {e}"), self.app_time)),
         }
     }
 
@@ -4130,9 +4147,9 @@ impl WorldlineApp {
             match rodio::OutputStream::try_default() {
                 Ok((stream, handle)) => match rodio::Sink::try_new(&handle) {
                     Ok(sink) => self.audio = Some((stream, sink)),
-                    Err(e) => self.status = Some((format!("No sound: {e}"), Instant::now())),
+                    Err(e) => self.status = Some((format!("No sound: {e}"), self.app_time)),
                 },
-                Err(e) => self.status = Some((format!("No sound: {e}"), Instant::now())),
+                Err(e) => self.status = Some((format!("No sound: {e}"), self.app_time)),
             }
         }
         if let Some((_, sink)) = &self.audio {
@@ -4458,10 +4475,10 @@ impl WorldlineApp {
                 self.eclipses_open = false;
                 self.status = Some((
                     format!("{kind} eclipse at its greatest, {when} UTC"),
-                    Instant::now(),
+                    self.app_time,
                 ));
             }
-            Err(e) => self.status = Some((format!("Couldn't go there: {e}"), Instant::now())),
+            Err(e) => self.status = Some((format!("Couldn't go there: {e}"), self.app_time)),
         }
     }
 
@@ -4656,7 +4673,7 @@ impl WorldlineApp {
                 Ok(()) => format!("Saved {}", path.display()),
                 Err(e) => format!("Couldn't save {}: {e}", path.display()),
             };
-            self.status = Some((message, Instant::now()));
+            self.status = Some((message, self.app_time));
         }
         if !open {
             self.stop_sound();
@@ -5042,7 +5059,7 @@ impl WorldlineApp {
         {
             self.status = Some((
                 format!("{}'s tides have eased: it is a point again", body.name),
-                Instant::now(),
+                self.app_time,
             ));
             self.fluid = None;
             return;
@@ -5234,7 +5251,14 @@ impl WorldlineApp {
             self.behind = now - self.simulation.time();
             reached
         } else {
-            self.simulation.update(real_dt, PHYSICS_BUDGET, &limits)
+            // A capture waits for the physics: its clock is fixed, so the
+            // simulation reaches the time asked of it however long it takes.
+            let budget = if self.capture.as_ref().is_some_and(|c| c.step().is_some()) {
+                CAPTURE_BUDGET
+            } else {
+                PHYSICS_BUDGET
+            };
+            self.simulation.update(real_dt, budget, &limits)
         };
         self.slowed = self.simulation.slowed_by.map(|k| {
             let approach = &limits.approaches[k];
@@ -5248,7 +5272,7 @@ impl WorldlineApp {
                     "{}'s tides stretch {} by 1%: it becomes a fluid",
                     approach.by, approach.body
                 ),
-                Instant::now(),
+                self.app_time,
             ));
         }
         // Detail follows focus, and the focus can drift into a planet's
@@ -5280,7 +5304,13 @@ fn first_total_solar(finder: &Finder) -> Option<usize> {
 impl eframe::App for WorldlineApp {
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         let now = Instant::now();
-        let elapsed = now.duration_since(self.last_frame).as_secs_f64();
+        // A capture's fixed clock, or real time.
+        let elapsed = self
+            .capture
+            .as_ref()
+            .and_then(crate::capture::Capture::step)
+            .unwrap_or_else(|| now.duration_since(self.last_frame).as_secs_f64());
+        self.app_time += elapsed;
         self.frame_seconds += 0.05 * (elapsed.min(1.0) - self.frame_seconds);
         // Cap the step after a stall (e.g. dragging the window) at 0.1 s.
         let real_dt = elapsed.min(0.1);
@@ -5344,8 +5374,15 @@ impl eframe::App for WorldlineApp {
             self.first_frame = Some(crate::since_start());
         }
         self.measured(ui.ctx(), elapsed, physics, (work - physics).max(0.0), view);
-        if let Some(smoke) = &mut self.smoke {
-            smoke.frame(ui.ctx(), view_rect, self.simulation.time(), &self.gpu_name);
+        let film_seconds = self.film_seconds();
+        if let Some(capture) = &mut self.capture {
+            capture.frame(
+                ui.ctx(),
+                view_rect,
+                film_seconds,
+                self.simulation.time(),
+                &self.gpu_name,
+            );
         }
         self.timings
             .record(elapsed, physics, (work - physics).max(0.0));
