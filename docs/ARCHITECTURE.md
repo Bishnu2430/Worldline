@@ -28,7 +28,7 @@ crates/
                      tests                                                        (since step 8.2)
 ```
 
-Outside the crates, `tools/` holds Python scripts (standard library only) that fetch the real-world data, draw the validation plots, build the website and check the Windows release, and `site/` is that website, a landing page on GitHub Pages (since step 8.7, see [website.md](website.md)).
+Outside the crates, `tools/` holds Python scripts (standard library only) that fetch the real-world data, draw the validation plots, take the screenshots, build the website and check the Windows release, and `site/` is that website, a landing page on GitHub Pages (since step 8.7, see [website.md](website.md)).
 
 Each crate is added when its milestone starts, not before. The 3D view is drawn in layers. Rings, trails, dots and labels are projected relative to the camera in double precision and drawn with egui's painter. Globes and the sky behind everything are drawn by `worldline-render` on the GPU. See [app.md](app.md) and [rendering.md](rendering.md).
 

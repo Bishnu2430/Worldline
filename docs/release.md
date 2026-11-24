@@ -5,7 +5,7 @@ Step 8.8a. Worldline for Windows is a zip with one program in it, `worldline.exe
 **Code:**
 - `.github/workflows/release.yml`: builds the release, checks it, and publishes it from a version tag;
 - `tools/check_exe.py`: reads the program's header to check what it needs (Python's standard library only);
-- `crates/worldline-app/src/smoke.rs`: the smoke test the program runs on a clean machine;
+- `crates/worldline-app/src/capture.rs`: the smoke test the program runs on a clean machine (and, since step 8.8b, its screenshots and recordings);
 - `tools/release/`: the zip's `README.txt` and the release's notes.
 
 ## What's in the zip

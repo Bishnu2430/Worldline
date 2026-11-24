@@ -14,7 +14,7 @@ on:
       - "tools/check_exe.py"
       - "tools/release/**"
       - "crates/worldline-app/src/main.rs"
-      - "crates/worldline-app/src/smoke.rs"
+      - "crates/worldline-app/src/capture.rs"
       - "crates/worldline-app/Cargo.toml"
       - "Cargo.lock"
   workflow_dispatch:

@@ -60,7 +60,13 @@
 //! - `--smoke-test frame.png` draws the solar system for a few dozen
 //!   frames, saves the last to frame.png, says whether it was drawn and
 //!   the physics ran, and closes, failing (exit code 1) if not (step 8.8a).
-//!   Its window opens as `--offscreen` does.
+//! - `--capture shot.png --at 4` saves the frame 4 s of the app's time in
+//!   and closes; `--record frames --at 2 --for 6 --fps 15` saves frames
+//!   from 2 s to 8 s, 15 a second, into the folder frames (step 8.8b).
+//!   Both run on a fixed clock: each frame is 1/fps s of the app's time
+//!   (1/30 for a still), however long it takes to draw and save. While a
+//!   scenario's film plays, `--at` counts the film's own time. Captures
+//!   open their window as `--offscreen` does (see `capture.rs`).
 //! - `--offscreen` opens the window off the screen and without taking the
 //!   keyboard and mouse, for runs that capture frames.
 //! - `--software` draws with the processor (Windows' WARP) rather than the
@@ -79,6 +85,7 @@
 mod app;
 mod calendar;
 mod camera;
+mod capture;
 mod catalogue;
 mod clocks;
 mod compact_view;
@@ -95,7 +102,6 @@ mod quality;
 mod sandbox;
 mod simulation;
 mod sky;
-mod smoke;
 mod textures;
 mod theme;
 mod view;
@@ -184,11 +190,49 @@ pub struct StartOptions {
     /// Draw a few dozen frames, save the last here, check it and close
     /// (step 8.8a).
     pub smoke_test: Option<std::path::PathBuf>,
+    /// Save one frame here, `at` seconds in, and close (step 8.8b).
+    pub capture: Option<std::path::PathBuf>,
+    /// Save frames into this folder, from `at` seconds in for
+    /// `record_for`, `fps` a second, and close (step 8.8b).
+    pub record: Option<std::path::PathBuf>,
+    /// When a capture or recording starts, s of the app's time.
+    pub at: Option<f64>,
+    /// How long a recording lasts, s.
+    pub record_for: Option<f64>,
+    /// A recording's frames a second.
+    pub fps: Option<f64>,
     /// Open the window off the screen, without taking the keyboard and
     /// mouse.
     pub offscreen: bool,
     /// Draw with the processor rather than the graphics card.
     pub software: bool,
+}
+
+impl StartOptions {
+    /// The capture this run makes, if any: the smoke test, a still or a
+    /// recording, the first of them asked for.
+    pub fn capture(&self) -> Option<(capture::Kind, std::path::PathBuf)> {
+        let at = self.at.unwrap_or(0.0);
+        if let Some(path) = &self.smoke_test {
+            Some((capture::Kind::Smoke, path.clone()))
+        } else if let Some(path) = &self.capture {
+            Some((
+                capture::Kind::Still {
+                    at: self.at.unwrap_or(2.0),
+                },
+                path.clone(),
+            ))
+        } else {
+            self.record.as_ref().map(|folder| {
+                let kind = capture::Kind::Film {
+                    at,
+                    length: self.record_for.unwrap_or(6.0),
+                    fps: self.fps.unwrap_or(15.0),
+                };
+                (kind, folder.clone())
+            })
+        }
+    }
 }
 
 /// Two numbers with a comma between them.
@@ -217,6 +261,26 @@ impl StartOptions {
                 "--smoke-test" => match args.next() {
                     Some(path) => options.smoke_test = Some(path.into()),
                     None => eprintln!("worldline: --smoke-test needs a file to save the frame to"),
+                },
+                "--capture" => match args.next() {
+                    Some(path) => options.capture = Some(path.into()),
+                    None => eprintln!("worldline: --capture needs a file to save the frame to"),
+                },
+                "--record" => match args.next() {
+                    Some(path) => options.record = Some(path.into()),
+                    None => eprintln!("worldline: --record needs a folder to save the frames in"),
+                },
+                "--at" => match args.next().and_then(|s| s.parse::<f64>().ok()) {
+                    Some(s) if s >= 0.0 => options.at = Some(s),
+                    _ => eprintln!("worldline: --at needs a number of seconds, 0 or more"),
+                },
+                "--for" => match args.next().and_then(|s| s.parse::<f64>().ok()) {
+                    Some(s) if s > 0.0 => options.record_for = Some(s),
+                    _ => eprintln!("worldline: --for needs a number of seconds above 0"),
+                },
+                "--fps" => match args.next().and_then(|s| s.parse::<f64>().ok()) {
+                    Some(f) if (1.0..=60.0).contains(&f) => options.fps = Some(f),
+                    _ => eprintln!("worldline: --fps needs frames a second, 1 to 60"),
                 },
                 "--offscreen" => options.offscreen = true,
                 "--software" => options.software = true,
@@ -360,7 +424,7 @@ fn main() {
     let start = StartOptions::parse(std::env::args().skip(1));
     // Runs that check or measure say what went wrong in their output;
     // anyone else gets a message box, as there may be no console to read.
-    let automated = start.smoke_test.is_some() || start.measure.is_some();
+    let automated = start.capture().is_some() || start.measure.is_some();
     if !automated {
         let printed = std::panic::take_hook();
         std::panic::set_hook(Box::new(move |info| {
@@ -368,7 +432,7 @@ fn main() {
             failed(&format!("Worldline stopped unexpectedly:\n\n{info}"));
         }));
     }
-    let smoke = start.smoke_test.is_some();
+    let capturing = start.capture().is_some();
     if let Err(e) = run(start) {
         eprintln!("worldline: {e}");
         if !automated {
@@ -378,7 +442,7 @@ fn main() {
         }
         std::process::exit(1);
     }
-    if smoke && smoke::PASSED.get() != Some(&true) {
+    if capturing && capture::PASSED.get() != Some(&true) {
         std::process::exit(1);
     }
 }
@@ -419,7 +483,7 @@ fn run(start: StartOptions) -> eframe::Result {
     }
     // Off the screen and never active, so a run that captures frames
     // doesn't take the keyboard and mouse from whoever is at the computer.
-    if start.offscreen || start.smoke_test.is_some() {
+    if start.offscreen || start.capture().is_some() {
         options.viewport = options
             .viewport
             .with_position([-10_000.0, -10_000.0])
@@ -507,6 +571,16 @@ mod tests {
             "frame.png",
             "--offscreen",
             "--software",
+            "--capture",
+            "shot.png",
+            "--record",
+            "frames",
+            "--at",
+            "2.5",
+            "--for",
+            "4",
+            "--fps",
+            "12",
         ]
         .map(String::from)
         .into_iter();
@@ -562,11 +636,41 @@ mod tests {
                 smoke_test: Some("frame.png".into()),
                 offscreen: true,
                 software: true,
+                capture: Some("shot.png".into()),
+                record: Some("frames".into()),
+                at: Some(2.5),
+                record_for: Some(4.0),
+                fps: Some(12.0),
             }
         );
         assert_eq!(
             StartOptions::parse(std::iter::empty()),
             StartOptions::default()
+        );
+    }
+
+    #[test]
+    fn a_capture_is_a_still_or_a_recording_with_its_defaults() {
+        let parse = |args: &[&str]| StartOptions::parse(args.iter().map(|a| a.to_string()));
+        assert_eq!(parse(&[]).capture(), None);
+        assert_eq!(
+            parse(&["--capture", "a.png"]).capture(),
+            Some((capture::Kind::Still { at: 2.0 }, "a.png".into()))
+        );
+        assert_eq!(
+            parse(&["--record", "f", "--at", "1"]).capture(),
+            Some((
+                capture::Kind::Film {
+                    at: 1.0,
+                    length: 6.0,
+                    fps: 15.0
+                },
+                "f".into()
+            ))
+        );
+        assert_eq!(
+            parse(&["--capture", "a.png", "--smoke-test", "b.png"]).capture(),
+            Some((capture::Kind::Smoke, "b.png".into()))
         );
     }
 }
