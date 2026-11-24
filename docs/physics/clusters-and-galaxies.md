@@ -132,7 +132,7 @@ Selecting one shows:
 
 They're listed under **Open clusters**, **Nebulae**, **Globular clusters** and **Satellite galaxies**.
 
-![The Milky Way from 70 kpc: the disk and bulge of the swarm, the yellow dots of the globular clusters around them, the lavender satellite galaxies farther out, and the Magellanic Clouds as two soft disks at the lower right; the inspector shows Omega Centauri, 3.94 million Suns, 5,430 parsecs from the Sun](../images/clusters-and-galaxies-step-7.3.png)
+![The Milky Way's globular clusters, and Omega Centauri, the largest](../screenshots/clusters.webp)
 
 ## Where it's valid
 

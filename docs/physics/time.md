@@ -84,5 +84,3 @@ Earth's prime meridian is now turned by the **Earth Rotation Angle** θ(UT1), th
 | **The roadmap's check:** the clock, caught up to the computer's (`... -- --ignored caught_up`) | the simulation's time, read in UTC, within a second of the computer's clock | 0.009 s |
 
 Also unit tests: the computer's epoch, the Earth Rotation Angle at J2000.0 and its daily turn, TDB − TT within 1.73 ms, UTC → TDB → UTC across a leap second, and UT1 running on smoothly through one.
-
-![Worldline live on 2026-10-28 at 11:36 UTC: Earth with Africa and Europe in daylight, the clock in UTC marked live](../images/now-step-5.1.png)

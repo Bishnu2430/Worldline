@@ -4,8 +4,6 @@
 **Data:** `crates/worldline-data/data/planetary-dipoles.csv`, `radiation-belts.csv`, and the flow pressure column of `solar-wind-2025.csv` · **Fetch scripts:** `tools/fetch_magnetic_fields.py`, `tools/fetch_solar_wind.py`
 **Tests:** `crates/worldline-data/tests/validation_magnetospheres.rs`, plus unit tests in the core
 
-![Earth's magnetosphere on 1 January 2025: the radiation belts along dipole field lines around the tilted magnetic axis (inner orange, outer blue), inside the magnetopause](../images/magnetosphere-step-1b.9.png)
-
 ## Planets' magnetic fields
 
 Six planets generate global magnetic fields. To first order each is a dipole, given by field models as the degree-1 Gauss coefficients g₁⁰, g₁¹ and h₁¹:

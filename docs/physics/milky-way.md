@@ -14,8 +14,6 @@
   - Sagittarius A\*'s motion across the sky, −6.411 ± 0.008 mas/yr along the galactic plane and −0.219 ± 0.007 toward its north pole: Reid & Brunthaler (2020), *ApJ* 892, 39;
   - the Sun's motion toward the center, 11.1 ± 0.74 km/s: Schönrich, Binney & Dehnen (2010), *MNRAS* 403, 1829.
 
-![Seen from 50 kiloparsecs: the solar system's path around the galaxy for the next 238 million years, a loop around Sagittarius A* (the orange ring), starting at the Sun](../images/milky-way-step-2.9.png)
-
 To see it: `cargo run --release -- --focus Sun --zoom 2.2e12 --paused`. The inspector shows the Sun's orbit around the galaxy.
 
 ## Why it matters

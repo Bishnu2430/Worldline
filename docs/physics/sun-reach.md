@@ -4,8 +4,6 @@
 **Data:** `crates/worldline-data/data/solar-wind-2025.csv`, `voyager-crossings.csv` · **Fetch scripts:** `tools/fetch_solar_wind.py`, `tools/fetch_heliosphere.py`
 **Tests:** `crates/worldline-data/tests/validation_sun_reach.rs`, plus unit tests in the core
 
-![The Parker spiral: the solar wind's magnetic field winding out from the Sun through the inner solar system, 1 January 2025](../images/parker-spiral-step-1b.8.png)
-
 ## Sunlight
 
 **Model:** the Sun's luminosity spread over a sphere, F = L / 4πr², with the IAU's nominal L = 3.828 × 10²⁶ W (IAU 2015 Resolution B3).
@@ -98,7 +96,5 @@ Only Voyager 1 and 2 have crossed them:
 - **Size.** Each boundary's nose distance is fitted through its two crossings, giving a termination shock at 83.3 AU and a heliopause at 112.0 AU.
 
 **How well the shape fits.** The fit misses the crossings by ±9% (termination shock) and ±5% (heliopause). That is the cost of a symmetric shape: the real heliosphere is squeezed by the interstellar magnetic field, which pushed the termination shock 10 AU closer where Voyager 2 crossed it, in the south. The tail has never been measured. The app draws the shape only out to 120° from the nose.
-
-![The heliosphere from 700 AU: the termination shock (orange) inside the heliopause (violet), with the four Voyager crossings](../images/heliosphere-step-1b.8.png)
 
 **In the app.** Both boundaries are drawn as faint wireframes, with the Voyager crossings marked, whenever the camera is outside the termination shock. From inside, they would surround it. The inspector says whether the selected body is in the supersonic wind, in the heliosheath between the boundaries, or in interstellar space.

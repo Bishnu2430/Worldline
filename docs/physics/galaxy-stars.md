@@ -134,17 +134,13 @@ cargo run --release -- --focus Sun --zoom 1.5e12 --pitch 50 --paused
 
 Out among the galaxy's stars, more than 100 pc from the solar system and the galactic center, the swarm is drawn as light on the GPU (step 7.4). Each star's mass is spread over the volume it fills at the model's density, and each pixel shows the stars along its ray. Seen from above, that's the disk's surface density; see [rendering.md](../rendering.md#the-galaxys-glow). Turned off ("The galaxy's glow"), the swarm is drawn as dots from 100 pc out, as step 7.2 drew it: thin-disk stars bluish white, thick-disk ones pale yellow, the bulge's orange. The colors only tell the populations apart.
 
-![The Milky Way from 40 kiloparsecs, drawn as light: a mottled bluish disk brightening to an orange bulge, the Sun on its path round the center](../images/galaxy-glow-step-7.4.png)
-
-![The same in step 7.2, as dots](../images/galaxy-stars-step-7.2.png)
+![The Milky Way from 35 kiloparsecs, drawn as light: its disk and bulge, with the Sun on its path round the center](../screenshots/milky-way.webp)
 
 Gaia's stars are drawn white from a parsec out:
 
 ```bash
 cargo run --release -- --focus Sun --zoom 2e9 --pitch 40 --paused
 ```
-
-![The Sun's neighborhood from 45 parsecs: Gaia's stars as white dots all around, thickest in the Hyades, a pale blue disk at the top; the nearest and brightest stars as colored dots near the Sun](../images/gaia-nearby-stars-step-7.2.png)
 
 **Checking the mean motion.** The check of their mean motion is independent of how Worldline places them. Schönrich et al. measured the Sun's motion against other stars, from another survey. Gaia's stars turned into galactic axes agree within an error of the measurement: the axes and velocities are read as astronomers read them. The third direction, along the galaxy's turning, isn't checked, as stars lag the Sun there by an amount that depends on their ages: −22.7 km/s here.
 

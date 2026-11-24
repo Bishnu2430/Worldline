@@ -8,6 +8,8 @@ theory and observation.
 Website: https://bishnu2430.github.io/Worldline/
 Source:  https://github.com/Bishnu2430/Worldline
 
+Free for non-commercial use: see LICENSE.txt.
+
 
 Running it
 ----------
@@ -58,6 +60,7 @@ In this folder
 --------------
 
 worldline.exe   the program
-LICENSE.txt     its license (MIT)
+LICENSE.txt     its license: free for non-commercial use (PolyForm
+                Noncommercial 1.0.0); commercial use needs permission
 CREDITS.md      where its data, maps and images come from, and their licenses
 README.txt      this file

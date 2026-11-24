@@ -4,8 +4,6 @@
 **Data:** `crates/worldline-data/data/s-stars.csv` and `sgr-a-star-position.csv`, written by `tools/write_galactic_center.py`
 **Tests:** `crates/worldline-data/tests/validation_galactic_center.rs`, plus unit tests
 
-![Sagittarius A* and the 39 stars with published orbits around it, colored by type: young, hot stars blue-white, cool giants orange](../images/galactic-center-step-2.1c.png)
-
 To see it: `cargo run --release -- --focus "Sagittarius A*"`, or double-click Sagittarius A\* in the body list. The camera flies out from the solar system and in again.
 
 ## Where it is

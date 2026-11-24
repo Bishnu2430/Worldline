@@ -110,5 +110,3 @@ In the app:
 | In the app, from its own debris | the same law | t^(−1.66 ± 0.02), 59% bound |
 
 The GPU checks need a GPU: `cargo test --release -p worldline-render --test validation_fluid_gpu -- --ignored --nocapture --test-threads=1`. Last digits vary from run to run, as the GPU adds its sums in a varying order (other runs: 0.574, 0.235, 0.024, 0, t^(−1.676 ± 0.023); 0.575, 0.234, 0.024, 0, t^(−1.671 ± 0.022)).
-
-![Jupiter torn apart by a black hole of 9.6 Suns: its debris scattered, and the inspector's plot of the rate it falls back at against time, following t^−5/3](../images/disruption-step-4.4.png)

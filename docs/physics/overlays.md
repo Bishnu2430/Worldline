@@ -19,11 +19,11 @@
   - **The Moon's GM:** JPL DE440.
   - **GPS's orbit:** its nominal semi-major axis, 26,559.7 km.
 
-![GW150914's two black holes at 20 Hz, from 63,000 km: their gravitational waves' crests spiral out at the speed of light, 15,000 km apart; the clock-rate heatmap glows where clocks run slowest; the model check rings the two holes amber, approximate, at GM/rc² = 0.04 and v/c = 0.26](../images/overlays-waves-step-3.3.png)
+![GW150914's two black holes at 20 Hz: their gravitational waves' crests spiral out at the speed of light, and the clock-rate map glows where clocks run slowest](../screenshots/gravitational-waves.webp)
 
 To see it: `cargo run --release -- --add "GW150914 pair:30" --focus "GW150914 heavier hole" --zoom 600 --pitch 60 --paused --overlays waves,clocks,models`.
 
-![Earth with its tides and its embedding diagram: arrows stretched toward and away from the Moon and the Sun (they lined up at the new moon two days before the snapshot), and space dipping toward its center, the depth drawn 10,000 times deeper](../images/overlays-earth-step-3.3.png)
+![Earth's tides and the shape of space around it: arrows stretched toward and away from the Moon and the Sun, and space dipping toward Earth's center](../screenshots/tides.webp)
 
 To see it: `cargo run --release -- --focus Earth --zoom 90 --pitch 25 --paused --overlays tides,embedding`.
 

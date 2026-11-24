@@ -19,8 +19,6 @@
   - **Periodic terms:** of TDB − TT, from Fairhead & Bretagnon (1990).
 - **GPS's numbers:** its orbit's nominal semi-major axis, 26,559.7 km; Earth's GM from the IERS Conventions 2010.
 
-![A planet circling Sagittarius A* at 9.9 GM/c²: its clock's bright hand trails a far-away clock's faint one; after 25 hours it is 4 hours behind, running at 0.8349 as a circular orbit there should](../images/proper-time-step-3.4.png)
-
 To see it: `cargo run --release -- --add "earth:0.42@Sagittarius A*" --focus "New planet 1" --zoom 30000 --speed hour --overlays time` (Sagittarius A*'s 10 GM/c² is 0.42 AU).
 
 ## Why it matters

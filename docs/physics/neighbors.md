@@ -99,7 +99,7 @@ The catalogue can still add a copy of one of these stars somewhere else. It gets
 cargo run --release -- --focus "Alpha Centauri A" --zoom 4000 --pitch 85 --speed decade
 ```
 
-![α Centauri A, its path through space over a year at 10 years a second, and B beside it; the inspector shows 4.364 light-years, measured by the pair's orbit, a parallax of 747.2 mas and 3,686 mas a year across the sky](../images/neighbors-step-7.1.png)
+![α Centauri A and B, 4.4 light-years away, on their 80-year orbit](../screenshots/alpha-centauri.webp)
 
 ## Where it's valid
 

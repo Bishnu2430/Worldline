@@ -83,5 +83,3 @@ Every n = 1 polytrope is the same in its own units (G = R = M = 1). So the app s
 | **The roadmap's check, in the app:** a Jupiter-mass planet grazing the Sun at 3 tidal radii (2.1 million km from its center) | a point until its tides stretch it by 1%; a fluid through its closest approach; a point again once they ease, nothing torn away; smooth playback | becomes a fluid at 0.97–1%; stretched by up to h₂/3³ = 5.6% at its closest; a point again on the way out, and a fluid again on its next pass four months later; 8,144 particles at 36–44 frames a second |
 
 The GPU checks need a GPU: `cargo test --release -p worldline-render --test validation_fluid_gpu -- --ignored --nocapture --test-threads=1`. Last digits vary from run to run, as the GPU adds its sums in a varying order (another run: 0.540 and 0.517).
-
-![A Jupiter-mass planet passing the Sun at 3 tidal radii: a fluid of 8,144 particles stretched by the Sun's tides, cut open to its hot core, with the inspector's readout](../images/tides-step-4.3.png)

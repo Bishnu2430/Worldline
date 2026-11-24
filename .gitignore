@@ -14,3 +14,7 @@ Thumbs.db
 
 # The waves window's Save writes the chirp where the app runs from
 /worldline-gravitational-waves.wav
+
+# The screenshots each development step took, kept locally as a record. The
+# docs show today's, which the app captures of itself (docs/screenshots).
+/docs/images/

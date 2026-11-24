@@ -142,8 +142,6 @@ A body falling onto another arrives at about their escape speed, so it merges. T
 cargo run --release -- --add earth:0.0015@Earth --aim 40,0.3 --focus Earth --zoom 40 --speed hour
 ```
 
-![A second Earth struck Earth at 40 km/s: the inspector's rows show a super-catastrophic disruption that left 5.8% of the mass](../images/impact-step-6.2.png)
-
 ## Where it's valid
 
 - **Range.** The target's radius from 1 km, its mass to 10 Earth masses, mass ratios to 1 : 45,000, and speeds to 80 km/s. That is where the paper's data reach. Outside it, the bodies merge as before.

@@ -52,8 +52,6 @@ For every black hole, the inspector also shows the tone it rings with: "Rings do
 
 **The waves window** (see [post-newtonian.md](post-newtonian.md)) ends a black-hole pair's recording with the final hole's ringdown, marked on the plot, and plays it. The plunge and merger between, where the real wave is loudest, aren't modeled: the ringdown starts where the inspiral ends, at its strength and phase. The window says so in amber.
 
-![GW150914's holes after merging, 30 AU from the Sun: the waves window with the inspiral and the ringdown marked, and the inspector showing the final hole, 63.03 Suns spinning at 0.683, beside LIGO's measured 63.1 Suns and 0.69](../images/gw150914-merger-step-2.4.png)
-
 To see GW150914 merge: `cargo run --release -- --add "GW150914 pair:30" --focus "GW150914 heavier hole" --paused --waves`. The waves window shows the chirp and the ringdown. Press Play in the top bar: the pair is 2 simulated seconds from merging, but its orbit forces the whole solar system into sub-millisecond steps, so they take 15 to 50 seconds to compute ("physics running at 0% of the requested speed"). Then the two holes are one, and time runs at full speed again.
 
 ## Where it's valid

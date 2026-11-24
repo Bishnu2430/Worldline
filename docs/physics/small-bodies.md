@@ -135,8 +135,6 @@ Starting from Halley's January 2025 state, near its farthest point from the Sun,
 | JPL (Horizons, solution JPL#75) | JD 2474034.220 TDB, 28 July 2061 at 17:17 |
 | Difference | −0.012 days (17 minutes), within the test's one-hour sampling |
 
-![Halley's Comet at perihelion on 28 July 2061 in Worldline, its path diving in toward the Sun](../images/halley-2061-step-1b.6.png)
-
 To see it in the app (the window opens after about two minutes of simulating; `--zoom` counts Halley's 5 km radii, so 40 million puts the camera about 1.4 AU out):
 
 ```bash

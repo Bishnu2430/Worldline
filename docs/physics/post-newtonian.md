@@ -73,11 +73,7 @@ The inspector's model line says the top level includes the 2PN and gravitational
 
 For a body in a bound pair that will merge within the age of the universe (13.787 billion years; Planck 2020), the inspector adds a line. For the Hulse–Taylor pair, dropped from the catalogue: "its orbit's period shrinks 75.8 µs a year, and the pair merges in 300.7 million years".
 
-![The Hulse–Taylor pulsar selected, 30 AU from the Sun: the inspector names the model, grades it within range, and shows the orbit shrinking 75.8 µs a year](../images/hulse-taylor-step-2.2.png)
-
 To see it: `cargo run --release -- --add "PSR B1913+16 pair:30" --focus "PSR B1913+16" --zoom 100000 --paused`.
-
-![The waves window for GW170817's neutron stars, dropped 30 AU from the Sun: 2 min 52.5 s of signal from 20 Hz to 784 Hz, the strain growing into the chirp at the right, with the tail's 1.1% labeled and the sweep marked rough above 289.6 Hz](../images/gw170817-waves-step-2.3.png)
 
 **Seeing and hearing the waves.** For a pair that will merge, the inspector offers **See and hear its gravitational waves**. It runs a copy of the pair ahead, on its own, with the same gravity, and records the strain h₊ an observer on Earth would see, 64 times an orbit, for up to 3000 orbits or until the post-Newtonian description ends. The window plots it, gives its span and frequencies, and labels the approximations (the tail, and where the sweep turns rough):
 - **Play** turns it into sound. If its frequencies are already in the range we hear well, 20 Hz to 4 kHz, it plays in real time: that is what the strain itself would sound like. Otherwise it is sped up (or slowed) so its highest frequency sounds at 400 Hz. The last 20 seconds at most are kept.

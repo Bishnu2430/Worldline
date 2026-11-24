@@ -65,8 +65,6 @@ Far out it becomes Peters' formula; close in it is much shorter.
 
 **Something heavier than what it circles** takes that body around their common center of mass rather than dragging it away, and the body takes its own system along: a black hole added beside the Sun sends the Sun round it with its planets, moons, comets and belts, which keep circling the Sun within its Hill sphere (since step 8.4c; see [app.md](../app.md)).
 
-![Sagittarius A* 6,600 AU from TON 618, whose horizon arcs across the left: the inspector shows it moving in TON 618's exact spacetime, reaching the innermost stable orbit and plunging in 10,530 years (Peters' leading-order formula says 32,485)](../images/emri-step-2.5.png)
-
 To watch Sagittarius A\* spiral into TON 618, ten times TON 618's GM/c² out:
 
 `cargo run --release -- --add "TON 618:6600@Sagittarius A*" --focus "Sagittarius A*" --paused --waves`
