@@ -284,13 +284,13 @@ mod tests {
     #[test]
     fn every_row_parses() {
         let objects = notable_objects();
-        assert_eq!(objects.len(), 20);
+        assert_eq!(objects.len(), 22);
         assert!(
             objects
                 .iter()
                 .all(|o| o.mass.value > 0.0 && o.radius.value > 0.0)
         );
-        assert_eq!(binary_orbits().len(), 1);
+        assert_eq!(binary_orbits().len(), 2);
         // The Hulse–Taylor pulsar's spin, as Weisberg & Huang's Table 1
         // prints it.
         assert_eq!(binary_orbits()[0].spin_frequency, Some(16.940537785677));

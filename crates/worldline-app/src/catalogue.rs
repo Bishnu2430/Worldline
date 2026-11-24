@@ -129,7 +129,7 @@ const INSPIRALS: [(&str, &str, &str, Option<&str>); 2] = [
 /// Where a catalogue inspiral starts: a wave at 20 Hz, in the band LIGO
 /// hears. A choice, not a measurement: by then real pairs have long since
 /// become circular.
-const INSPIRAL_START: f64 = 20.0;
+pub const INSPIRAL_START: f64 = 20.0;
 
 /// One thing the catalogue can add.
 #[derive(Debug, Clone)]
@@ -546,10 +546,10 @@ mod tests {
     #[test]
     fn the_catalogue_offers_every_catalog_object() {
         let entries = catalogue();
-        // 4 copies, 20 catalog objects, the Hulse–Taylor pair, the
-        // GW170817 and GW150914 pairs, a hypothetical mini black hole, and
-        // two estimated impactors.
-        assert_eq!(entries.len(), 30);
+        // 4 copies, 22 catalog objects, the Hulse–Taylor pair and the double
+        // pulsar, the GW170817 and GW150914 pairs, a hypothetical mini black
+        // hole, and two estimated impactors.
+        assert_eq!(entries.len(), 33);
         let groups: Vec<Group> = entries.iter().map(|e| e.group).collect();
         assert!(groups.windows(2).all(|w| {
             Group::ALL.iter().position(|g| *g == w[0]) <= Group::ALL.iter().position(|g| *g == w[1])

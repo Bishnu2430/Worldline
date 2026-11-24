@@ -3,14 +3,15 @@
 **Code:**
 - `crates/worldline-app/src/app/scenarios.rs`: the library, its window and the perihelion watch;
 - `crates/worldline-app/src/app/film.rs`: the films' frame (step 8.5a): the reel, the camera it directs, the cards, captions and bar;
-- `crates/worldline-app/src/app/scripts.rs`: the films' scripts, and the checks of their figures against the data;
+- `crates/worldline-app/src/app/scripts.rs`: the Hulse–Taylor film's script, and the checks of its figures against the data;
+- `crates/worldline-app/src/app/films.rs`: every other film's script, the double pulsar's among them (step 8.5c), and the checks of theirs;
 - `crates/worldline-core/src/orbit.rs`: `periapsis_vector` (the Laplace–Runge–Lenz vector) and `relativistic_advance` (general relativity's turn of an orbit).
 
 **Tests** (in `scenarios.rs`):
 - `every_scenario_loads_and_plays`;
 - `each_scenario_is_set_up_as_it_says`;
 - slow: `mercurys_perihelion_turns_as_general_relativity_says` and `the_scenarios_play_out_as_they_say`;
-- the films' (in `film.rs` and `scripts.rs`): see [Films](#films-step-85a).
+- the films' (in `film.rs`, `scripts.rs` and `films.rs`): see [Films](#films-step-85a) and [Every film](#every-film-step-85c).
 
 Step 8.1 gathers the events and experiments Worldline can show into a library. Each one sets up in a single click, from the solar system as it was on 1 January 2025.
 
@@ -34,6 +35,7 @@ Each scenario is built from what the app already does: the catalogue's bodies, i
 |---|---|---|---|
 | Mercury's perihelion | `mercury` | The Sun and Mercury alone, everything else in the solar system taken away. 100 years a second. The inspector fits the rate the perihelion turns at, from the Laplace–Runge–Lenz vector sampled every frame. | Over a century: 42.9806″ a century, against general relativity's 42.9807″ for the orbit, 6πGM/c²a(1 − e²) an orbit (limit 10⁻³ of it). The planets' pulls, which would add 531″, are gone. |
 | The Hulse–Taylor pulsar | `hulse-taylor` | PSR B1913+16 and its companion on their measured orbit, 30 AU above the Sun, played as a [film](#films-step-85a) that ends by opening the gravitational-wave window. | Their orbit's period shrinks at −2.40210 × 10⁻¹² s each second, against −2.40263 × 10⁻¹² that general relativity predicts from the measured masses (Weisberg & Huang 2016). The limit is 8.5 × 10⁻⁴, what rounding the catalog's masses allows, as in step 2.2. |
+| The double pulsar | `double-pulsar` | PSR J0737−3039A and B on their measured orbit, 30 AU above the Sun, as the Hulse–Taylor pair is, played as a [film](#every-film-step-85c) that ends by opening the gravitational-wave window (step 8.5c). | Its orbit turns 16.899719° a year simulated, against the timed 16.899323° (limit 2.8 × 10⁻⁵, the post-Newtonian order left out); Peters & Mathews's formula gives Kramer et al.'s prediction of its shrinking to 3 × 10⁻⁷. |
 | GW150914 | `gw150914` | The two black holes, 35.6 and 30.6 Suns, from a 10 Hz wave, in real time, with the waves window. | They merge after 8.7 s. The waves window's recording runs the same pair ahead on its own and ends its inspiral at 8.69 s. The two must agree to within how finely the play is checked, 0.03 s. |
 | GW170817 | `gw170817` | The two neutron stars from a 20 Hz wave, in real time. | They merge after 173 s; the recording ends at 172.5 s, within 0.75 s. The app reports a hot neutron star of 2.73 Suns that collapses into a black hole. |
 | A planet meets a black hole | `planet-black-hole` | A copy of Gaia BH1 40 AU from the Sun. A Jupiter 2 AU from it, at 0.071 of the circular speed, with the tides overlay. A week a second. | Its closest approach is 0.501 of its tidal radius, R(M/m)^(1/3). Becoming a fluid there needs the GPU, so the tests don't play it. |
@@ -44,13 +46,13 @@ Each scenario is built from what the app already does: the catalogue's bodies, i
 | The Moon-forming impact | `moon-impact` | The impact window, with 8,000 particles. | It opens and runs; the impact's own checks are step 6.4's ([giant-impacts.md](physics/giant-impacts.md)). |
 | A black hole through the Sun's neighborhood | `black-hole-flyby` | A copy of Sagittarius A*, 4.3 million Suns, 3 pc behind and 3 pc beside the Sun, moving past at 1,000 km/s. The solar system taken away but the Sun. 100 years a second. | Its path passes 3.000 pc from the Sun. Gaia's nearby stars near it scatter. |
 
-**Every scenario** loads, then plays three frames as the app plays them: time moves on in each, except the Moon-forming impact's main view, which waits paused.
+**Every scenario** loads, then plays three frames as the app plays them: time moves on in each.
 
 ![Mercury's scenario after more than a century of play: the Sun alone with Mercury, the inspector reading 42.98 arcseconds a century measured, and general relativity's 42.98](images/scenario-mercury-step-8.1.png)
 
 ## Films (step 8.5a)
 
-A scenario can play as a film: a script of shots, each saying where the camera looks from and how it moves, how fast time runs, what's said over it, and which cards of information sit beside the bodies. The Hulse–Taylor pulsar is the first; step 8.5c scripts the rest.
+A scenario can play as a film: a script of shots, each saying where the camera looks from and how it moves, how fast time runs, what's said over it, and which cards of information sit beside the bodies. The Hulse–Taylor pulsar was the first; since step 8.5c [every scenario is one](#every-film-step-85c).
 
 ![The Hulse–Taylor film's fourth shot, at a month a second: the two stars' orbits around their center of mass, the pulsar's long axis now and, dashed, where it pointed 1.3 years before, turned 5.6°; a card measuring 4.2254° a year against general relativity's 4.2262° and the timed 4.226585°, and the caption and the film's bar below](images/film-hulse-taylor-step-8.5a.png)
 
@@ -111,6 +113,58 @@ Seven shots, 1 minute 56 seconds:
 In `film.rs`, unit tests check the reel itself: it plays through its cuts to its end, stays put paused, skips and goes back as a player does, turns the camera the shorter way round at a cut, and fades captions and cards in and out.
 
 **Found on the way.** For this pair, the orbit read off a single moment is a poor guide to general relativity's rate. Its Newtonian semi-major axis swings by 1 × 10⁻⁴ around each orbit, from the relativistic terms in the pair's motion. The rate worked out from one moment ranges from 4.2255° to 4.2262° a year, measured at 200 moments of one orbit. The card therefore uses the formula with the timed period, and the inspector's row shows three decimals for a pair. The rate fitted to the long axis over many orbits averages the swing out.
+
+## Every film (step 8.5c)
+
+Every scenario now plays as a film, and the library has a twelfth: **the double pulsar**, PSR J0737−3039A and B, from Kramer et al.'s (2021) timing. Each film's cards follow the Hulse–Taylor film's rules: a number on a card is published (read from the data, with its source) or measured from the simulation as it plays; history is cited to the paper that made it; what never happened says *imagined* in its first caption.
+
+| Film | Shots | Length | What it shows | Its sources |
+|---|---|---|---|---|
+| Mercury's perihelion | 3 | 46 s | The turning Le Verrier couldn't explain, 38″ a century (1859); Einstein's 43″ (1915); the turning measured as it plays, against relativity's | Le Verrier 1859; Einstein 1915 |
+| The Hulse–Taylor pulsar | 7 | 1 min 56 s | See [above](#the-hulse-taylor-film) | Hulse & Taylor 1975; Weisberg & Huang 2016 |
+| **The double pulsar** | 5 | 1 min 23 s | Found in 2003 and 2004; two pulsars, 44 turns a second and one every 2.8 s, on an edge-on orbit; turning 16.9° a year (four times Hulse–Taylor's), measured as it plays; shrinking 7 mm a day, colliding in 86 million years; the most precise test of gravitational waves | Burgay et al. 2003; Lyne et al. 2004; Kramer et al. 2021 |
+| GW150914 | 4 | 27 s | Two black holes of 36 and 31 Suns, 440 Mpc away, in their last nine seconds, in real time; one of 63 Suns, three Suns' worth radiated; heard on 14 September 2015 | GWTC-1 (Abbott et al. 2019); Abbott et al. 2016 |
+| GW170817 | 4 | 3 min 11 s | Two neutron stars in NGC 4993, 40 Mpc away, in their last three minutes, in real time; the gamma rays 1.7 s after; the kilonova | GWTC-1; Abbott et al. 2017 |
+| A planet meets a black hole | 3 | 38 s | Imagined: a Jupiter falling past a copy of Gaia BH1; its tidal radius, live; torn apart as a fluid | El-Badry et al. 2023; Rees 1988 |
+| TON 618 swallows Sagittarius A* | 3 | 35 s | Imagined: 66 billion Suns and 4.3 million; the fall, live, against TON 618's horizon; 0.0065% heavier | Shemmer et al. 2004; GRAVITY Collaboration 2022 |
+| A white dwarf past its limit | 3 | 23 s | Imagined: two copies of Sirius B, 2.04 Suns together, past Chandrasekhar's limit worked out live; a type Ia supernova, and what such supernovae found in 1998 | Bond et al. 2017; Chandrasekhar 1931; Riess et al. 1998; Perlmutter et al. 1999 |
+| An evaporating black hole | 3 | 36 s | Imagined: 100,000 tonnes, its temperature, power and life left, live, to the end | Hawking 1974 |
+| The next total solar eclipse | 3 | 30 s | The finder searching ahead, how far it has got shown as it goes (the first shot waits until it has found it, about half a minute); the shadow on 12 August 2026, from the Sun's side | Espenak & Meeus 2006 |
+| The Moon-forming impact | 3 | 38 s | The young Earth while the impact plays in its own window; the giant-impact idea | Canup 2004; Hartmann & Davis 1975; Cameron & Ward 1976 |
+| A black hole through the Sun's neighborhood | 3 | 42 s | Imagined: a copy of Sagittarius A* passing 3 pc from the Sun at 1,000 km/s; its distance and speed, live | GRAVITY Collaboration 2022 |
+
+**For the films to work** the frame gained three things:
+- **A shot can wait.** The eclipse's first shot holds at its end until the eclipse finder has found the eclipse and gone to it, however long that takes.
+- **A shot can face the Sun.** Its angle around is measured from the direction to the Sun, so the eclipse is seen from the sunlit side whatever the date.
+- **A shot can follow whatever the camera follows.** For a copy whose name is only known once it's added (the planet, the white dwarfs), a shot names no bodies and looks at the one followed.
+
+Two more changes come with them:
+- **Watch again** now starts the scenario afresh. Time doesn't run backward, and an event, once it has happened (a merger), can't be shown again by going back to its shot. Going back to an earlier shot shows its framing and words with time still running on.
+- **The Moon-forming impact's** main view now runs in real time during its film. It used to wait paused, but a paused film doesn't play.
+
+### The double pulsar
+
+**The data** (`notable-objects.csv` and `binary-orbits.csv`, from Kramer et al. 2021, *Phys. Rev. X* 11, 041050, read from the paper itself):
+- **The masses:** pulsar A 1.338185 (+12/−14) Suns and pulsar B 1.248868 (+13/−11) Suns (Table IV, eqs. 36 and 37).
+- **The orbit:** period 0.1022515592973 days, eccentricity 0.087777023, turning 16.899323° a year.
+- **Pulsar A:** spin 44.05406864196281 Hz.
+- **The distance:** 735 pc.
+- **The shrinking from gravitational waves:** −1.247782(79) × 10⁻¹² s/s (eq. 44). That's the observed −1.247920 × 10⁻¹², less the Shklovskii and galactic terms and A's loss of mass.
+- **General relativity's prediction** at the same, quadrupole order: −1.247810 × 10⁻¹² (eq. 45). With the next order of radiation, Kramer et al. find measured ÷ predicted 0.999963 ± 0.000063 (eq. 48).
+- **The radii** aren't measured: GW170817's 11.9 km, labeled assumed, as for the Hulse–Taylor pair.
+
+**Checked** (in `crates/worldline-data/tests/`):
+- **The orbit turns as measured** (`the_double_pulsars_orbit_turns_as_measured`). Resized until its simulated period is the measured one, as for the Hulse–Taylor pair in step 2.2, it turns 16.899719° a year against the timed 16.899323°: 2.3 × 10⁻⁵. The simulation keeps the first post-Newtonian order. The next, which Kramer et al. measured at 35 times the turning's uncertainty (35 × 0.000013/16.899323 = 2.7 × 10⁻⁵), it leaves out. With the masses' rounding, 5 × 10⁻⁷, the limit is 2.8 × 10⁻⁵.
+- **The orbit shrinks as measured** (`the_double_pulsars_orbit_shrinks_as_measured`):
+  - Peters & Mathews's formula, for the catalog's masses and the timed orbit, gives Kramer et al.'s prediction to 3 × 10⁻⁷. The limit, 6.5 × 10⁻⁶, is the masses' rounding plus the prediction's own uncertainty.
+  - Their measurement is 0.35σ from it, within the 2σ allowed.
+  - The engine's radiation reaction itself is checked over a thousand simulated orbits of the Hulse–Taylor pair (step 2.2).
+
+**The films' checks** (in `films.rs`):
+- `every_scenario_is_a_film_and_each_shot_sets_itself_up`: every scenario has a film. Gone to, each shot sets its speed and trails and hides the grid, and every line of its cards says something.
+- `the_captions_figures_follow_from_the_data`: every figure a caption rounds, worked out from the data. For example, the double pulsar's 2 hours 27 minutes, 44 turns a second, four times Hulse–Taylor's turning, 7 mm a day (7.15), 39 µs a year (39.38) and 86 million years (86.0).
+- `a_shot_waiting_for_the_eclipse_holds_until_it_is_found`: the eclipse's first shot holds just short of its end while the finder searches, and moves on once the eclipse is found.
+- Slow: `every_film_plays_to_its_end`: each film, half a second a frame, the eclipse finder polled as its window polls it, ends, and every shot's cards speak.
 
 ## Why some are set up as they are
 

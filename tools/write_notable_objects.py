@@ -115,6 +115,19 @@ OBJECTS = [
      "", "", "In the Milky Way, in Aquila: the Hulse-Taylor binary pulsar",
      "Weisberg & Huang 2016, ApJ 829, 55 (masses from the periastron advance and the Einstein "
      "delay); radius not measured: GW170817's, " + GW170817_RADII),
+    ("PSR J0737-3039A", "neutron star", "PSR J0737-3039",
+     "1.338185", "0.000012", "0.000014",
+     "11.9", "km", "1.4", "1.4", "assumed", "", "",
+     "735", "pc", "In the Milky Way, in Puppis: the double pulsar, its 23-ms pulsar A",
+     "Kramer et al. 2021, Phys. Rev. X 11, 041050, Table IV and eq. 36 (masses from the periastron advance "
+     "and the Shapiro delay's shape; distance 735(60) pc from VLBI and timing parallaxes); radius not "
+     "measured: GW170817's, " + GW170817_RADII),
+    ("PSR J0737-3039B", "neutron star", "PSR J0737-3039",
+     "1.248868", "0.000013", "0.000011",
+     "11.9", "km", "1.4", "1.4", "assumed", "", "",
+     "735", "pc", "In the Milky Way, in Puppis: the double pulsar, its 2.8-s pulsar B",
+     "Kramer et al. 2021, Phys. Rev. X 11, 041050, Table IV and eq. 37; radius not measured: GW170817's, "
+     + GW170817_RADII),
     ("PSR J0740+6620", "neutron star", "",
      "2.08", "0.07", "0.07",
      "12.39", "km", "1.30", "0.98", "measured", "", "",
@@ -182,6 +195,14 @@ ORBITS = [
      "(observed -2.423(1)e-12 less the galactic -(0.025 +- 0.004)e-12), and general relativity's "
      "prediction from the measured masses (Peters & Mathews 1963) -(2.40263 +- 0.00005)e-12; "
      "Table 1: the pulsar's spin frequency f = 16.940537785677(3) s^-1"),
+    ("PSR J0737-3039", "0.1022515592973", "0.087777023", "16.899323",
+     "-1.247782e-12", "0.000079e-12", "-1.247810e-12", "0.000007e-12", "44.05406864196281",
+     "Kramer et al. 2021, Phys. Rev. X 11, 041050, Table IV: Pb = 0.1022515592973(10) d, e_T = "
+     "0.087777023(61), periastron advance 16.899323(13) deg/yr, pulsar A's spin frequency "
+     "44.05406864196281(17) Hz; the period's change from gravitational waves, eq. 44: -1.247782(79)e-12 "
+     "(observed -1.247920(78)e-12, less the Shklovskii and galactic -1.68e-16 and A's mass loss); general "
+     "relativity's prediction from the masses at leading (quadrupole) order, eq. 45: -1.247810(+6/-7)e-12 "
+     "(with the 3.5PN term, eq. 47, -1.247827(+6/-7)e-12: measured over predicted 0.999963(63), eq. 48)"),
 ]
 
 

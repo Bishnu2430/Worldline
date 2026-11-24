@@ -1,0 +1,11 @@
+{
+  "id": "double-pulsar-turning",
+  "test": "validation_notable_objects::the_double_pulsars_orbit_turns_as_measured",
+  "file": "crates/worldline-data/tests/validation_notable_objects.rs",
+  "kind": "margins",
+  "title": "The double pulsar's orbit turning, simulated with relativistic gravity",
+  "checks": [
+    {"label": "the turning, against 16.899323°/yr measured (Kramer et al. 2021)", "off": 2.3440283603903822e-5, "limit": 2.8e-5, "shown": "16.899719°/yr (limit: the next post-Newtonian order, which Kramer et al. measured, and the masses' rounding)"},
+    {"label": "the period, against the measured 2.45 h", "off": 4.6193027181118396e-9, "limit": 1e-6, "shown": "2.454037 h"}
+  ]
+}

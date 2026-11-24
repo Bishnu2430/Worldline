@@ -51,6 +51,7 @@ use crate::view::{self, OnScreen, ViewOptions};
 use crate::waves;
 
 mod film;
+mod films;
 mod scenarios;
 mod scripts;
 
@@ -4330,7 +4331,9 @@ impl WorldlineApp {
         let when = to_the_second(self.simulation.time_scales().utc(found.jd_tdb));
         match Simulation::load(&found.save, SPEEDS[HOUR].1) {
             Ok(mut simulation) => {
-                simulation.paused = true;
+                // Stopped at the eclipse, to look at it; in a film, running
+                // on, as the film's pause is time's.
+                simulation.paused = !self.film_playing();
                 self.simulation = simulation;
                 self.speed_index = HOUR;
                 self.drop_fluid();
@@ -4345,10 +4348,16 @@ impl WorldlineApp {
                 } else {
                     ("Moon", 14.0)
                 };
+                // In a film, the film points the camera.
                 if let Some(i) = self.simulation.index_of(name)
                     && !stay
                 {
-                    self.fly_to(i, radii);
+                    if self.film_playing() {
+                        self.focus = i;
+                        self.selected = i;
+                    } else {
+                        self.fly_to(i, radii);
+                    }
                 }
                 // For the Sun, look down on where the shadow's axis meets
                 // the ground, or else at Earth from the Moon's side.

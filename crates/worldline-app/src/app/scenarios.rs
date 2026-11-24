@@ -22,13 +22,13 @@ pub struct Scenario {
 }
 
 /// Every scenario, in the order the roadmap lists them.
-pub const SCENARIOS: [Scenario; 11] = [
+pub const SCENARIOS: [Scenario; 12] = [
     Scenario {
         key: "mercury",
         title: "Mercury's perihelion",
         about: "Everything but the Sun and Mercury is taken away, at a century a second. The orbit's closest point turns by 43 arcseconds a century, general relativity's prediction; the inspector measures it as it plays.",
         start: mercury,
-        film: None,
+        film: Some(&super::films::MERCURY),
     },
     Scenario {
         key: "hulse-taylor",
@@ -38,67 +38,74 @@ pub const SCENARIOS: [Scenario; 11] = [
         film: Some(&super::scripts::HULSE_TAYLOR),
     },
     Scenario {
+        key: "double-pulsar",
+        title: "The double pulsar",
+        about: "A film of under two minutes: PSR J0737−3039A and B, the first pair of pulsars found, on their measured orbit, every 2.45 hours. Relativity turns their orbit 16.9° a year, four times as fast as the Hulse–Taylor pulsar's, and their waves shrink it, as Kramer et al. (2021) timed to 6 parts in 100,000. Run with the rest of the solar system taken away, like the Hulse–Taylor pair.",
+        start: double_pulsar,
+        film: Some(&super::films::DOUBLE_PULSAR),
+    },
+    Scenario {
         key: "gw150914",
         title: "GW150914: two black holes merge",
         about: "The first gravitational waves heard, from 36 and 31 Suns spiraling together, in real time from a 10 Hz wave: they merge nine seconds later. The waves window plays their chirp. The rest of the solar system is taken away, so their many steps a second don't hold up the planets'.",
         start: gw150914,
-        film: None,
+        film: Some(&super::films::GW150914),
     },
     Scenario {
         key: "gw170817",
         title: "GW170817: two neutron stars merge",
         about: "1.46 and 1.27 Suns, from a 20 Hz wave, in real time: they merge about three minutes later, into a neutron star that collapses into a black hole. The waves window plays their chirp. The rest of the solar system is taken away, so their many steps a second don't hold up the planets'.",
         start: gw170817,
-        film: None,
+        film: Some(&super::films::GW170817),
     },
     Scenario {
         key: "planet-black-hole",
         title: "A planet meets a black hole",
         about: "A Jupiter falls past Gaia BH1, 9.6 Suns, at half the distance its tides tear it apart at. Near it, it becomes a fluid on the GPU and is pulled apart.",
         start: planet_black_hole,
-        film: None,
+        film: Some(&super::films::PLANET_BLACK_HOLE),
     },
     Scenario {
         key: "ton-618",
         title: "TON 618 swallows Sagittarius A*",
         about: "One of the heaviest black holes known, 66 billion Suns, dropped 6,600 AU from the Milky Way's 4.3 million. Sagittarius A* falls in within half a year, at a month a second.",
         start: ton_618,
-        film: None,
+        film: Some(&super::films::TON_618),
     },
     Scenario {
         key: "white-dwarf",
         title: "A white dwarf past its limit",
         about: "Two copies of Sirius B, 1.02 Suns each, fall together from 0.05 AU. Together they're past Chandrasekhar's limit, 1.46 Suns: they explode as a type Ia supernova, half a day in, at an hour a second.",
         start: white_dwarf,
-        film: None,
+        film: Some(&super::films::WHITE_DWARF),
     },
     Scenario {
         key: "mini-black-hole",
         title: "An evaporating black hole",
         about: "A hypothetical 100,000-tonne black hole, circling the Sun just outside Earth's orbit, evaporates by Hawking radiation: 2.7 years, at a month a second, faster and hotter to the end.",
         start: mini_black_hole,
-        film: None,
+        film: Some(&super::films::MINI_BLACK_HOLE),
     },
     Scenario {
         key: "eclipse",
         title: "The next total solar eclipse",
         about: "The eclipse finder runs the simulation ahead to the total eclipse of 12 August 2026, over Greenland, Iceland and Spain, and shows the Moon's shadow on Earth.",
         start: eclipse,
-        film: None,
+        film: Some(&super::films::ECLIPSE),
     },
     Scenario {
         key: "moon-impact",
         title: "The Moon-forming impact",
         about: "Canup's (2004) giant impact, a Mars-sized planet striking the young Earth, as 8,000 particles of rock and iron in a window of its own: it leaves a disk the Moon forms from.",
         start: moon_impact,
-        film: None,
+        film: Some(&super::films::MOON_IMPACT),
     },
     Scenario {
         key: "black-hole-flyby",
         title: "A black hole through the Sun's neighborhood",
         about: "A copy of Sagittarius A*, 4.3 million Suns, crosses the Sun's neighborhood at 1,000 km/s, passing 3 pc from the Sun, at a century a second. Gaia's nearby stars near its path scatter. The planets are taken away: from parsecs off they're inside a point, and they'd hold the century a second up.",
         start: black_hole_flyby,
-        film: None,
+        film: Some(&super::films::BLACK_HOLE_FLYBY),
     },
 ];
 
@@ -468,6 +475,18 @@ fn hulse_taylor(app: &mut WorldlineApp) {
     app.at_speed(HOUR);
 }
 
+/// As the Hulse–Taylor pair: alone, 30 AU above the Sun, an hour a second.
+fn double_pulsar(app: &mut WorldlineApp) {
+    let entry = catalogue::entry("binary:PSR J0737-3039").expect("in the catalogue");
+    let bodies = entry.bodies(&app.simulation);
+    let Some(pulsar) = add_alone(app, bodies, &entry.key) else {
+        return;
+    };
+    app.fly_to(pulsar, 1e5);
+    app.selected = pulsar;
+    app.at_speed(HOUR);
+}
+
 /// The two holes from a 10 Hz wave.
 fn gw150914(app: &mut WorldlineApp) {
     let find = |name: &str| worldline_data::notable_object(name).expect("in the catalog");
@@ -604,7 +623,7 @@ mod tests {
     fn every_scenario_loads_and_plays() {
         let mut keys: Vec<&str> = SCENARIOS.iter().map(|s| s.key).collect();
         keys.dedup();
-        assert_eq!(keys.len(), 11);
+        assert_eq!(keys.len(), 12);
         let mut figure = worldline_report::margins(
             "scenarios-load",
             "The scenario library: every scenario loads and plays from the menu",

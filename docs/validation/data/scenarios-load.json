@@ -5,16 +5,17 @@
   "kind": "margins",
   "title": "The scenario library: every scenario loads and plays from the menu",
   "checks": [
-    {"label": "Mercury's perihelion", "off": 0.0, "limit": 0.5, "shown": "312 bodies; 22782282.182 s of simulated time in three frames"},
+    {"label": "Mercury's perihelion", "off": 0.0, "limit": 0.5, "shown": "312 bodies; 31017791.789 s of simulated time in three frames"},
     {"label": "The Hulse–Taylor pulsar", "off": 0.0, "limit": 0.5, "shown": "313 bodies; 1080.000 s of simulated time in three frames"},
+    {"label": "The double pulsar", "off": 0.0, "limit": 0.5, "shown": "313 bodies; 1080.000 s of simulated time in three frames"},
     {"label": "GW150914: two black holes merge", "off": 0.0, "limit": 0.5, "shown": "313 bodies; 0.300 s of simulated time in three frames"},
     {"label": "GW170817: two neutron stars merge", "off": 0.0, "limit": 0.5, "shown": "313 bodies; 0.300 s of simulated time in three frames"},
-    {"label": "A planet meets a black hole", "off": 0.0, "limit": 0.5, "shown": "843 bodies; 77476.345 s of simulated time in three frames"},
-    {"label": "TON 618 swallows Sagittarius A*", "off": 0.0, "limit": 0.5, "shown": "842 bodies; 77476.345 s of simulated time in three frames"},
+    {"label": "A planet meets a black hole", "off": 0.0, "limit": 0.5, "shown": "843 bodies; 124649.350 s of simulated time in three frames"},
+    {"label": "TON 618 swallows Sagittarius A*", "off": 0.0, "limit": 0.5, "shown": "842 bodies; 139406.749 s of simulated time in three frames"},
     {"label": "A white dwarf past its limit", "off": 0.0, "limit": 0.5, "shown": "843 bodies; 1080.000 s of simulated time in three frames"},
-    {"label": "An evaporating black hole", "off": 0.0, "limit": 0.5, "shown": "842 bodies; 77476.345 s of simulated time in three frames"},
-    {"label": "The next total solar eclipse", "off": 0.0, "limit": 0.5, "shown": "841 bodies; 77476.345 s of simulated time in three frames"},
-    {"label": "The Moon-forming impact", "off": 0.0, "limit": 0.5, "shown": "841 bodies; waits paused, as it should"},
+    {"label": "An evaporating black hole", "off": 0.0, "limit": 0.5, "shown": "842 bodies; 343325.891 s of simulated time in three frames"},
+    {"label": "The next total solar eclipse", "off": 0.0, "limit": 0.5, "shown": "841 bodies; 1080.000 s of simulated time in three frames"},
+    {"label": "The Moon-forming impact", "off": 0.0, "limit": 0.5, "shown": "841 bodies; 0.300 s of simulated time in three frames"},
     {"label": "A black hole through the Sun's neighborhood", "off": 0.0, "limit": 0.5, "shown": "312 bodies; 946728000.000 s of simulated time in three frames"}
   ]
 }
