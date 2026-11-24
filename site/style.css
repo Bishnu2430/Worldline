@@ -394,8 +394,14 @@ pre code {
   color: var(--muted);
   font-size: 0.78rem;
 }
-.window video,
-.window img {
+/* The title bar's icon keeps its size; only the capture fills the window. */
+.window-bar img {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.window > video,
+.window > img {
   width: 100%;
 }
 .window figcaption {
@@ -826,6 +832,9 @@ pre code {
 /* Run it. */
 .cards-2 {
   display: grid;
+  /* One column that never grows past the page, so a long line of code
+     scrolls inside its block instead of widening the card. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   margin-top: 32px;
 }
@@ -835,6 +844,7 @@ pre code {
   }
 }
 .card {
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-window);
