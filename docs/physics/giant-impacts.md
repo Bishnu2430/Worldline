@@ -137,8 +137,6 @@ cargo run --release -- --moon-impact 8000 --paused
 
 Or select Earth, then **The Moon-forming impact** in the inspector. A window opens with the impact from above, or edge on, colored by where the material came from or by its internal energy, with the results beside it and Canup's in brackets. It takes about 20 minutes of this computer's time for the 27 hours, and every 5 simulated minutes is kept, so the slider replays it. A smaller number runs faster and less well: 2,000 takes 2 or 3 minutes, and at 4,000 the disk already comes out too light.
 
-![The Moon-forming impact in its window at 2.5 hours: Earth with the impactor's material wrapped around its iron core, and a long arm of debris from the impactor](../images/moon-impact-step-6.4.png)
-
 The window stands apart from the main view: the impact happened 4.5 billion years ago, so it doesn't touch today's solar system.
 
 ## Where it's valid

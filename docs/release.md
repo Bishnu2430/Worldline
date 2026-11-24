@@ -14,7 +14,7 @@ Step 8.8a. Worldline for Windows is a zip with one program in it, `worldline.exe
 |---|---|
 | `worldline.exe` | the program, about 57 MB |
 | `README.txt` | how to run it, what it needs, and some places to start |
-| `LICENSE.txt` | its license (MIT) |
+| `LICENSE.txt` | its license, the PolyForm Noncommercial License 1.0.0: free for non-commercial use |
 | `CREDITS.md` | where its data, maps and images come from, and their licenses |
 
 **Nothing to install.** The program carries everything it uses:

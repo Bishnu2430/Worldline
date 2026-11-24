@@ -46,8 +46,6 @@ So a primordial hole ending its life today weighs 5.1 × 10¹¹ kg by Carr et al
 
 **For every black hole,** the inspector shows its Hawking temperature, labeled theoretical, and either when it evaporates, or that it is colder than the cosmic background and isn't evaporating today.
 
-![The mini black hole dropped 1 AU from the Sun: the inspector gives its horizon, 1.485 × 10⁻¹⁹ m, its Hawking temperature, 1.227 × 10¹⁵ K (theoretical), and its evaporation in 2.665 years (photons only)](../images/mini-black-hole-step-2.8.png)
-
 Run `cargo run --release -- --add "Mini black hole:1" --paused --advance 3` and the hole is gone from the list: the top bar says it "evaporated completely".
 
 ## Where it's valid

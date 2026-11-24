@@ -142,13 +142,11 @@ cargo run --release -- --add "Chicxulub impactor:0.002@Earth" --aim 12,0.5 --adv
 
 `--advance` runs on 25 hours past the impact, which happens on the night side, until the crater reaches the noon Sun.
 
-![A crater 143.5 km across in the Pacific, seen from above: a dark floor, a pale wall, a central peak and a halo of thrown-out rock](../images/crater-step-6.3.png)
+![Chicxulub's estimated impactor, sent at Earth: the crater it digs, 25 hours later in the noon Sun](../screenshots/crater.webp)
 
 ```bash
 cargo run --release -- --add "Meteor Crater impactor:0.002@Earth" --aim 12,0.7071 --advance 0.00289 --focus Earth --zoom 4 --yaw -79 --pitch 12 --speed real
 ```
-
-![Earth from afar with a ring around the spot where a crater 1.03 km across lies, too small to see](../images/small-crater-step-6.3.png)
 
 This gives 1.03 km, not the check's 1,095 m, as the app's ground is hard rock and Meteor Crater's is soft.
 

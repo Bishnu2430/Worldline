@@ -38,8 +38,6 @@ dr/dη = −r (r − 2Gm/c²)/(Gm/c² + 4πG r³ p/c⁴), dm/dη = 4π r² (ε/c
 
 **For a neutron star,** the inspector shows the heaviest a neutron star can be (2.048 Suns, SLy) and the radius SLy gives a star of its mass. For PSR J0740+6620, measured at 2.08 ± 0.07 Suns, it says that is heavier than SLy allows, within its uncertainty.
 
-![PSR J0740+6620, the heaviest well-measured neutron star, dropped 30 AU from the Sun: the inspector gives SLy's heaviest star, 2.048 Suns, and notes that J0740's 2.08 is above it](../images/j0740-step-2.7.png)
-
 **A neutron star that grows** in a merger takes SLy's radius for its new mass: the Hulse–Taylor pulsar, after swallowing a Jupiter, is 11.68 km.
 
 **Past the maximum it collapses into a black hole.** Its horizon replaces its surface, and its mass is kept. The top bar says which way:

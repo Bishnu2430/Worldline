@@ -57,8 +57,6 @@ For Sirius B, the first two are each of order 1%.
 - **Labeled:** the debris isn't simulated (that needs fluids, milestone 4). Real white dwarfs ignite slightly below the ideal limit.
 - **One exception:** a white dwarf that has absorbed the Sun holds the place everything is measured from, so it stays, with a note.
 
-![Sirius B dropped 30 AU from the Sun: the inspector shows its published radius, 5586 km, beside the ideal model's 5583 km for its mass, and Chandrasekhar's limit, 1.456 Suns](../images/sirius-b-step-2.6.png)
-
 To see it: `cargo run --release -- --add "Sirius B:30" --focus "Sirius B" --paused`.
 
 ## Validation (`cargo test`)

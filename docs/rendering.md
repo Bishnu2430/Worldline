@@ -107,15 +107,11 @@ How bright and what color are visual; where the light is, is the model's.
 - **The shader:** naga compiles and validates it, and its `View` and `Star` layouts match the Rust structs.
 - **Seen from above** (`validation_glow_gpu.rs`, on the GPU): the app's 30,000 stars, from 200 kpc over the center, 1,024 pixels across, read back in single precision. The disk, drawn, thins out over 4 to 12 kpc with a scale length of 2.5945 kpc. McMillan's model at the same pixels gives 2.6156 kpc. They're 0.61 standard deviations apart, where σ = 0.0344 kpc is how much a 30,000-star sample's profile wanders, from 300 resamples; the limit is 3. The stars themselves, counted without drawing, give 2.5938 kpc, so the drawing adds nothing. At the Sun's radius the drawn disk holds 43.2 Suns per square parsec, against the model's 45.0.
 
-![The Milky Way from 40 kpc, drawn as light: a mottled bluish disk brightening to an orange bulge, the Sun on its path around the center, the globular clusters as yellow dots](images/galaxy-glow-step-7.4.png)
-
-![From inside the disk, 1.85 kpc from the Sun near the globular cluster M4: a dark sky above, the inner galaxy's warm glow brightening toward the lower left](images/galaxy-glow-inside-step-7.4.png)
+![The Milky Way from 35 kiloparsecs, drawn as light: its disk and bulge, with the Sun on its path round the center](screenshots/milky-way.webp)
 
 **From inside,** the band of the Milky Way is as broad as the swarm allows: the nearest drawn stars, each spread over a few hundred parsecs, fill the sky around the camera.
 
 ## Spacecraft maps
-
-![Pluto from the Sun's side on 2 January 2025, its New Horizons map showing Sputnik Planitia, the bright plain of the "heart", on the side facing away from Charon](images/pluto-map-new-horizons.png)
 
 14 bodies have maps made from spacecraft images: Io, Europa, Ganymede and Callisto (Galileo and Voyager), Titan, Enceladus, Tethys, Dione, Rhea and Iapetus (Cassini, with Voyager filling gaps), Triton (Voyager 2, the only one in color), Pluto and Charon (New Horizons) and Ceres (Dawn). They are global mosaics published by the USGS Astrogeology Science Center and NASA's Planetary Data System, public domain.
 

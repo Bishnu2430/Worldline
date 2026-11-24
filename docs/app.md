@@ -33,7 +33,7 @@ The app is a window around the physics engine. It never does physics itself. It 
 
 Step 8.3 gave the app its current look and feel.
 
-![Worldline with Saturn up close: the top bar's grouped tools, the clock on the right, and the inspector's cards for the bodies and Saturn](images/ui-step-8.3.png)
+![Saturn up close: along the top, time, the scenarios, eclipses, the sky, the manual and the tools to add bodies; on the right, every body, and the one selected with the physics that moves it](screenshots/interface.webp)
 
 **The look** (`theme.rs`):
 - **Type.** Text is set in [Inter](https://github.com/rsms/inter), a typeface made for screens: Regular for text, SemiBold for titles and the primary button. egui's own fonts follow it for anything Inter lacks (arrows, symbols, the icons). A test reads every string the app's code writes and fails if any character would show as an empty box.
@@ -189,8 +189,6 @@ On this computer the gain is the belts: fewer asteroids carried to now (the phys
 
 ## The galactic center
 
-![Sagittarius A* and the stars that orbit it](images/galactic-center-step-2.1c.png)
-
 Sagittarius A\*, the Milky Way's central black hole, is in the body list with its 39 stars, at its real place: 8,277 pc away, in its true direction on the sky. Double-click it to fly there; the camera climbs out from the solar system and comes back in, framing the stars. The camera can zoom out to about 300 kpc, far enough to see both at once.
 - **Its stars** are colored by type: young, hot ones blue-white, cool giants orange. They show, with their orbits, around Sagittarius A\* in focus, like a planet's moons.
 - **The inspector** gives its distance in light-years and parsecs, and labels what's measured and what isn't simulated.
@@ -220,11 +218,7 @@ See [physics/galactic-center.md](physics/galactic-center.md).
 
 ## Sandbox tools
 
-![A Jupiter-mass planet (pink) dropped 1.5 AU from the Sun, five years on: the inner planets' orbits pulled out of shape](images/sandbox-step-1.6.png)
-
 **Select and inspect.** Click a body to select it; the inspector shows what is known about it. Double-click it to fly to it.
-
-![The catalogue open beside Sagittarius A*, dropped 3 AU from the Sun: a dark disk the size of its shadow](images/catalogue-step-2.1.png)
 
 **The catalogue.** **Add a body** in the top bar opens the catalogue: 30 entries in seven groups, each with its mass and size. Hover over one to see where the real one is and where its values were published. The entries are:
 - **Planets:** copies of Earth, Neptune and Jupiter.

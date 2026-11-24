@@ -6,7 +6,7 @@
 2. Double-click `worldline.exe`. There's nothing to install.
 3. The first time, Windows may say *Windows protected your PC*, because the program isn't signed with a paid certificate. Press **More info**, then **Run anyway**.
 
-It needs Windows 10 or 11 (64-bit) and a graphics card that draws through DirectX 12 or Vulkan. Press **F1** in the app for the manual. `README.txt` in the zip has the rest.
+It needs Windows 10 or 11 (64-bit) and a graphics card that draws through DirectX 12 or Vulkan. It's free for non-commercial use, under the [PolyForm Noncommercial License 1.0.0](https://github.com/Bishnu2430/Worldline/blob/main/LICENSE). Press **F1** in the app for the manual. `README.txt` in the zip has the rest.
 
 ### Checked before it was published
 

@@ -306,4 +306,8 @@ Rust · wgpu · egui · data from NASA JPL and NAIF · planet textures from Sola
 
 ## License
 
-[MIT](LICENSE)
+Worldline is free for non-commercial use, under the [PolyForm Noncommercial License 1.0.0](LICENSE). Anyone may use, study, change and share it for any purpose that isn't commercial (personal study, research and hobby projects, and use by charities, schools, public research bodies and governments), as long as the license and its copyright notice go with it. Commercial use needs the author's permission: ask through [GitHub](https://github.com/Bishnu2430).
+
+The code published before version 1.0.0 was under the MIT License, and copies taken under it keep those terms.
+
+The data, maps, images and typeface it uses keep their own licenses, listed in [CREDITS.md](CREDITS.md).

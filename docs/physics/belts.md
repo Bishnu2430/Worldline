@@ -4,7 +4,7 @@
 **Data:** `crates/worldline-data/data/{asteroid-belt,jupiter-trojans,kuiper-belt}.csv` · **Fetch script:** `tools/fetch_belts.py`
 **Tests:** `crates/worldline-data/tests/validation_belts.rs`, plus unit tests
 
-![The asteroid belt (tan) and Jupiter's Trojans (gold) on 1 January 2025, with Jupiter at the top: the Trojan clouds sit 60° to either side of it](../images/belts-step-1b.7.png)
+![The asteroid belt and Jupiter's two Trojan clouds, 60° ahead of and behind it, from 28,331 real orbits, in the glow of the zodiacal dust](../screenshots/belts.webp)
 
 To see it: `cargo run --release -- --focus Sun --zoom 2500` (the camera 2,500 solar radii, about 12 AU, from the Sun).
 

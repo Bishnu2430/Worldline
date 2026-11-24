@@ -4,8 +4,6 @@
 **Data:** `crates/worldline-data/data/belt-samples.csv`, from `tools/fetch_belt_samples.py`
 **Tests:** `crates/worldline-core/tests/validation_swarm.rs`, `crates/worldline-data/tests/validation_belts.rs`, plus unit tests
 
-![Three and a half months after the 33-Sun black hole Gaia BH3 was dropped 2.8 AU from the Sun: the main belt torn up, part of it captured into a cloud around the hole](../images/swarm-step-2.1b.png)
-
 ## What's in it
 
 The swarm holds the massless bodies too many to integrate one by one:

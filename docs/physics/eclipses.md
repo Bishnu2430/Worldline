@@ -205,11 +205,7 @@ x and y aren't compared one by one: NASA's plane takes north from the true pole 
 
 **Times in UTC.** NASA's catalogs list UT times computed with ΔT predicted years ahead: 75.4 s for 2026. The IERS measures ΔT at about 69.2 s in 2026. So an eclipse happens about 6 s later in UT than NASA's table says. Worldline's UTC uses the IERS's ΔT, and so lands those 6 s later too.
 
-![The total solar eclipse of 12 August 2026 at its greatest: the Moon's umbra, narrowed to about 50 km, meeting Earth's sunlit northern limb inside the amber penumbra; Earth's own shadow trailing from its night side](../images/eclipse-solar-step-5.2.png)
-
-![The path of totality of 12 August 2026 seen from above the shadow at greatest eclipse: red limits and a pale central line arcing past Greenland and Iceland to Spain, the umbra a small dark oval on the line west of Iceland, the penumbra's edge in amber from Canada to Africa, and night at the top](../images/eclipse-path-step-5.3.png)
-
-![The eclipse finder searching from the 2025 snapshot: seven eclipses found by mid-2026, each with its time, type, γ and magnitude, and a Go to button](../images/eclipse-finder-step-5.2.png)
+![The total solar eclipse of 12 August 2026 at its greatest, found by the eclipse finder in the app's own simulation: the Moon's shadow on Earth and its path of totality](../screenshots/eclipse-path.webp)
 
 ## Where it's valid
 

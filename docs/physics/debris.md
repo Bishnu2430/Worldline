@@ -98,13 +98,11 @@ A Mars sent into an Earth, worked out afresh from what is really in the simulati
 cargo run --release -- --add earth:0.0003@Earth --aim 30,0.3 --focus Earth --zoom 330 --speed hour
 ```
 
-![A second Earth struck Earth at 30 km/s: an arc of orange fragments flies off, and the inspector shows erosion, 27% of the mass left, 73% thrown off, and a heat of 306 MJ/kg](../images/debris-step-6.2.png)
+![A second Earth strikes Earth at 30 km/s, a little off center: the fragments it throws off, and what's left](../screenshots/collision.webp)
 
 ```bash
 cargo run --release -- --add earth:0.0015@Earth --aim 16,0.8 --focus Earth --zoom 60 --speed hour
 ```
-
-![A second Earth grazing Earth at 16 km/s: both bodies live on, Earth at 1.000000 Earth masses, with the new planet still in the list and a heat of 11.79 MJ/kg](../images/hit-and-run-step-6.2.png)
 
 ## Where it's valid
 

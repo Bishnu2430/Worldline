@@ -28,11 +28,11 @@
   - **The disk:** Novikov & Thorne (1973), in the same book, p. 343, and Page & Thorne (1974), *ApJ* 191, 499. The flux is used in the closed form Li (2002, arXiv:astro-ph/0202361, Appendix A, eqs. A1–A3) gives.
   - **Constants:** the proton mass, Thomson cross-section and Stefan–Boltzmann constant from CODATA 2018.
 
-![Gaia BH1 from 570 km, 40 GM/c²: its shadow, 7.27° across exactly as Synge's formula puts it, and the Milky Way bent into an arc around it](../images/lensing-step-3.1.png)
+![Gaia BH1 from 570 km, nearly edge on to a disk drawn around it: its shadow, with the disk's far side bent over the top and under the bottom by its gravity, rays traced one by one. The disk is an illustration, a thin disk as Novikov and Thorne model one: Gaia BH1 has none that's been seen](../screenshots/black-hole.webp)
 
-To see it: `cargo run --release -- --add "Gaia BH1:1" --focus "Gaia BH1" --zoom 20 --paused`.
+To see it: `cargo run --release -- --add "Gaia BH1:1" --focus "Gaia BH1" --zoom 20 --pitch 3 --paused` (without `--pitch 3`, from 34° above the disk).
 
-![Cygnus X-1, spinning at 0.9985, from 29.5 GM/c² and 9° above its disk: the shadow flattened on the left, where light circling with the spin gets closest; the disk's far side lensed over the top; its near side brightest on the left, coming toward you](../images/kerr-step-3.2.png)
+![Cygnus X-1, spinning at 0.9985, from 9° above the disk drawn around it: the shadow flattened where light circles with the spin, and the disk's far side lensed over the top](../screenshots/spinning-black-hole.webp)
 
 To see it: `cargo run --release -- --add "Cygnus X-1:3" --focus "Cygnus X-1" --zoom 28 --pitch 9 --paused`.
 
@@ -53,7 +53,7 @@ A neutron star is only about three times bigger than a black hole of its mass wo
 
 **Checked** (`a_neutron_stars_own_light_is_half_of_darwins_ray`, in `validation_lensing.rs`): a ray from far away whose closest approach is the surface is turned by exactly 2ψ − π, the surface's ψ out and back less the π a straight line sweeps. The quadrature matches Darwin's exact elliptic integral, worked out independently by Carlson's method, to rounding (under 10⁻¹⁴ rad, limit 10⁻¹²), from 3.2 GM/c² out to 100. Without gravity, ψ = asin(b/R) and half the body shows. Up close, a point lands within 1.2 × 10⁻⁵ of the disk's radius of where the exact bending puts it (`compact_view.rs`, limit 10⁻³, a tenth of a point on a disk 100 points across).
 
-![The Hulse–Taylor pulsar from 71 km, paused: its white disk 1.25 times its true size (dashed red), the grid on its surface wrapping round past the far pole, and its two radio beams](../images/neutron-star-step-8.5b.png)
+![The Hulse–Taylor pulsar from close by: its gravity bends its light, so it looks 1.25 times its size with more than half its surface in view, and its two radio beams](../screenshots/neutron-star.webp)
 
 To see it: `cargo run --release -- --add "PSR B1913+16 pair:30" --focus "PSR B1913+16" --zoom 6 --paused`. Run time to see the beams' sweep.
 

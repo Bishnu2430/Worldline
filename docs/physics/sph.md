@@ -92,8 +92,6 @@ The GPU steps the same equations as `sph.rs`, in single precision, for many more
 
 **The clock** (the fluid's time and next step) is copied back to the CPU without waiting for the GPU. The app reads it a frame or so late, enough to show it and to know when settling is over.
 
-![Jupiter as 8,144 SPH particles stepped on the GPU, cut open to show its hot core, with the inspector's readout: the budget's trials at 4,096, 8,192 and 16,384 particles, 32 frames a second](../images/fluid-step-4.2.png)
-
 ### The particle budget
 
 "Smooth playback" is taken as 30 frames a second or more. What a frame costs depends on everything else the app draws and computes, not just the fluid, so the app finds its budget by trying.

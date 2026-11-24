@@ -15,7 +15,7 @@
 
 Step 8.1 gathers the events and experiments Worldline can show into a library. Each one sets up in a single click, from the solar system as it was on 1 January 2025.
 
-![The Scenarios window open over the solar system, listing Mercury's perihelion, the Hulse–Taylor pulsar, GW150914 and GW170817, each with a Play button and a line on what it shows](images/scenarios-step-8.1.png)
+![The Scenarios window: twelve famous events, each played as a film](screenshots/scenarios.webp)
 
 ## Playing one
 
@@ -48,13 +48,11 @@ Each scenario is built from what the app already does: the catalogue's bodies, i
 
 **Every scenario** loads, then plays three frames as the app plays them: time moves on in each.
 
-![Mercury's scenario after more than a century of play: the Sun alone with Mercury, the inspector reading 42.98 arcseconds a century measured, and general relativity's 42.98](images/scenario-mercury-step-8.1.png)
-
 ## Films (step 8.5a)
 
 A scenario can play as a film: a script of shots, each saying where the camera looks from and how it moves, how fast time runs, what's said over it, and which cards of information sit beside the bodies. The Hulse–Taylor pulsar was the first; since step 8.5c [every scenario is one](#every-film-step-85c).
 
-![The Hulse–Taylor film's fourth shot, at a month a second: the two stars' orbits around their center of mass, the pulsar's long axis now and, dashed, where it pointed 1.3 years before, turned 5.6°; a card measuring 4.2254° a year against general relativity's 4.2262° and the timed 4.226585°, and the caption and the film's bar below](images/film-hulse-taylor-step-8.5a.png)
+![The Hulse–Taylor pulsar's film: the orbit turning as general relativity says, with a card measuring it against the pulsar's timing](screenshots/film.webp)
 
 **The physics is the scenario's own.** The pair runs on the same relativistic gravity as everything else. The film only directs the camera, sets the speed for each shot and explains what's happening. Nothing is sped up, exaggerated or drawn that the simulation isn't doing.
 

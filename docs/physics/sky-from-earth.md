@@ -97,11 +97,7 @@ The result agrees with the expected size. In 2026 nutation puts the pole about 9
 - **Sunset in Washington on 2026-10-30.** At the Observatory's 22:10 UT, the top of the Sun stands just above the horizon. It is about 3′ above, not exactly on it: at that altitude Sæmundsson's refraction is 37′, and the Observatory's constant is 34′.
 - **Totality from Reykjavík on 2026-08-12.** A sliver of Sun is still showing at 17:47:59 UTC, and the Moon covers it at 17:48:31. Reykjavík lies just inside the northern limit of NASA's path.
 
-![The total solar eclipse of 12 August 2026 from Reykjavík at 17:48:31 UTC: the Moon's black disk covering the Sun, with the corona around it, in a dark sky](../images/sky-totality-step-5.4.png)
-
-![Sunset in Washington at the Naval Observatory's time: the top sliver of the Sun on the horizon, with a level ground below and a twilight sky above](../images/sky-sunset-step-5.4.png)
-
-![The sky window over Washington's night sky: the altitude and azimuth of the Sun, Moon and planets, and the next rises and sets](../images/sky-window-step-5.4.png)
+![The same eclipse from Reykjavík at totality: the Moon's black disk over the Sun, with the corona around it](../screenshots/totality.webp)
 
 ## In the app
 
